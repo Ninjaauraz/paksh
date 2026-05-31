@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+google-genai>=0.8
+python-dotenv>=1.0
+feedparser>=6.0
+numpy>=1.26

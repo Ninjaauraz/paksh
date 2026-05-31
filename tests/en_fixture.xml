@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+<channel>
+  <title>Sample English Feed</title>
+  <item>
+    <title>Budget raises capital spending on highways and railways</title>
+    <link>https://example.com/news/budget-capex?utm_source=twitter&amp;utm_medium=social&amp;id=4471</link>
+    <description>The budget steered record sums into infrastructure.</description>
+    <pubDate>Sat, 30 May 2026 09:30:00 +0530</pubDate>
+    <media:content url="https://img.example.com/budget.jpg" medium="image"/>
+  </item>
+  <item>
+    <title>Supreme Court reserves verdict in data-privacy case</title>
+    <link>https://example.com/news/data-privacy-verdict</link>
+    <description>&lt;p&gt;A constitution bench reserved judgment.&lt;img src="https://img.example.com/court.jpg"/&gt;&lt;/p&gt;</description>
+    <pubDate>Sat, 30 May 2026 06:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Budget raises capital spending on highways and railways</title>
+    <link>https://example.com/news/budget-capex?utm_source=facebook&amp;id=4471</link>
+    <description>Duplicate of the first item via a different share link.</description>
+    <pubDate>Sat, 30 May 2026 09:35:00 +0530</pubDate>
+  </item>
+</channel>
+</rss>

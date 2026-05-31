@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>Sample Hindi Feed</title>
+  <item>
+    <title>बजट में बुनियादी ढांचे पर रिकॉर्ड खर्च, कर स्लैब अपरिवर्तित</title>
+    <link>https://example.com/hi/budget?utm_campaign=push</link>
+    <description>सरकार ने सड़कों और रेलवे पर रिकॉर्ड राशि खर्च की।</description>
+    <pubDate>Sat, 30 May 2026 12:00:00 +0530</pubDate>
+  </item>
+  <item>
+    <title>श्रम संहिता के खिलाफ यूनियनों का देशव्यापी प्रदर्शन</title>
+    <link>https://example.com/hi/labour-codes</link>
+    <description>कई शहरों में ट्रेड यूनियनों ने प्रदर्शन किया।</description>
+    <pubDate>Sat, 30 May 2026 07:00:00 +0000</pubDate>
+  </item>
+</channel>
+</rss>
