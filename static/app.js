@@ -18,6 +18,7 @@ const STR = {
     m_axisH:"What “Left” and “Right” mean in India", m_axis:"In India, Left and Right aren't only about economics. Paksh blends a social-and-ideological axis (secular ↔ Hindutva) with an institutional one (critical of ↔ aligned with the incumbent), and tracks economic stance separately. “Left” and “Right” are descriptive, not insults — and the same scrutiny is applied across the spectrum.",
     m_provH:"Confidence, contested & provisional", m_prov:"Every rating today is provisional: a documented starting point based on ownership, self-described stance and well-established reputation, reviewed against the rubric — not a final verdict. Each shows a confidence level, and some are flagged Contested where lean is genuinely debated or ownership recently changed.",
     m_readH:"How to read a Paksh story", m_appealH:"Corrections & appeals",
+    m_partiesH:"Where India's parties roughly sit", m_parties:"These labels describe ideas, not teams — and they're rough, because parties shift over time and many regional parties don't fit neatly on one line. As a common-usage guide: the Left includes communist and socialist parties such as CPI(M) and CPI, and is associated with secular, pro-welfare, labour-first positions; the Right — most prominently the BJP — is associated with Hindutva-influenced cultural nationalism and a more market-friendly economic stance; the Centre spans the middle, where the Congress is often described as centre-left and many regional parties mix positions by issue. Remember: Paksh rates news outlets, not parties — an outlet's lean is about how it covers the news, not who it votes for.",
     m_appeal:"Think a rating is wrong? Tell us the outlet, the rating you dispute, and a few specific examples — headlines or articles — and we'll re-review it against the rubric. Ratings are meant to be challenged.",
     m_sourcesLink:"See every outlet and its rating on the",
     word:"Paksh", tag_pre:"Compare how India's media covers each story —", tag_b:"every side, side by side.",
@@ -33,7 +34,7 @@ const STR = {
     most:"Most coverage", even:"Fairly even coverage", onlyOn:"Only covered on the", notOn:"Not covered on the",
     sideWord:"side", divergence:"How coverage differs", omissions:"What gets left out",
     back:"Back", all:"All", demo:"Demo",
-    noStories:"No stories yet. Run the pipeline (ingest → analyze) or load the demo data.",
+    noStories:"No stories to show right now. Please check back soon.",
     noOS:"No one-sided stories in the current set.",
     left:"Left", center:"Centre", right:"Right",
     footAbout:"About & method",
@@ -52,6 +53,7 @@ const STR = {
     m_axisH:"भारत में “वाम” और “दक्षिण” का अर्थ", m_axis:"भारत में वाम और दक्षिण केवल अर्थशास्त्र के बारे में नहीं हैं। पक्ष एक सामाजिक-वैचारिक अक्ष (धर्मनिरपेक्ष ↔ हिंदुत्व) को एक संस्थागत अक्ष (सत्ता के आलोचक ↔ सत्ता के साथ) के साथ जोड़ता है, और आर्थिक रुख को अलग से देखता है। “वाम” और “दक्षिण” वर्णनात्मक हैं, अपमान नहीं — और एक ही कसौटी पूरे स्पेक्ट्रम पर लागू होती है।",
     m_provH:"विश्वास, विवादित और अस्थायी", m_prov:"आज हर रेटिंग अस्थायी है: स्वामित्व, स्व-घोषित रुख और स्थापित प्रतिष्ठा पर आधारित एक प्रलेखित शुरुआती बिंदु, रूब्रिक के विरुद्ध समीक्षित — अंतिम फ़ैसला नहीं। हर एक के साथ एक विश्वास-स्तर दिखता है, और कुछ को ‘विवादित’ चिह्नित किया गया है जहाँ झुकाव सचमुच बहस में है या स्वामित्व हाल में बदला है।",
     m_readH:"पक्ष की खबर कैसे पढ़ें", m_appealH:"सुधार और अपील",
+    m_partiesH:"भारत की पार्टियाँ मोटे तौर पर कहाँ हैं", m_parties:"ये लेबल विचारों का वर्णन करते हैं, टीमों का नहीं — और ये मोटे अनुमान हैं, क्योंकि पार्टियाँ समय के साथ बदलती हैं और कई क्षेत्रीय पार्टियाँ किसी एक रेखा पर ठीक से नहीं बैठतीं। आम समझ के अनुसार: वाम में CPI(M) और CPI जैसी कम्युनिस्ट और समाजवादी पार्टियाँ आती हैं, जो धर्मनिरपेक्ष और कल्याण-समर्थक, श्रमिक-पहले रुख से जुड़ी हैं; दक्षिण — सबसे प्रमुख रूप से भाजपा — हिंदुत्व-प्रभावित सांस्कृतिक राष्ट्रवाद और अधिक बाज़ार-समर्थक आर्थिक रुख से जुड़ी है; केंद्र बीच में फैला है, जहाँ कांग्रेस को अक्सर केंद्र-वाम कहा जाता है और कई क्षेत्रीय पार्टियाँ मुद्दे के हिसाब से रुख मिलाती हैं। याद रखें: पक्ष समाचार आउटलेट्स को आँकता है, पार्टियों को नहीं — किसी आउटलेट का झुकाव इस बारे में है कि वह खबरों को कैसे कवर करता है, इस बारे में नहीं कि वह किसे वोट देता है।",
     m_appeal:"लगता है कोई रेटिंग ग़लत है? हमें आउटलेट, जिस रेटिंग से असहमत हैं, और कुछ ठोस उदाहरण — हेडलाइन या लेख — बताएँ, और हम उसे रूब्रिक के विरुद्ध फिर से देखेंगे। रेटिंग्स को चुनौती देने के लिए ही हैं।",
     m_sourcesLink:"हर आउटलेट और उसकी रेटिंग देखें —",
     word:"पक्ष", tag_pre:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है —", tag_b:"हर पक्ष, आमने-सामने।",
@@ -67,7 +69,7 @@ const STR = {
     most:"सबसे ज़्यादा कवरेज", even:"लगभग बराबर कवरेज", onlyOn:"केवल इस ओर कवर हुई:", notOn:"इस ओर कवर नहीं हुई:",
     sideWord:"", divergence:"कवरेज में अंतर कैसे है", omissions:"क्या छूट जाता है",
     back:"वापस", all:"सभी", demo:"डेमो",
-    noStories:"अभी कोई खबर नहीं। पाइपलाइन चलाएँ (ingest → analyze) या डेमो डेटा लोड करें।",
+    noStories:"अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
     noOS:"मौजूदा सेट में कोई एकतरफ़ा खबर नहीं।",
     left:"वाम", center:"केंद्र", right:"दक्षिण",
     footAbout:"परिचय और कार्यप्रणाली",
@@ -395,6 +397,8 @@ function methodView(){
     <p class="fineprint ${hiClass()}">${t("m_rateFoot")}</p>
     <h2 class="${hiClass()}">${t("m_axisH")}</h2>
     <p class="${hiClass()}">${t("m_axis")}</p>
+    <h2 class="${hiClass()}">${t("m_partiesH")}</h2>
+    <p class="${hiClass()}">${t("m_parties")}</p>
     <h2 class="${hiClass()}">${t("m_provH")}</h2>
     <p class="${hiClass()}">${t("m_prov")}</p>
     <h2 class="${hiClass()}">${t("m_readH")}</h2>

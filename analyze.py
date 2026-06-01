@@ -66,8 +66,18 @@ def _call_json(prompt: str, retries: int = 1):
     """Call Gemini in JSON mode and return parsed data. Retries once, then raises."""
     if client is None:
         raise RuntimeError("GEMINI_API_KEY not set")
-    cfg = types.GenerateContentConfig(
-        response_mime_type="application/json", temperature=0.2, max_output_tokens=3072)
+
+    # gemini-2.5-flash "thinks" before answering by default, which can consume the
+    # whole output budget and return an EMPTY body (no summary). Turn thinking off
+    # and give the answer plenty of room.
+    cfg_kwargs = dict(response_mime_type="application/json",
+                      temperature=0.2, max_output_tokens=8192)
+    try:
+        cfg = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0), **cfg_kwargs)
+    except Exception:
+        cfg = types.GenerateContentConfig(**cfg_kwargs)   # older SDK: no thinking_config
+
     last = None
     for _ in range(retries + 1):
         try:
