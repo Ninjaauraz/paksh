@@ -35,27 +35,29 @@ FEEDS = {
     "mint": ["https://www.livemint.com/rss/news"],
     "the_wire": ["https://thewire.in/rss"],
     "scroll": ["https://scroll.in/feeds/all.rss"],
-    "opindia": ["https://www.opindia.com/feed/"],            # WordPress pattern
-    "swarajya": ["https://swarajyamag.com/commonfeeds/v1/cms/rss/feed.xml"],
-    "republic_world": ["https://www.republicworld.com/rssfeed.xml"],
+    "opindia": ["https://www.opindia.com/feed/"],            # native WordPress feed (works)
+    # Republic & Swarajya killed public RSS -> bridge via Google News (site-scoped, last 2 days)
+    "swarajya": ["https://news.google.com/rss/search?q=site:swarajyamag.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "republic_world": ["https://news.google.com/rss/search?q=site:republicworld.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
 
     # ---- Hindi: verified / strong ----
     "amar_ujala": ["https://www.amarujala.com/rss/breaking-news.xml"],
     "navbharat_times": ["https://navbharattimes.indiatimes.com/rssfeedsdefault.cms"],
 
     # ---- Hindi: candidate (verify) ----
-    "dainik_bhaskar": [],   # unknown - run --discover https://www.bhaskar.com
-    "dainik_jagran": ["https://www.jagran.com/rss/news/national.xml"],
-    "aaj_tak": ["https://www.aajtak.in/rss/home"],
-    "zee_news_hindi": ["https://zeenews.india.com/hindi/rss/india.xml"],
-    "satya_hindi": ["https://www.satyahindi.com/feed/"],     # WordPress pattern
-    "the_lallantop": ["https://www.thelallantop.com/feed"],
+    # These Hindi sites lack a working public RSS -> bridge via Google News (Hindi, site-scoped)
+    "dainik_bhaskar": ["https://news.google.com/rss/search?q=site:bhaskar.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "dainik_jagran": ["https://news.google.com/rss/search?q=site:jagran.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "aaj_tak": ["https://www.aajtak.in/rss"],                 # native feed (works)
+    "zee_news_hindi": ["https://news.google.com/rss/search?q=site:zeenews.india.com/hindi+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "satya_hindi": ["https://www.satyahindi.com/feed/"],     # native WordPress feed (works)
+    "the_lallantop": ["https://news.google.com/rss/search?q=site:thelallantop.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
 }
 
 # Confirmed against public RSS directories (others are candidates to verify).
 VERIFIED = {
     "the_hindu", "indian_express", "times_of_india", "ndtv",
-    "amar_ujala", "navbharat_times",
+    "amar_ujala", "navbharat_times", "aaj_tak",
 }
 
 
