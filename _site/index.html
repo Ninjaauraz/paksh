@@ -5,13 +5,645 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Paksh — Compare India's news coverage</title>
   <meta name="description" content="Paksh shows how Indian outlets across the spectrum cover the same story — side by side, in English and Hindi." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="static/style.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Inter','sans-serif'], serif: ['Merriweather','serif'], deva: ['Noto Sans Devanagari','sans-serif'] },
+      } }
+    }
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .editorial-heading { font-family: 'Merriweather', serif; }
+    .deva { font-family: 'Noto Sans Devanagari','Inter',sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
+    .glass-nav-light { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .glass-nav-dark { background: rgba(15,17,19,0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  </style>
 </head>
-<body>
-  <div id="app"><div class="boot">Loading Paksh…</div></div>
-  <script src="static/app.js"></script>
+<body class="antialiased transition-colors duration-300">
+  <div id="root"><div style="padding:80px;text-align:center;color:#8A8F98">Loading Paksh…</div></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+
+    /* ---------------- icons ---------------- */
+    const Search = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+    const Sun = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
+    const Moon = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+    const ArrowLeft = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+    const Eye = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={p.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+    const Sparkles = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>;
+    const Layers = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 3 7h7l-5 5 2 7-7-4-7 4 2-7-5-5h7z"/></svg>;
+    const ChevronRight = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+    const Menu = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>;
+    const X = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+    const Scale = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>;
+
+    /* ---------------- config ---------------- */
+    const BIAS = {
+      left:   { color: "#2563EB", en: "Left",   hi: "वाम" },
+      center: { color: "#64748B", en: "Centre", hi: "केंद्र" },
+      right:  { color: "#DC2626", en: "Right",  hi: "दक्षिण" },
+    };
+    const TOKENS = {
+      light: { bg:"bg-[#F1F2F3]", surface:"bg-[#FFFFFF]", soft:"bg-[#F7F7F8]", border:"border-[#E3E3E6]",
+        tp:"text-[#1B1B1F]", ts:"text-[#5C5F66]", tf:"text-[#8A8F98]", brand:"text-[#0E7C73]", brandBg:"bg-[#0E7C73]",
+        blind:"text-[#B45309]", blindSoft:"bg-[#FBEFDD]", nav:"glass-nav-light" },
+      dark: { bg:"bg-[#0F1113]", surface:"bg-[#181B1E]", soft:"bg-[#1E2226]", border:"border-[#2A2E33]",
+        tp:"text-[#E6E8EB]", ts:"text-[#9AA0A8]", tf:"text-[#6B7280]", brand:"text-[#2DD4BF]", brandBg:"bg-[#0E7C73]",
+        blind:"text-[#FBBF24]", blindSoft:"bg-[#78350F]/30", nav:"glass-nav-dark" },
+    };
+    const TOPIC_HI = {Politics:"राजनीति", Economy:"अर्थव्यवस्था", International:"अंतरराष्ट्रीय", Sports:"खेल",
+      "Crime & Law":"अपराध व कानून", "Science & Tech":"विज्ञान व तकनीक", Health:"स्वास्थ्य",
+      Entertainment:"मनोरंजन", Environment:"पर्यावरण", Society:"समाज", General:"सामान्य"};
+    const SIGNALS = [
+      {en:"Editorial stance", hi:"संपादकीय रुख", w:30}, {en:"Framing & word choice", hi:"फ़्रेमिंग और शब्द-चयन", w:25},
+      {en:"Story selection", hi:"खबरों का चयन", w:20}, {en:"Sourcing & who they quote", hi:"स्रोत और उद्धरण", w:10},
+      {en:"Ownership & affiliations", hi:"स्वामित्व और संबद्धता", w:10}, {en:"Cross-spectrum panel check", hi:"क्रॉस-स्पेक्ट्रम पैनल जाँच", w:5},
+    ];
+    const M_READ = {
+      en:["The coloured bar shows how many of the covering outlets lean Left, Centre or Right.",
+          "“One-Sided” marks a story that mostly one side of the spectrum is covering — so the other side's readers rarely see it.",
+          "The neutral summary is written by AI from the outlets' own coverage; the outlet labels and the counts come from editors and the registry, not the AI."],
+      hi:["रंगीन बार दिखाता है कि कवर करने वाले कितने आउटलेट वाम, केंद्र या दक्षिण की ओर हैं।",
+          "“एकतरफ़ा” उस खबर को चिह्नित करता है जिसे ज़्यादातर एक ही पक्ष कवर कर रहा है — इसलिए दूसरे पक्ष के पाठक उसे शायद ही देखते हैं।",
+          "तटस्थ सारांश AI द्वारा आउटलेट्स की अपनी कवरेज से लिखा जाता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, AI से नहीं।"],
+    };
+    const CONTACT = "corrections@paksh.example"; // <-- change to your real address
+
+    const STR = {
+      en: {
+        navTop:"Top Stories", navOS:"One-Sided", navSrc:"Sources", navMethod:"Method",
+        search:"Search coverage…", tagline:"Compare how India's media covers each story — every side, side by side.",
+        topNews:"Top Stories", osTitle:"One-Sided Stories",
+        osSub:"Stories mostly one side of the spectrum is covering — so the other side's readers rarely see them.",
+        more:"More Top Stories", resultsFor:"Results for", noResults:"No stories match your search.",
+        noResultsSub:"Try different keywords or browse top news.", noStories:"No stories to show right now. Please check back soon.",
+        seeCoverage:"See coverage", most:"Most coverage", even:"Fairly even coverage", sources:"sources", source:"source",
+        onlyLabel:"Only", back:"Back to feed", aiSummary:"Paksh neutral summary", aiSub:"neutral synthesis",
+        sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
+        whereLean:"Where the sources lean",
+        aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are AI-written from the outlets' own coverage; the counts come from the sources.",
+        osCalloutBody1:"Only", osCalloutBody2:"of coverage leans this way. Readers who rely only on those outlets are likely missing this story.",
+        srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
+        srcDisclaimer:"All ratings are provisional — a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
+        filterLean:"Lean", filterLang:"Language", langEN:"English", langHI:"Hindi", all:"All",
+        ownership:"Ownership", whyRated:"Why this rating", signals:"Signals", confidence:"confidence",
+        contested:"Contested", provisional:"Provisional", suggestFix:"Suggest a correction",
+        methodTitle:"How Paksh works", m_doesH:"What Paksh does",
+        m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and reveals how each side framed it — so you can see the whole picture and what your usual sources leave out.",
+        m_ruleH:"The golden rule",
+        m_rule:"A lean label belongs to the publication, not to any single article — and never to the AI. Paksh editors assign each outlet a lean using a fixed rubric. The AI only writes neutral summaries and notes how outlets framed a story; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side.",
+        m_rateH:"How we rate a publication",
+        m_rateLede:"We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):",
+        m_rateFoot:"Scores near zero are Centre; the further from zero, the stronger the lean.",
+        m_axisH:"What “Left” and “Right” mean in India",
+        m_axis:"In India, Left and Right aren't only about economics. Paksh blends a social-and-ideological axis (secular ↔ Hindutva) with an institutional one (critical of ↔ aligned with the incumbent), and tracks economic stance separately. “Left” and “Right” are descriptive, not insults — and the same scrutiny is applied across the spectrum.",
+        m_partiesH:"Where India's parties roughly sit",
+        m_parties:"These labels describe ideas, not teams — and they're rough, because parties shift over time and many regional parties don't fit neatly on one line. As a common-usage guide: the Left includes communist and socialist parties such as CPI(M) and CPI, and is associated with secular, pro-welfare, labour-first positions; the Right — most prominently the BJP — is associated with Hindutva-influenced cultural nationalism and a more market-friendly economic stance; the Centre spans the middle, where the Congress is often described as centre-left and many regional parties mix positions by issue. Remember: Paksh rates news outlets, not parties — an outlet's lean is about how it covers the news, not who it votes for.",
+        m_provH:"Confidence, contested & provisional",
+        m_prov:"Every rating today is provisional: a documented starting point based on ownership, self-described stance and well-established reputation, reviewed against the rubric — not a final verdict. Each shows a confidence level, and some are flagged Contested where lean is genuinely debated or ownership recently changed.",
+        m_readH:"How to read a Paksh story", m_appealH:"Corrections & appeals",
+        m_appeal:"Think a rating is wrong? Tell us the outlet, the rating you dispute, and a few specific examples — headlines or articles — and we'll re-review it against the rubric. Ratings are meant to be challenged.",
+        footIndependence:"Paksh is an independent project and is not affiliated with any outlet shown. Lean labels are provisional and open to appeal.",
+      },
+      hi: {
+        navTop:"मुख्य खबरें", navOS:"एकतरफ़ा", navSrc:"स्रोत", navMethod:"कार्यप्रणाली",
+        search:"कवरेज खोजें…", tagline:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है — हर पक्ष, आमने-सामने।",
+        topNews:"मुख्य खबरें", osTitle:"एकतरफ़ा खबरें",
+        osSub:"ऐसी खबरें जिन्हें ज़्यादातर एक ही पक्ष कवर कर रहा है — दूसरे पक्ष के पाठक इन्हें शायद ही देख पाते हैं।",
+        more:"और मुख्य खबरें", resultsFor:"खोज परिणाम:", noResults:"आपकी खोज से मेल खाती कोई खबर नहीं।",
+        noResultsSub:"अलग शब्द आज़माएँ या मुख्य खबरें देखें।", noStories:"अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
+        seeCoverage:"कवरेज देखें", most:"सबसे ज़्यादा कवरेज", even:"लगभग बराबर कवरेज", sources:"स्रोत", source:"स्रोत",
+        onlyLabel:"केवल", back:"फ़ीड पर वापस", aiSummary:"पक्ष तटस्थ सारांश", aiSub:"तटस्थ संश्लेषण",
+        sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
+        whereLean:"स्रोत किस ओर झुके हैं",
+        aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से AI द्वारा लिखे जाते हैं; आँकड़े स्रोतों से आते हैं।",
+        osCalloutBody1:"केवल", osCalloutBody2:"कवरेज इस ओर झुकी है। जो पाठक केवल उन्हीं आउटलेट्स पर निर्भर हैं, वे शायद यह खबर चूक रहे हैं।",
+        srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
+        srcDisclaimer:"सभी रेटिंग अस्थायी हैं — रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
+        filterLean:"झुकाव", filterLang:"भाषा", langEN:"अंग्रेज़ी", langHI:"हिंदी", all:"सभी",
+        ownership:"स्वामित्व", whyRated:"यह रेटिंग क्यों", signals:"संकेत", confidence:"विश्वास",
+        contested:"विवादित", provisional:"अस्थायी", suggestFix:"सुधार सुझाएँ",
+        methodTitle:"पक्ष कैसे काम करता है", m_doesH:"पक्ष क्या करता है",
+        m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और बताता है कि हर पक्ष ने उसे कैसे पेश किया — ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
+        m_ruleH:"मूल नियम",
+        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं — और कभी AI का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। AI सिर्फ़ तटस्थ सारांश लिखता है और बताता है कि आउटलेट्स ने खबर को कैसे पेश किया; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं।",
+        m_rateH:"हम किसी प्रकाशन को कैसे आँकते हैं",
+        m_rateLede:"हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):",
+        m_rateFoot:"शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत।",
+        m_axisH:"भारत में “वाम” और “दक्षिण” का अर्थ",
+        m_axis:"भारत में वाम और दक्षिण केवल अर्थशास्त्र के बारे में नहीं हैं। पक्ष एक सामाजिक-वैचारिक अक्ष (धर्मनिरपेक्ष ↔ हिंदुत्व) को एक संस्थागत अक्ष (सत्ता के आलोचक ↔ सत्ता के साथ) के साथ जोड़ता है, और आर्थिक रुख को अलग से देखता है। “वाम” और “दक्षिण” वर्णनात्मक हैं, अपमान नहीं — और एक ही कसौटी पूरे स्पेक्ट्रम पर लागू होती है।",
+        m_partiesH:"भारत की पार्टियाँ मोटे तौर पर कहाँ हैं",
+        m_parties:"ये लेबल विचारों का वर्णन करते हैं, टीमों का नहीं — और ये मोटे अनुमान हैं, क्योंकि पार्टियाँ समय के साथ बदलती हैं और कई क्षेत्रीय पार्टियाँ किसी एक रेखा पर ठीक से नहीं बैठतीं। आम समझ के अनुसार: वाम में CPI(M) और CPI जैसी कम्युनिस्ट और समाजवादी पार्टियाँ आती हैं, जो धर्मनिरपेक्ष और कल्याण-समर्थक, श्रमिक-पहले रुख से जुड़ी हैं; दक्षिण — सबसे प्रमुख रूप से भाजपा — हिंदुत्व-प्रभावित सांस्कृतिक राष्ट्रवाद और अधिक बाज़ार-समर्थक आर्थिक रुख से जुड़ी है; केंद्र बीच में फैला है, जहाँ कांग्रेस को अक्सर केंद्र-वाम कहा जाता है और कई क्षेत्रीय पार्टियाँ मुद्दे के हिसाब से रुख मिलाती हैं। याद रखें: पक्ष समाचार आउटलेट्स को आँकता है, पार्टियों को नहीं — किसी आउटलेट का झुकाव इस बारे में है कि वह खबरों को कैसे कवर करता है, इस बारे में नहीं कि वह किसे वोट देता है।",
+        m_provH:"विश्वास, विवादित और अस्थायी",
+        m_prov:"आज हर रेटिंग अस्थायी है: स्वामित्व, स्व-घोषित रुख और स्थापित प्रतिष्ठा पर आधारित एक प्रलेखित शुरुआती बिंदु, रूब्रिक के विरुद्ध समीक्षित — अंतिम फ़ैसला नहीं। हर एक के साथ एक विश्वास-स्तर दिखता है, और कुछ को ‘विवादित’ चिह्नित किया गया है जहाँ झुकाव सचमुच बहस में है या स्वामित्व हाल में बदला है।",
+        m_readH:"पक्ष की खबर कैसे पढ़ें", m_appealH:"सुधार और अपील",
+        m_appeal:"लगता है कोई रेटिंग ग़लत है? हमें आउटलेट, जिस रेटिंग से असहमत हैं, और कुछ ठोस उदाहरण — हेडलाइन या लेख — बताएँ, और हम उसे रूब्रिक के विरुद्ध फिर से देखेंगे। रेटिंग्स को चुनौती देने के लिए ही हैं।",
+        footIndependence:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है। झुकाव के लेबल अस्थायी हैं और अपील के लिए खुले हैं।",
+      }
+    };
+
+    /* ---------------- helpers ---------------- */
+    const imgFor = (hue) => {
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='480' height='300'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='hsl(${hue} 36% 44%)'/><stop offset='1' stop-color='hsl(${(hue+38)%360} 42% 19%)'/></linearGradient><radialGradient id='b' cx='28%' cy='22%' r='65%'><stop offset='0' stop-color='rgba(255,255,255,0.30)'/><stop offset='1' stop-color='rgba(255,255,255,0)'/></radialGradient></defs><rect width='480' height='300' fill='url(%23a)'/><rect width='480' height='300' fill='url(%23b)'/></svg>`;
+      return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    };
+    const hueOf = (s) => { let h=0; for (const c of String(s||"")) h=(h*31+c.charCodeAt(0))%360; return h; };
+    const biasPct = (lc) => { const tot=(lc.left+lc.center+lc.right)||1; return {left:Math.round(lc.left/tot*100), center:Math.round(lc.center/tot*100), right:Math.round(lc.right/tot*100)}; };
+    const dominant = (b) => { const k=Object.keys(b).sort((x,y)=>b[y]-b[x])[0]; return {side:k, pct:b[k]}; };
+    const lbl = (side, lang) => BIAS[side][lang] || BIAS[side].en;
+    const confName = (c, lang) => (({en:{low:"Low",medium:"Medium",high:"High"},hi:{low:"कम",medium:"मध्यम",high:"उच्च"}}[lang])||{})[c] || c;
+
+    let _mode;
+    function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok) return "api"; }catch(e){} return "static"; })(); return _mode; }
+    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok) return r.json(); } const r=await fetch("data/"+res+".json"); if(!r.ok) throw new Error(res); return r.json(); }
+    async function loadAll(){
+      try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
+        return {events:e.events||[], blindspots:b.events||[], topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],topics:[],sources:[],summary:{}}; }
+    }
+
+    const toCard = (e, lang) => {
+      const lc = e.lean_counts || {left:0,center:0,right:0};
+      return { id:e.id, topic:e.topic,
+        headline:(lang==="hi"&&e.title_hi)?e.title_hi:e.title,
+        lead:(lang==="hi"&&e.summary_hi)?e.summary_hi:e.summary,
+        summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
+        bias:biasPct(lc), counts:lc, sources:(lc.left+lc.center+lc.right)||e.total_sources||0,
+        blindspot:e.blindspot?e.blindspot.side:null,
+        image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
+    };
+    const toDetail = (e, lang) => { const c=toCard(e,lang);
+      c.coverage=e.coverage||{}; c.outlets=e.sources||[];
+      c.divergence=(lang==="hi"&&e.divergence_hi)?e.divergence_hi:e.divergence;
+      c.omissions=(lang==="hi"&&e.omissions_hi)?e.omissions_hi:e.omissions; return c; };
+
+    const isHi = (lang) => lang==="hi" ? "deva" : "";
+
+    /* ---------------- small components ---------------- */
+    function BiasBar({ bias, height="h-1.5" }) {
+      const [m,setM]=useState(false);
+      useEffect(()=>{ const r=requestAnimationFrame(()=>setM(true)); return ()=>cancelAnimationFrame(r); },[]);
+      const w=(p)=>(m?`${p}%`:"0%");
+      return (
+        <div className={`flex w-full overflow-hidden rounded-full ${height} bg-zinc-200 dark:bg-zinc-800`}>
+          <div className="transition-all duration-1000 ease-out" style={{width:w(bias.left), backgroundColor:BIAS.left.color}} />
+          <div className="transition-all duration-1000 ease-out" style={{width:w(bias.center), backgroundColor:BIAS.center.color}} />
+          <div className="transition-all duration-1000 ease-out" style={{width:w(bias.right), backgroundColor:BIAS.right.color}} />
+        </div>
+      );
+    }
+    function CoverageLine({ story, t, lang }) {
+      const d=dominant(story.bias); const n=story.sources; const even=(story.counts && d.pct>0) ? false : false;
+      const top=["left","center","right"].sort((a,b)=>story.counts[b]-story.counts[a]);
+      const isEven=(story.counts[top[0]]-story.counts[top[1]])<=0;
+      return (
+        <span className={`text-xs font-semibold ${t.ts}`}>
+          {isEven ? <span className="font-bold">{STR[lang].even}</span>
+                  : <span className="font-bold" style={{color:BIAS[d.side].color}}>{STR[lang].most}: {lbl(d.side,lang)}</span>}
+          <span className={t.tf}> · {n} {n===1?STR[lang].source:STR[lang].sources}</span>
+        </span>
+      );
+    }
+    function Eyebrow({ story, t, lang }) {
+      const tp = lang==="hi" ? (TOPIC_HI[story.topic]||story.topic) : story.topic;
+      return <div className={`mb-2 text-xs font-bold uppercase tracking-wider ${t.tf} ${isHi(lang)}`}>{tp}</div>;
+    }
+    function Monogram({ name, side }) {
+      return <span className="flex shrink-0 items-center justify-center rounded-full text-white text-xs font-bold shadow-sm" style={{width:32,height:32,backgroundColor:BIAS[side].color}}>{(name||"?")[0]}</span>;
+    }
+
+    /* ---------------- cards ---------------- */
+    function HeroCard({ story, t, lang, onOpen }) {
+      return (
+        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}>
+          <div className="aspect-video w-full" style={{background:`center/cover url("${story.image}")`}} />
+          <div className="p-6 sm:p-8">
+            <Eyebrow story={story} t={t} lang={lang} />
+            <h2 className={`mb-4 text-2xl sm:text-3xl font-bold leading-tight tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{story.headline}</h2>
+            <p className={`mb-6 text-sm sm:text-base leading-relaxed ${t.ts} ${isHi(lang)}`}>{story.lead}</p>
+            <BiasBar bias={story.bias} />
+            <div className="mt-4 flex items-center justify-between">
+              <CoverageLine story={story} t={t} lang={lang} />
+              <span className={`flex items-center gap-1 text-sm font-bold ${t.brand} ${isHi(lang)}`}>{STR[lang].seeCoverage} <ChevronRight size={16} /></span>
+            </div>
+          </div>
+        </article>
+      );
+    }
+    function CompactRow({ story, t, lang, onOpen, last }) {
+      return (
+        <article onClick={()=>onOpen(story.id)} className={`group flex cursor-pointer gap-5 py-5 ${!last?`border-b ${t.border}`:""}`}>
+          <div className="shrink-0 rounded-xl overflow-hidden" style={{width:96,height:96,background:`center/cover url("${story.image}")`}} />
+          <div className="flex min-w-0 flex-col justify-center flex-1">
+            <Eyebrow story={story} t={t} lang={lang} />
+            <h3 className={`mb-2.5 text-sm sm:text-base font-bold leading-snug editorial-heading ${t.tp} line-clamp-2 ${isHi(lang)}`}>{story.headline}</h3>
+            <CoverageLine story={story} t={t} lang={lang} />
+          </div>
+        </article>
+      );
+    }
+    function StoryCard({ story, t, lang, onOpen }) {
+      return (
+        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col h-full`}>
+          <div className="aspect-video w-full shrink-0" style={{background:`center/cover url("${story.image}")`}} />
+          <div className="p-5 flex flex-col flex-1">
+            <Eyebrow story={story} t={t} lang={lang} />
+            <h3 className={`mb-4 text-lg font-bold leading-snug editorial-heading ${t.tp} line-clamp-3 ${isHi(lang)}`}>{story.headline}</h3>
+            <div className="mt-auto"><BiasBar bias={story.bias} /><div className="mt-3"><CoverageLine story={story} t={t} lang={lang} /></div></div>
+          </div>
+        </article>
+      );
+    }
+    function OneSidedCard({ story, t, lang, onOpen }) {
+      const side=story.blindspot; const b=BIAS[side];
+      return (
+        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-amber-400 flex flex-col h-full`}>
+          <div className="relative aspect-video w-full shrink-0" style={{background:`center/cover url("${story.image}")`}}>
+            <div className={`absolute left-3 top-3 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-widest ${t.blindSoft} ${t.blind} shadow-sm backdrop-blur-md ${isHi(lang)}`}><Eye size={14} strokeWidth={2.5} /> {STR[lang].navOS}</div>
+          </div>
+          <div className="p-5 flex flex-col flex-1">
+            <h3 className={`mb-4 text-lg font-bold leading-snug editorial-heading ${t.tp} line-clamp-3 ${isHi(lang)}`}>{story.headline}</h3>
+            <div className="mt-auto"><BiasBar bias={story.bias} />
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs font-bold" style={{color:b.color}}>{STR[lang].onlyLabel} {story.bias[side]}% {lbl(side,lang)}</span>
+                <span className={`text-xs font-semibold ${t.ts}`}>{story.sources} {STR[lang].sources}</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    /* ---------------- header ---------------- */
+    function Header({ t, lang, setLang, dark, setDark, query, setQuery, view, setView, go }) {
+      const [menuOpen,setMenuOpen]=useState(false);
+      const links=[["top",STR[lang].navTop],["os",STR[lang].navOS],["sources",STR[lang].navSrc],["method",STR[lang].navMethod]];
+      const active=(k)=> (k==="top"&&view==="top")||(k==="os"&&view==="os")||(k==="sources"&&view==="sources")||(k==="method"&&view==="method");
+      const Nav = ({mobile}) => (
+        <nav className={mobile?"flex flex-col gap-2":"hidden lg:flex items-center gap-1"}>
+          {links.map(([k,label])=>(
+            <button key={k} onClick={()=>{go(k); setMenuOpen(false);}} className={`${mobile?"text-left text-lg px-2 py-1":"rounded-lg px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"} font-bold transition-colors ${active(k)?t.tp:t.ts} ${isHi(lang)}`}>{label}</button>
+          ))}
+        </nav>
+      );
+      return (
+        <header className={`sticky top-0 z-50 ${t.nav} transition-all duration-300`}>
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-8">
+              <button className="lg:hidden" onClick={()=>setMenuOpen(!menuOpen)}>{menuOpen?<X size={24} className={t.tp}/>:<Menu size={24} className={t.tp}/>}</button>
+              <div className="flex cursor-pointer items-baseline gap-1.5 group select-none" onClick={()=>go("top")}>
+                <span className="text-2xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span>
+                <span className={`text-xl font-extrabold tracking-tight ${t.tp}`}>Paksh</span>
+              </div>
+              <Nav mobile={false} />
+            </div>
+            <div className="flex items-center gap-3 flex-1 justify-end">
+              <div className="relative hidden w-full max-w-xs sm:block">
+                <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${t.tf}`} />
+                <input value={query} onChange={(e)=>{setQuery(e.target.value); if(view!=="top"&&view!=="os") setView("top");}} placeholder={STR[lang].search} className={`w-full rounded-full border py-2 pl-10 pr-4 text-sm font-medium outline-none transition-colors focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
+              </div>
+              <div className={`flex rounded-full border overflow-hidden ${t.border}`}>
+                <button onClick={()=>setLang("en")} className={`px-3 py-1.5 text-xs font-bold ${lang==="en"?"bg-[#0E7C73] text-white":t.ts}`}>EN</button>
+                <button onClick={()=>setLang("hi")} className={`px-3 py-1.5 text-xs font-bold deva ${lang==="hi"?"bg-[#0E7C73] text-white":t.ts}`}>हिं</button>
+              </div>
+              <button onClick={()=>setDark(d=>!d)} aria-label="Toggle theme" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${t.border} ${t.tp} ${t.surface}`}>{dark?<Sun size={18}/>:<Moon size={18}/>}</button>
+            </div>
+          </div>
+          {menuOpen && (
+            <div className={`lg:hidden border-t px-4 py-4 space-y-4 ${t.border} ${t.surface}`}>
+              <div className="relative w-full">
+                <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${t.tf}`} />
+                <input value={query} onChange={(e)=>{setQuery(e.target.value); if(view!=="top"&&view!=="os") setView("top");}} placeholder={STR[lang].search} className={`w-full rounded-full border py-2 pl-10 pr-4 text-sm font-medium outline-none ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
+              </div>
+              <Nav mobile={true} />
+            </div>
+          )}
+        </header>
+      );
+    }
+
+    /* ---------------- detail ---------------- */
+    function StoryPage({ story, t, lang, onBack }) {
+      const side=story.blindspot; const b=side?BIAS[side]:null;
+      const sides=["left","center","right"].filter(k=>(story.outlets||[]).some(o=>o.lean===k));
+      return (
+        <div className="pb-24 pt-8">
+          <button onClick={onBack} className={`group mb-8 flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-colors ${t.ts} ${isHi(lang)}`}><ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> {STR[lang].back}</button>
+          <div className="mb-8">
+            <Eyebrow story={story} t={t} lang={lang} />
+            <h1 className={`mt-3 mb-6 text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.15] tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{story.headline}</h1>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10 xl:gap-16">
+            <div className="min-w-0">
+              <div className={`mb-10 aspect-[21/9] w-full overflow-hidden rounded-2xl border ${t.border} shadow-sm`} style={{background:`center/cover url("${story.image}")`}} />
+              <div className={`mb-12 rounded-2xl border p-6 sm:p-8 ${t.soft} ${t.border}`}>
+                <div className="mb-6 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+                  <Sparkles size={20} className={t.brand} />
+                  <span className={`text-sm font-bold uppercase tracking-widest ${t.brand} ${isHi(lang)}`}>{STR[lang].aiSummary}</span>
+                  <span className={`text-sm ${t.ts} ${isHi(lang)}`}>· {STR[lang].aiSub}</span>
+                </div>
+                {story.lead && <p className={`mb-5 text-base sm:text-lg font-medium leading-relaxed ${t.tp} ${isHi(lang)}`}>{story.lead}</p>}
+                <ul className="space-y-4">
+                  {story.summary.map((p,i)=>(
+                    <li key={i} className={`flex items-start gap-4 text-base leading-relaxed font-medium ${t.tp} ${isHi(lang)}`}>
+                      <span className={`mt-2.5 inline-block shrink-0 rounded-full h-2 w-2 ${t.brandBg}`} />{p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <h2 className={`mb-6 flex items-center gap-2 text-xl font-bold uppercase tracking-widest ${t.tp} ${isHi(lang)}`}><Layers size={20} /> {STR[lang].sideBySide}</h2>
+              <div className="space-y-8">
+                {sides.map((k)=>{
+                  const outs=(story.outlets||[]).filter(o=>o.lean===k);
+                  const framing=(story.coverage[k]||{}).framing;
+                  return (
+                    <div key={k}>
+                      <div className="mb-3 flex items-center gap-3">
+                        <span className="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white shadow-sm" style={{backgroundColor:BIAS[k].color}}>{lbl(k,lang)}</span>
+                        <span className={`text-xs font-bold ${t.tf}`}>{outs.length} {outs.length===1?STR[lang].source:STR[lang].sources}</span>
+                      </div>
+                      {framing && <p className={`mb-3 text-sm ${t.ts} ${isHi(lang)}`}>{framing}</p>}
+                      <div className="space-y-4">
+                        {outs.map((o,i)=>(
+                          <div key={i} className={`rounded-2xl border p-5 sm:p-6 ${t.surface} ${t.border}`} style={{borderLeftWidth:"5px",borderLeftColor:BIAS[k].color}}>
+                            <div className="mb-3 flex items-center gap-3">
+                              <Monogram name={o.source} side={k} />
+                              <div className="min-w-0">
+                                <div className={`text-sm font-bold ${t.tp}`}>{o.source} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(o.language||"en").toUpperCase()}</span></div>
+                              </div>
+                              {o.url && <a href={o.url} target="_blank" rel="noopener" onClick={(e)=>e.stopPropagation()} className={`ml-auto text-xs font-bold ${t.brand}`}>↗</a>}
+                            </div>
+                            {o.headline && <div className={`text-lg sm:text-xl font-bold leading-snug editorial-heading italic ${t.tp} ${isHi(lang)}`}>“{o.headline}”</div>}
+                            {o.framing && <div className={`mt-2 text-sm ${t.tf} ${isHi(lang)}`}>{o.framing}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <aside>
+              <div className={`sticky top-24 rounded-2xl border p-8 ${t.surface} ${t.border} shadow-sm`}>
+                <h3 className={`mb-6 text-xs font-extrabold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}>{STR[lang].coverageBreakdown}</h3>
+                <div className="mb-8 border-b border-zinc-100 dark:border-zinc-800/60 pb-6">
+                  <div className={`mb-2 text-6xl font-black tracking-tighter ${t.tp}`}>{story.sources}</div>
+                  <div className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].totalSources}</div>
+                </div>
+                <div className={`mb-4 text-xs font-bold uppercase tracking-wide ${t.tf} ${isHi(lang)}`}>{STR[lang].whereLean}</div>
+                <BiasBar bias={story.bias} height="h-2.5" />
+                <div className="mt-6 flex flex-col gap-4">
+                  {["left","center","right"].map((k)=>(
+                    <div key={k} className={`flex items-center gap-3 text-sm font-semibold ${t.ts}`}>
+                      <span className="inline-block h-4 w-4 rounded-full shadow-sm" style={{backgroundColor:BIAS[k].color}} />
+                      <span style={{color:BIAS[k].color, fontWeight:800}}>{lbl(k,lang)}</span>
+                      <span className={`ml-auto text-lg font-black ${t.tp}`}>{story.counts[k]}</span>
+                    </div>
+                  ))}
+                </div>
+                {b && (
+                  <div className={`mt-8 flex items-start gap-3 rounded-xl p-5 text-sm leading-relaxed ${t.blindSoft} ${t.blind} border border-amber-500/20 ${isHi(lang)}`}>
+                    <Eye size={20} strokeWidth={2.4} className="mt-0.5 shrink-0" />
+                    <span><strong className="block mb-2 text-base font-black uppercase tracking-wider">{lbl(side,lang)} · {STR[lang].navOS}</strong>{STR[lang].osCalloutBody1} <strong className="text-lg">{story.bias[side]}%</strong> {STR[lang].osCalloutBody2}</span>
+                  </div>
+                )}
+                <p className={`mt-8 text-xs leading-relaxed font-medium ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------------- sources page ---------------- */
+    function SourcesPage({ t, lang, sources }) {
+      const [fLean,setFLean]=useState(""); const [fLang,setFLang]=useState("");
+      let list=sources||[]; if(fLean) list=list.filter(s=>s.lean===fLean); if(fLang) list=list.filter(s=>s.language===fLang);
+      const Chip=({on,onClick,children})=> <button onClick={onClick} className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${on?`${t.brandBg} text-white border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${isHi(lang)}`}>{children}</button>;
+      const labels={editorial:"Ed",framing:"Fr",selection:"Sel",sourcing:"Src",ownership:"Own",panel:"Pan"};
+      return (
+        <div className="pt-12 pb-24 max-w-4xl mx-auto">
+          <h1 className={`mb-2 text-3xl sm:text-4xl font-black editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
+          <p className={`mb-6 text-lg ${t.ts} ${isHi(lang)}`}>{STR[lang].srcIntro}</p>
+          <div className={`mb-8 rounded-2xl border p-5 text-sm leading-relaxed ${t.soft} ${t.border} ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].provisional}.</strong> {STR[lang].srcDisclaimer}</div>
+          <div className="mb-8 flex flex-wrap items-center gap-2">
+            <span className={`text-sm font-bold mr-1 ${t.ts} ${isHi(lang)}`}>{STR[lang].filterLean}:</span>
+            <Chip on={fLean===""} onClick={()=>setFLean("")}>{STR[lang].all}</Chip>
+            {["left","center","right"].map(k=><Chip key={k} on={fLean===k} onClick={()=>setFLean(k)}>{lbl(k,lang)}</Chip>)}
+            <span className={`text-sm font-bold ml-3 mr-1 ${t.ts} ${isHi(lang)}`}>{STR[lang].filterLang}:</span>
+            <Chip on={fLang===""} onClick={()=>setFLang("")}>{STR[lang].all}</Chip>
+            <Chip on={fLang==="en"} onClick={()=>setFLang("en")}>{STR[lang].langEN}</Chip>
+            <Chip on={fLang==="hi"} onClick={()=>setFLang("hi")}>{STR[lang].langHI}</Chip>
+          </div>
+          <div className="space-y-4">
+            {list.map((s)=>{
+              const fix=`mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal: "+s.name)}&body=${encodeURIComponent("Outlet: "+s.name+"\nCurrent rating: "+(s.label||s.lean)+"\n\nWhy it should be reviewed (specific headlines or articles):\n\n")}`;
+              return (
+                <div key={s.id} className={`rounded-2xl border p-6 ${t.surface} ${t.border} shadow-sm`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className={`text-base font-extrabold ${t.tp}`}>{s.name} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(s.language||"en").toUpperCase()}</span></div>
+                      <a href={s.website} target="_blank" rel="noopener" className={`text-xs font-semibold ${t.brand}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="rounded-full px-3 py-1 text-xs font-extrabold text-white" style={{backgroundColor:BIAS[s.lean]?BIAS[s.lean].color:"#64748B"}}>{lbl(s.lean,lang)}</span>
+                      <span className={`text-xs font-semibold ${t.ts} ${isHi(lang)}`}>{confName(s.confidence,lang)} {STR[lang].confidence}</span>
+                      {s.contested && <span className={`rounded px-2 py-0.5 text-[10px] font-extrabold uppercase ${t.blindSoft} ${t.blind} ${isHi(lang)}`}>{STR[lang].contested}</span>}
+                    </div>
+                  </div>
+                  <div className={`mt-3 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].ownership}:</strong> {s.ownership}</div>
+                  <div className={`mt-1.5 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].whyRated}:</strong> {s.rationale}</div>
+                  {s.subscores && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <span className={`text-[11px] font-bold uppercase ${t.tf} ${isHi(lang)}`}>{STR[lang].signals}:</span>
+                      {Object.keys(labels).map(k=>{ const v=s.subscores[k]; const c=v<0?BIAS.left.color:v>0?BIAS.right.color:BIAS.center.color;
+                        return <span key={k} className="text-[11px] font-bold rounded px-2 py-0.5 text-white" style={{backgroundColor:c}}>{labels[k]} {v>0?"+"+v:v}</span>; })}
+                    </div>
+                  )}
+                  <a href={fix} className={`mt-4 inline-block text-xs font-bold ${t.brand} ${isHi(lang)}`}>{STR[lang].suggestFix} →</a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------------- method page ---------------- */
+    function MethodPage({ t, lang }) {
+      const S=STR[lang];
+      const H=({children})=> <h2 className={`mt-10 mb-3 text-xl font-bold editorial-heading ${t.tp} ${isHi(lang)}`}>{children}</h2>;
+      const P=({children})=> <p className={`mb-3 leading-relaxed ${t.ts} ${isHi(lang)}`}>{children}</p>;
+      const fix=`mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal")}&body=${encodeURIComponent("Outlet:\nCurrent rating:\n\nWhy it should be reviewed (specific headlines or articles):\n\n")}`;
+      return (
+        <div className="pt-12 pb-24 max-w-3xl mx-auto">
+          <h1 className={`mb-6 text-3xl sm:text-4xl font-black editorial-heading ${t.tp} ${isHi(lang)}`}>{S.methodTitle}</h1>
+          <H>{S.m_doesH}</H><P>{S.m_does}</P>
+          <div className={`my-5 rounded-2xl border p-5 leading-relaxed ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`}><strong>{S.m_ruleH}.</strong> {S.m_rule}</div>
+          <H>{S.m_rateH}</H><P>{S.m_rateLede}</P>
+          <ul className={`my-4 rounded-2xl border overflow-hidden ${t.border}`}>
+            {SIGNALS.map((s,i)=>(
+              <li key={i} className={`flex items-center justify-between px-5 py-3 ${t.surface} ${i>0?`border-t ${t.border}`:""}`}>
+                <span className={`font-semibold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?s.hi:s.en}</span><span className={`font-black ${t.brand}`}>{s.w}%</span>
+              </li>
+            ))}
+          </ul>
+          <P><span className={t.tf}>{S.m_rateFoot}</span></P>
+          <H>{S.m_axisH}</H><P>{S.m_axis}</P>
+          <H>{S.m_partiesH}</H><P>{S.m_parties}</P>
+          <H>{S.m_provH}</H><P>{S.m_prov}</P>
+          <H>{S.m_readH}</H>
+          <ul className="my-3 space-y-2">
+            {M_READ[lang].map((x,i)=>(<li key={i} className={`flex items-start gap-3 leading-relaxed ${t.ts} ${isHi(lang)}`}><span className={`mt-2 inline-block shrink-0 rounded-full h-1.5 w-1.5 ${t.brandBg}`} />{x}</li>))}
+          </ul>
+          <H>{S.m_appealH}</H><P>{S.m_appeal}</P>
+          <a href={fix} className={`inline-block rounded-full px-6 py-2.5 text-sm font-bold text-white ${t.brandBg} ${isHi(lang)}`}>{S.suggestFix}</a>
+        </div>
+      );
+    }
+
+    /* ---------------- topic chips ---------------- */
+    function TopicChips({ t, lang, topics, topic, setTopic }) {
+      if(!topics.length) return null;
+      const Chip=({on,onClick,children})=> <button onClick={onClick} className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${on?`${t.brandBg} text-white border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:bg-zinc-100 dark:hover:bg-zinc-800`} ${isHi(lang)}`}>{children}</button>;
+      return (
+        <div className={`flex items-center gap-3 overflow-x-auto py-5 border-b ${t.border} [&::-webkit-scrollbar]:hidden`}>
+          <Chip on={!topic} onClick={()=>setTopic(null)}>{STR[lang].all}</Chip>
+          {topics.map(tp=><Chip key={tp} on={topic===tp} onClick={()=>setTopic(tp)}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</Chip>)}
+        </div>
+      );
+    }
+
+    /* ---------------- app ---------------- */
+    function PakshApp() {
+      const [lang,setLang]=useState("en");
+      const [dark,setDark]=useState(false);
+      const [query,setQuery]=useState("");
+      const [view,setView]=useState("top");   // top | os | sources | method
+      const [topic,setTopic]=useState(null);
+      const [openId,setOpenId]=useState(null);
+      const [data,setData]=useState({events:[],blindspots:[],topics:[],sources:[],summary:{}});
+      const [detail,setDetail]=useState({});
+      const [ready,setReady]=useState(false);
+
+      useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
+      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor = dark?"#0F1113":"#F1F2F3"; },[dark]);
+
+      const t = dark?TOKENS.dark:TOKENS.light;
+      const go=(k)=>{ setView(k); setOpenId(null); setQuery(""); window.scrollTo({top:0,behavior:"smooth"}); };
+      const open=async(id)=>{ if(!detail[id]){ try{ const full=await apiGet("events/"+id); setDetail(d=>({...d,[id]:full})); }catch(e){ console.error(e); return; } } setOpenId(id); window.scrollTo({top:0,behavior:"smooth"}); };
+      const back=()=>{ setOpenId(null); window.scrollTo({top:0,behavior:"smooth"}); };
+
+      const openStory = (openId!=null && detail[openId]) ? toDetail(detail[openId],lang) : null;
+
+      let cards = data.events.map(e=>toCard(e,lang));
+      let oneSided = data.blindspots.map(e=>toCard(e,lang));
+      if(topic){ cards=cards.filter(c=>c.topic===topic); oneSided=oneSided.filter(c=>c.topic===topic); }
+      const q=query.trim().toLowerCase();
+      const searching = q.length>0;
+      const results = searching ? cards.filter(c=>(c.headline||"").toLowerCase().includes(q)) : null;
+
+      const hero=cards[0], sideList=cards.slice(1,4), grid=cards.slice(4);
+
+      return (
+        <div className={`min-h-screen font-sans transition-colors duration-300 ${t.bg} ${t.tp}`}>
+          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} query={query} setQuery={setQuery} view={view} setView={setView} go={go} />
+          <main className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+            {!ready ? (
+              <div className={`py-32 text-center ${t.tf}`}>Loading…</div>
+            ) : openStory ? (
+              <StoryPage story={openStory} t={t} lang={lang} onBack={back} />
+            ) : view==="sources" ? (
+              <SourcesPage t={t} lang={lang} sources={data.sources} />
+            ) : view==="method" ? (
+              <MethodPage t={t} lang={lang} />
+            ) : searching ? (
+              <div className="pt-12">
+                <h1 className={`mb-8 text-3xl font-black ${t.tp} ${isHi(lang)}`}>{STR[lang].resultsFor} “{query}” <span className={`font-semibold ${t.tf}`}>· {results.length}</span></h1>
+                {results.length ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{results.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+                ) : (
+                  <div className={`flex flex-col items-center justify-center py-32 rounded-2xl border border-dashed ${t.border} ${t.ts}`}><Search size={48} className="mb-6 opacity-20" /><p className={`text-xl font-bold ${isHi(lang)}`}>{STR[lang].noResults}</p><p className={`text-sm mt-2 ${isHi(lang)}`}>{STR[lang].noResultsSub}</p></div>
+                )}
+              </div>
+            ) : view==="os" ? (
+              <div className="pt-8">
+                <div className="mb-3 flex items-center gap-3"><Eye size={28} className={t.blind} /><h1 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
+                <p className={`mb-8 text-base font-medium leading-relaxed ${t.ts} max-w-3xl ${isHi(lang)}`}>{STR[lang].osSub}</p>
+                {oneSided.length ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">{oneSided.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+                ) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+              </div>
+            ) : (
+              <div>
+                <TopicChips t={t} lang={lang} topics={data.topics} topic={topic} setTopic={setTopic} />
+                <div className="mb-8 mt-10 flex items-baseline justify-between gap-4">
+                  <h1 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].topNews}</h1>
+                  <span className={`hidden sm:block text-sm font-medium ${t.tf} ${isHi(lang)} text-right max-w-sm`}>{STR[lang].tagline}</span>
+                </div>
+                {!cards.length ? (
+                  <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+                ) : (
+                  <div>
+                    <div className="mb-16 grid grid-cols-1 lg:grid-cols-[1.8fr_1fr] gap-8">
+                      {hero && <HeroCard story={hero} t={t} lang={lang} onOpen={open} />}
+                      {sideList.length>0 && (
+                        <div className={`flex flex-col rounded-3xl border px-6 ${t.surface} ${t.border} shadow-sm`}>
+                          {sideList.map((s,i)=><CompactRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===sideList.length-1} />)}
+                        </div>
+                      )}
+                    </div>
+                    {oneSided.length>0 && (<div>
+                      <div className="mb-6 flex items-center gap-3"><Eye size={28} className={t.blind} /><h2 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h2></div>
+                      <p className={`mb-8 text-base font-medium leading-relaxed ${t.ts} max-w-3xl ${isHi(lang)}`}>{STR[lang].osSub}</p>
+                      <div className="mb-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">{oneSided.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+                    </div>)}
+                    {grid.length>0 && (<div>
+                      <h2 className={`mb-8 text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].more}</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">{grid.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+                    </div>)}
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+          {!openStory && (
+            <footer className={`border-t py-12 mt-12 ${t.border} ${t.surface}`}>
+              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-2"><span className="text-2xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span><span className={`text-xl font-extrabold tracking-tight ${t.tp}`}>Paksh</span></div>
+                  <div className="flex items-center gap-5">
+                    <button onClick={()=>go("method")} className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].navMethod}</button>
+                    <button onClick={()=>go("sources")} className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].navSrc}</button>
+                  </div>
+                </div>
+                <p className={`mt-6 text-xs leading-relaxed ${t.tf} ${isHi(lang)} max-w-2xl`}>{STR[lang].footIndependence}</p>
+                <p className={`mt-3 text-xs font-semibold uppercase tracking-widest ${t.tf}`}>© 2026 Redstocks Technology LLP. All rights reserved.</p>
+              </div>
+            </footer>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<PakshApp />);
+  </script>
 </body>
 </html>
