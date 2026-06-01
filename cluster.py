@@ -20,6 +20,8 @@ Run `python cluster.py` to preview grouping without spending analysis calls.
 
 import os
 import re
+from dotenv import load_dotenv
+load_dotenv()
 import hashlib
 import numpy as np
 
@@ -27,8 +29,8 @@ EMBED_MODEL = "gemini-embedding-001"   # multilingual; "text-embedding-004" also
 
 # Cosine-similarity thresholds. These depend on the embedding model and will
 # need a little tuning against real output - preview with `python cluster.py`.
-JOIN_THRESHOLD = 0.62    # min similarity to join an existing cluster
-MERGE_THRESHOLD = 0.66   # min similarity between two clusters to merge them
+JOIN_THRESHOLD = 0.80    # min similarity to join an existing cluster (raised: Gemini embeddings run high)
+MERGE_THRESHOLD = 0.82   # min similarity between two clusters to merge them (raised to match)
 DUP_THRESHOLD = 0.93     # at/above this, two same-outlet items are duplicates
 MIN_SOURCES = 2          # a cluster needs this many distinct outlets to be an event
 

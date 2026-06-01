@@ -163,11 +163,11 @@ def cluster_articles(articles):
 
 def build_prompt(articles) -> str:
     blocks = [
-        f'OUTLET: {a["source"]}  [lean: {a["lean"]}, language: {a["language"]}]\n'
+        f'OUTLET: {a["source"]}  [lean: {lean_of(a["source"])}, language: {a["language"]}]\n'
         f'HEADLINE: {a["title"]}\nSUMMARY: {(a["summary"] or "(none)")[:SUMMARY_TRUNC]}'
         for a in articles[:MAX_ARTICLES_PER_EVENT]
     ]
-    sides_present = sorted({a["lean"] for a in articles}, key=LEAN_ORDER.index)
+    sides_present = sorted({lean_of(a["source"]) for a in articles}, key=LEAN_ORDER.index)
     sides_spec = ", ".join(
         f'"{s}": "1-2 sentences on how {s}-leaning outlets framed it"'
         for s in sides_present)
