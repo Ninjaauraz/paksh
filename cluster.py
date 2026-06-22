@@ -9,29 +9,58 @@ Approach (the robust, standard one):
   3. drop same-outlet near-duplicates (e.g. one outlet posting via two feeds);
   4. keep only clusters covered by 2+ distinct outlets - those become events.
 
-The embedding backend is pluggable:
-  * default_embedder  - Google Gemini embeddings (multilingual, needs API key)
-  * lexical_embedder  - offline hashing fallback (WITHIN one language only)
+The embedding backend is pluggable (set PAKSH_BACKEND):
+  * "ollama"  - LOCAL multilingual bge-m3 via Ollama (default; free, no API key)
+  * "gemini"  - Google Gemini embeddings (multilingual, needs API key + billing)
+  * lexical_embedder - offline hashing fallback (WITHIN one language only; dev use)
   * or inject your own (the tests pass a deterministic stub)
 
 This module only groups. Summarising each group is Step 2 (analyze.py).
-Run `python cluster.py` to preview grouping without spending analysis calls.
+Run `python cluster.py` to preview grouping locally without spending a cent.
 """
 
 import os
 import re
+import json
 import hashlib
+import urllib.request
+import urllib.error
 import numpy as np
 
-EMBED_MODEL = "gemini-embedding-001"   # multilingual; "text-embedding-004" also works
+# Load GEMINI_API_KEY from a local .env so `python cluster.py` works on its own
+# (ingest.py / analyze.py already do this; without it the preview can't embed).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
-# Cosine-similarity thresholds. These depend on the embedding model and will
-# need a little tuning against real output - preview with `python cluster.py`.
-JOIN_THRESHOLD = 0.84    # min similarity to join a cluster (must ALSO share keywords, unless very similar)
-MERGE_THRESHOLD = 0.86   # min similarity between two clusters to merge (must ALSO share keywords, unless very similar)
-HIGH_SIM = 0.90          # at/above this, trust the embedding alone (lets cross-lingual same-event pairs group)
-MIN_SHARED = 2           # this many shared keywords needed to join a cluster's seed (1 coincidence isn't enough)
-DUP_THRESHOLD = 0.93     # at/above this, two same-outlet items are duplicates
+# ---- embedding backend ------------------------------------------------------
+# "ollama" = LOCAL, multilingual bge-m3, no API key, no bill (default).
+# "gemini" = Google Gemini embeddings (needs API key + billing).
+# Flip with the PAKSH_BACKEND env var, or just edit the default below.
+BACKEND = os.environ.get("PAKSH_BACKEND", "ollama").lower()
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+
+# Cosine-similarity thresholds DEPEND ON THE MODEL. bge-m3's scale runs lower than
+# Gemini's, so the two backends carry different defaults. After your first real run,
+# fine-tune with `python calibrate.py` (it prints recommended numbers for your data).
+if BACKEND == "gemini":
+    EMBED_MODEL    = os.environ.get("PAKSH_EMBED_MODEL", "gemini-embedding-001")
+    JOIN_THRESHOLD = 0.80    # min similarity to join a cluster (must ALSO share 2 keywords, unless very similar)
+    MERGE_THRESHOLD= 0.82    # min similarity between two clusters to merge
+    HIGH_SIM       = 0.90    # at/above this, trust the embedding alone (cross-lingual same-event pairs)
+    STRONG_SIM     = 0.88    # at/above this, ONE shared keyword is enough (recall for reworded headlines)
+    DUP_THRESHOLD  = 0.93    # at/above this, two same-outlet items are duplicates
+else:  # ollama (local bge-m3) - the default
+    EMBED_MODEL    = os.environ.get("PAKSH_EMBED_MODEL", "bge-m3")
+    JOIN_THRESHOLD = 0.62
+    MERGE_THRESHOLD= 0.65
+    HIGH_SIM       = 0.80
+    STRONG_SIM     = 0.72
+    DUP_THRESHOLD  = 0.90
+
+MIN_SHARED  = 2          # shared keywords needed to join a cluster's seed (1 coincidence isn't enough)
 MIN_SOURCES = 2          # a cluster needs this many distinct outlets to be an event
 
 # Generic words too common to count as a discriminating "keyword" - including the
@@ -50,7 +79,12 @@ _HI_STOP = set("में की के का और से पर को ह�
 
 # ------------------------------ embedders ------------------------------
 
-def default_embedder(texts):
+def _emb_key(text):
+    """Cache key for a text under the current embedding model."""
+    return hashlib.sha256((EMBED_MODEL + "\n" + (text or "")).encode("utf-8")).hexdigest()
+
+
+def _embed_via_api(texts):
     """Google Gemini multilingual embeddings. Batched. Returns list of vectors."""
     from google import genai
     from google.genai import types
@@ -66,6 +100,87 @@ def default_embedder(texts):
             resp = client.models.embed_content(model=EMBED_MODEL, contents=batch)
         vectors.extend(e.values for e in resp.embeddings)
     return vectors
+
+
+def _embed_via_ollama(texts):
+    """LOCAL multilingual embeddings from Ollama (bge-m3 by default). No API key,
+    no per-call cost. Needs the Ollama app running and `ollama pull bge-m3` once.
+    Batched, with progress, since the first run embeds the whole backlog on CPU."""
+    texts = list(texts)
+    out, B = [], 64
+    for k in range(0, len(texts), B):
+        batch = texts[k:k + B]
+        payload = json.dumps({"model": EMBED_MODEL, "input": batch}).encode("utf-8")
+        req = urllib.request.Request(OLLAMA_URL + "/api/embed", data=payload,
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=900) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except urllib.error.URLError as e:
+            raise RuntimeError(
+                "Could not reach Ollama at " + OLLAMA_URL + ". Is it running?\n"
+                "  1. Install/open Ollama (https://ollama.com/download)\n"
+                "  2. Run once:  ollama pull " + EMBED_MODEL + "\n"
+                "Original error: " + str(e)) from None
+        vecs = data.get("embeddings") or []
+        if len(vecs) != len(batch):
+            raise RuntimeError(
+                "Ollama returned %d vectors for %d inputs. Did you run "
+                "`ollama pull %s`?  Server said: %s"
+                % (len(vecs), len(batch), EMBED_MODEL, str(data)[:200]))
+        out.extend(np.asarray(v, dtype=np.float32) for v in vecs)
+        if len(texts) > B:
+            print("    embedded %d/%d  (Ollama %s)"
+                  % (min(k + B, len(texts)), len(texts), EMBED_MODEL), flush=True)
+    return out
+
+
+def _raw_embedder():
+    """The active backend's raw (uncached) embedder."""
+    return _embed_via_ollama if BACKEND == "ollama" else _embed_via_api
+
+
+def cached_embedder(texts, raw_embedder=_embed_via_api):
+    """Embed `texts`, reusing vectors already stored in paksh.db so each article is
+    only ever sent to the embedding API ONCE. Only genuinely new texts cost a call;
+    everything seen in a previous run is loaded from the cache. If the cache is
+    unavailable for any reason, it transparently embeds everything."""
+    if not texts:
+        return []
+    keys = [_emb_key(t) for t in texts]
+    try:
+        import database
+        cached_bytes = database.embeddings_get(keys)
+    except Exception:
+        cached_bytes = {}
+    cache = {k: np.frombuffer(b, dtype=np.float32).copy() for k, b in cached_bytes.items()}
+
+    miss_idx, seen = [], set()
+    for i, k in enumerate(keys):
+        if k not in cache and k not in seen:
+            miss_idx.append(i)
+            seen.add(k)
+
+    if miss_idx:
+        new_vecs = raw_embedder([texts[i] for i in miss_idx])
+        store = {}
+        for i, v in zip(miss_idx, new_vecs):
+            arr = np.asarray(v, dtype=np.float32)
+            cache[keys[i]] = arr
+            store[keys[i]] = arr.tobytes()
+        try:
+            import database
+            database.embeddings_put(store)
+        except Exception:
+            pass
+
+    return [cache[k] for k in keys]
+
+
+def default_embedder(texts):
+    """Active backend's embeddings WITH a persistent DB cache (re-runs don't
+    re-embed). bge-m3 locally by default; Gemini if PAKSH_BACKEND=gemini."""
+    return cached_embedder(texts, _raw_embedder())
 
 
 def lexical_embedder(texts, dim=512):
@@ -104,7 +219,7 @@ def _keywords(a):
     return (latin - _STOP) | (deva - _HI_STOP)
 
 
-def cluster_vectors(vecs, join=JOIN_THRESHOLD, merge=MERGE_THRESHOLD, kw=None, langs=None):
+def cluster_vectors(vecs, join=None, merge=None, kw=None, langs=None):
     """Leader clustering + centroid merge, with a keyword gate. vecs unit-normalised.
     Joining rule (when kw is given):
       * SAME language as the cluster's seed -> must share >= MIN_SHARED seed keywords.
@@ -115,18 +230,30 @@ def cluster_vectors(vecs, join=JOIN_THRESHOLD, merge=MERGE_THRESHOLD, kw=None, l
         must always prove a real keyword overlap).
     Gating on the seed (not the growing union) stops one cluster swallowing everything.
     Returns a list of index-lists."""
+    if join is None:
+        join = JOIN_THRESHOLD
+    if merge is None:
+        merge = MERGE_THRESHOLD
     clusters = []  # each: {"members":[int], "centroid":vec, "seedkw":set, "seedlang":str|None}
 
-    def kw_hit(i, c):
-        return kw is not None and len(kw[i] & c["seedkw"]) >= MIN_SHARED
+    def shared(i, c):
+        return 0 if kw is None else len(kw[i] & c["seedkw"])
 
     def eligible(i, c, sim):
         if sim < join:
             return False
         same_lang = (langs is None) or (langs[i] == c["seedlang"])
+        n = shared(i, c)
         if same_lang:
-            return kw is None or kw_hit(i, c)
-        return sim >= HIGH_SIM or kw_hit(i, c)   # cross-language: similarity OR a shared name
+            if kw is None:
+                return True
+            if n >= MIN_SHARED:
+                return True
+            if n >= 1:   # one shared keyword is enough IF strongly similar to the cluster's SEED (drift-proof)
+                seed_sim = float(np.dot(vecs[i], vecs[c["members"][0]]))
+                return seed_sim >= STRONG_SIM
+            return False
+        return sim >= HIGH_SIM or n >= MIN_SHARED   # cross-language: similarity OR a shared name
 
     for i in range(len(vecs)):
         v = vecs[i]
@@ -154,8 +281,11 @@ def cluster_vectors(vecs, join=JOIN_THRESHOLD, merge=MERGE_THRESHOLD, kw=None, l
                 if csim < merge:
                     continue
                 same_lang = (langs is None) or (clusters[i]["seedlang"] == clusters[j]["seedlang"])
-                share = kw is None or len(clusters[i]["seedkw"] & clusters[j]["seedkw"]) >= MIN_SHARED
-                ok = share if same_lang else (csim >= HIGH_SIM or share)
+                n = 0 if kw is None else len(clusters[i]["seedkw"] & clusters[j]["seedkw"])
+                if same_lang:
+                    ok = kw is None or n >= MIN_SHARED
+                else:
+                    ok = csim >= HIGH_SIM or n >= MIN_SHARED
                 if ok:
                     clusters[i]["members"].extend(clusters[j]["members"])
                     clusters[i]["centroid"] = _recentroid(vecs, clusters[i]["members"])
@@ -183,9 +313,14 @@ def _dedupe_same_outlet(indices, vecs, articles):
     for _src, idxs in by_src.items():
         idxs = sorted(idxs, key=lambda i: len(articles[i].get("summary") or ""), reverse=True)
         chosen = []
+        seen_titles = set()
         for i in idxs:
+            norm_title = re.sub(r"\s+", " ", (articles[i].get("title") or "").strip().lower())
+            if norm_title and norm_title in seen_titles:
+                continue   # exact same headline from this outlet -> drop the repeat
             if all(float(np.dot(vecs[i], vecs[j])) < DUP_THRESHOLD for j in chosen):
                 chosen.append(i)
+                seen_titles.add(norm_title)
         kept.extend(chosen)
     return sorted(kept)
 
@@ -226,25 +361,35 @@ def cluster_articles(articles, embedder=None):
 def main():
     import sys
     from database import init_db, get_unclustered_articles
+    from ingest import is_junk
     init_db()
-    articles = get_unclustered_articles()
-    print(f"\n{len(articles)} unclustered articles")
+    articles = [a for a in get_unclustered_articles() if not is_junk(a.get("title", ""))]
+    print("\n%d unclustered articles (after junk filter)" % len(articles))
     if len(articles) < 2:
         print("Not enough yet - run `python ingest.py` first.\n")
         return
     use_lex = "--lexical" in sys.argv
     if use_lex:
-        print("Using OFFLINE lexical embedder (within-language only).")
-    details = cluster_with_details(articles, lexical_embedder if use_lex else None)
+        print("Backend: OFFLINE lexical embedder (within-language only, rough preview).")
+    else:
+        print("Backend: %s  (model: %s)" % (BACKEND.upper(), EMBED_MODEL))
+        if BACKEND == "ollama":
+            print("  -> embeddings run locally via Ollama; first run is slow, then cached.")
+    try:
+        details = cluster_with_details(articles, lexical_embedder if use_lex else None)
+    except RuntimeError as e:
+        print("\n" + str(e) + "\n")
+        return
     multi = [d for d in details if d["source_count"] >= MIN_SOURCES]
-    print(f"{len(details)} clusters, {len(multi)} with {MIN_SOURCES}+ outlets "
-          f"(marked *):\n")
+    print("\n%d clusters, %d with %d+ outlets (marked *):\n"
+          % (len(details), len(multi), MIN_SOURCES))
     for d in details:
         flag = "*" if d["source_count"] >= MIN_SOURCES else " "
-        print(f" {flag} [{d['source_count']} outlets · {d['size']} art · "
-              f"{'/'.join(d['languages'])}] {d['sample_title'][:78]}")
-    print("\n* = becomes an event. If grouping looks loose/over-merged, tune "
-          "JOIN_THRESHOLD / MERGE_THRESHOLD in cluster.py.\n")
+        print(" %s [%d outlets · %d art · %s] %s"
+              % (flag, d["source_count"], d["size"],
+                 "/".join(d["languages"]), d["sample_title"][:78]))
+    print("\n* = becomes an event. If grouping looks loose or sparse, tune the "
+          "thresholds with `python calibrate.py`.\n")
 
 
 if __name__ == "__main__":

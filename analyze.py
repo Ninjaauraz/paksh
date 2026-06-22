@@ -26,9 +26,14 @@ The hero image is taken from the source articles (RSS), never invented.
 import json
 import re
 import os
-from google import genai
-from google.genai import types
-from dotenv import load_dotenv
+import urllib.request
+import urllib.error
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 from database import (
     init_db, get_unclustered_articles, get_articles_by_ids,
@@ -37,11 +42,19 @@ from database import (
 from sources import LEAN_BY_SOURCE
 import cluster
 
-load_dotenv()
+# ---- LLM backend for the bilingual summary --------------------------------
+# "ollama" = LOCAL text model (default; free, no API key, no bill)
+# "gemini" = Google Gemini (needs API key + billing)
+# Flip with PAKSH_LLM_BACKEND; pick the local model with PAKSH_LLM_MODEL.
+LLM_BACKEND = os.environ.get("PAKSH_LLM_BACKEND", "ollama").lower()
+OLLAMA_URL  = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+if LLM_BACKEND == "gemini":
+    MODEL = os.environ.get("PAKSH_LLM_MODEL", "gemini-2.5-flash")
+else:
+    MODEL = os.environ.get("PAKSH_LLM_MODEL", "qwen3.5:4b")
 
-MODEL = "gemini-2.5-flash"
 LEAN_ORDER = ["left", "center", "right"]
-MAX_EVENTS_PER_RUN = 8
+MAX_EVENTS_PER_RUN = 30         # how many top clusters to summarize per run
 MIN_SOURCES_PER_EVENT = 2
 MAX_ARTICLES_PER_EVENT = 12     # cap tokens per event
 SUMMARY_TRUNC = 300             # chars of each article summary fed to the model
@@ -49,43 +62,83 @@ SUMMARY_TRUNC = 300             # chars of each article summary fed to the model
 TOPICS = ["Politics", "Economy", "International", "Sports", "Crime & Law",
           "Science & Tech", "Health", "Entertainment", "Environment", "Society"]
 
-# Guard client creation so the module can be imported (and unit-tested) without
-# a key; only the live calls need GEMINI_API_KEY.
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"]) if os.environ.get("GEMINI_API_KEY") else None
-
 
 # ------------------------------ model calls ------------------------------
 
-def _call(prompt: str) -> str:
-    if client is None:
+def _strip_think(text: str) -> str:
+    """Remove any <think>...</think> reasoning a thinking model leaks into output."""
+    if not text:
+        return text
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S | re.I)
+    text = re.sub(r"^.*?</think>", "", text, flags=re.S | re.I)   # stray closing tag
+    return text.strip()
+
+
+def _ollama_generate(prompt: str, as_json: bool) -> str:
+    # qwen3.x "thinks" before answering, which (under JSON mode) returns an EMPTY
+    # body. Belt-and-suspenders: think:false (API switch) + /no_think (Qwen prompt
+    # switch) + strip any <think> that still leaks.
+    body = {"model": MODEL, "prompt": prompt + "\n\n/no_think", "stream": False,
+            "think": False,
+            "options": {"temperature": 0.2, "num_predict": 1500}}
+    if as_json:
+        body["format"] = "json"          # force valid JSON out of the local model
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(OLLAMA_URL + "/api/generate", data=data,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=600) as r:
+            return _strip_think(json.loads(r.read().decode("utf-8")).get("response", ""))
+    except urllib.error.URLError as e:
+        raise RuntimeError(
+            "Could not reach Ollama at " + OLLAMA_URL + ". Is it running?\n"
+            "  Open the Ollama app, then run once:  ollama pull " + MODEL + "\n"
+            "Original error: " + str(e)) from None
+
+
+def _gemini_generate(prompt: str, as_json: bool) -> str:
+    from google import genai
+    from google.genai import types
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
         raise RuntimeError("GEMINI_API_KEY not set")
-    return client.models.generate_content(model=MODEL, contents=prompt).text
-
-
-def _call_json(prompt: str, retries: int = 1):
-    """Call Gemini in JSON mode and return parsed data. Retries once, then raises."""
-    if client is None:
-        raise RuntimeError("GEMINI_API_KEY not set")
-
-    # gemini-2.5-flash "thinks" before answering by default, which can consume the
-    # whole output budget and return an EMPTY body (no summary). Turn thinking off
-    # and give the answer plenty of room.
+    client = genai.Client(api_key=key)
+    if not as_json:
+        return client.models.generate_content(model=MODEL, contents=prompt).text
+    # gemini-2.5-flash "thinks" by default and can spend the whole budget; disable it.
     cfg_kwargs = dict(response_mime_type="application/json",
                       temperature=0.2, max_output_tokens=8192)
     try:
         cfg = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(thinking_budget=0), **cfg_kwargs)
     except Exception:
-        cfg = types.GenerateContentConfig(**cfg_kwargs)   # older SDK: no thinking_config
+        cfg = types.GenerateContentConfig(**cfg_kwargs)
+    return client.models.generate_content(model=MODEL, contents=prompt, config=cfg).text
 
+
+def _generate(prompt: str, as_json: bool) -> str:
+    if LLM_BACKEND == "ollama":
+        return _ollama_generate(prompt, as_json)
+    return _gemini_generate(prompt, as_json)
+
+
+def _generate_text(prompt: str) -> str:
+    return _generate(prompt, as_json=False)
+
+
+def _call_json(prompt: str, retries: int = 1):
+    """Generate JSON via the active backend, tolerant-parse it, retry once.
+    If the backend itself is unreachable, raise immediately so the caller can
+    fall back to an extractive summary rather than retry a dead server."""
     last = None
     for _ in range(retries + 1):
         try:
-            text = client.models.generate_content(model=MODEL, contents=prompt, config=cfg).text
-            return _extract_json(text)
+            return _extract_json(_generate(prompt, as_json=True))
+        except RuntimeError:
+            raise
         except Exception as e:
             last = e
-    raise ValueError(f"model/JSON failure: {last}")
+    raise ValueError("model/JSON failure: %s" % last)
 
 
 def _repair_json(t: str) -> str:
@@ -134,7 +187,7 @@ Articles:
 {chr(10).join(lines)}
 """
     try:
-        data = _extract_json(_call(prompt))
+        data = _extract_json(_generate_text(prompt))
     except Exception as e:
         print(f"    clustering parse error: {e}")
         return []
@@ -163,45 +216,31 @@ def cluster_articles(articles):
 
 def build_prompt(articles) -> str:
     blocks = [
-        f'OUTLET: {a["source"]}  [lean: {lean_of(a["source"])}, language: {a["language"]}]\n'
+        f'OUTLET: {a["source"]}  [language: {a["language"]}]\n'
         f'HEADLINE: {a["title"]}\nSUMMARY: {(a["summary"] or "(none)")[:SUMMARY_TRUNC]}'
         for a in articles[:MAX_ARTICLES_PER_EVENT]
     ]
-    sides_present = sorted({lean_of(a["source"]) for a in articles}, key=LEAN_ORDER.index)
-    sides_spec = ", ".join(
-        f'"{s}": "1-2 sentences on how {s}-leaning outlets framed it"'
-        for s in sides_present)
+    return f"""You are a neutral news engine for "Paksh", a media-transparency
+tool for India. Below is coverage of ONE event from several Indian outlets
+(English and Hindi). Write a single neutral account that a reader of any
+political leaning would find fair.
 
-    return f"""You are a neutral media-analysis engine for "Paksh", a news
-transparency tool for India. Below is coverage of ONE event from several Indian
-outlets (English and Hindi), each tagged with a GIVEN political lean - never
-change those labels.
-
-Write so a reader sees every side fairly. STRICT RULES:
+STRICT RULES:
 - Use ONLY facts present in the text below. Never invent facts, quotes, numbers or names.
-- The neutral title/summary/points must NOT adopt any side's framing or loaded words.
+- The title and summary must NOT adopt any outlet's framing or loaded words.
 - Attribute contested claims ("the government said", "critics say") instead of stating them as fact.
 - If outlets conflict, state the disagreement neutrally rather than picking a winner.
-- Write the neutral brief in ENGLISH, then give a faithful, natural HINDI translation of it.
+- Write in ENGLISH, then give a faithful, natural HINDI translation.
 
 Return ONLY a JSON object with these keys:
 {{
-  "title": "neutral English title",
-  "summary": "one neutral English sentence",
-  "summary_points": ["3-6 short neutral English points"],
+  "title": "neutral English headline, max ~12 words",
+  "summary": "2-3 neutral English sentences summarizing what happened",
+  "summary_points": ["3-5 short neutral English points"],
   "title_hi": "Hindi translation of the title",
   "summary_hi": "Hindi translation of the summary",
   "summary_points_hi": ["Hindi translations of the points, same order"],
-  "topic": "exactly one of {TOPICS}",
-  "sources": [
-    {{"source": "exact outlet name", "headline": "that outlet's headline",
-      "framing": "one line on how this outlet framed it",
-      "tone": "supportive|neutral|critical|mixed",
-      "notable_language": ["loaded or notable words, if any"]}}
-  ],
-  "sides": {{ {sides_spec} }},
-  "divergence": "2-3 sentences on how coverage differs across the spectrum",
-  "omissions": "what some outlets leave out"
+  "topic": "exactly one of {TOPICS}"
 }}
 
 COVERAGE:
@@ -211,36 +250,27 @@ COVERAGE:
 
 def postprocess(raw, articles) -> dict:
     """Turn the model's (parsed) output + the articles into the stored event.
-    Pure function - no network - so it is unit-testable. Resilient to missing
-    fields: coverage counts always come from OUR lean config, not the model."""
+    Pure function - no network - so it is unit-testable. The neutral brief comes
+    from the model; the bias breakdown is pure arithmetic on OUR fixed lean
+    labels (no AI decides bias)."""
     raw = raw or {}
     for a in articles:
         a["lean"] = lean_of(a["source"])
     hero = next((a.get("image_url") for a in articles if a.get("image_url")), "")
 
-    # case-insensitive map of the model's per-outlet notes
-    msrc = {}
-    for s in raw.get("sources", []) or []:
-        key = (s.get("source") or "").strip().lower()
-        if key:
-            msrc[key] = s
-
+    # source list: outlet, its fixed lean, language, link, and its own headline
     sources_out = []
     for a in articles:
-        m = msrc.get(a["source"].strip().lower(), {})
         sources_out.append({
             "source": a["source"], "lean": a["lean"], "language": a["language"],
-            "url": a["url"], "headline": m.get("headline") or a["title"],
-            "framing": m.get("framing", ""), "tone": m.get("tone", "neutral"),
-            "notable_language": m.get("notable_language", []) or [],
+            "url": a["url"], "headline": a["title"],
         })
 
-    sides_raw = raw.get("sides", {}) or {}
+    # coverage = how many outlets of each lean covered it (arithmetic, not AI)
     coverage_out = {}
     for side in LEAN_ORDER:
         names = [s["source"] for s in sources_out if s["lean"] == side]
-        coverage_out[side] = {"count": len(names), "sources": names,
-                              "framing": sides_raw.get(side, "")}
+        coverage_out[side] = {"count": len(names), "sources": names}
 
     topic = raw.get("topic", "Society")
     if topic not in TOPICS:
@@ -262,29 +292,131 @@ def postprocess(raw, articles) -> dict:
         "sources": sources_out,
         "coverage": coverage_out,
         "total_sources": len(sources_out),
-        "divergence": raw.get("divergence", ""),
-        "omissions": raw.get("omissions", ""),
         "degraded": degraded,
     }
 
 
+def _first_sentences(text, n=2):
+    """First n sentences of a blurb (handles the Hindi danda ।)."""
+    t = re.sub(r"\s+", " ", (text or "").strip())
+    if not t:
+        return ""
+    parts = re.split(r"(?<=[.!?।])\s+", t)
+    return " ".join(parts[:n]).strip()
+
+
+_TOPIC_HINTS = [
+    ("Sports", ["cricket", "fifa", "world cup", "odi", "test match", "t20", "ipl",
+                "football", "wicket", "batsman", "bowler", "tournament", "league",
+                "olympic", "badminton", "tennis", "athletics", "medal", "tri-series",
+                "innings", "fifty", "century", "ball", "क्रिकेट", "मैच", "वर्ल्ड कप",
+                "फुटबॉल", "विकेट", "ओलंपिक", "फिफा", "रन", "शतक"]),
+    ("Entertainment", ["film ", "movie", "actor", "actress", "bollywood", "box office",
+                       " review", "trailer", "cinema", "फिल्म", "अभिनेता", "बॉलीवुड",
+                       "मूवी", "रिव्यू"]),
+    ("Economy", ["stock", "market", "sensex", "nifty", " ipo", "rupee", " gdp",
+                 "inflation", " rbi", " sebi", "crore", "tariff", "trade deal",
+                 "oil price", " gold", "silver", "investor", "economy", "शेयर",
+                 "बाजार", "रुपया", "महंगाई", "सोना", "चांदी", "निवेश", "अर्थव्यवस्था",
+                 "आईपीओ"]),
+    ("Science & Tech", ["artificial intelligence", " ai ", "spacex", "satellite",
+                        "smartphone", "iphone", "android", " chip", "software",
+                        "startup", " 6g", " 5g", "तकनीक", "सैटेलाइट", "स्मार्टफोन"]),
+    ("Health", ["hospital", "disease", "virus", " flu", "covid", "cancer", "vaccine",
+                "nipah", "outbreak", "अस्पताल", "बीमारी", "वायरस", "स्वास्थ्य", "कैंसर"]),
+    ("Environment", ["monsoon", "climate", "el niño", "el nino", "heatwave",
+                     "rainfall", "pollution", "flood", "cyclone", "weather", "मानसून",
+                     "बारिश", "जलवायु", "बाढ़", "मौसम"]),
+    ("Crime & Law", ["court", "supreme court", "high court", " fir", "arrest", "murder",
+                     " rape", "police", " jail", "verdict", "accused", " probe", " cbi",
+                     " ed ", "convict", "अदालत", "कोर्ट", "गिरफ्तार", "हत्या",
+                     "बलात्कार", "पुलिस", "जेल", "आरोपी"]),
+    ("International", [" us ", "u.s.", "iran", "israel", "pakistan", "china", "russia",
+                       "ukraine", "trump", "gaza", "hormuz", "foreign", "bangladesh",
+                       "nepal", "अमेरिका", "ईरान", "इजरायल", "पाकिस्तान", "चीन", "रूस",
+                       "ट्रंप"]),
+    ("Politics", [" bjp", "congress", " tmc", "modi", "election", " mla", " mp ",
+                  "parliament", "minister", " cm ", "party", " poll", " vote",
+                  "rajya sabha", "lok sabha", "चुनाव", "मोदी", "कांग्रेस", "भाजपा",
+                  "विधायक", "सांसद", "सरकार"]),
+]
+
+
+# Whole-word matching, so 'iran' can't fire inside 'aspirant' or 'us' inside 'campus'.
+_TOPIC_RE = [
+    (topic, re.compile(r"(?<!\w)(?:" + "|".join(re.escape(k.strip()) for k in kws) + r")(?!\w)", re.I))
+    for topic, kws in _TOPIC_HINTS
+]
+
+
+def _guess_topic(text: str) -> str:
+    """Best-effort topic from keywords - so extractive events still sort into the
+    right subsection instead of all landing in 'Society'."""
+    t = text or ""
+    for topic, rx in _TOPIC_RE:
+        if rx.search(t):
+            return topic
+    return "Society"
+
+
+def _representative(rows):
+    """Pick the most usable article: prefer a center outlet (least framing),
+    then whichever has the most summary text to quote."""
+    if not rows:
+        return None
+    center = [r for r in rows if lean_of(r["source"]) == "center"]
+    return max(center or rows, key=lambda r: len(r.get("summary") or ""))
+
+
+def _extractive_raw(articles):
+    """Build a `raw`-shaped dict WITHOUT an LLM: use a real representative
+    headline per language. Honest (it's a genuine headline, attributed via the
+    source list) and guarantees every event card is readable."""
+    en = [a for a in articles if a.get("language") == "en"]
+    hi = [a for a in articles if a.get("language") == "hi"]
+    en_rep, hi_rep = _representative(en), _representative(hi)
+    base = en_rep or hi_rep or articles[0]
+    topic_text = " ".join(a.get("title", "") for a in articles)
+    return {
+        "title": base["title"],
+        "summary": _first_sentences(en_rep.get("summary")) if en_rep else "",
+        "summary_points": [],
+        "title_hi": hi_rep["title"] if hi_rep else "",
+        "summary_hi": _first_sentences(hi_rep.get("summary")) if hi_rep else "",
+        "summary_points_hi": [],
+        "topic": _guess_topic(topic_text),
+    }
+
+
 def analyze_event(articles) -> dict:
-    """Never raises: on model/JSON failure, returns a coverage-only event."""
+    """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
+    unavailable or returns nothing usable, falls back to an extractive headline
+    so the event still renders (coverage + bias bar are unaffected either way)."""
     try:
         raw = _call_json(build_prompt(articles))
+        if not (raw.get("title") or raw.get("summary")):
+            raise ValueError("empty model output")
     except Exception as e:
-        print(f"    analysis fell back to coverage-only ({e})")
-        raw = {}
+        print(f"    summary -> extractive fallback ({e})")
+        raw = _extractive_raw(articles)
     return postprocess(raw, articles)
 
 
 # ------------------------------ entrypoint ------------------------------
 
 def main():
-    print("\n=== Paksh analysis (Gemini free tier) ===")
+    if LLM_BACKEND == "ollama":
+        print("\n=== Paksh analysis (LOCAL via Ollama: %s) ===" % MODEL)
+    else:
+        print("\n=== Paksh analysis (Gemini: %s) ===" % MODEL)
     init_db()
+    from ingest import is_junk
     articles = get_unclustered_articles()
-    print(f"Found {len(articles)} un-grouped articles.")
+    before = len(articles)
+    articles = [a for a in articles if not is_junk(a.get("title", ""))]
+    dropped = before - len(articles)
+    print(f"Found {len(articles)} un-grouped articles."
+          + (f" (skipped {dropped} horoscope/recipe/tag pages)" if dropped else ""))
     if len(articles) < 2:
         print("Not enough articles yet. Run `python ingest.py` first.\n")
         return

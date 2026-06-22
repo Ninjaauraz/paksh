@@ -19,9 +19,9 @@
       } }
     }
   </script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -106,9 +106,9 @@
         ownership:"Ownership", whyRated:"Why this rating", signals:"Signals", confidence:"confidence",
         contested:"Contested", provisional:"Provisional", suggestFix:"Suggest a correction",
         methodTitle:"How Paksh works", m_doesH:"What Paksh does",
-        m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and reveals how each side framed it — so you can see the whole picture and what your usual sources leave out.",
+        m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it — so you can see the whole picture and what your usual sources leave out.",
         m_ruleH:"The golden rule",
-        m_rule:"A lean label belongs to the publication, not to any single article — and never to the AI. Paksh editors assign each outlet a lean using a fixed rubric. The AI only writes neutral summaries and notes how outlets framed a story; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side.",
+        m_rule:"A lean label belongs to the publication, not to any single article — and never to the AI. Paksh editors assign each outlet a lean using a fixed rubric. The AI only writes the neutral summary; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side.",
         m_rateH:"How we rate a publication",
         m_rateLede:"We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):",
         m_rateFoot:"Scores near zero are Centre; the further from zero, the stronger the lean.",
@@ -141,9 +141,9 @@
         ownership:"स्वामित्व", whyRated:"यह रेटिंग क्यों", signals:"संकेत", confidence:"विश्वास",
         contested:"विवादित", provisional:"अस्थायी", suggestFix:"सुधार सुझाएँ",
         methodTitle:"पक्ष कैसे काम करता है", m_doesH:"पक्ष क्या करता है",
-        m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और बताता है कि हर पक्ष ने उसे कैसे पेश किया — ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
+        m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं — ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
         m_ruleH:"मूल नियम",
-        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं — और कभी AI का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। AI सिर्फ़ तटस्थ सारांश लिखता है और बताता है कि आउटलेट्स ने खबर को कैसे पेश किया; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं।",
+        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं — और कभी AI का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। AI सिर्फ़ तटस्थ सारांश लिखता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं।",
         m_rateH:"हम किसी प्रकाशन को कैसे आँकते हैं",
         m_rateLede:"हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):",
         m_rateFoot:"शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत।",
@@ -172,7 +172,7 @@
 
     let _mode;
     function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok) return "api"; }catch(e){} return "static"; })(); return _mode; }
-    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok) return r.json(); } const r=await fetch("data/"+res+".json"); if(!r.ok) throw new Error(res); return r.json(); }
+    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok) return r.json(); } const r=await fetch("data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); return r.json(); }
     async function loadAll(){
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
         return {events:e.events||[], blindspots:b.events||[], topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
@@ -181,7 +181,7 @@
 
     const toCard = (e, lang) => {
       const lc = e.lean_counts || {left:0,center:0,right:0};
-      return { id:e.id, topic:e.topic,
+      return { id:e.id, topic:e.topic, srclang:e.lang||"en",
         headline:(lang==="hi"&&e.title_hi)?e.title_hi:e.title,
         lead:(lang==="hi"&&e.summary_hi)?e.summary_hi:e.summary,
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
@@ -190,9 +190,7 @@
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
     const toDetail = (e, lang) => { const c=toCard(e,lang);
-      c.coverage=e.coverage||{}; c.outlets=e.sources||[];
-      c.divergence=(lang==="hi"&&e.divergence_hi)?e.divergence_hi:e.divergence;
-      c.omissions=(lang==="hi"&&e.omissions_hi)?e.omissions_hi:e.omissions; return c; };
+      c.coverage=e.coverage||{}; c.outlets=e.sources||[]; return c; };
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
 
@@ -372,27 +370,24 @@
               <div className="space-y-8">
                 {sides.map((k)=>{
                   const outs=(story.outlets||[]).filter(o=>o.lean===k);
-                  const framing=(story.coverage[k]||{}).framing;
                   return (
                     <div key={k}>
                       <div className="mb-3 flex items-center gap-3">
                         <span className="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white shadow-sm" style={{backgroundColor:BIAS[k].color}}>{lbl(k,lang)}</span>
                         <span className={`text-xs font-bold ${t.tf}`}>{outs.length} {outs.length===1?STR[lang].source:STR[lang].sources}</span>
                       </div>
-                      {framing && <p className={`mb-3 text-sm ${t.ts} ${isHi(lang)}`}>{framing}</p>}
                       <div className="space-y-4">
                         {outs.map((o,i)=>(
-                          <div key={i} className={`rounded-2xl border p-5 sm:p-6 ${t.surface} ${t.border}`} style={{borderLeftWidth:"5px",borderLeftColor:BIAS[k].color}}>
+                          <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`block rounded-2xl border p-5 sm:p-6 transition-shadow hover:shadow-md ${t.surface} ${t.border}`} style={{borderLeftWidth:"5px",borderLeftColor:BIAS[k].color}}>
                             <div className="mb-3 flex items-center gap-3">
                               <Monogram name={o.source} side={k} />
                               <div className="min-w-0">
                                 <div className={`text-sm font-bold ${t.tp}`}>{o.source} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(o.language||"en").toUpperCase()}</span></div>
                               </div>
-                              {o.url && <a href={o.url} target="_blank" rel="noopener" onClick={(e)=>e.stopPropagation()} className={`ml-auto text-xs font-bold ${t.brand}`}>↗</a>}
+                              <span className={`ml-auto text-xs font-bold ${t.brand}`}>↗</span>
                             </div>
                             {o.headline && <div className={`text-lg sm:text-xl font-bold leading-snug editorial-heading italic ${t.tp} ${isHi(lang)}`}>“{o.headline}”</div>}
-                            {o.framing && <div className={`mt-2 text-sm ${t.tf} ${isHi(lang)}`}>{o.framing}</div>}
-                          </div>
+                          </a>
                         ))}
                       </div>
                     </div>
@@ -545,17 +540,25 @@
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
       useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor = dark?"#0F1113":"#F1F2F3"; },[dark]);
+      useEffect(()=>{ setTopic(null); setOpenId(null); },[lang]);   // strict EN/HI split: reset view on language switch
 
       const t = dark?TOKENS.dark:TOKENS.light;
       const go=(k)=>{ setView(k); setOpenId(null); setQuery(""); window.scrollTo({top:0,behavior:"smooth"}); };
-      const open=async(id)=>{ if(!detail[id]){ try{ const full=await apiGet("events/"+id); setDetail(d=>({...d,[id]:full})); }catch(e){ console.error(e); return; } } setOpenId(id); window.scrollTo({top:0,behavior:"smooth"}); };
+      const open=async(id)=>{ if(!detail[id]){ let full=null; try{ full=await apiGet("events/"+id); }catch(e){ full=(data.events||[]).concat(data.blindspots||[]).find(x=>x.id===id)||null; if(!full){ console.error("could not open event",id,e); return; } } setDetail(d=>({...d,[id]:full})); } setOpenId(id); window.scrollTo({top:0,behavior:"smooth"}); };
       const back=()=>{ setOpenId(null); window.scrollTo({top:0,behavior:"smooth"}); };
 
       const openStory = (openId!=null && detail[openId]) ? toDetail(detail[openId],lang) : null;
 
-      let cards = data.events.map(e=>toCard(e,lang));
-      let oneSided = data.blindspots.map(e=>toCard(e,lang));
-      if(topic){ cards=cards.filter(c=>c.topic===topic); oneSided=oneSided.filter(c=>c.topic===topic); }
+      // strict language separation: English view shows only English-sourced stories; Hindi view only Hindi
+      // importance = how many outlets covered it x how many sides of the spectrum (so the
+      // biggest, most-contested, most-compared story rises to the front cover)
+      const importance = c => { const n=c.counts||{}; const spread=[n.left,n.center,n.right].filter(x=>x>0).length||1; return (c.sources||0)*spread; };
+      const byImportance = (a,b)=>importance(b)-importance(a);
+      const baseCards = data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
+      const baseOne   = data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
+      const visibleTopics = [...new Set([...baseCards, ...baseOne].map(c=>c.topic).filter(Boolean))];
+      let cards = topic ? baseCards.filter(c=>c.topic===topic) : baseCards;
+      let oneSided = topic ? baseOne.filter(c=>c.topic===topic) : baseOne;
       const q=query.trim().toLowerCase();
       const searching = q.length>0;
       const results = searching ? cards.filter(c=>(c.headline||"").toLowerCase().includes(q)) : null;
@@ -593,7 +596,7 @@
               </div>
             ) : (
               <div>
-                <TopicChips t={t} lang={lang} topics={data.topics} topic={topic} setTopic={setTopic} />
+                <TopicChips t={t} lang={lang} topics={visibleTopics} topic={topic} setTopic={setTopic} />
                 <div className="mb-8 mt-10 flex items-baseline justify-between gap-4">
                   <h1 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].topNews}</h1>
                   <span className={`hidden sm:block text-sm font-medium ${t.tf} ${isHi(lang)} text-right max-w-sm`}>{STR[lang].tagline}</span>

@@ -55,11 +55,59 @@ def init_db():
         )
     """)
 
+    # embedding cache: each article's vector, stored once, reused across runs
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS embeddings (
+            key        TEXT PRIMARY KEY,
+            vec        BLOB NOT NULL,
+            created_at TEXT
+        )
+    """)
+
     # --- migrations for users upgrading from an older paksh.db ---
     art_cols = [r["name"] for r in cur.execute("PRAGMA table_info(articles)").fetchall()]
     if "image_url" not in art_cols:
         cur.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
 
+    conn.commit()
+    conn.close()
+
+
+# ---------- Embedding cache ----------
+
+def _ensure_embeddings(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS embeddings (
+        key TEXT PRIMARY KEY, vec BLOB NOT NULL, created_at TEXT)""")
+
+
+def embeddings_get(keys):
+    """Return {key: raw_bytes} for the keys already cached (missing keys omitted)."""
+    if not keys:
+        return {}
+    conn = get_connection()
+    _ensure_embeddings(conn)
+    out = {}
+    CH = 400  # keep the IN (...) list within SQLite's parameter limit
+    for i in range(0, len(keys), CH):
+        chunk = keys[i:i + CH]
+        ph = ",".join("?" for _ in chunk)
+        for r in conn.execute(f"SELECT key, vec FROM embeddings WHERE key IN ({ph})", chunk):
+            out[r["key"]] = bytes(r["vec"])
+    conn.close()
+    return out
+
+
+def embeddings_put(items):
+    """Store {key: raw_bytes} embeddings (insert or replace)."""
+    if not items:
+        return
+    conn = get_connection()
+    _ensure_embeddings(conn)
+    now = datetime.utcnow().isoformat()
+    conn.executemany(
+        "INSERT OR REPLACE INTO embeddings (key, vec, created_at) VALUES (?, ?, ?)",
+        [(k, v, now) for k, v in items.items()],
+    )
     conn.commit()
     conn.close()
 
@@ -83,16 +131,28 @@ def insert_article(source, language, title, url, summary, image_url, published):
         conn.close()
 
 
-def get_unclustered_articles(limit=120):
+def get_unclustered_articles(limit=1100, per_source=60):
+    """Return un-grouped articles, BALANCED across outlets.
+
+    A naive 'most recent N' lets a prolific outlet (e.g. Indian Express with many
+    section feeds) flood the window and crowd out the cross-outlet overlap that
+    actually forms events. So we take each outlet's most-recent `per_source`
+    articles, giving every outlet a fair shot at landing on the same big stories."""
     conn = get_connection()
     rows = conn.execute(
         """SELECT id, source, language, title, summary
            FROM articles WHERE event_id IS NULL
-           ORDER BY fetched_at DESC LIMIT ?""",
-        (limit,),
+           ORDER BY fetched_at DESC"""
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    by_source, out = {}, []
+    for r in rows:
+        s = r["source"]
+        if by_source.get(s, 0) >= per_source:
+            continue
+        by_source[s] = by_source.get(s, 0) + 1
+        out.append(dict(r))
+    return out[:limit]
 
 
 def get_articles_by_ids(ids):
@@ -134,6 +194,17 @@ def count_articles():
 def lean_counts_from(data):
     cov = data.get("coverage", {})
     return {s: cov.get(s, {}).get("count", 0) for s in LEAN_ORDER}
+
+
+def event_language(data):
+    """Majority language of an event's sources ('en'/'hi'). Ties prefer English.
+    Used so the site can show English-sourced and Hindi-sourced stories separately."""
+    from collections import Counter
+    langs = [s.get("language", "en") for s in data.get("sources", [])]
+    if not langs:
+        return "en"
+    counts = Counter(langs)
+    return max(counts.items(), key=lambda kv: (kv[1], kv[0] == "en"))[0]
 
 
 def dominant_lean(counts):
@@ -199,6 +270,7 @@ def _event_summary_row(r):
         "summary_hi": data.get("summary_hi", ""),
         "summary_points_hi": data.get("summary_points_hi", []),
         "topic": data.get("topic", "General"),
+        "lang": event_language(data),
         "image_url": data.get("image_url", ""),
         "is_demo": bool(r["is_demo"]),
         "source_count": len(data.get("sources", [])),
@@ -242,6 +314,7 @@ def get_event(event_id):
     data["is_demo"] = bool(r["is_demo"])
     data["created_at"] = r["created_at"]
     data["lean_counts"] = counts
+    data["lang"] = event_language(data)
     data["dominant"] = dominant_lean(counts)
     data["blindspot"] = compute_blindspot(counts)
     return data

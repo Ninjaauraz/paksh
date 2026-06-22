@@ -206,6 +206,121 @@ SOURCES = [
         "rationale": "Youth-focused Hindi digital outlet; broad framing.",
         "subscores": None,
     },
+
+    # ---------------- Independent / journalist-run (v1.1) ----------------
+    # Smaller, independent or collective-run digital outlets. India's independent
+    # press skews left-of-centre, so these additions lean that way; credible
+    # right-of-centre independents (Swarajya & OpIndia above, plus the two below)
+    # are fewer. EVERY lean here is a provisional draft - review before launch.
+    {
+        "id": "the_print", "name": "The Print", "language": "en",
+        "website": "https://theprint.in",
+        "ownership": "Printline Media Pvt Ltd (Shekhar Gupta)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Independent digital outlet; positioning commonly described "
+                     "as centrist, shading centre-right on some issues.",
+        "subscores": None,
+    },
+    {
+        "id": "newslaundry", "name": "Newslaundry", "language": "en",
+        "website": "https://www.newslaundry.com",
+        "ownership": "Independent, subscriber-funded",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Subscriber-funded media-critique and reporting outlet; "
+                     "commonly described as left-of-centre.",
+        "subscores": None,
+    },
+    {
+        "id": "the_news_minute", "name": "The News Minute", "language": "en",
+        "website": "https://www.thenewsminute.com",
+        "ownership": "Independent digital outlet",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Independent, South-India-focused newsroom; commonly "
+                     "described as left-of-centre.",
+        "subscores": None,
+    },
+    {
+        "id": "the_caravan", "name": "The Caravan", "language": "en",
+        "website": "https://caravanmagazine.in",
+        "ownership": "Delhi Press",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Long-form investigative magazine; editorial stance commonly "
+                     "described as left-leaning.",
+        "subscores": None,
+    },
+    {
+        "id": "the_quint", "name": "The Quint", "language": "en",
+        "website": "https://www.thequint.com",
+        "ownership": "Quintillion Media",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Independent digital outlet; positioning commonly described "
+                     "as centre to centre-left.",
+        "subscores": None,
+    },
+    {
+        "id": "livelaw", "name": "LiveLaw", "language": "en",
+        "website": "https://www.livelaw.in",
+        "ownership": "Independent legal-news outlet",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Specialist legal-news service; largely non-partisan court "
+                     "and judgment reporting.",
+        "subscores": None,
+    },
+    {
+        "id": "article14", "name": "Article 14", "language": "en",
+        "website": "https://article-14.com",
+        "ownership": "Independent collective",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Rights- and rule-of-law-focused reporting; commonly "
+                     "described as left-leaning.",
+        "subscores": None,
+    },
+    {
+        "id": "reporters_collective", "name": "The Reporters' Collective", "language": "en",
+        "website": "https://www.reporters-collective.in",
+        "ownership": "Non-profit journalist collective",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Investigative collective run by a small group of journalists; "
+                     "data- and document-driven framing.",
+        "subscores": None,
+    },
+    {
+        "id": "the_commune", "name": "The Commune", "language": "en",
+        "website": "https://thecommunemag.com",
+        "ownership": "Independent digital outlet",
+        "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Digital outlet with a nationalist, right-of-centre framing.",
+        "subscores": None,
+    },
+    {
+        "id": "tfipost", "name": "TFIPOST", "language": "en",
+        "website": "https://tfipost.com",
+        "ownership": "Independent digital outlet",
+        "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Digital opinion-and-news outlet with a right-of-centre, "
+                     "nationalist framing.",
+        "subscores": None,
+    },
+    {
+        "id": "khabar_lahariya", "name": "Khabar Lahariya", "language": "hi",
+        "website": "https://khabarlahariya.org",
+        "ownership": "Chambal Media (women-run)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-14",
+        "rationale": "Rural, women-run grassroots outlet reporting in Hindi and "
+                     "Bundeli; ground-reporting focus.",
+        "subscores": None,
+    },
 ]
 
 # ---- helpers used by the rest of the app -------------------------------------

@@ -24,7 +24,7 @@ import time
 import socket
 import calendar
 from datetime import datetime, timezone
-from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode, unquote
 import urllib.request
 
 import feedparser
@@ -55,6 +55,62 @@ def clean_text(raw: str) -> str:
     no_tags = re.sub(r"<[^>]+>", " ", raw)
     decoded = html.unescape(no_tags)
     return re.sub(r"\s+", " ", decoded).strip()
+
+
+def tidy_title(title: str, source_name: str = "") -> str:
+    """Clean up titles, mainly from Google-News-bridged feeds, which often arrive
+    URL-encoded ('Namma%20Metro') and with the outlet appended (' - Swarajyamag')."""
+    if not title:
+        return ""
+    if "%2" in title or "%3" in title:          # looks URL-encoded -> decode it
+        try:
+            title = re.sub(r"\s+", " ", unquote(title)).strip()
+        except Exception:
+            pass
+    for sep in (" - ", " \u2013 ", " | ", " \u2014 "):   # strip a trailing " - Outlet" suffix
+        idx = title.rfind(sep)
+        if idx > 0:
+            tail = title[idx + len(sep):].strip()
+            if 0 < len(tail) <= 30 and len(tail.split()) <= 4:   # short -> it's the outlet name
+                title = title[:idx].strip()
+                break
+    return title
+
+
+# Non-news that leaks in via Google-News bridges and aggregator feeds: horoscopes,
+# recipes, "quote of the day", search/tag/pagination pages, candidate-bio election
+# templates. These pollute the pool and some even cluster into junk "events" (the
+# मकर राशि horoscope did). Drop them at ingestion. Kept deliberately conservative so
+# real headlines are never caught.
+_JUNK_RE = re.compile(
+    r"(search results for|you searched for|\|\s*page\s*\d+|read all latest updates|"
+    r"insightful articles and opinions|quote of the day|proverb of the day|"
+    r"horoscope|astrological prediction|rashifal|राशिफल|कुंडली|धन योग|"
+    r"\brecipe\b|रेसिपी|"
+    r"election result\s*20\d\d|निर्वाचन परिणाम\s*20\d\d|"
+    r"age,?\s*education,?\s*political career|विधानसभा चुनाव.{0,8}परिणाम|"
+    r"news in hindi:\s*latest|latest .{0,30}news[:,].{0,30}top stories)", re.I)
+
+_ZODIAC_HI = ("मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या",
+              "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन")
+
+
+def is_junk(title: str) -> bool:
+    """True if the 'article' is really a horoscope / recipe / tag / search page etc."""
+    t = (title or "").strip()
+    if len(t) < 6:                                  # empty or suffix-only remnant
+        return True
+    if t.startswith("- ") or t.startswith("#"):     # "- Scroll.in", "#Crime"
+        return True
+    if " " not in t and t.count("-") >= 2:          # url-slug titles ("jio-sim-offer-...")
+        return True
+    if _JUNK_RE.search(t):
+        return True
+    if len(t) < 30 and ("राशि" in t or any(z in t for z in _ZODIAC_HI)):
+        return True                                 # "मकर राशि" zodiac category pages
+    if len(t.split()) == 1 and t.isascii() and len(t) < 18:
+        return True                                 # single-word tag pages ("Stokes", "Kashmir")
+    return False
 
 
 def canonical_url(url: str) -> str:
@@ -110,9 +166,9 @@ def extract_image(entry) -> str:
 
 def normalize_entry(entry, source: dict):
     """Turn a raw feed entry into the record shape the DB expects, or None."""
-    title = clean_text(entry.get("title", ""))
+    title = tidy_title(clean_text(entry.get("title", "")), source.get("name", ""))
     link = canonical_url(entry.get("link", ""))
-    if not title or not link:
+    if not title or not link or is_junk(title):
         return None
     summary = clean_text(entry.get("summary", "") or entry.get("description", ""))[:SUMMARY_MAX]
     return {
