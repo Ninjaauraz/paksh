@@ -94,6 +94,19 @@ _JUNK_RE = re.compile(
 _ZODIAC_HI = ("मेष", "वृषभ", "मिथुन", "कर्क", "सिंह", "कन्या",
               "तुला", "वृश्चिक", "धनु", "मकर", "कुंभ", "मीन")
 
+# Section-index / ePaper / RSS / SEO-landing titles seen from the wider feed set.
+_JUNK_RE2 = re.compile(
+    r"(\bepaper\b|\brss feed|read all latest|"
+    r"latest updates? (&|and) trending headlines|breaking (&|and) live updates|"
+    r"weather forecast and aqi|\bnews wires\b|exclusive news stories,|"
+    r"^all the news on |news articles in hindi$|latest .{0,20}news in hindi|"
+    r"team squad$|astroguide for|cartoon today on|daily quiz\s*\||"
+    r"आज का पंचांग|ताज़ा ख़बर|ताज़ा खबरे|न्यूज़ फीड)", re.I)
+_HEX_ID_RE = re.compile(r"\b[0-9a-f]{16,}\b", re.I)
+_NEWS_TODAY_RE = re.compile(r"news (today|in hindi)$", re.I)
+_INDEX_LABELS = {"latest news", "news", "top news", "breaking news", "trending news",
+                 "latest", "देश समाचार", "ताजा खबर", "latest news today"}
+
 
 def is_junk(title: str) -> bool:
     """True if the 'article' is really a horoscope / recipe / tag / search page etc."""
@@ -106,6 +119,16 @@ def is_junk(title: str) -> bool:
         return True
     if _JUNK_RE.search(t):
         return True
+    if _JUNK_RE2.search(t):
+        return True
+    if t.count("|") >= 2:                            # multi-pipe SEO/section titles
+        return True
+    if _HEX_ID_RE.search(t):                         # hash-id slugs ("6a377cd1...")
+        return True
+    if t.lower() in _INDEX_LABELS:                   # bare "Latest News" index labels
+        return True
+    if _NEWS_TODAY_RE.search(t) and len(t.split()) <= 5:
+        return True                                  # "<State> News Today" landing pages
     if len(t) < 30 and ("राशि" in t or any(z in t for z in _ZODIAC_HI)):
         return True                                 # "मकर राशि" zodiac category pages
     if len(t.split()) == 1 and t.isascii() and len(t) < 18:

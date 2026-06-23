@@ -164,7 +164,9 @@ def _extract_json(text: str):
 
 
 def lean_of(name):
-    return LEAN_BY_SOURCE.get(name, "center")
+    # Unknown outlets (e.g. the GDELT long tail) are UNRATED: they add coverage
+    # and clustering density but never vote in the Left/Centre/Right bias bar.
+    return LEAN_BY_SOURCE.get(name, "unrated")
 
 
 # ------------------------------ clustering (PASS 1) ------------------------------
@@ -271,6 +273,9 @@ def postprocess(raw, articles) -> dict:
     for side in LEAN_ORDER:
         names = [s["source"] for s in sources_out if s["lean"] == side]
         coverage_out[side] = {"count": len(names), "sources": names}
+    # unrated outlets (GDELT long tail): counted for breadth, never for lean
+    unrated_names = [s["source"] for s in sources_out if s["lean"] == "unrated"]
+    coverage_out["unrated"] = {"count": len(unrated_names), "sources": unrated_names}
 
     topic = raw.get("topic", "Society")
     if topic not in TOPICS:

@@ -57,7 +57,11 @@ def main() -> None:
         print("  (make sure Ollama is running: it must be reachable at "
               + os.environ.get("OLLAMA_URL", "http://localhost:11434") + ")")
 
-    steps = STEPS if "--no-export" not in sys.argv else STEPS[:-1]
+    steps = list(STEPS)
+    if "--gdelt" in sys.argv:                       # firehose: runs right after ingest
+        steps.insert(1, ("Pulling GDELT firehose", "gdelt_source.py"))
+    if "--no-export" in sys.argv:
+        steps = [s for s in steps if s[1] != "export_static.py"]
     start = time.time()
     for title, script in steps:
         run(title, script)

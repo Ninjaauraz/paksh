@@ -641,6 +641,37 @@ def lean_by_source() -> dict:
 LEAN_BY_SOURCE = lean_by_source()
 
 
+# ---- domain resolution (for GDELT and any URL-only article source) ----
+import re as _re
+
+def _host(website: str) -> str:
+    h = (website or "").lower().strip()
+    h = _re.sub(r"^https?://", "", h).split("/")[0]
+    return h[4:] if h.startswith("www.") else h
+
+# {bare domain -> rated outlet name}, built from each source's website
+DOMAIN_TO_SOURCE = {_host(s["website"]): s["name"] for s in SOURCES if s.get("website")}
+
+def resolve_source(domain: str):
+    """Map an article's domain to a RATED registry outlet, or mark it UNRATED.
+
+    Returns (source_name, is_rated). Rated -> the registry name (carries a lean).
+    Unrated -> the bare domain as a stable label, so the long-tail outlet still
+    clusters consistently but never votes in the Left/Centre/Right bias bar.
+    """
+    d = (domain or "").lower().strip()
+    if d.startswith("www."):
+        d = d[4:]
+    if not d:
+        return ("unknown.source", False)
+    if d in DOMAIN_TO_SOURCE:
+        return (DOMAIN_TO_SOURCE[d], True)
+    for host, name in DOMAIN_TO_SOURCE.items():        # m.thehindu.com -> thehindu.com
+        if d.endswith("." + host):
+            return (name, True)
+    return (d, False)                                  # unrated long-tail outlet
+
+
 def get_sources(language=None) -> list:
     return [s for s in SOURCES if language is None or s["language"] == language]
 

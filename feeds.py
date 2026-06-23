@@ -108,7 +108,6 @@ FEEDS = {
         "https://feeds.bbci.co.uk/news/world/asia/india/rss.xml",
         "https://feeds.bbci.co.uk/news/business/rss.xml",
         "https://feeds.bbci.co.uk/news/technology/rss.xml",
-        "https://feeds.bbci.co.uk/sport/rss.xml",
     ],
     "the_guardian": [
         "https://www.theguardian.com/world/india/rss",

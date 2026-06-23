@@ -218,18 +218,29 @@ def dominant_lean(counts):
 
 def compute_blindspot(counts):
     """
-    A Blindspot = a story one side is barely covering while another dominates.
-    Returns {side, pct} for the under-covering side, or None.
-    Needs 3+ total sources so it's a real story, one side >=50%, another <=15%.
+    A Blindspot = a partisan asymmetry: one political wing covers the story
+    while the OPPOSITE wing stays almost entirely away. Centre-only stories are
+    'thinly covered', not blindspots, so they no longer qualify (this is what
+    used to flag ~80% of events).
+
+    All of these must hold:
+      - 4+ total sources            -> a real, multi-outlet story
+      - the covering wing is >=40%  AND has >=2 distinct outlets
+      - the opposite wing is <=15%  (effectively absent)
+    Returns {side, pct} where `side` is the under-covering (blindspot) wing.
     """
     total = sum(counts.values())
-    if total < 3:
+    if total < 4:
         return None
-    pcts = {s: counts[s] / total * 100 for s in LEAN_ORDER}
-    top = max(LEAN_ORDER, key=lambda s: pcts[s])
-    low = min(LEAN_ORDER, key=lambda s: pcts[s])
-    if pcts[top] >= 50 and pcts[low] <= 15:
-        return {"side": low, "pct": round(pcts[low])}
+    left, right = counts.get("left", 0), counts.get("right", 0)
+    lpct, rpct = left / total, right / total
+    LOW, PRESENT = 0.15, 0.40
+    # right (and/or centre) cover it, the left is absent -> Left blindspot
+    if lpct <= LOW and rpct >= PRESENT and right >= 2:
+        return {"side": "left", "pct": round(lpct * 100)}
+    # left (and/or centre) cover it, the right is absent -> Right blindspot
+    if rpct <= LOW and lpct >= PRESENT and left >= 2:
+        return {"side": "right", "pct": round(rpct * 100)}
     return None
 
 
