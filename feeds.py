@@ -100,6 +100,57 @@ FEEDS = {
     "live_hindustan":   ["https://news.google.com/rss/search?q=site:livehindustan.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
     "news18_hindi":     ["https://news.google.com/rss/search?q=site:hindi.news18.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
     "patrika":          ["https://news.google.com/rss/search?q=site:patrika.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+
+    # ---- v1.3: international (with section feeds) + regional ----
+    # International — native RSS where stable, with section feeds.
+    "bbc_news": [
+        "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://feeds.bbci.co.uk/news/world/asia/india/rss.xml",
+        "https://feeds.bbci.co.uk/news/business/rss.xml",
+        "https://feeds.bbci.co.uk/news/technology/rss.xml",
+        "https://feeds.bbci.co.uk/sport/rss.xml",
+    ],
+    "the_guardian": [
+        "https://www.theguardian.com/world/india/rss",
+        "https://www.theguardian.com/world/rss",
+        "https://www.theguardian.com/business/rss",
+        "https://www.theguardian.com/technology/rss",
+    ],
+    "al_jazeera": [
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://news.google.com/rss/search?q=site:aljazeera.com+India+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    "dw_news": [
+        "https://rss.dw.com/xml/rss-en-world",
+        "https://news.google.com/rss/search?q=site:dw.com+India+when:3d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    "france24": [
+        "https://www.france24.com/en/rss",
+        "https://news.google.com/rss/search?q=site:france24.com+India+when:3d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Reuters / AP / Bloomberg dropped public RSS -> Google News bridges.
+    "reuters": [
+        "https://news.google.com/rss/search?q=site:reuters.com+India+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+        "https://news.google.com/rss/search?q=site:reuters.com+world+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    "ap_news":   ["https://news.google.com/rss/search?q=site:apnews.com+India+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "bloomberg": ["https://news.google.com/rss/search?q=site:bloomberg.com+India+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+
+    # Regional: English (Google News bridges)
+    "tribune_india":      ["https://news.google.com/rss/search?q=site:tribuneindia.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "deccan_chronicle":   ["https://news.google.com/rss/search?q=site:deccanchronicle.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "telangana_today":    ["https://news.google.com/rss/search?q=site:telanganatoday.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "new_indian_express": ["https://news.google.com/rss/search?q=site:newindianexpress.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "free_press_journal": ["https://news.google.com/rss/search?q=site:freepressjournal.in+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "eastmojo":           ["https://news.google.com/rss/search?q=site:eastmojo.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "greater_kashmir":    ["https://news.google.com/rss/search?q=site:greaterkashmir.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "mathrubhumi_eng":    ["https://news.google.com/rss/search?q=site:english.mathrubhumi.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
+
+    # Regional: Hindi (Google News bridges)
+    "prabhat_khabar":     ["https://news.google.com/rss/search?q=site:prabhatkhabar.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "nai_dunia":          ["https://news.google.com/rss/search?q=site:naidunia.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "punjab_kesari":      ["https://news.google.com/rss/search?q=site:punjabkesari.in+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "haribhoomi":         ["https://news.google.com/rss/search?q=site:haribhoomi.com+when:3d&hl=hi-IN&gl=IN&ceid=IN:hi"],
 }
 
 # Confirmed against public RSS directories (others are candidates to verify).

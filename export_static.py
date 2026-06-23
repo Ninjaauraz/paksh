@@ -33,7 +33,7 @@ from sources import SOURCES, coverage_summary
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
-SRC_FIELDS = ("id", "name", "language", "website", "ownership", "lean", "label",
+SRC_FIELDS = ("id", "name", "language", "region", "website", "ownership", "lean", "label",
               "confidence", "contested", "review_status", "last_reviewed",
               "rationale", "subscores")
 
