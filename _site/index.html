@@ -93,6 +93,13 @@
       sections:{en:"Sections", hi:"खंड"}, oneSided:{en:"One-Sided", hi:"एकतरफ़ा"},
       searchTab:{en:"Search", hi:"खोज"}, browse:{en:"Browse by topic", hi:"विषय से देखें"},
       searchHint:{en:"Search across all coverage", hi:"सभी कवरेज में खोजें"},
+      groupBy:{en:"Group by", hi:"समूह"}, gLean:{en:"Lean", hi:"झुकाव"},
+      gLang:{en:"Language", hi:"भाषा"}, gRegion:{en:"Region", hi:"क्षेत्र"},
+      findOutlet:{en:"Find an outlet…", hi:"आउटलेट खोजें…"},
+      National:{en:"National", hi:"राष्ट्रीय"}, Regional:{en:"Regional", hi:"क्षेत्रीय"},
+      International:{en:"International", hi:"अंतरराष्ट्रीय"},
+      registry:{en:"outlets tracked", hi:"आउटलेट"}, expandAll:{en:"Expand all", hi:"सभी खोलें"},
+      collapseAll:{en:"Collapse all", hi:"सभी बंद करें"}, noOutlets:{en:"No outlets match.", hi:"कोई आउटलेट नहीं मिला।"},
     };
     const ui=(k,lang)=>(UI[k]||{})[lang]||(UI[k]||{}).en||k;
 
@@ -415,54 +422,114 @@
 
     /* ---------------- sources page ---------------- */
     function SourcesPage({ t, lang, sources }) {
-      const [fLean,setFLean]=useState(""); const [fLang,setFLang]=useState("");
-      let list=sources||[]; if(fLean) list=list.filter(s=>s.lean===fLean); if(fLang) list=list.filter(s=>s.language===fLang);
-      const Chip=({on,onClick,children})=> <button onClick={onClick} className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${on?`${t.brandBg} text-white border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${isHi(lang)}`}>{children}</button>;
+      const [groupBy,setGroupBy]=useState("lean");   // lean | language | region
+      const [query,setQuery]=useState("");
+      const [open,setOpen]=useState({});
+      const all=sources||[]; const q=query.trim().toLowerCase();
       const labels={editorial:"Ed",framing:"Fr",selection:"Sel",sourcing:"Src",ownership:"Own",panel:"Pan"};
+
+      const dist={left:0,center:0,right:0}; all.forEach(s=>{ if(dist[s.lean]!=null) dist[s.lean]++; });
+
+      const keyOf=(s)=> groupBy==="lean" ? (s.lean||"unrated")
+                      : groupBy==="language" ? (s.language||"en")
+                      : (s.region||"National");
+      const ORDER={ lean:["left","center","right","unrated"], language:["en","hi"], region:["National","Regional","International"] };
+      const groupName=(g)=> groupBy==="lean" ? lbl(g,lang)
+                          : groupBy==="language" ? (g==="hi"?STR[lang].langHI:STR[lang].langEN)
+                          : ui(g,lang);
+      const groups={}; all.forEach(s=>{ const k=keyOf(s); (groups[k]=groups[k]||[]).push(s); });
+      const keys=[...(ORDER[groupBy]||[]).filter(k=>groups[k]), ...Object.keys(groups).filter(k=>!(ORDER[groupBy]||[]).includes(k))];
+
+      const SourceCard=(s)=>{
+        const fix=`mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal: "+s.name)}&body=${encodeURIComponent("Outlet: "+s.name+"\nCurrent rating: "+(s.label||s.lean)+"\n\nWhy it should be reviewed (specific headlines or articles):\n\n")}`;
+        return (
+          <div key={s.id} className={`rounded-2xl border p-5 ${t.surface} ${t.border}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className={`text-base font-extrabold ${t.tp}`}>{s.name} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(s.language||"en").toUpperCase()}</span></div>
+                <a href={s.website} target="_blank" rel="noopener" className={`text-xs font-semibold ${t.brand}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="rounded-full px-3 py-1 text-xs font-extrabold text-white" style={{backgroundColor:BIAS[s.lean]?BIAS[s.lean].color:"#64748B"}}>{lbl(s.lean,lang)}</span>
+                <span className={`text-xs font-semibold ${t.ts} ${isHi(lang)}`}>{confName(s.confidence,lang)} {STR[lang].confidence}</span>
+                {s.contested && <span className={`rounded px-2 py-0.5 text-[10px] font-extrabold uppercase ${t.blindSoft} ${t.blind} ${isHi(lang)}`}>{STR[lang].contested}</span>}
+              </div>
+            </div>
+            <div className={`mt-3 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].ownership}:</strong> {s.ownership}</div>
+            <div className={`mt-1.5 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].whyRated}:</strong> {s.rationale}</div>
+            {s.subscores && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className={`text-[11px] font-bold uppercase ${t.tf} ${isHi(lang)}`}>{STR[lang].signals}:</span>
+                {Object.keys(labels).map(k=>{ const v=s.subscores[k]; const c=v<0?BIAS.left.color:v>0?BIAS.right.color:BIAS.center.color;
+                  return <span key={k} className="text-[11px] font-bold rounded px-2 py-0.5 text-white" style={{backgroundColor:c}}>{labels[k]} {v>0?"+"+v:v}</span>; })}
+              </div>
+            )}
+            <a href={fix} className={`mt-4 inline-block text-xs font-bold ${t.brand} ${isHi(lang)}`}>{STR[lang].suggestFix} →</a>
+          </div>
+        );
+      };
+
+      const results = q ? all.filter(s=>(s.name||"").toLowerCase().includes(q)||(s.ownership||"").toLowerCase().includes(q)||(s.website||"").toLowerCase().includes(q)) : null;
+
       return (
-        <div className="pt-12 pb-24 max-w-4xl mx-auto">
-          <h1 className={`mb-2 text-3xl sm:text-4xl font-black editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
-          <p className={`mb-6 text-lg ${t.ts} ${isHi(lang)}`}>{STR[lang].srcIntro}</p>
-          <div className={`mb-8 rounded-2xl border p-5 text-sm leading-relaxed ${t.soft} ${t.border} ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].provisional}.</strong> {STR[lang].srcDisclaimer}</div>
-          <div className="mb-8 flex flex-wrap items-center gap-2">
-            <span className={`text-sm font-bold mr-1 ${t.ts} ${isHi(lang)}`}>{STR[lang].filterLean}:</span>
-            <Chip on={fLean===""} onClick={()=>setFLean("")}>{STR[lang].all}</Chip>
-            {["left","center","right"].map(k=><Chip key={k} on={fLean===k} onClick={()=>setFLean(k)}>{lbl(k,lang)}</Chip>)}
-            <span className={`text-sm font-bold ml-3 mr-1 ${t.ts} ${isHi(lang)}`}>{STR[lang].filterLang}:</span>
-            <Chip on={fLang===""} onClick={()=>setFLang("")}>{STR[lang].all}</Chip>
-            <Chip on={fLang==="en"} onClick={()=>setFLang("en")}>{STR[lang].langEN}</Chip>
-            <Chip on={fLang==="hi"} onClick={()=>setFLang("hi")}>{STR[lang].langHI}</Chip>
+        <div className="pt-6 pb-4">
+          <h1 className={`mb-2 text-3xl font-black editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
+          <p className={`mb-5 text-base ${t.ts} ${isHi(lang)}`}>{STR[lang].srcIntro}</p>
+
+          <div className="mb-5">
+            <div className="flex gap-1 mb-2">
+              {["left","center","right"].map(k=><div key={k} className="h-2 rounded" style={{flex:Math.max(dist[k],0.001),backgroundColor:BIAS[k].color}} />)}
+            </div>
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold ${t.ts}`}>
+              <span><b className={t.tp}>{all.length}</b> {ui("registry",lang)}</span>
+              {["left","center","right"].map(k=><span key={k} className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}} />{lbl(k,lang)} {dist[k]}</span>)}
+            </div>
           </div>
-          <div className="space-y-4">
-            {list.map((s)=>{
-              const fix=`mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal: "+s.name)}&body=${encodeURIComponent("Outlet: "+s.name+"\nCurrent rating: "+(s.label||s.lean)+"\n\nWhy it should be reviewed (specific headlines or articles):\n\n")}`;
-              return (
-                <div key={s.id} className={`rounded-2xl border p-6 ${t.surface} ${t.border} shadow-sm`}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className={`text-base font-extrabold ${t.tp}`}>{s.name} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(s.language||"en").toUpperCase()}</span></div>
-                      <a href={s.website} target="_blank" rel="noopener" className={`text-xs font-semibold ${t.brand}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="rounded-full px-3 py-1 text-xs font-extrabold text-white" style={{backgroundColor:BIAS[s.lean]?BIAS[s.lean].color:"#64748B"}}>{lbl(s.lean,lang)}</span>
-                      <span className={`text-xs font-semibold ${t.ts} ${isHi(lang)}`}>{confName(s.confidence,lang)} {STR[lang].confidence}</span>
-                      {s.contested && <span className={`rounded px-2 py-0.5 text-[10px] font-extrabold uppercase ${t.blindSoft} ${t.blind} ${isHi(lang)}`}>{STR[lang].contested}</span>}
-                    </div>
+
+          <div className={`mb-6 rounded-2xl border p-4 text-sm leading-relaxed ${t.soft} ${t.border} ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].provisional}.</strong> {STR[lang].srcDisclaimer}</div>
+
+          <div className="mb-6 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${t.tf}`} />
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder={ui("findOutlet",lang)} className={`w-full rounded-full border py-2.5 pl-10 pr-4 text-sm font-medium outline-none focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold ${t.tf} ${isHi(lang)}`}>{ui("groupBy",lang)}</span>
+              <select value={groupBy} onChange={e=>{setGroupBy(e.target.value); setOpen({});}} className={`flex-1 rounded-full border py-2.5 px-4 text-sm font-bold outline-none focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`}>
+                <option value="lean">{ui("gLean",lang)}</option>
+                <option value="language">{ui("gLang",lang)}</option>
+                <option value="region">{ui("gRegion",lang)}</option>
+              </select>
+            </div>
+          </div>
+
+          {q ? (
+            results.length ? <div className="space-y-4">{results.map(SourceCard)}</div>
+              : <div className={`py-16 text-center font-semibold ${t.tf} ${isHi(lang)}`}>{ui("noOutlets",lang)}</div>
+          ) : (
+            <div className="space-y-3">
+              {keys.map((k,idx)=>{
+                const items=groups[k].slice().sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+                const isOpen = open[k]!==undefined ? open[k] : idx===0;
+                const gd={left:0,center:0,right:0}; items.forEach(s=>{ if(gd[s.lean]!=null) gd[s.lean]++; });
+                return (
+                  <div key={k} className={`rounded-2xl border overflow-hidden ${t.border} ${t.surface}`}>
+                    <button onClick={()=>setOpen(o=>({...o,[k]:!isOpen}))} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`text-base font-black ${t.tp} ${isHi(lang)}`}>{groupName(k)}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${t.soft} ${t.tf}`}>{items.length}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {groupBy!=="lean" && <div className="hidden sm:flex gap-1 w-24">{["left","center","right"].map(x=><div key={x} className="h-1.5 rounded" style={{flex:Math.max(gd[x],0.001),backgroundColor:BIAS[x].color}} />)}</div>}
+                        <ChevronRight size={18} className={`${t.tf} transition-transform ${isOpen?"rotate-90":""}`} />
+                      </div>
+                    </button>
+                    {isOpen && <div className={`border-t px-4 py-4 space-y-4 ${t.border}`}>{items.map(SourceCard)}</div>}
                   </div>
-                  <div className={`mt-3 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].ownership}:</strong> {s.ownership}</div>
-                  <div className={`mt-1.5 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].whyRated}:</strong> {s.rationale}</div>
-                  {s.subscores && (
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      <span className={`text-[11px] font-bold uppercase ${t.tf} ${isHi(lang)}`}>{STR[lang].signals}:</span>
-                      {Object.keys(labels).map(k=>{ const v=s.subscores[k]; const c=v<0?BIAS.left.color:v>0?BIAS.right.color:BIAS.center.color;
-                        return <span key={k} className="text-[11px] font-bold rounded px-2 py-0.5 text-white" style={{backgroundColor:c}}>{labels[k]} {v>0?"+"+v:v}</span>; })}
-                    </div>
-                  )}
-                  <a href={fix} className={`mt-4 inline-block text-xs font-bold ${t.brand} ${isHi(lang)}`}>{STR[lang].suggestFix} →</a>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }
