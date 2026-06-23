@@ -53,20 +53,22 @@
     const Menu = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>;
     const X = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
     const Scale = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>;
+    const Home = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>;
+    const Grid = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
 
     /* ---------------- config ---------------- */
     const BIAS = {
       left:   { color: "#2563EB", en: "Left",   hi: "वाम" },
       center: { color: "#64748B", en: "Centre", hi: "केंद्र" },
-      right:  { color: "#DC2626", en: "Right",  hi: "दक्षिण" },
+      right:  { color: "#D97706", en: "Right",  hi: "दक्षिण" },
     };
     const TOKENS = {
       light: { bg:"bg-[#F1F2F3]", surface:"bg-[#FFFFFF]", soft:"bg-[#F7F7F8]", border:"border-[#E3E3E6]",
         tp:"text-[#1B1B1F]", ts:"text-[#5C5F66]", tf:"text-[#8A8F98]", brand:"text-[#0E7C73]", brandBg:"bg-[#0E7C73]",
-        blind:"text-[#B45309]", blindSoft:"bg-[#FBEFDD]", nav:"glass-nav-light" },
+        blind:"text-[#BE123C]", blindSoft:"bg-[#FFE4E6]", nav:"glass-nav-light" },
       dark: { bg:"bg-[#0F1113]", surface:"bg-[#181B1E]", soft:"bg-[#1E2226]", border:"border-[#2A2E33]",
         tp:"text-[#E6E8EB]", ts:"text-[#9AA0A8]", tf:"text-[#6B7280]", brand:"text-[#2DD4BF]", brandBg:"bg-[#0E7C73]",
-        blind:"text-[#FBBF24]", blindSoft:"bg-[#78350F]/30", nav:"glass-nav-dark" },
+        blind:"text-[#FB7185]", blindSoft:"bg-[#4C0519]/50", nav:"glass-nav-dark" },
     };
     const TOPIC_HI = {Politics:"राजनीति", Economy:"अर्थव्यवस्था", International:"अंतरराष्ट्रीय", Sports:"खेल",
       "Crime & Law":"अपराध व कानून", "Science & Tech":"विज्ञान व तकनीक", Health:"स्वास्थ्य",
@@ -85,6 +87,14 @@
           "तटस्थ सारांश AI द्वारा आउटलेट्स की अपनी कवरेज से लिखा जाता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, AI से नहीं।"],
     };
     const CONTACT = "corrections@paksh.example"; // <-- change to your real address
+
+    const UI = {
+      seeAll:{en:"See all", hi:"सभी देखें"}, top:{en:"Top", hi:"मुख्य"},
+      sections:{en:"Sections", hi:"खंड"}, oneSided:{en:"One-Sided", hi:"एकतरफ़ा"},
+      searchTab:{en:"Search", hi:"खोज"}, browse:{en:"Browse by topic", hi:"विषय से देखें"},
+      searchHint:{en:"Search across all coverage", hi:"सभी कवरेज में खोजें"},
+    };
+    const ui=(k,lang)=>(UI[k]||{})[lang]||(UI[k]||{}).en||k;
 
     const STR = {
       en: {
@@ -247,12 +257,13 @@
     }
     function CompactRow({ story, t, lang, onOpen, last }) {
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group flex cursor-pointer gap-5 py-5 ${!last?`border-b ${t.border}`:""}`}>
-          <div className="shrink-0 rounded-xl overflow-hidden" style={{width:96,height:96,background:`center/cover url("${story.image}")`}} />
+        <article onClick={()=>onOpen(story.id)} className={`group flex cursor-pointer gap-4 py-4 ${!last?`border-b ${t.border}`:""}`}>
+          <div className="shrink-0 rounded-xl overflow-hidden" style={{width:78,height:78,background:`center/cover url("${story.image}")`}} />
           <div className="flex min-w-0 flex-col justify-center flex-1">
             <Eyebrow story={story} t={t} lang={lang} />
-            <h3 className={`mb-2.5 text-sm sm:text-base font-bold leading-snug editorial-heading ${t.tp} line-clamp-2 ${isHi(lang)}`}>{story.headline}</h3>
-            <CoverageLine story={story} t={t} lang={lang} />
+            <h3 className={`mb-2 text-[15px] font-bold leading-snug editorial-heading ${t.tp} line-clamp-2 ${isHi(lang)}`}>{story.headline}</h3>
+            <BiasBar bias={story.bias} height="h-1" />
+            <div className="mt-2"><CoverageLine story={story} t={t} lang={lang} /></div>
           </div>
         </article>
       );
@@ -272,7 +283,7 @@
     function OneSidedCard({ story, t, lang, onOpen }) {
       const side=story.blindspot; const b=BIAS[side];
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-amber-400 flex flex-col h-full`}>
+        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-rose-400 flex flex-col h-full`}>
           <div className="relative aspect-video w-full shrink-0" style={{background:`center/cover url("${story.image}")`}}>
             <div className={`absolute left-3 top-3 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-widest ${t.blindSoft} ${t.blind} shadow-sm backdrop-blur-md ${isHi(lang)}`}><Eye size={14} strokeWidth={2.5} /> {STR[lang].navOS}</div>
           </div>
@@ -290,49 +301,22 @@
     }
 
     /* ---------------- header ---------------- */
-    function Header({ t, lang, setLang, dark, setDark, query, setQuery, view, setView, go }) {
-      const [menuOpen,setMenuOpen]=useState(false);
-      const links=[["top",STR[lang].navTop],["os",STR[lang].navOS],["sources",STR[lang].navSrc],["method",STR[lang].navMethod]];
-      const active=(k)=> (k==="top"&&view==="top")||(k==="os"&&view==="os")||(k==="sources"&&view==="sources")||(k==="method"&&view==="method");
-      const Nav = ({mobile}) => (
-        <nav className={mobile?"flex flex-col gap-2":"hidden lg:flex items-center gap-1"}>
-          {links.map(([k,label])=>(
-            <button key={k} onClick={()=>{go(k); setMenuOpen(false);}} className={`${mobile?"text-left text-lg px-2 py-1":"rounded-lg px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"} font-bold transition-colors ${active(k)?t.tp:t.ts} ${isHi(lang)}`}>{label}</button>
-          ))}
-        </nav>
-      );
+    function Header({ t, lang, setLang, dark, setDark, go }) {
       return (
-        <header className={`sticky top-0 z-50 ${t.nav} transition-all duration-300`}>
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-8">
-              <button className="lg:hidden" onClick={()=>setMenuOpen(!menuOpen)}>{menuOpen?<X size={24} className={t.tp}/>:<Menu size={24} className={t.tp}/>}</button>
-              <div className="flex cursor-pointer items-baseline gap-1.5 group select-none" onClick={()=>go("top")}>
-                <span className="text-2xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span>
-                <span className={`text-xl font-extrabold tracking-tight ${t.tp}`}>Paksh</span>
-              </div>
-              <Nav mobile={false} />
-            </div>
-            <div className="flex items-center gap-3 flex-1 justify-end">
-              <div className="relative hidden w-full max-w-xs sm:block">
-                <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${t.tf}`} />
-                <input value={query} onChange={(e)=>{setQuery(e.target.value); if(view!=="top"&&view!=="os") setView("top");}} placeholder={STR[lang].search} className={`w-full rounded-full border py-2 pl-10 pr-4 text-sm font-medium outline-none transition-colors focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
-              </div>
+        <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav} transition-all duration-300`}>
+          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+            <button className="flex items-baseline gap-1.5 select-none" onClick={()=>go("home")}>
+              <span className="text-2xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span>
+              <span className={`text-lg font-extrabold tracking-tight ${t.tp}`}>Paksh</span>
+            </button>
+            <div className="flex items-center gap-2.5">
               <div className={`flex rounded-full border overflow-hidden ${t.border}`}>
                 <button onClick={()=>setLang("en")} className={`px-3 py-1.5 text-xs font-bold ${lang==="en"?"bg-[#0E7C73] text-white":t.ts}`}>EN</button>
                 <button onClick={()=>setLang("hi")} className={`px-3 py-1.5 text-xs font-bold deva ${lang==="hi"?"bg-[#0E7C73] text-white":t.ts}`}>हिं</button>
               </div>
-              <button onClick={()=>setDark(d=>!d)} aria-label="Toggle theme" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${t.border} ${t.tp} ${t.surface}`}>{dark?<Sun size={18}/>:<Moon size={18}/>}</button>
+              <button onClick={()=>setDark(d=>!d)} aria-label="Toggle theme" className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${t.border} ${t.tp} ${t.surface}`}>{dark?<Sun size={17}/>:<Moon size={17}/>}</button>
             </div>
           </div>
-          {menuOpen && (
-            <div className={`lg:hidden border-t px-4 py-4 space-y-4 ${t.border} ${t.surface}`}>
-              <div className="relative w-full">
-                <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${t.tf}`} />
-                <input value={query} onChange={(e)=>{setQuery(e.target.value); if(view!=="top"&&view!=="os") setView("top");}} placeholder={STR[lang].search} className={`w-full rounded-full border py-2 pl-10 pr-4 text-sm font-medium outline-none ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
-              </div>
-              <Nav mobile={true} />
-            </div>
-          )}
         </header>
       );
     }
@@ -340,7 +324,9 @@
     /* ---------------- detail ---------------- */
     function StoryPage({ story, t, lang, onBack }) {
       const side=story.blindspot; const b=side?BIAS[side]:null;
-      const sides=["left","center","right"].filter(k=>(story.outlets||[]).some(o=>o.lean===k));
+      const order=["left","center","right"]; const rot=(((story.id||0)%3)+3)%3;
+      const rotated=order.slice(rot).concat(order.slice(0,rot));
+      const sides=rotated.filter(k=>(story.outlets||[]).some(o=>o.lean===k));
       return (
         <div className="pb-24 pt-8">
           <button onClick={onBack} className={`group mb-8 flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-colors ${t.ts} ${isHi(lang)}`}><ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> {STR[lang].back}</button>
@@ -414,7 +400,7 @@
                   ))}
                 </div>
                 {b && (
-                  <div className={`mt-8 flex items-start gap-3 rounded-xl p-5 text-sm leading-relaxed ${t.blindSoft} ${t.blind} border border-amber-500/20 ${isHi(lang)}`}>
+                  <div className={`mt-8 flex items-start gap-3 rounded-xl p-5 text-sm leading-relaxed ${t.blindSoft} ${t.blind} border border-rose-500/20 ${isHi(lang)}`}>
                     <Eye size={20} strokeWidth={2.4} className="mt-0.5 shrink-0" />
                     <span><strong className="block mb-2 text-base font-black uppercase tracking-wider">{lbl(side,lang)} · {STR[lang].navOS}</strong>{STR[lang].osCalloutBody1} <strong className="text-lg">{story.bias[side]}%</strong> {STR[lang].osCalloutBody2}</span>
                   </div>
@@ -526,12 +512,102 @@
       );
     }
 
+    /* ---------------- mobile views ---------------- */
+    function OneSidedStrip({ items, t, lang, open, goOS }) {
+      return (
+        <section className="mb-9">
+          <div className="mb-3 flex items-end justify-between">
+            <div className="flex items-center gap-2"><Eye size={20} className={t.blind} /><h2 className={`text-xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h2></div>
+            <button onClick={goOS} className={`flex items-center gap-0.5 text-sm font-bold ${t.brand} ${isHi(lang)}`}>{ui("seeAll",lang)} <ChevronRight size={15} /></button>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x [&::-webkit-scrollbar]:hidden">
+            {items.map(s=><div key={s.id} className="shrink-0 w-[270px] snap-start"><OneSidedCard story={s} t={t} lang={lang} onOpen={open} /></div>)}
+          </div>
+        </section>
+      );
+    }
+    function Section({ title, items, t, lang, open, onSeeAll }) {
+      const tpL = lang==="hi" ? (TOPIC_HI[title]||title) : title;
+      const show = items.slice(0,3);
+      return (
+        <section className="mb-9">
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className={`text-xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{tpL}</h2>
+            {items.length>3 && <button onClick={onSeeAll} className={`flex items-center gap-0.5 text-sm font-bold ${t.brand} ${isHi(lang)}`}>{ui("seeAll",lang)} <ChevronRight size={15} /></button>}
+          </div>
+          <div className={`rounded-2xl border px-4 ${t.surface} ${t.border}`}>
+            {show.map((s,i)=><CompactRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===show.length-1} />)}
+          </div>
+        </section>
+      );
+    }
+    function HomeView({ cards, oneSided, t, lang, open, goSection, goOS }) {
+      const hero=cards[0];
+      const rest=cards.slice(1);
+      const byTopic={};
+      rest.forEach(c=>{ const k=c.topic||"Society"; (byTopic[k]=byTopic[k]||[]).push(c); });
+      const ordered=Object.keys(byTopic).sort((a,b)=>byTopic[b].length-byTopic[a].length);
+      return (
+        <div className="pt-5 pb-4">
+          {hero && <div className="mb-9"><HeroCard story={hero} t={t} lang={lang} onOpen={open} /></div>}
+          {oneSided.length>0 && <OneSidedStrip items={oneSided.slice(0,5)} t={t} lang={lang} open={open} goOS={goOS} />}
+          {ordered.map(tp=><Section key={tp} title={tp} items={byTopic[tp]} t={t} lang={lang} open={open} onSeeAll={()=>goSection(tp)} />)}
+        </div>
+      );
+    }
+    function SectionView({ title, items, t, lang, open, onBack }) {
+      const tpL = lang==="hi" ? (TOPIC_HI[title]||title) : title;
+      return (
+        <div className="pt-6 pb-4">
+          <button onClick={onBack} className={`group mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${t.ts} ${isHi(lang)}`}><ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> {STR[lang].back}</button>
+          <h1 className={`mb-6 text-3xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{tpL}</h1>
+          {items.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{items.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+          ) : <div className={`py-20 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+        </div>
+      );
+    }
+    function SectionsHub({ topics, counts, t, lang, goSection, go }) {
+      return (
+        <div className="pt-6 pb-4">
+          <h1 className={`mb-6 text-3xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{ui("browse",lang)}</h1>
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            {topics.map(tp=>(
+              <button key={tp} onClick={()=>goSection(tp)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-shadow hover:shadow-md ${t.surface} ${t.border}`}>
+                <span className={`font-bold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span>
+                <span className={`ml-2 text-xs font-black ${t.tf}`}>{counts[tp]||0}</span>
+              </button>
+            ))}
+          </div>
+          <div className="space-y-3">
+            <button onClick={()=>go("sources")} className={`w-full flex items-center justify-between rounded-2xl border px-5 py-4 ${t.surface} ${t.border}`}><span className={`font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</span><ChevronRight size={18} className={t.tf}/></button>
+            <button onClick={()=>go("method")} className={`w-full flex items-center justify-between rounded-2xl border px-5 py-4 ${t.surface} ${t.border}`}><span className={`font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</span><ChevronRight size={18} className={t.tf}/></button>
+          </div>
+        </div>
+      );
+    }
+    function BottomNav({ t, lang, view, go }) {
+      const items=[["home",ui("top",lang),Home],["sections",ui("sections",lang),Grid],["os",ui("oneSided",lang),Eye],["search",ui("searchTab",lang),Search]];
+      const isActive=(k)=> view===k || (k==="home"&&view==="section") || (k==="sections"&&(view==="sources"||view==="method"));
+      return (
+        <nav className={`fixed bottom-0 inset-x-0 z-40 border-t ${t.border} ${t.nav}`}>
+          <div className="mx-auto flex max-w-2xl">
+            {items.map(([k,label,Icon])=>(
+              <button key={k} onClick={()=>go(k)} aria-label={label} className={`flex-1 flex flex-col items-center gap-0.5 py-2 ${isActive(k)?t.brand:t.tf}`}>
+                <Icon size={22} strokeWidth={isActive(k)?2.4:2} /><span className={`text-[11px] font-bold ${isHi(lang)}`}>{label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      );
+    }
+
     /* ---------------- app ---------------- */
     function PakshApp() {
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
-      const [view,setView]=useState("top");   // top | os | sources | method
+      const [view,setView]=useState("home");   // home | section | sections | os | search | sources | method
       const [topic,setTopic]=useState(null);
       const [openId,setOpenId]=useState(null);
       const [data,setData]=useState({events:[],blindspots:[],topics:[],sources:[],summary:{}});
@@ -540,10 +616,11 @@
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
       useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor = dark?"#0F1113":"#F1F2F3"; },[dark]);
-      useEffect(()=>{ setTopic(null); setOpenId(null); },[lang]);   // strict EN/HI split: reset view on language switch
+      useEffect(()=>{ setTopic(null); setOpenId(null); setView("home"); },[lang]);   // strict EN/HI split: reset view on language switch
 
       const t = dark?TOKENS.dark:TOKENS.light;
-      const go=(k)=>{ setView(k); setOpenId(null); setQuery(""); window.scrollTo({top:0,behavior:"smooth"}); };
+      const go=(k)=>{ setView(k); setOpenId(null); setQuery(""); setTopic(null); window.scrollTo({top:0,behavior:"smooth"}); };
+      const goSection=(tp)=>{ setTopic(tp); setView("section"); setOpenId(null); setQuery(""); window.scrollTo({top:0,behavior:"smooth"}); };
       const open=async(id)=>{ if(!detail[id]){ let full=null; try{ full=await apiGet("events/"+id); }catch(e){ full=(data.events||[]).concat(data.blindspots||[]).find(x=>x.id===id)||null; if(!full){ console.error("could not open event",id,e); return; } } setDetail(d=>({...d,[id]:full})); } setOpenId(id); window.scrollTo({top:0,behavior:"smooth"}); };
       const back=()=>{ setOpenId(null); window.scrollTo({top:0,behavior:"smooth"}); };
 
@@ -556,19 +633,16 @@
       const byImportance = (a,b)=>importance(b)-importance(a);
       const baseCards = data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
       const baseOne   = data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
-      const visibleTopics = [...new Set([...baseCards, ...baseOne].map(c=>c.topic).filter(Boolean))];
-      let cards = topic ? baseCards.filter(c=>c.topic===topic) : baseCards;
-      let oneSided = topic ? baseOne.filter(c=>c.topic===topic) : baseOne;
+      const countsByTopic = {}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });
+      const topicsOrdered = Object.keys(countsByTopic).sort((a,b)=>countsByTopic[b]-countsByTopic[a]);
+      const sectionCards = topic ? baseCards.filter(c=>c.topic===topic) : [];
       const q=query.trim().toLowerCase();
-      const searching = q.length>0;
-      const results = searching ? cards.filter(c=>(c.headline||"").toLowerCase().includes(q)) : null;
-
-      const hero=cards[0], sideList=cards.slice(1,4), grid=cards.slice(4);
+      const results = q ? baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)) : [];
 
       return (
         <div className={`min-h-screen font-sans transition-colors duration-300 ${t.bg} ${t.tp}`}>
-          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} query={query} setQuery={setQuery} view={view} setView={setView} go={go} />
-          <main className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} />
+          <main className="mx-auto max-w-2xl px-4 pb-28">
             {!ready ? (
               <div className={`py-32 text-center ${t.tf}`}>Loading…</div>
             ) : openStory ? (
@@ -577,71 +651,50 @@
               <SourcesPage t={t} lang={lang} sources={data.sources} />
             ) : view==="method" ? (
               <MethodPage t={t} lang={lang} />
-            ) : searching ? (
-              <div className="pt-12">
-                <h1 className={`mb-8 text-3xl font-black ${t.tp} ${isHi(lang)}`}>{STR[lang].resultsFor} “{query}” <span className={`font-semibold ${t.tf}`}>· {results.length}</span></h1>
-                {results.length ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{results.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+            ) : view==="search" ? (
+              <div className="pt-6 pb-4">
+                <div className="relative mb-6">
+                  <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${t.tf}`} />
+                  <input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full rounded-full border py-3 pl-11 pr-4 text-base font-medium outline-none transition-colors focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
+                </div>
+                {!q ? (
+                  <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
+                ) : results.length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{results.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
                 ) : (
-                  <div className={`flex flex-col items-center justify-center py-32 rounded-2xl border border-dashed ${t.border} ${t.ts}`}><Search size={48} className="mb-6 opacity-20" /><p className={`text-xl font-bold ${isHi(lang)}`}>{STR[lang].noResults}</p><p className={`text-sm mt-2 ${isHi(lang)}`}>{STR[lang].noResultsSub}</p></div>
+                  <div className={`flex flex-col items-center justify-center py-24 rounded-2xl border border-dashed ${t.border} ${t.ts}`}><Search size={40} className="mb-5 opacity-20" /><p className={`text-lg font-bold ${isHi(lang)}`}>{STR[lang].noResults}</p><p className={`text-sm mt-1.5 ${isHi(lang)}`}>{STR[lang].noResultsSub}</p></div>
                 )}
               </div>
+            ) : view==="sections" ? (
+              <SectionsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goSection={goSection} go={go} />
+            ) : view==="section" ? (
+              <SectionView title={topic} items={sectionCards} t={t} lang={lang} open={open} onBack={()=>go("sections")} />
             ) : view==="os" ? (
-              <div className="pt-8">
-                <div className="mb-3 flex items-center gap-3"><Eye size={28} className={t.blind} /><h1 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
-                <p className={`mb-8 text-base font-medium leading-relaxed ${t.ts} max-w-3xl ${isHi(lang)}`}>{STR[lang].osSub}</p>
-                {oneSided.length ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">{oneSided.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+              <div className="pt-6 pb-4">
+                <div className="mb-2 flex items-center gap-2.5"><Eye size={26} className={t.blind} /><h1 className={`text-3xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
+                <p className={`mb-7 text-sm font-medium leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
+                {baseOne.length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{baseOne.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
                 ) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
               </div>
             ) : (
-              <div>
-                <TopicChips t={t} lang={lang} topics={visibleTopics} topic={topic} setTopic={setTopic} />
-                <div className="mb-8 mt-10 flex items-baseline justify-between gap-4">
-                  <h1 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].topNews}</h1>
-                  <span className={`hidden sm:block text-sm font-medium ${t.tf} ${isHi(lang)} text-right max-w-sm`}>{STR[lang].tagline}</span>
-                </div>
-                {!cards.length ? (
-                  <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
-                ) : (
-                  <div>
-                    <div className="mb-16 grid grid-cols-1 lg:grid-cols-[1.8fr_1fr] gap-8">
-                      {hero && <HeroCard story={hero} t={t} lang={lang} onOpen={open} />}
-                      {sideList.length>0 && (
-                        <div className={`flex flex-col rounded-3xl border px-6 ${t.surface} ${t.border} shadow-sm`}>
-                          {sideList.map((s,i)=><CompactRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===sideList.length-1} />)}
-                        </div>
-                      )}
-                    </div>
-                    {oneSided.length>0 && (<div>
-                      <div className="mb-6 flex items-center gap-3"><Eye size={28} className={t.blind} /><h2 className={`text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h2></div>
-                      <p className={`mb-8 text-base font-medium leading-relaxed ${t.ts} max-w-3xl ${isHi(lang)}`}>{STR[lang].osSub}</p>
-                      <div className="mb-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">{oneSided.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-                    </div>)}
-                    {grid.length>0 && (<div>
-                      <h2 className={`mb-8 text-3xl font-black tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].more}</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">{grid.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-                    </div>)}
-                  </div>
-                )}
-              </div>
+              !baseCards.length ? (
+                <div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+              ) : (
+                <HomeView cards={baseCards} oneSided={baseOne} t={t} lang={lang} open={open} goSection={goSection} goOS={()=>go("os")} />
+              )
             )}
           </main>
           {!openStory && (
-            <footer className={`border-t py-12 mt-12 ${t.border} ${t.surface}`}>
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-2"><span className="text-2xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span><span className={`text-xl font-extrabold tracking-tight ${t.tp}`}>Paksh</span></div>
-                  <div className="flex items-center gap-5">
-                    <button onClick={()=>go("method")} className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].navMethod}</button>
-                    <button onClick={()=>go("sources")} className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].navSrc}</button>
-                  </div>
-                </div>
-                <p className={`mt-6 text-xs leading-relaxed ${t.tf} ${isHi(lang)} max-w-2xl`}>{STR[lang].footIndependence}</p>
-                <p className={`mt-3 text-xs font-semibold uppercase tracking-widest ${t.tf}`}>© 2026 Redstocks Technology LLP. All rights reserved.</p>
+            <footer className={`border-t py-10 mb-16 ${t.border} ${t.surface}`}>
+              <div className="mx-auto max-w-2xl px-4">
+                <div className="flex items-center gap-2"><span className="text-xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span><span className={`text-lg font-extrabold tracking-tight ${t.tp}`}>Paksh</span></div>
+                <p className={`mt-4 text-xs leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
+                <p className={`mt-3 text-[11px] font-semibold uppercase tracking-widest ${t.tf}`}>© 2026 Redstocks Technology LLP</p>
               </div>
             </footer>
           )}
+          {!openStory && <BottomNav t={t} lang={lang} view={view} go={go} />}
         </div>
       );
     }

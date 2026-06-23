@@ -321,6 +321,123 @@ SOURCES = [
                      "Bundeli; ground-reporting focus.",
         "subscores": None,
     },
+
+    # ================= v1.2 expansion (2026-06-23) =================
+    # High-volume mainstream added to deepen clustering + raise article counts.
+    # ALL leans below are PROVISIONAL first-drafts pending editor review.
+    # ---------------- English ----------------
+    {
+        "id": "hindustan_times", "name": "Hindustan Times", "language": "en",
+        "website": "https://www.hindustantimes.com",
+        "ownership": "HT Media Ltd (KK Birla group)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Large national English daily; broad mainstream news framing.",
+        "subscores": None,
+    },
+    {
+        "id": "deccan_herald", "name": "Deccan Herald", "language": "en",
+        "website": "https://www.deccanherald.com",
+        "ownership": "The Printers (Mysore) Pvt Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Bengaluru-based national daily with conventional reportage.",
+        "subscores": None,
+    },
+    {
+        "id": "telegraph_india", "name": "The Telegraph (India)", "language": "en",
+        "website": "https://www.telegraphindia.com",
+        "ownership": "ABP Group",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Kolkata daily whose front pages and editorials are commonly "
+                     "described as anti-establishment / left-of-centre.",
+        "subscores": None,
+    },
+    {
+        "id": "business_standard", "name": "Business Standard", "language": "en",
+        "website": "https://www.business-standard.com",
+        "ownership": "Business Standard Pvt Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Business-and-policy daily; markets-focused, relatively neutral framing.",
+        "subscores": None,
+    },
+    {
+        "id": "india_today", "name": "India Today", "language": "en",
+        "website": "https://www.indiatoday.in",
+        "ownership": "Living Media India Ltd (India Today Group)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Large mainstream news group; broad national coverage.",
+        "subscores": None,
+    },
+    {
+        "id": "firstpost", "name": "Firstpost", "language": "en",
+        "website": "https://www.firstpost.com",
+        "ownership": "Network18 (Reliance)",
+        "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Digital outlet whose opinion-and-analysis framing is commonly "
+                     "described as right-of-centre.",
+        "subscores": None,
+    },
+    {
+        "id": "the_pioneer", "name": "The Pioneer", "language": "en",
+        "website": "https://www.dailypioneer.com",
+        "ownership": "CMYK Printech Ltd",
+        "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Legacy daily with a right-of-centre editorial/op-ed orientation.",
+        "subscores": None,
+    },
+    {
+        "id": "national_herald", "name": "National Herald", "language": "en",
+        "website": "https://www.nationalheraldindia.com",
+        "ownership": "Associated Journals Ltd (Congress-linked)",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Outlet with explicit Congress lineage; left-of-centre framing.",
+        "subscores": None,
+    },
+    # ---------------- Hindi ----------------
+    {
+        "id": "jansatta", "name": "Jansatta", "language": "hi",
+        "website": "https://www.jansatta.com",
+        "ownership": "Indian Express Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Hindi daily of the Indian Express Group; mainstream framing.",
+        "subscores": None,
+    },
+    {
+        "id": "live_hindustan", "name": "Hindustan (Hindi)", "language": "hi",
+        "website": "https://www.livehindustan.com",
+        "ownership": "HT Media Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "High-circulation Hindi daily; broad mainstream coverage.",
+        "subscores": None,
+    },
+    {
+        "id": "news18_hindi", "name": "News18 Hindi", "language": "hi",
+        "website": "https://hindi.news18.com",
+        "ownership": "Network18 (Reliance)",
+        "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Network18 Hindi outlet; framing commonly described as "
+                     "right-of-centre. Provisional, contested.",
+        "subscores": None,
+    },
+    {
+        "id": "patrika", "name": "Patrika", "language": "hi",
+        "website": "https://www.patrika.com",
+        "ownership": "Rajasthan Patrika group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-06-23",
+        "rationale": "Large Hindi daily group; conventional regional+national coverage.",
+        "subscores": None,
+    },
 ]
 
 # ---- helpers used by the rest of the app -------------------------------------

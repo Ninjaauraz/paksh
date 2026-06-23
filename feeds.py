@@ -83,6 +83,23 @@ FEEDS = {
     "article14": ["https://news.google.com/rss/search?q=site:article-14.com+when:5d&hl=en-IN&gl=IN&ceid=IN:en"],
     "reporters_collective": ["https://news.google.com/rss/search?q=site:reporters-collective.in+when:7d&hl=en-IN&gl=IN&ceid=IN:en"],
     "khabar_lahariya": ["https://news.google.com/rss/search?q=site:khabarlahariya.org+when:5d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+
+    # ---- v1.2 expansion (2026-06-23): high-volume mainstream via Google News bridges ----
+    # Reliable out of the box. For the big English dailies you can later run
+    #   py ingest.py --discover https://www.hindustantimes.com
+    # to find a native RSS feed and swap it in for fuller article counts.
+    "hindustan_times":  ["https://news.google.com/rss/search?q=site:hindustantimes.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "deccan_herald":    ["https://news.google.com/rss/search?q=site:deccanherald.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "telegraph_india":  ["https://news.google.com/rss/search?q=site:telegraphindia.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "business_standard":["https://news.google.com/rss/search?q=site:business-standard.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "india_today":      ["https://news.google.com/rss/search?q=site:indiatoday.in+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "firstpost":        ["https://news.google.com/rss/search?q=site:firstpost.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "the_pioneer":      ["https://news.google.com/rss/search?q=site:dailypioneer.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "national_herald":  ["https://news.google.com/rss/search?q=site:nationalheraldindia.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "jansatta":         ["https://news.google.com/rss/search?q=site:jansatta.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "live_hindustan":   ["https://news.google.com/rss/search?q=site:livehindustan.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "news18_hindi":     ["https://news.google.com/rss/search?q=site:hindi.news18.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+    "patrika":          ["https://news.google.com/rss/search?q=site:patrika.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
 }
 
 # Confirmed against public RSS directories (others are candidates to verify).
