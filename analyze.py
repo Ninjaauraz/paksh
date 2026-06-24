@@ -54,8 +54,16 @@ else:
     MODEL = os.environ.get("PAKSH_LLM_MODEL", "qwen3.5:4b")
 
 LEAN_ORDER = ["left", "center", "right"]
-MAX_EVENTS_PER_RUN = 30         # how many top clusters to summarize per run
+# Two-tier summarization: the top LLM_EVENT_BUDGET events (ranked by rated
+# breadth) get a real neutral LLM summary; everything else up to
+# MAX_EVENTS_PER_RUN is published with an instant extractive summary (no model
+# call). This decouples "events published" from "slow LLM calls", so a run can
+# publish hundreds while only making a few dozen model calls.
+LLM_EVENT_BUDGET = 30          # top events that get a full LLM brief (raise on Gemini)
+MAX_EVENTS_PER_RUN = 500       # total events published per run (extractive is cheap)
 MIN_SOURCES_PER_EVENT = 2
+MIN_RATED_PER_EVENT = 2         # an event needs >=2 RATED outlets (real bias bar);
+                                # unrated/syndication outlets add breadth, not events
 MAX_ARTICLES_PER_EVENT = 12     # cap tokens per event
 SUMMARY_TRUNC = 300             # chars of each article summary fed to the model
 
@@ -298,6 +306,7 @@ def postprocess(raw, articles) -> dict:
         "coverage": coverage_out,
         "total_sources": len(sources_out),
         "degraded": degraded,
+        "summary_method": raw.get("summary_method", "llm"),
     }
 
 
@@ -375,21 +384,28 @@ def _representative(rows):
 
 def _extractive_raw(articles):
     """Build a `raw`-shaped dict WITHOUT an LLM: use a real representative
-    headline per language. Honest (it's a genuine headline, attributed via the
-    source list) and guarantees every event card is readable."""
+    headline + lead sentence per language. Honest (a genuine outlet headline,
+    attributed via the source list) and guarantees every card is readable. Used
+    for the long-tail tier and as the fallback when the LLM is unavailable."""
     en = [a for a in articles if a.get("language") == "en"]
     hi = [a for a in articles if a.get("language") == "hi"]
     en_rep, hi_rep = _representative(en), _representative(hi)
     base = en_rep or hi_rep or articles[0]
     topic_text = " ".join(a.get("title", "") for a in articles)
+    # mirror across languages when one side is absent, so neither UI language is blank
+    en_title = (en_rep or base).get("title", "")
+    hi_title = (hi_rep or base).get("title", "")
+    en_sum = _first_sentences((en_rep or base).get("summary") or "")
+    hi_sum = _first_sentences((hi_rep or base).get("summary") or "")
     return {
-        "title": base["title"],
-        "summary": _first_sentences(en_rep.get("summary")) if en_rep else "",
+        "title": en_title,
+        "summary": en_sum,
         "summary_points": [],
-        "title_hi": hi_rep["title"] if hi_rep else "",
-        "summary_hi": _first_sentences(hi_rep.get("summary")) if hi_rep else "",
+        "title_hi": hi_title,
+        "summary_hi": hi_sum,
         "summary_points_hi": [],
         "topic": _guess_topic(topic_text),
+        "summary_method": "extractive",
     }
 
 
@@ -428,32 +444,62 @@ def main():
 
     print("Clustering (embeddings) ...")
     clusters = cluster_articles(articles)
-    print(f"Found {len(clusters)} multi-source event(s).")
-    if not clusters:
-        print("No events covered by 2+ outlets. Ingest more and retry.\n")
+
+    # Quality gate: an event needs >=2 RATED outlets so its bias bar is a real
+    # comparison. Unrated outlets (the GDELT long tail, syndication farms like
+    # iHeart subdomains or the World News Network) add breadth but cannot create
+    # an event on their own -> this drops all-unrated / content-farm junk clusters
+    # and stops them from eating the per-run summary budget.
+    src_by_id = {a["id"]: a["source"] for a in articles}
+
+    def _rated_count(ids):
+        return len({src_by_id.get(i) for i in ids
+                    if lean_of(src_by_id.get(i, "")) != "unrated"})
+
+    qualified = [ids for ids in clusters if _rated_count(ids) >= MIN_RATED_PER_EVENT]
+    # rank by rated breadth first, then total breadth, so well-rated India stories
+    # win the budget over syndication-inflated ones
+    qualified.sort(key=lambda ids: (_rated_count(ids), len(ids)), reverse=True)
+    print(f"Found {len(clusters)} multi-outlet cluster(s); "
+          f"{len(qualified)} have >={MIN_RATED_PER_EVENT} rated outlets.")
+    if not qualified:
+        print("No events with enough rated coverage yet. Ingest more and retry.\n")
         return
 
-    analyzed = 0
-    for ids in clusters[:MAX_EVENTS_PER_RUN]:
+    budget = qualified[:MAX_EVENTS_PER_RUN]
+    n_llm = min(LLM_EVENT_BUDGET, len(budget))
+    print(f"Publishing {len(budget)} event(s): top {n_llm} via {LLM_BACKEND} "
+          f"summary, {len(budget) - n_llm} extractive (no model call).\n")
+
+    llm_n = ext_n = 0
+    for rank, ids in enumerate(budget):
         rows = get_articles_by_ids(ids)
-        names = ", ".join(sorted({r["source"] for r in rows}))
-        print(f"  Analysing [{names}] ...")
-        try:
-            analysis = analyze_event(rows)
-        except Exception as e:
-            print(f"    skipped ({e})")
-            continue
+        if rank < LLM_EVENT_BUDGET:
+            names = ", ".join(sorted({r["source"] for r in rows}))
+            print(f"  [LLM] [{rank + 1}/{n_llm}] {names[:70]} ...")
+            try:
+                analysis = analyze_event(rows)            # LLM, extractive fallback inside
+            except Exception as e:
+                print(f"    skipped ({e})")
+                continue
+        else:
+            analysis = postprocess(_extractive_raw(rows), rows)   # instant, no model call
+
         event_id = insert_event(analysis, is_demo=False)
         assign_articles_to_event(ids, event_id)
-        analyzed += 1
-        c = analysis["coverage"]
-        flag = " (coverage-only)" if analysis.get("degraded") else ""
-        print(f"    ✓ [{analysis['topic']}] {analysis['title']}{flag}  "
-              f"(L:{c['left']['count']} C:{c['center']['count']} R:{c['right']['count']})")
+        if analysis.get("summary_method") == "extractive":
+            ext_n += 1
+        else:
+            llm_n += 1
+        if rank < LLM_EVENT_BUDGET:
+            c = analysis["coverage"]
+            print(f"    -> [{analysis['topic']}] {analysis['title'][:58]}  "
+                  f"(L:{c['left']['count']} C:{c['center']['count']} R:{c['right']['count']})")
 
     print("-" * 40)
-    print(f"Analysed and saved {analyzed} event(s).")
-    print("\nNext:  refresh http://localhost:8000\n")
+    print(f"Published {llm_n + ext_n} event(s): {llm_n} LLM brief(s), "
+          f"{ext_n} extractive.")
+    print("\nNext:  python export_static.py\n")
 
 
 if __name__ == "__main__":

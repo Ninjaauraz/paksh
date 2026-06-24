@@ -113,6 +113,8 @@
         noResultsSub:"Try different keywords or browse top news.", noStories:"No stories to show right now. Please check back soon.",
         seeCoverage:"See coverage", most:"Most coverage", even:"Fairly even coverage", sources:"sources", source:"source",
         onlyLabel:"Only", back:"Back to feed", aiSummary:"Paksh neutral summary", aiSub:"neutral synthesis",
+        autoTag:"Auto-summary", autoFrom:"from coverage",
+        autoNote:"This headline comes straight from a covering outlet — a neutral Paksh summary is being prepared.",
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are AI-written from the outlets' own coverage; the counts come from the sources.",
@@ -148,6 +150,8 @@
         noResultsSub:"अलग शब्द आज़माएँ या मुख्य खबरें देखें।", noStories:"अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
         seeCoverage:"कवरेज देखें", most:"सबसे ज़्यादा कवरेज", even:"लगभग बराबर कवरेज", sources:"स्रोत", source:"स्रोत",
         onlyLabel:"केवल", back:"फ़ीड पर वापस", aiSummary:"पक्ष तटस्थ सारांश", aiSub:"तटस्थ संश्लेषण",
+        autoTag:"स्वतः सारांश", autoFrom:"कवरेज से",
+        autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है — पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से AI द्वारा लिखे जाते हैं; आँकड़े स्रोतों से आते हैं।",
@@ -204,6 +208,7 @@
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
         bias:biasPct(lc), counts:lc, sources:(lc.left+lc.center+lc.right)||e.total_sources||0,
         blindspot:e.blindspot?e.blindspot.side:null,
+        auto:e.summary_method==="extractive",
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
     const toDetail = (e, lang) => { const c=toCard(e,lang);
@@ -236,9 +241,22 @@
         </span>
       );
     }
+    function AutoTag({ lang }) {
+      return (
+        <span title={STR[lang].autoNote}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${isHi(lang)}`}>
+          <Sparkles size={10} strokeWidth={2.5} /> {STR[lang].autoTag}
+        </span>
+      );
+    }
     function Eyebrow({ story, t, lang }) {
       const tp = lang==="hi" ? (TOPIC_HI[story.topic]||story.topic) : story.topic;
-      return <div className={`mb-2 text-xs font-bold uppercase tracking-wider ${t.tf} ${isHi(lang)}`}>{tp}</div>;
+      return (
+        <div className="mb-2 flex items-center gap-2">
+          <span className={`text-xs font-bold uppercase tracking-wider ${t.tf} ${isHi(lang)}`}>{tp}</span>
+          {story.auto && <AutoTag lang={lang} />}
+        </div>
+      );
     }
     function Monogram({ name, side }) {
       return <span className="flex shrink-0 items-center justify-center rounded-full text-white text-xs font-bold shadow-sm" style={{width:32,height:32,backgroundColor:BIAS[side].color}}>{(name||"?")[0]}</span>;
@@ -346,10 +364,15 @@
               <div className={`mb-10 aspect-[21/9] w-full overflow-hidden rounded-2xl border ${t.border} shadow-sm`} style={{background:`center/cover url("${story.image}")`}} />
               <div className={`mb-12 rounded-2xl border p-6 sm:p-8 ${t.soft} ${t.border}`}>
                 <div className="mb-6 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-                  <Sparkles size={20} className={t.brand} />
-                  <span className={`text-sm font-bold uppercase tracking-widest ${t.brand} ${isHi(lang)}`}>{STR[lang].aiSummary}</span>
-                  <span className={`text-sm ${t.ts} ${isHi(lang)}`}>· {STR[lang].aiSub}</span>
+                  <Sparkles size={20} className={story.auto ? t.ts : t.brand} />
+                  {story.auto ? (
+                    <span className={`text-sm font-bold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}>{STR[lang].autoTag}</span>
+                  ) : (
+                    <span className={`text-sm font-bold uppercase tracking-widest ${t.brand} ${isHi(lang)}`}>{STR[lang].aiSummary}</span>
+                  )}
+                  <span className={`text-sm ${t.ts} ${isHi(lang)}`}>· {story.auto ? STR[lang].autoFrom : STR[lang].aiSub}</span>
                 </div>
+                {story.auto && <p className={`mb-4 text-sm leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].autoNote}</p>}
                 {story.lead && <p className={`mb-5 text-base sm:text-lg font-medium leading-relaxed ${t.tp} ${isHi(lang)}`}>{story.lead}</p>}
                 <ul className="space-y-4">
                   {story.summary.map((p,i)=>(

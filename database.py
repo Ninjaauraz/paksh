@@ -131,7 +131,7 @@ def insert_article(source, language, title, url, summary, image_url, published):
         conn.close()
 
 
-def get_unclustered_articles(limit=1100, per_source=60):
+def get_unclustered_articles(limit=3000, per_source=60):
     """Return un-grouped articles, BALANCED across outlets.
 
     A naive 'most recent N' lets a prolific outlet (e.g. Indian Express with many
@@ -285,6 +285,7 @@ def _event_summary_row(r):
         "image_url": data.get("image_url", ""),
         "is_demo": bool(r["is_demo"]),
         "source_count": len(data.get("sources", [])),
+        "summary_method": data.get("summary_method", "llm"),
         "lean_counts": counts,
         "dominant": dominant_lean(counts),
         "blindspot": compute_blindspot(counts),
@@ -296,7 +297,11 @@ def get_all_events():
     conn = get_connection()
     rows = conn.execute("SELECT * FROM events ORDER BY created_at DESC").fetchall()
     conn.close()
-    return [_event_summary_row(r) for r in rows]
+    out = [_event_summary_row(r) for r in rows]
+    # Hide events that lack a real bias comparison (<2 rated outlets) -- e.g.
+    # all-unrated GDELT/syndication events saved before the rated-gate existed.
+    # Non-destructive: rows stay in the DB, they're just not published.
+    return [e for e in out if sum(e["lean_counts"].values()) >= 2]
 
 
 def get_blindspot_events():

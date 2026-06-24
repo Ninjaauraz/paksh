@@ -48,6 +48,25 @@ QUERIES = [
 ]
 
 LANG_MAP = {"english": "en", "eng": "en", "en": "en", "hindi": "hi", "hin": "hi", "hi": "hi"}
+
+# Syndication networks / content farms that republish one wire story across many
+# domains (or subdomains) to fake breadth. Dropped at ingest to save embedding
+# budget; the >=2-rated-outlet rule in analyze.py is the real safety net for any
+# we miss. Keyed by registrable domain (resolve_source already collapses
+# subdomains, so all *.iheart.com map to 'iheart.com').
+_BLOCKLIST = {
+    "iheart.com", "today.com",
+    # World News Network geo-named farm (one wire feed, dozens of domains)
+    "africaleader.com", "asiabulletin.com", "bangladeshsun.com", "calcuttanews.net",
+    "chinanationalnews.com", "cincinnatisun.com", "europesun.com", "floridastatesman.com",
+    "haitisun.com", "heraldglobe.com", "indiablooms.com", "indiagazette.com",
+    "israelherald.com", "japanherald.com", "kenyastar.com", "massachusettssun.com",
+    "middleeaststar.com", "myanmarnews.net", "neworleanssun.com", "newsindiatimes.com",
+    "oklahomastar.com", "parisguardian.com", "pittsburghstar.com", "russiaherald.com",
+    "saltlakecitysun.com", "sandiegosun.com", "southeastasiapost.com", "tennesseedaily.com",
+    "texasguardian.com", "utahindependent.com", "arabherald.com", "azerbaijannews.net",
+    "afghanistannews.net", "bruneinews.net", "dominicanrepublicpost.com",
+}
 TIMESPAN = "1d"        # last 24 hours
 MAXRECORDS = 250       # GDELT hard cap per call
 SLEEP = 6              # be polite between queries (~1 query / 6s)
@@ -113,6 +132,8 @@ def normalize_gdelt(art):
     if lang is None:
         return None                                # only en / hi display in the UI
     name, rated = resolve_source(_domain(art))     # registry name, or unrated domain
+    if not rated and name in _BLOCKLIST:
+        return None                                # syndication farm -> drop
     return {
         "source": name,
         "language": lang,

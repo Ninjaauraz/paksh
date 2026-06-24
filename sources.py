@@ -649,6 +649,22 @@ def _host(website: str) -> str:
     h = _re.sub(r"^https?://", "", h).split("/")[0]
     return h[4:] if h.startswith("www.") else h
 
+# second-level public suffixes so we don't collapse "x.co.in" down to "co.in"
+_TWO_LEVEL_TLDS = {
+    "co.in", "net.in", "org.in", "gen.in", "firm.in", "ind.in", "co.uk", "org.uk",
+    "com.au", "co.za", "com.pk", "com.bd", "com.np", "co.nz", "com.sg",
+}
+
+def _registrable(domain: str) -> str:
+    """Bare registrable domain, so subdomains of one publisher collapse to one
+    outlet: '1025thebear.iheart.com' -> 'iheart.com' (kills fake breadth)."""
+    parts = (domain or "").split(".")
+    if len(parts) <= 2:
+        return domain
+    if ".".join(parts[-2:]) in _TWO_LEVEL_TLDS and len(parts) >= 3:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:])
+
 # {bare domain -> rated outlet name}, built from each source's website
 DOMAIN_TO_SOURCE = {_host(s["website"]): s["name"] for s in SOURCES if s.get("website")}
 
@@ -656,8 +672,9 @@ def resolve_source(domain: str):
     """Map an article's domain to a RATED registry outlet, or mark it UNRATED.
 
     Returns (source_name, is_rated). Rated -> the registry name (carries a lean).
-    Unrated -> the bare domain as a stable label, so the long-tail outlet still
-    clusters consistently but never votes in the Left/Centre/Right bias bar.
+    Unrated -> the bare *registrable* domain, so the long-tail outlet clusters
+    consistently and its subdomains collapse to one, but it never votes in the
+    Left/Centre/Right bias bar.
     """
     d = (domain or "").lower().strip()
     if d.startswith("www."):
@@ -669,7 +686,7 @@ def resolve_source(domain: str):
     for host, name in DOMAIN_TO_SOURCE.items():        # m.thehindu.com -> thehindu.com
         if d.endswith("." + host):
             return (name, True)
-    return (d, False)                                  # unrated long-tail outlet
+    return (_registrable(d), False)                    # unrated long-tail outlet
 
 
 def get_sources(language=None) -> list:
