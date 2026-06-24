@@ -59,7 +59,11 @@ LEAN_ORDER = ["left", "center", "right"]
 # MAX_EVENTS_PER_RUN is published with an instant extractive summary (no model
 # call). This decouples "events published" from "slow LLM calls", so a run can
 # publish hundreds while only making a few dozen model calls.
-LLM_EVENT_BUDGET = 30          # top events that get a full LLM brief (raise on Gemini)
+LLM_EVENT_BUDGET = int(os.environ.get(
+    "PAKSH_LLM_BUDGET", "120" if LLM_BACKEND == "gemini" else "30"))
+#   ^ top events that get a full LLM brief + framing. Cheap/fast on Gemini, so we
+#     default much higher there; slow on local Ollama, so stay at 30. Override
+#     with PAKSH_LLM_BUDGET.
 MAX_EVENTS_PER_RUN = 500       # total events published per run (extractive is cheap)
 MIN_SOURCES_PER_EVENT = 2
 MIN_RATED_PER_EVENT = 2         # an event needs >=2 RATED outlets (real bias bar);
@@ -225,37 +229,64 @@ def cluster_articles(articles):
 # ------------------------------ analysis (PASS 2) ------------------------------
 
 def build_prompt(articles) -> str:
+    _LEANWORD = {"left": "left-leaning", "center": "centrist",
+                 "right": "right-leaning", "unrated": "unrated"}
+    # rated outlets first, so the model always sees the lean-carrying coverage
+    ranked = sorted(articles, key=lambda a: lean_of(a["source"]) == "unrated")
     blocks = [
-        f'OUTLET: {a["source"]}  [language: {a["language"]}]\n'
+        f'OUTLET: {a["source"]}  [lean: {_LEANWORD[lean_of(a["source"])]}, language: {a["language"]}]\n'
         f'HEADLINE: {a["title"]}\nSUMMARY: {(a["summary"] or "(none)")[:SUMMARY_TRUNC]}'
-        for a in articles[:MAX_ARTICLES_PER_EVENT]
+        for a in ranked[:MAX_ARTICLES_PER_EVENT]
     ]
     return f"""You are a neutral news engine for "Paksh", a media-transparency
 tool for India. Below is coverage of ONE event from several Indian outlets
-(English and Hindi). Write a single neutral account that a reader of any
-political leaning would find fair.
+(English and Hindi), each tagged with its political lean. Produce (1) a deep,
+neutral account a reader of any leaning would find fair, and (2) a grounded
+description of how each side is framing the story.
 
 STRICT RULES:
 - Use ONLY facts present in the text below. Never invent facts, quotes, numbers or names.
 - The title and summary must NOT adopt any outlet's framing or loaded words.
 - Attribute contested claims ("the government said", "critics say") instead of stating them as fact.
 - If outlets conflict, state the disagreement neutrally rather than picking a winner.
-- Write in ENGLISH, then give a faithful, natural HINDI translation.
+- FRAMING: describe ONLY what is visible in the headlines/summaries below - what each
+  side emphasises, foregrounds, omits, or the words it chooses. Do NOT invent positions.
+  If a lean has no outlet in the coverage, set its framing to an empty string.
+- Write ENGLISH first, then a faithful, natural HINDI translation of every field.
 
 Return ONLY a JSON object with these keys:
 {{
   "title": "neutral English headline, max ~12 words",
-  "summary": "2-3 neutral English sentences summarizing what happened",
-  "summary_points": ["3-5 short neutral English points"],
+  "summary": "a full neutral overview in 3-5 sentences: what happened, the key context, and why it matters",
+  "summary_points": ["4-6 short, substantive neutral English points"],
   "title_hi": "Hindi translation of the title",
   "summary_hi": "Hindi translation of the summary",
   "summary_points_hi": ["Hindi translations of the points, same order"],
+  "framing": {{
+    "left": "1-2 sentences on what left-leaning outlets emphasise / how they frame it; empty string if no left outlet",
+    "center": "1-2 sentences for centrist outlets; empty string if none",
+    "right": "1-2 sentences for right-leaning outlets; empty string if none"
+  }},
+  "framing_hi": {{ "left": "Hindi of left", "center": "Hindi of center", "right": "Hindi of right" }},
   "topic": "exactly one of {TOPICS}"
 }}
 
 COVERAGE:
 {(chr(10) + "---" + chr(10)).join(blocks)}
 """
+
+
+def _clean_framing(raw_framing, coverage):
+    """Keep per-side framing ONLY for leans that actually have outlets covering
+    the story, so the model can't fabricate a side's framing out of nothing."""
+    fr = raw_framing if isinstance(raw_framing, dict) else {}
+    out = {}
+    for side in LEAN_ORDER:
+        txt = fr.get(side)
+        txt = txt.strip() if isinstance(txt, str) else ""
+        if txt and coverage.get(side, {}).get("count", 0) > 0:
+            out[side] = txt[:500]
+    return out
 
 
 def postprocess(raw, articles) -> dict:
@@ -300,6 +331,8 @@ def postprocess(raw, articles) -> dict:
         "title_hi": raw.get("title_hi", ""),
         "summary_hi": raw.get("summary_hi", ""),
         "summary_points_hi": raw.get("summary_points_hi", []) or [],
+        "framing": _clean_framing(raw.get("framing"), coverage_out),
+        "framing_hi": _clean_framing(raw.get("framing_hi"), coverage_out),
         "topic": topic,
         "image_url": hero,
         "sources": sources_out,

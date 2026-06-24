@@ -131,13 +131,18 @@ def insert_article(source, language, title, url, summary, image_url, published):
         conn.close()
 
 
-def get_unclustered_articles(limit=3000, per_source=60):
-    """Return un-grouped articles, BALANCED across outlets.
+def get_unclustered_articles(limit=3000, per_source=60, rated_first=True):
+    """Return un-grouped articles, BALANCED across outlets, RATED sources first.
 
-    A naive 'most recent N' lets a prolific outlet (e.g. Indian Express with many
-    section feeds) flood the window and crowd out the cross-outlet overlap that
-    actually forms events. So we take each outlet's most-recent `per_source`
-    articles, giving every outlet a fair shot at landing on the same big stories."""
+    A naive 'most recent N' lets a prolific outlet flood the window, so we take
+    each outlet's most-recent `per_source` articles. On top of that, RATED
+    outlets (registry sources, plus GDELT articles that resolved to one) get
+    their quota BEFORE any unrated long-tail fills the remaining capacity.
+    Without this, a GDELT flood of unrated domains — much heavier in English than
+    Hindi — crowds rated articles out of the window and their events stop forming
+    (which is exactly how the English feed went stale while Hindi kept working).
+    """
+    from sources import LEAN_BY_SOURCE
     conn = get_connection()
     rows = conn.execute(
         """SELECT id, source, language, title, summary
@@ -145,14 +150,27 @@ def get_unclustered_articles(limit=3000, per_source=60):
            ORDER BY fetched_at DESC"""
     ).fetchall()
     conn.close()
-    by_source, out = {}, []
-    for r in rows:
-        s = r["source"]
-        if by_source.get(s, 0) >= per_source:
-            continue
-        by_source[s] = by_source.get(s, 0) + 1
-        out.append(dict(r))
-    return out[:limit]
+
+    def _take(candidates, cap_total):
+        by_source, picked = {}, []
+        for r in candidates:
+            if len(picked) >= cap_total:
+                break
+            s = r["source"]
+            if by_source.get(s, 0) >= per_source:
+                continue
+            by_source[s] = by_source.get(s, 0) + 1
+            picked.append(dict(r))
+        return picked
+
+    if not rated_first:
+        return _take(rows, limit)
+
+    rated = [r for r in rows if r["source"] in LEAN_BY_SOURCE]
+    unrated = [r for r in rows if r["source"] not in LEAN_BY_SOURCE]
+    out = _take(rated, limit)                       # rated get first claim
+    out += _take(unrated, limit - len(out))         # unrated fill the remainder
+    return out
 
 
 def get_articles_by_ids(ids):

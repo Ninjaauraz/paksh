@@ -115,6 +115,8 @@
         onlyLabel:"Only", back:"Back to feed", aiSummary:"Paksh neutral summary", aiSub:"neutral synthesis",
         autoTag:"Auto-summary", autoFrom:"from coverage",
         autoNote:"This headline comes straight from a covering outlet — a neutral Paksh summary is being prepared.",
+        unratedTitle:"Unrated outlets", unratedNote:"Outlets we found covering this story but don't rate yet — they add coverage but don't affect the bias bar.",
+        framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises — based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.",
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are AI-written from the outlets' own coverage; the counts come from the sources.",
@@ -152,6 +154,8 @@
         onlyLabel:"केवल", back:"फ़ीड पर वापस", aiSummary:"पक्ष तटस्थ सारांश", aiSub:"तटस्थ संश्लेषण",
         autoTag:"स्वतः सारांश", autoFrom:"कवरेज से",
         autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है — पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
+        unratedTitle:"बिना रेटिंग वाले आउटलेट", unratedNote:"ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं — ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
+        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण — एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से AI द्वारा लिखे जाते हैं; आँकड़े स्रोतों से आते हैं।",
@@ -207,12 +211,15 @@
         lead:(lang==="hi"&&e.summary_hi)?e.summary_hi:e.summary,
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
         bias:biasPct(lc), counts:lc, sources:(lc.left+lc.center+lc.right)||e.total_sources||0,
+        unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)),
         blindspot:e.blindspot?e.blindspot.side:null,
         auto:e.summary_method==="extractive",
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
     const toDetail = (e, lang) => { const c=toCard(e,lang);
-      c.coverage=e.coverage||{}; c.outlets=e.sources||[]; return c; };
+      c.coverage=e.coverage||{}; c.outlets=e.sources||[];
+      c.framing=(lang==="hi"&&e.framing_hi&&Object.keys(e.framing_hi).length)?e.framing_hi:(e.framing||{});
+      return c; };
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
 
@@ -238,6 +245,7 @@
           {isEven ? <span className="font-bold">{STR[lang].even}</span>
                   : <span className="font-bold" style={{color:BIAS[d.side].color}}>{STR[lang].most}: {lbl(d.side,lang)}</span>}
           <span className={t.tf}> · {n} {n===1?STR[lang].source:STR[lang].sources}</span>
+          {story.unrated>0 && <span className={t.tf} title={STR[lang].unratedNote}> · +{story.unrated}</span>}
         </span>
       );
     }
@@ -382,6 +390,34 @@
                   ))}
                 </ul>
               </div>
+              {(() => {
+                const fr = story.framing || {};
+                const fsides = ["left","center","right"].filter(k => (fr[k]||"").trim());
+                if (fsides.length) return (
+                  <div className="mb-12">
+                    <h2 className={`mb-2 flex items-center gap-2 text-xl font-bold uppercase tracking-widest ${t.tp} ${isHi(lang)}`}><Scale size={20} /> {STR[lang].framingTitle}</h2>
+                    <p className={`mb-5 text-sm ${t.ts} ${isHi(lang)}`}>{STR[lang].framingSub}</p>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      {fsides.map(k => (
+                        <div key={k} className={`rounded-2xl border p-5 ${t.surface} ${t.border}`} style={{borderTopWidth:"4px",borderTopColor:BIAS[k].color}}>
+                          <div className="mb-3 flex items-center gap-2">
+                            <span className="inline-block h-3 w-3 rounded-full" style={{backgroundColor:BIAS[k].color}} />
+                            <span className="text-[11px] font-extrabold uppercase tracking-widest" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span>
+                          </div>
+                          <p className={`text-sm leading-relaxed ${t.tp} ${isHi(lang)}`}>{fr[k]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+                if (story.auto) return (
+                  <div className={`mb-12 rounded-2xl border border-dashed p-5 ${t.border}`}>
+                    <div className={`flex items-center gap-2 text-sm font-bold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}><Scale size={18} /> {STR[lang].framingTitle}</div>
+                    <p className={`mt-2 text-sm ${t.tf} ${isHi(lang)}`}>{STR[lang].framingPending}</p>
+                  </div>
+                );
+                return null;
+              })()}
               <h2 className={`mb-6 flex items-center gap-2 text-xl font-bold uppercase tracking-widest ${t.tp} ${isHi(lang)}`}><Layers size={20} /> {STR[lang].sideBySide}</h2>
               <div className="space-y-8">
                 {sides.map((k)=>{
@@ -410,12 +446,30 @@
                   );
                 })}
               </div>
+              {(() => {
+                const uns=(story.outlets||[]).filter(o=>o.lean==="unrated");
+                if(!uns.length) return null;
+                return (
+                  <div className="mt-8">
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{STR[lang].unratedTitle}</span>
+                      <span className={`text-xs font-bold ${t.tf}`}>{uns.length} {uns.length===1?STR[lang].source:STR[lang].sources}</span>
+                    </div>
+                    <p className={`mb-3 text-xs ${t.tf} ${isHi(lang)}`}>{STR[lang].unratedNote}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {uns.map((o,i)=>(
+                        <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${t.surface} ${t.border} ${t.ts}`}>{o.source}</a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             <aside>
               <div className={`sticky top-24 rounded-2xl border p-8 ${t.surface} ${t.border} shadow-sm`}>
                 <h3 className={`mb-6 text-xs font-extrabold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}>{STR[lang].coverageBreakdown}</h3>
                 <div className="mb-8 border-b border-zinc-100 dark:border-zinc-800/60 pb-6">
-                  <div className={`mb-2 text-6xl font-black tracking-tighter ${t.tp}`}>{story.sources}</div>
+                  <div className={`mb-2 text-6xl font-black tracking-tighter ${t.tp}`}>{story.sources + (story.unrated||0)}</div>
                   <div className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].totalSources}</div>
                 </div>
                 <div className={`mb-4 text-xs font-bold uppercase tracking-wide ${t.tf} ${isHi(lang)}`}>{STR[lang].whereLean}</div>
@@ -428,6 +482,13 @@
                       <span className={`ml-auto text-lg font-black ${t.tp}`}>{story.counts[k]}</span>
                     </div>
                   ))}
+                  {story.unrated>0 && (
+                    <div className={`flex items-center gap-3 text-sm font-semibold ${t.ts}`} title={STR[lang].unratedNote}>
+                      <span className="inline-block h-4 w-4 rounded-full shadow-sm bg-slate-300 dark:bg-slate-600" />
+                      <span className="text-slate-500 dark:text-slate-400" style={{fontWeight:800}}>{STR[lang].unratedTitle}</span>
+                      <span className={`ml-auto text-lg font-black ${t.tp}`}>{story.unrated}</span>
+                    </div>
+                  )}
                 </div>
                 {b && (
                   <div className={`mt-8 flex items-start gap-3 rounded-xl p-5 text-sm leading-relaxed ${t.blindSoft} ${t.blind} border border-rose-500/20 ${isHi(lang)}`}>

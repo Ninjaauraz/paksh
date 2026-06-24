@@ -1,19 +1,22 @@
-# Python
+# --- secrets: NEVER commit these ---
+.env
+*.key
+secrets.*
+
+# --- local database + caches (regenerated; never publish) ---
+paksh.db
+paksh.db-journal
+paksh.db-wal
+paksh.db-shm
+
+# --- logs ---
+refresh_log.txt
+*.log
+
+# --- python ---
 __pycache__/
 *.pyc
 .venv/
 venv/
-env/
 
-# local database (rebuilt by seed_demo.py / the pipeline)
-paksh.db
-
-# secrets
-.env
-
-# OS
-.DS_Store
-Thumbs.db
-
-# NOTE: _site/ is the built static site. For Vercel we DO commit it
-# (see DEPLOY.md), so it is intentionally NOT ignored here.
+# NOTE: _site/ IS committed on purpose - it's what Vercel serves.
