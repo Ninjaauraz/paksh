@@ -3,19 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Paksh — Compare India's news coverage</title>
-  <meta name="description" content="Paksh shows how Indian outlets across the spectrum cover the same story — side by side, in English and Hindi." />
+  <title>Paksh — See every side of India's news</title>
+  <meta name="description" content="Paksh refracts a single news story across India's media spectrum — left, centre and right, side by side, in English and Hindi." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: { extend: {
-        fontFamily: { sans: ['Inter','sans-serif'], serif: ['Merriweather','serif'], deva: ['Noto Sans Devanagari','sans-serif'] },
+        fontFamily: {
+          sans: ['IBM Plex Sans','system-ui','sans-serif'],
+          serif: ['Fraunces','Georgia','serif'],
+          mono: ['IBM Plex Mono','ui-monospace','monospace'],
+          deva: ['IBM Plex Sans Devanagari','IBM Plex Sans','sans-serif'],
+        },
       } }
     }
   </script>
@@ -24,19 +29,44 @@
   <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .editorial-heading { font-family: 'Merriweather', serif; }
-    .deva { font-family: 'Noto Sans Devanagari','Inter',sans-serif; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
-    .dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
-    .glass-nav-light { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-    .glass-nav-dark { background: rgba(15,17,19,0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    :root { --prism: linear-gradient(90deg,#2D5BD0 0%,#6E7682 52%,#C26A1B 100%); }
+    body { font-family:'IBM Plex Sans',system-ui,sans-serif; }
+    .editorial-heading { font-family:'Fraunces',Georgia,serif; font-optical-sizing:auto; }
+    .mono { font-family:'IBM Plex Mono',ui-monospace,monospace; }
+    .deva, .deva * { font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif !important; }
+    .prism-line { background:var(--prism); }
+    .prism-text { background:var(--prism); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
+    ::-webkit-scrollbar { width:7px; height:7px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:#cfcfca; border-radius:4px; }
+    .dark ::-webkit-scrollbar-thumb { background:#34373d; }
+    .glass-nav-light { background:rgba(238,238,236,0.72); backdrop-filter:saturate(1.4) blur(14px); -webkit-backdrop-filter:saturate(1.4) blur(14px); }
+    .glass-nav-dark { background:rgba(14,15,18,0.7); backdrop-filter:saturate(1.4) blur(14px); -webkit-backdrop-filter:saturate(1.4) blur(14px); }
+    *:focus-visible { outline:2px solid #2D5BD0; outline-offset:2px; border-radius:5px; }
+    .hover-lift { transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+    .hover-lift:hover { transform:translateY(-2px); }
+    @keyframes fadeUp { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+    .fade-up { animation:fadeUp .45s cubic-bezier(.2,.7,.2,1) both; }
+    body { background-color:#EEEEEC; }
+    @keyframes shimmer { 0%{background-position:-520px 0} 100%{background-position:520px 0} }
+    .skel { background-color:#e6e6e3; background-image:linear-gradient(90deg, rgba(0,0,0,0) 0, rgba(255,255,255,.65) 50%, rgba(0,0,0,0) 100%); background-size:520px 100%; background-repeat:no-repeat; animation:shimmer 1.5s infinite linear; border-radius:8px; }
+    .dark .skel { background-color:#1c2025; background-image:linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,.06) 50%, rgba(255,255,255,0) 100%); }
+    @media (prefers-reduced-motion: reduce){ *{ transition-duration:0.01ms !important; animation:none !important; } }
   </style>
 </head>
-<body class="antialiased transition-colors duration-300">
-  <div id="root"><div style="padding:80px;text-align:center;color:#8A8F98">Loading Paksh…</div></div>
+<body class="antialiased">
+  <div id="root"><div style="max-width:72rem;margin:0 auto;padding:0 1rem">
+    <div style="height:64px;display:flex;align-items:center;gap:10px">
+      <div class="skel" style="width:34px;height:24px;border-radius:6px"></div>
+      <div class="skel" style="width:80px;height:18px;border-radius:6px"></div>
+    </div>
+    <div class="skel" style="margin-top:24px;width:100%;aspect-ratio:21/9;border-radius:24px"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;margin-top:28px">
+      <div class="skel" style="height:300px;border-radius:16px"></div>
+      <div class="skel" style="height:300px;border-radius:16px"></div>
+      <div class="skel" style="height:300px;border-radius:16px"></div>
+    </div>
+  </div></div>
 
   <script type="text/babel">
     const { useState, useMemo, useEffect } = React;
@@ -58,17 +88,19 @@
 
     /* ---------------- config ---------------- */
     const BIAS = {
-      left:   { color: "#2563EB", en: "Left",   hi: "वाम" },
-      center: { color: "#64748B", en: "Centre", hi: "केंद्र" },
-      right:  { color: "#D97706", en: "Right",  hi: "दक्षिण" },
+      left:   { color: "#2D5BD0", soft: "#E7EDFB", en: "Left",   hi: "वाम" },
+      center: { color: "#6E7682", soft: "#ECEDEF", en: "Centre", hi: "केंद्र" },
+      right:  { color: "#C26A1B", soft: "#F8EDDD", en: "Right",  hi: "दक्षिण" },
     };
     const TOKENS = {
-      light: { bg:"bg-[#F1F2F3]", surface:"bg-[#FFFFFF]", soft:"bg-[#F7F7F8]", border:"border-[#E3E3E6]",
-        tp:"text-[#1B1B1F]", ts:"text-[#5C5F66]", tf:"text-[#8A8F98]", brand:"text-[#0E7C73]", brandBg:"bg-[#0E7C73]",
-        blind:"text-[#BE123C]", blindSoft:"bg-[#FFE4E6]", nav:"glass-nav-light" },
-      dark: { bg:"bg-[#0F1113]", surface:"bg-[#181B1E]", soft:"bg-[#1E2226]", border:"border-[#2A2E33]",
-        tp:"text-[#E6E8EB]", ts:"text-[#9AA0A8]", tf:"text-[#6B7280]", brand:"text-[#2DD4BF]", brandBg:"bg-[#0E7C73]",
-        blind:"text-[#FB7185]", blindSoft:"bg-[#4C0519]/50", nav:"glass-nav-dark" },
+      light: { bg:"bg-[#EEEEEC]", surface:"bg-[#FFFFFF]", soft:"bg-[#F6F6F4]", border:"border-[#E4E4E0]",
+        tp:"text-[#1A1A1E]", ts:"text-[#5A5C63]", tf:"text-[#9A9CA3]", brand:"text-[#1A1A1E]", brandBg:"bg-[#1A1A1E]",
+        blind:"text-[#B23A48]", blindSoft:"bg-[#FBEAEC]", nav:"glass-nav-light",
+        cta:"bg-[#1A1A1E]", ctaT:"text-[#FFFFFF]", line:"#E4E4E0", ink:"#1A1A1E", chip:"bg-[#F0EFEC]" },
+      dark: { bg:"bg-[#0E0F12]", surface:"bg-[#16181C]", soft:"bg-[#1B1E22]", border:"border-[#292C32]",
+        tp:"text-[#E9EAEC]", ts:"text-[#9DA1A9]", tf:"text-[#6A6E76]", brand:"text-[#E9EAEC]", brandBg:"bg-[#E9EAEC]",
+        blind:"text-[#F2828E]", blindSoft:"bg-[#3A1418]", nav:"glass-nav-dark",
+        cta:"bg-[#E9EAEC]", ctaT:"text-[#16181C]", line:"#292C32", ink:"#E9EAEC", chip:"bg-[#1F2226]" },
     };
     const TOPIC_HI = {Politics:"राजनीति", Economy:"अर्थव्यवस्था", International:"अंतरराष्ट्रीय", Sports:"खेल",
       "Crime & Law":"अपराध व कानून", "Science & Tech":"विज्ञान व तकनीक", Health:"स्वास्थ्य",
@@ -214,6 +246,7 @@
         unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)),
         blindspot:e.blindspot?e.blindspot.side:null,
         auto:e.summary_method==="extractive",
+        img:e.image_url||"",
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
     const toDetail = (e, lang) => { const c=toCard(e,lang);
@@ -223,222 +256,467 @@
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
 
-    /* ---------------- small components ---------------- */
-    function BiasBar({ bias, height="h-1.5" }) {
+
+
+    /* ---------------- extra icons ---------------- */
+    const ArrowUpRight = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>;
+    const Compass = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9"/></svg>;
+    const Globe = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10Z"/></svg>;
+
+    /* ---------------- presentation helpers ---------------- */
+    const timeAgo = (iso, lang) => {
+      const ts = Date.parse(iso||""); if (isNaN(ts)) return "";
+      const m = Math.max(0,(Date.now()-ts)/60000); const hi = lang==="hi";
+      if (m < 60)  return hi ? `${Math.round(m)} मिनट पहले` : `${Math.round(m)}m ago`;
+      const h = m/60; if (h < 24) return hi ? `${Math.round(h)} घंटे पहले` : `${Math.round(h)}h ago`;
+      const d = Math.round(h/24); return hi ? `${d} दिन पहले` : `${d}d ago`;
+    };
+
+    function Spectrum({ bias, height="h-2", t }) {
       const [m,setM]=useState(false);
       useEffect(()=>{ const r=requestAnimationFrame(()=>setM(true)); return ()=>cancelAnimationFrame(r); },[]);
       const w=(p)=>(m?`${p}%`:"0%");
       return (
-        <div className={`flex w-full overflow-hidden rounded-full ${height} bg-zinc-200 dark:bg-zinc-800`}>
-          <div className="transition-all duration-1000 ease-out" style={{width:w(bias.left), backgroundColor:BIAS.left.color}} />
-          <div className="transition-all duration-1000 ease-out" style={{width:w(bias.center), backgroundColor:BIAS.center.color}} />
-          <div className="transition-all duration-1000 ease-out" style={{width:w(bias.right), backgroundColor:BIAS.right.color}} />
+        <div className={`flex w-full overflow-hidden rounded-full ${height}`} style={{background:(t&&t.line)||"#E4E4E0"}}>
+          <div className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias.left),   backgroundColor:BIAS.left.color}} />
+          <div className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias.center), backgroundColor:BIAS.center.color}} />
+          <div className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias.right),  backgroundColor:BIAS.right.color}} />
         </div>
       );
     }
-    function CoverageLine({ story, t, lang }) {
-      const d=dominant(story.bias); const n=story.sources; const even=(story.counts && d.pct>0) ? false : false;
-      const top=["left","center","right"].sort((a,b)=>story.counts[b]-story.counts[a]);
-      const isEven=(story.counts[top[0]]-story.counts[top[1]])<=0;
+
+    function Eyebrow({ topic, created_at, blindspot, t, lang }) {
+      const tp = lang==="hi" ? (TOPIC_HI[topic]||topic) : topic;
+      const face = lang==="hi" ? "deva" : "mono";
       return (
-        <span className={`text-xs font-semibold ${t.ts}`}>
-          {isEven ? <span className="font-bold">{STR[lang].even}</span>
-                  : <span className="font-bold" style={{color:BIAS[d.side].color}}>{STR[lang].most}: {lbl(d.side,lang)}</span>}
-          <span className={t.tf}> · {n} {n===1?STR[lang].source:STR[lang].sources}</span>
-          {story.unrated>0 && <span className={t.tf} title={STR[lang].unratedNote}> · +{story.unrated}</span>}
-        </span>
-      );
-    }
-    function AutoTag({ lang }) {
-      return (
-        <span title={STR[lang].autoNote}
-          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${isHi(lang)}`}>
-          <Sparkles size={10} strokeWidth={2.5} /> {STR[lang].autoTag}
-        </span>
-      );
-    }
-    function Eyebrow({ story, t, lang }) {
-      const tp = lang==="hi" ? (TOPIC_HI[story.topic]||story.topic) : story.topic;
-      return (
-        <div className="mb-2 flex items-center gap-2">
-          <span className={`text-xs font-bold uppercase tracking-wider ${t.tf} ${isHi(lang)}`}>{tp}</span>
-          {story.auto && <AutoTag lang={lang} />}
+        <div className={`flex items-center gap-2 ${face} text-[11px] font-medium uppercase tracking-[0.13em]`}>
+          <span className={t.ts}>{tp || "News"}</span>
+          {created_at && <><span className={t.tf}>·</span><span className={t.tf}>{timeAgo(created_at,lang)}</span></>}
+          {blindspot && <><span className={t.tf}>·</span><span className={t.blind} style={{color:BIAS[blindspot]?undefined:undefined}}>{lbl(blindspot,lang)} {STR[lang].navOS}</span></>}
         </div>
       );
     }
+
     function Monogram({ name, side }) {
-      return <span className="flex shrink-0 items-center justify-center rounded-full text-white text-xs font-bold shadow-sm" style={{width:32,height:32,backgroundColor:BIAS[side].color}}>{(name||"?")[0]}</span>;
+      return <span className="grid shrink-0 place-items-center rounded-md mono text-[12px] font-semibold text-white" style={{width:30,height:30,backgroundColor:(BIAS[side]&&BIAS[side].color)||"#8A8F98"}}>{(name||"?")[0]}</span>;
+    }
+
+    const LeanChip = ({ side, lang }) => (
+      <span className="inline-flex items-center rounded-full px-2.5 py-1 mono text-[10px] font-bold uppercase tracking-widest text-white" style={{backgroundColor:BIAS[side].color}}>{lbl(side,lang)}</span>
+    );
+
+    function AutoTag({ lang, t }) {
+      return <span className={`inline-flex items-center gap-1 rounded mono px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${t.chip} ${t.ts}`}><Sparkles size={10} strokeWidth={2.5} /> {STR[lang].autoTag}</span>;
+    }
+
+    function SectionHead({ title, sub, t, lang, onSeeAll, icon:Icon, accent }) {
+      return (
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              {Icon && <Icon size={15} className={accent||t.tp} />}
+              <h2 className={`text-[12px] font-bold uppercase tracking-[0.14em] ${t.tp} ${isHi(lang)}`}>{title}</h2>
+            </div>
+            {sub && <p className={`mt-1 text-[12px] ${t.tf} ${isHi(lang)}`}>{sub}</p>}
+          </div>
+          {onSeeAll && <button onClick={onSeeAll} className={`mono text-[11px] font-medium ${t.ts} flex items-center gap-1 hover:${t.tp}`}>{ui("seeAll",lang)} <ChevronRight size={13}/></button>}
+        </div>
+      );
+    }
+
+    /* ---------------- images / skeleton ---------------- */
+    function Thumb({ src, topic, title, ratio, t, lang, className }) {
+      const [err,setErr]=useState(false);
+      const real = src && !err;
+      const tp = lang==="hi" ? (TOPIC_HI[topic]||topic) : (topic||"News");
+      return (
+        <div className={`relative overflow-hidden ${t.soft} ${className||""}`} style={{aspectRatio:ratio||"16 / 9"}}>
+          {real
+            ? <img src={src} alt="" loading="lazy" decoding="async" onError={()=>setErr(true)} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]" />
+            : <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
+                <span className="prism-line h-1 w-10 rounded-full opacity-80" />
+                <span className={`mono text-[11px] font-semibold uppercase tracking-[0.18em] ${t.tf} ${lang==="hi"?"deva":""}`}>{tp}</span>
+              </div>}
+        </div>
+      );
+    }
+
+    function OutletAvatar({ o, side }) {
+      const [err,setErr]=useState(false);
+      let host=""; try{ host=new URL(o.url).hostname.replace(/^www\./,""); }catch(e){}
+      const ring = (BIAS[side]&&BIAS[side].color)||"#8A8F98";
+      if (err || !host) return <Monogram name={o.source} side={side} />;
+      return (
+        <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-md bg-white" style={{boxShadow:`0 0 0 1.5px ${ring}`}}>
+          <img src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`} alt="" width={18} height={18} loading="lazy" onError={()=>setErr(true)} className="object-contain" />
+        </span>
+      );
+    }
+
+    function FeedSkeleton({ t }) {
+      const Card=()=>(
+        <div className={`overflow-hidden rounded-2xl border ${t.surface} ${t.border}`}>
+          <div className="skel w-full" style={{aspectRatio:"16 / 9", borderRadius:0}} />
+          <div className="p-5">
+            <div className="skel mb-3 h-3 w-24" />
+            <div className="skel mb-2 h-5 w-full" />
+            <div className="skel mb-4 h-5 w-3/4" />
+            <div className="skel h-2 w-full rounded-full" />
+          </div>
+        </div>
+      );
+      return (
+        <div className="fade-up pt-6">
+          <div className={`mb-8 overflow-hidden rounded-3xl border ${t.surface} ${t.border}`}>
+            <div className="skel w-full" style={{aspectRatio:"21 / 9", borderRadius:0}} />
+            <div className="p-8">
+              <div className="skel mb-4 h-4 w-28" />
+              <div className="skel mb-3 h-9 w-3/4" />
+              <div className="skel h-9 w-1/2" />
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[0,1,2,3,4,5].map(i=><Card key={i} />)}
+          </div>
+        </div>
+      );
     }
 
     /* ---------------- cards ---------------- */
-    function HeroCard({ story, t, lang, onOpen }) {
-      return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}>
-          <div className="aspect-video w-full" style={{background:`center/cover url("${story.image}")`}} />
-          <div className="p-6 sm:p-8">
-            <Eyebrow story={story} t={t} lang={lang} />
-            <h2 className={`mb-4 text-2xl sm:text-3xl font-bold leading-tight tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{story.headline}</h2>
-            <p className={`mb-6 text-sm sm:text-base leading-relaxed ${t.ts} ${isHi(lang)}`}>{story.lead}</p>
-            <BiasBar bias={story.bias} />
-            <div className="mt-4 flex items-center justify-between">
-              <CoverageLine story={story} t={t} lang={lang} />
-              <span className={`flex items-center gap-1 text-sm font-bold ${t.brand} ${isHi(lang)}`}>{STR[lang].seeCoverage} <ChevronRight size={16} /></span>
-            </div>
-          </div>
-        </article>
-      );
-    }
-    function CompactRow({ story, t, lang, onOpen, last }) {
-      return (
-        <article onClick={()=>onOpen(story.id)} className={`group flex cursor-pointer gap-4 py-4 ${!last?`border-b ${t.border}`:""}`}>
-          <div className="shrink-0 rounded-xl overflow-hidden" style={{width:78,height:78,background:`center/cover url("${story.image}")`}} />
-          <div className="flex min-w-0 flex-col justify-center flex-1">
-            <Eyebrow story={story} t={t} lang={lang} />
-            <h3 className={`mb-2 text-[15px] font-bold leading-snug editorial-heading ${t.tp} line-clamp-2 ${isHi(lang)}`}>{story.headline}</h3>
-            <BiasBar bias={story.bias} height="h-1" />
-            <div className="mt-2"><CoverageLine story={story} t={t} lang={lang} /></div>
-          </div>
-        </article>
-      );
-    }
     function StoryCard({ story, t, lang, onOpen }) {
+      const total = story.sources + (story.unrated||0);
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col h-full`}>
-          <div className="aspect-video w-full shrink-0" style={{background:`center/cover url("${story.image}")`}} />
-          <div className="p-5 flex flex-col flex-1">
-            <Eyebrow story={story} t={t} lang={lang} />
-            <h3 className={`mb-4 text-lg font-bold leading-snug editorial-heading ${t.tp} line-clamp-3 ${isHi(lang)}`}>{story.headline}</h3>
-            <div className="mt-auto"><BiasBar bias={story.bias} /><div className="mt-3"><CoverageLine story={story} t={t} lang={lang} /></div></div>
+        <button onClick={()=>onOpen(story.id)} className={`group hover-lift w-full overflow-hidden text-left rounded-2xl border ${t.surface} ${t.border} hover:shadow-[0_10px_34px_rgba(0,0,0,0.08)]`}>
+          <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
+          <div className="p-5">
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+            {story.auto && <AutoTag lang={lang} t={t} />}
           </div>
-        </article>
-      );
-    }
-    function OneSidedCard({ story, t, lang, onOpen }) {
-      const side=story.blindspot; const b=BIAS[side];
-      return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-2xl border ${t.border} ${t.surface} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-rose-400 flex flex-col h-full`}>
-          <div className="relative aspect-video w-full shrink-0" style={{background:`center/cover url("${story.image}")`}}>
-            <div className={`absolute left-3 top-3 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-widest ${t.blindSoft} ${t.blind} shadow-sm backdrop-blur-md ${isHi(lang)}`}><Eye size={14} strokeWidth={2.5} /> {STR[lang].navOS}</div>
-          </div>
-          <div className="p-5 flex flex-col flex-1">
-            <h3 className={`mb-4 text-lg font-bold leading-snug editorial-heading ${t.tp} line-clamp-3 ${isHi(lang)}`}>{story.headline}</h3>
-            <div className="mt-auto"><BiasBar bias={story.bias} />
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-xs font-bold" style={{color:b.color}}>{STR[lang].onlyLabel} {story.bias[side]}% {lbl(side,lang)}</span>
-                <span className={`text-xs font-semibold ${t.ts}`}>{story.sources} {STR[lang].sources}</span>
-              </div>
+          <h3 className={`editorial-heading mb-4 line-clamp-3 text-lg sm:text-xl font-medium leading-[1.18] tracking-[-0.01em] ${t.tp} ${isHi(lang)}`}>{story.headline}</h3>
+          <Spectrum bias={story.bias} t={t} height="h-1.5" />
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-3 mono text-[11px]">
+              {["left","center","right"].map(k=>(
+                <span key={k} className="flex items-center gap-1" style={{color:BIAS[k].color}}>
+                  <span className="inline-block h-2 w-2 rounded-full" style={{backgroundColor:BIAS[k].color}} />{story.counts[k]}
+                </span>
+              ))}
             </div>
+            <span className={`mono text-[11px] ${t.tf}`}>{total} {total===1?STR[lang].source:STR[lang].sources}</span>
           </div>
-        </article>
+          </div>
+        </button>
       );
     }
 
-    /* ---------------- header ---------------- */
-    function Header({ t, lang, setLang, dark, setDark, go }) {
+    function HeroCard({ story, t, lang, onOpen }) {
+      const total = story.sources + (story.unrated||0);
       return (
-        <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav} transition-all duration-300`}>
-          <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-            <button className="flex items-baseline gap-1.5 select-none" onClick={()=>go("home")}>
-              <span className="text-2xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span>
-              <span className={`text-lg font-extrabold tracking-tight ${t.tp}`}>Paksh</span>
-            </button>
-            <div className="flex items-center gap-2.5">
-              <div className={`flex rounded-full border overflow-hidden ${t.border}`}>
-                <button onClick={()=>setLang("en")} className={`px-3 py-1.5 text-xs font-bold ${lang==="en"?"bg-[#0E7C73] text-white":t.ts}`}>EN</button>
-                <button onClick={()=>setLang("hi")} className={`px-3 py-1.5 text-xs font-bold deva ${lang==="hi"?"bg-[#0E7C73] text-white":t.ts}`}>हिं</button>
+        <button onClick={()=>onOpen(story.id)} className={`group hover-lift w-full overflow-hidden text-left rounded-3xl border ${t.surface} ${t.border} hover:shadow-[0_16px_50px_rgba(0,0,0,0.10)]`}>
+          <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="21 / 9" t={t} lang={lang} />
+          <div className="p-6 sm:p-8 lg:p-9">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+            {story.auto && <AutoTag lang={lang} t={t} />}
+          </div>
+          <div className="grid items-start gap-7 lg:grid-cols-[1.5fr_1fr] lg:gap-10">
+            <div>
+              <h2 className={`editorial-heading text-[1.9rem] sm:text-4xl lg:text-[2.7rem] font-medium leading-[1.07] tracking-[-0.02em] ${t.tp} ${isHi(lang)}`}>{story.headline}</h2>
+              {story.lead && <p className={`mt-4 line-clamp-3 text-[15px] sm:text-base leading-relaxed ${t.ts} ${isHi(lang)}`}>{story.lead}</p>}
+            </div>
+            <div className={`rounded-2xl border p-5 ${t.soft} ${t.border}`}>
+              <div className={`mb-3 mono text-[10px] font-medium uppercase tracking-[0.16em] ${t.tf}`}>{STR[lang].whereLean}</div>
+              <Spectrum bias={story.bias} t={t} height="h-2.5" />
+              <div className="mt-4 space-y-2.5">
+                {["left","center","right"].map(k=>(
+                  <div key={k} className="flex items-center gap-2.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}} />
+                    <span className="text-[13px] font-semibold" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span>
+                    <span className={`ml-auto mono text-[13px] font-semibold ${t.tp}`}>{story.counts[k]}</span>
+                  </div>
+                ))}
               </div>
-              <button onClick={()=>setDark(d=>!d)} aria-label="Toggle theme" className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${t.border} ${t.tp} ${t.surface}`}>{dark?<Sun size={17}/>:<Moon size={17}/>}</button>
+              <div className={`mt-4 flex items-center justify-between border-t pt-3 ${t.border}`}>
+                <span className={`mono text-[11px] ${t.tf}`}>{total} {STR[lang].sources}</span>
+                <span className={`inline-flex items-center gap-1 text-[13px] font-semibold ${t.tp}`}>{STR[lang].seeCoverage} <ArrowUpRight size={14}/></span>
+              </div>
+            </div>
+          </div>
+          </div>
+        </button>
+      );
+    }
+
+    function OneSidedCard({ story, t, lang, onOpen }) {
+      const side = story.blindspot;
+      return (
+        <button onClick={()=>onOpen(story.id)} className={`group hover-lift w-full text-left rounded-2xl border p-5 sm:p-6 ${t.surface} ${t.border}`} style={{borderLeftWidth:4, borderLeftColor:(side&&BIAS[side].color)||(t.line)}}>
+          <div className="mb-3 flex items-center gap-2 mono text-[11px] font-semibold uppercase tracking-widest">
+            <Eye size={14} className={t.blind} />
+            <span className={t.blind}>{side?lbl(side,lang):""} · {STR[lang].navOS}</span>
+          </div>
+          <h3 className={`editorial-heading mb-4 line-clamp-3 text-lg sm:text-xl font-medium leading-snug ${t.tp} ${isHi(lang)}`}>{story.headline}</h3>
+          <Spectrum bias={story.bias} t={t} height="h-1.5" />
+          {side && <p className={`mt-3 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osCalloutBody1} <strong style={{color:BIAS[side].color}}>{story.bias[side]}%</strong> {STR[lang].osCalloutBody2}</p>}
+        </button>
+      );
+    }
+
+    function OneSidedStrip({ items, t, lang, onOpen }) {
+      if(!items.length) return null;
+      return (
+        <div className="mb-7 lg:hidden">
+          <div className="mb-3 flex items-center gap-2"><Eye size={16} className={t.blind}/><span className={`text-sm font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].navOS}</span></div>
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2">
+            {items.slice(0,6).map(s=>(<div key={s.id} className="w-[18rem] shrink-0"><OneSidedCard story={s} t={t} lang={lang} onOpen={onOpen}/></div>))}
+          </div>
+        </div>
+      );
+    }
+
+    function TopicChips({ topics, t, lang, onPick }) {
+      if(!topics.length) return null;
+      return (
+        <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-2 lg:hidden">
+          {topics.map(tp=>(<button key={tp} onClick={()=>onPick(tp)} className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${t.surface} ${t.border} ${t.ts} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</button>))}
+        </div>
+      );
+    }
+
+    /* ---------------- header / bottom nav ---------------- */
+    function Header({ t, lang, setLang, dark, setDark, go, view }) {
+      const Nav = ({k,children}) => (
+        <button onClick={()=>go(k)} className={`relative px-0.5 py-1 text-[13px] font-semibold transition-colors ${view===k?t.tp:`${t.ts} hover:${t.tp}`}`}>
+          {children}
+          {view===k && <span className="prism-line absolute -bottom-[6px] left-0 right-0 h-[2px] rounded-full" />}
+        </button>
+      );
+      return (
+        <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="flex h-16 items-center gap-4">
+              <button onClick={()=>go("home")} className="flex shrink-0 items-center gap-2" aria-label="Paksh home">
+                <span className="deva prism-text text-2xl font-bold leading-none">पक्ष</span>
+                <span className="flex flex-col leading-none">
+                  <span className={`text-[17px] font-bold tracking-tight ${t.tp}`}>Paksh</span>
+                  <span className="prism-line mt-1 h-[2px] w-full rounded-full" />
+                </span>
+              </button>
+              <nav className="ml-4 hidden items-center gap-6 md:flex">
+                <Nav k="home">{STR[lang].navTop}</Nav>
+                <Nav k="os">{STR[lang].navOS}</Nav>
+                <Nav k="sections">{ui("sections",lang)}</Nav>
+                <Nav k="sources">{STR[lang].navSrc}</Nav>
+                <Nav k="method">{STR[lang].navMethod}</Nav>
+              </nav>
+              <div className="ml-auto flex items-center gap-1.5">
+                <button onClick={()=>go("search")} aria-label="Search" className={`grid h-9 w-9 place-items-center rounded-full ${t.ts} hover:${t.soft}`}><Search size={18}/></button>
+                <div className={`flex items-center overflow-hidden rounded-full border ${t.border}`}>
+                  {["en","hi"].map(l=>(<button key={l} onClick={()=>setLang(l)} className={`px-2.5 py-1 text-[12px] font-bold ${lang===l?`${t.cta} ${t.ctaT}`:t.ts} ${l==="hi"?"deva":""}`}>{l==="en"?"EN":"हिं"}</button>))}
+                </div>
+                <button onClick={()=>setDark(!dark)} aria-label="Toggle theme" className={`grid h-9 w-9 place-items-center rounded-full ${t.ts} hover:${t.soft}`}>{dark?<Sun size={18}/>:<Moon size={18}/>}</button>
+              </div>
             </div>
           </div>
         </header>
       );
     }
 
-    /* ---------------- detail ---------------- */
-    function StoryPage({ story, t, lang, onBack }) {
-      const side=story.blindspot; const b=side?BIAS[side]:null;
-      const order=["left","center","right"]; const rot=(((story.id||0)%3)+3)%3;
-      const rotated=order.slice(rot).concat(order.slice(0,rot));
-      const sides=rotated.filter(k=>(story.outlets||[]).some(o=>o.lean===k));
+    function BottomNav({ t, lang, view, go }) {
+      const items=[["home",STR[lang].navTop,Layers],["os",STR[lang].navOS,Eye],["sections",ui("sections",lang),Compass],["sources",STR[lang].navSrc,Globe],["method",STR[lang].navMethod,Scale]];
       return (
-        <div className="pb-24 pt-8">
-          <button onClick={onBack} className={`group mb-8 flex items-center gap-2 text-sm font-bold uppercase tracking-wider transition-colors ${t.ts} ${isHi(lang)}`}><ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> {STR[lang].back}</button>
-          <div className="mb-8">
-            <Eyebrow story={story} t={t} lang={lang} />
-            <h1 className={`mt-3 mb-6 text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.15] tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{story.headline}</h1>
+        <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>
+          <div className="flex items-stretch justify-around">
+            {items.map(([k,label,Icon])=>(
+              <button key={k} onClick={()=>go(k)} className={`flex flex-1 flex-col items-center gap-1 py-2.5 ${view===k?t.tp:t.tf}`}>
+                <Icon size={20}/>
+                <span className={`text-[10px] font-semibold ${lang==="hi"?"deva":""}`}>{label}</span>
+              </button>
+            ))}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10 xl:gap-16">
-            <div className="min-w-0">
-              <div className={`mb-10 aspect-[21/9] w-full overflow-hidden rounded-2xl border ${t.border} shadow-sm`} style={{background:`center/cover url("${story.image}")`}} />
-              <div className={`mb-12 rounded-2xl border p-6 sm:p-8 ${t.soft} ${t.border}`}>
-                <div className="mb-6 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-                  <Sparkles size={20} className={story.auto ? t.ts : t.brand} />
-                  {story.auto ? (
-                    <span className={`text-sm font-bold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}>{STR[lang].autoTag}</span>
-                  ) : (
-                    <span className={`text-sm font-bold uppercase tracking-widest ${t.brand} ${isHi(lang)}`}>{STR[lang].aiSummary}</span>
-                  )}
-                  <span className={`text-sm ${t.ts} ${isHi(lang)}`}>· {story.auto ? STR[lang].autoFrom : STR[lang].aiSub}</span>
+        </nav>
+      );
+    }
+
+    /* ---------------- home ---------------- */
+    function HomeView({ cards, oneSided, topics, counts, t, lang, open, goSection, goOS }) {
+      const hero = cards[0]; const rest = cards.slice(1);
+      return (
+        <div className="fade-up">
+          <div className="flex items-center gap-3 pt-6 pb-5">
+            <span className="prism-line h-4 w-1 rounded-full" />
+            <p className={`text-[13px] sm:text-sm font-medium ${t.ts} ${isHi(lang)}`}>{STR[lang].tagline}</p>
+          </div>
+          {hero && <div className="mb-8"><HeroCard story={hero} t={t} lang={lang} onOpen={open} /></div>}
+
+          <OneSidedStrip items={oneSided} t={t} lang={lang} onOpen={open} />
+          <TopicChips topics={topics} t={t} lang={lang} onPick={goSection} />
+
+          <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
+            <div className="grid gap-5 sm:grid-cols-2">
+              {rest.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+            </div>
+            <aside className="hidden space-y-9 lg:block">
+              {oneSided.length>0 && (
+                <div>
+                  <SectionHead title={STR[lang].navOS} sub={STR[lang].osSub} icon={Eye} accent={t.blind} t={t} lang={lang} onSeeAll={goOS} />
+                  <div className="mt-4 space-y-4">{oneSided.slice(0,3).map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
                 </div>
-                {story.auto && <p className={`mb-4 text-sm leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].autoNote}</p>}
+              )}
+              {topics.length>0 && (
+                <div>
+                  <SectionHead title={ui("sections",lang)} icon={Compass} t={t} lang={lang} />
+                  <div className="mt-3">
+                    {topics.map(tp=>(
+                      <button key={tp} onClick={()=>goSection(tp)} className={`group flex w-full items-center justify-between border-b py-2.5 ${t.border}`}>
+                        <span className={`text-sm font-semibold ${t.ts} group-hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span>
+                        <span className={`mono text-[11px] ${t.tf}`}>{counts[tp]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      );
+    }
+
+    function SectionsHub({ topics, counts, t, lang, goSection }) {
+      return (
+        <div className="fade-up pt-6">
+          <h1 className={`editorial-heading mb-6 text-3xl sm:text-4xl font-medium tracking-tight ${t.tp} ${isHi(lang)}`}>{ui("sections",lang)}</h1>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {topics.map(tp=>(
+              <button key={tp} onClick={()=>goSection(tp)} className={`hover-lift rounded-2xl border p-6 text-left ${t.surface} ${t.border}`}>
+                <div className={`mono text-5xl font-semibold ${t.tp}`}>{counts[tp]}</div>
+                <div className={`mt-2 text-base font-bold ${t.ts} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function SectionView({ title, items, t, lang, open, onBack }) {
+      return (
+        <div className="fade-up pt-6">
+          <button onClick={onBack} className={`mb-6 inline-flex items-center gap-2 mono text-[12px] font-medium uppercase tracking-wider ${t.ts} hover:${t.tp}`}><ArrowLeft size={15}/> {ui("sections",lang)}</button>
+          <h1 className={`editorial-heading mb-6 text-3xl sm:text-4xl font-medium tracking-tight ${t.tp} ${isHi(lang)}`}>{lang==="hi"?(TOPIC_HI[title]||title):title}</h1>
+          {items.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{items.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+            : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+        </div>
+      );
+    }
+
+    /* ---------------- story detail ---------------- */
+    function StoryPage({ story, t, lang, onBack }) {
+      const side = story.blindspot;
+      const order = ["left","center","right"];
+      const sides = order.filter(k=>(story.outlets||[]).some(o=>o.lean===k));
+      const fr = story.framing || {};
+      const fsides = order.filter(k=>(fr[k]||"").trim());
+      const total = story.sources + (story.unrated||0);
+      return (
+        <div className="fade-up pb-24 pt-6">
+          <button onClick={onBack} className={`group mb-7 inline-flex items-center gap-2 mono text-[12px] font-medium uppercase tracking-wider ${t.ts} hover:${t.tp}`}><ArrowLeft size={15} className="transition-transform group-hover:-translate-x-1"/> {STR[lang].back}</button>
+          <div className="mb-7 max-w-3xl">
+            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={side} t={t} lang={lang} />
+            <h1 className={`editorial-heading mt-3 text-3xl sm:text-5xl lg:text-[3.3rem] font-medium leading-[1.07] tracking-[-0.02em] ${t.tp} ${isHi(lang)}`}>{story.headline}</h1>
+          </div>
+          {story.img && <div className="group mb-9 max-w-4xl"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} className={`rounded-2xl border ${t.border}`} /></div>}
+
+          <div className="grid gap-8 lg:grid-cols-[1fr_330px] lg:gap-12">
+            <div className="min-w-0">
+              {/* spectrum panel — the thesis */}
+              <div className={`mb-9 rounded-2xl border p-6 ${t.surface} ${t.border}`}>
+                <div className="mb-4 flex items-baseline justify-between">
+                  <span className={`mono text-[11px] uppercase tracking-[0.16em] ${t.tf}`}>{STR[lang].whereLean}</span>
+                  <span className={`mono text-[12px] ${t.ts}`}><span className={`text-2xl font-semibold ${t.tp}`}>{total}</span> {STR[lang].sources}</span>
+                </div>
+                <Spectrum bias={story.bias} t={t} height="h-3" />
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  {order.map(k=>(
+                    <div key={k} className={`rounded-xl border p-3 ${t.border}`} style={{borderTopWidth:3, borderTopColor:BIAS[k].color}}>
+                      <div className="text-[12px] font-bold" style={{color:BIAS[k].color}}>{lbl(k,lang)}</div>
+                      <div className={`mono text-2xl font-semibold leading-tight ${t.tp}`}>{story.counts[k]}</div>
+                      <div className={`mono text-[10px] ${t.tf}`}>{story.bias[k]}%</div>
+                    </div>
+                  ))}
+                </div>
+                {side && (
+                  <div className={`mt-4 flex items-start gap-2.5 rounded-xl p-4 text-[13px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}>
+                    <Eye size={18} strokeWidth={2.3} className="mt-0.5 shrink-0"/>
+                    <span><strong className="font-bold uppercase tracking-wide">{lbl(side,lang)} · {STR[lang].navOS}</strong><br/>{STR[lang].osCalloutBody1} <strong>{story.bias[side]}%</strong> {STR[lang].osCalloutBody2}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* neutral summary */}
+              <div className={`mb-9 rounded-2xl border p-6 sm:p-7 ${t.soft} ${t.border}`}>
+                <div className={`mb-5 flex flex-wrap items-center gap-2 border-b pb-3 ${t.border}`}>
+                  <Sparkles size={16} className={t.ts}/>
+                  <span className={`mono text-[11px] font-medium uppercase tracking-[0.16em] ${t.ts}`}>{story.auto?STR[lang].autoTag:STR[lang].aiSummary}</span>
+                  <span className={`text-[12px] ${t.tf} ${isHi(lang)}`}>· {story.auto?STR[lang].autoFrom:STR[lang].aiSub}</span>
+                </div>
+                {story.auto && <p className={`mb-4 text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].autoNote}</p>}
                 {story.lead && <p className={`mb-5 text-base sm:text-lg font-medium leading-relaxed ${t.tp} ${isHi(lang)}`}>{story.lead}</p>}
-                <ul className="space-y-4">
-                  {story.summary.map((p,i)=>(
-                    <li key={i} className={`flex items-start gap-4 text-base leading-relaxed font-medium ${t.tp} ${isHi(lang)}`}>
-                      <span className={`mt-2.5 inline-block shrink-0 rounded-full h-2 w-2 ${t.brandBg}`} />{p}
-                    </li>
+                <ul className="space-y-3.5">
+                  {(story.summary||[]).map((p,i)=>(
+                    <li key={i} className={`flex gap-3 text-[15px] leading-relaxed ${t.tp} ${isHi(lang)}`}><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{background:t.ink}}/>{p}</li>
                   ))}
                 </ul>
               </div>
-              {(() => {
-                const fr = story.framing || {};
-                const fsides = ["left","center","right"].filter(k => (fr[k]||"").trim());
-                if (fsides.length) return (
-                  <div className="mb-12">
-                    <h2 className={`mb-2 flex items-center gap-2 text-xl font-bold uppercase tracking-widest ${t.tp} ${isHi(lang)}`}><Scale size={20} /> {STR[lang].framingTitle}</h2>
-                    <p className={`mb-5 text-sm ${t.ts} ${isHi(lang)}`}>{STR[lang].framingSub}</p>
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      {fsides.map(k => (
-                        <div key={k} className={`rounded-2xl border p-5 ${t.surface} ${t.border}`} style={{borderTopWidth:"4px",borderTopColor:BIAS[k].color}}>
-                          <div className="mb-3 flex items-center gap-2">
-                            <span className="inline-block h-3 w-3 rounded-full" style={{backgroundColor:BIAS[k].color}} />
-                            <span className="text-[11px] font-extrabold uppercase tracking-widest" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span>
-                          </div>
-                          <p className={`text-sm leading-relaxed ${t.tp} ${isHi(lang)}`}>{fr[k]}</p>
+
+              {/* framing refraction — signature */}
+              {fsides.length ? (
+                <div className="mb-9">
+                  <div className="mb-4">
+                    <h2 className={`editorial-heading text-xl sm:text-2xl font-medium ${t.tp} ${isHi(lang)}`}>{STR[lang].framingTitle}</h2>
+                    <p className={`mt-1 text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].framingSub}</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {fsides.map(k=>(
+                      <div key={k} className={`rounded-2xl border p-5 ${t.surface} ${t.border}`} style={{borderTopWidth:4, borderTopColor:BIAS[k].color}}>
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}}/>
+                          <span className="mono text-[11px] font-bold uppercase tracking-widest" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span>
                         </div>
-                      ))}
-                    </div>
+                        <p className={`text-[14px] leading-relaxed ${t.tp} ${isHi(lang)}`}>{fr[k]}</p>
+                      </div>
+                    ))}
                   </div>
-                );
-                if (story.auto) return (
-                  <div className={`mb-12 rounded-2xl border border-dashed p-5 ${t.border}`}>
-                    <div className={`flex items-center gap-2 text-sm font-bold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}><Scale size={18} /> {STR[lang].framingTitle}</div>
-                    <p className={`mt-2 text-sm ${t.tf} ${isHi(lang)}`}>{STR[lang].framingPending}</p>
-                  </div>
-                );
-                return null;
-              })()}
-              <h2 className={`mb-6 flex items-center gap-2 text-xl font-bold uppercase tracking-widest ${t.tp} ${isHi(lang)}`}><Layers size={20} /> {STR[lang].sideBySide}</h2>
-              <div className="space-y-8">
-                {sides.map((k)=>{
+                </div>
+              ) : story.auto ? (
+                <div className={`mb-9 rounded-2xl border border-dashed p-5 ${t.border}`}>
+                  <div className={`flex items-center gap-2 mono text-[12px] font-medium uppercase tracking-widest ${t.ts} ${isHi(lang)}`}><Scale size={16}/> {STR[lang].framingTitle}</div>
+                  <p className={`mt-2 text-[13px] ${t.tf} ${isHi(lang)}`}>{STR[lang].framingPending}</p>
+                </div>
+              ) : null}
+
+              {/* side by side */}
+              <h2 className={`editorial-heading mb-5 text-xl sm:text-2xl font-medium ${t.tp} ${isHi(lang)}`}>{STR[lang].sideBySide}</h2>
+              <div className="space-y-7">
+                {sides.map(k=>{
                   const outs=(story.outlets||[]).filter(o=>o.lean===k);
                   return (
                     <div key={k}>
                       <div className="mb-3 flex items-center gap-3">
-                        <span className="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white shadow-sm" style={{backgroundColor:BIAS[k].color}}>{lbl(k,lang)}</span>
-                        <span className={`text-xs font-bold ${t.tf}`}>{outs.length} {outs.length===1?STR[lang].source:STR[lang].sources}</span>
+                        <LeanChip side={k} lang={lang}/>
+                        <span className={`mono text-[11px] ${t.tf}`}>{outs.length} {outs.length===1?STR[lang].source:STR[lang].sources}</span>
+                        <span className="prism-line ml-1 h-px flex-1 rounded-full opacity-25"/>
                       </div>
-                      <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
                         {outs.map((o,i)=>(
-                          <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`block rounded-2xl border p-5 sm:p-6 transition-shadow hover:shadow-md ${t.surface} ${t.border}`} style={{borderLeftWidth:"5px",borderLeftColor:BIAS[k].color}}>
-                            <div className="mb-3 flex items-center gap-3">
-                              <Monogram name={o.source} side={k} />
-                              <div className="min-w-0">
-                                <div className={`text-sm font-bold ${t.tp}`}>{o.source} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(o.language||"en").toUpperCase()}</span></div>
-                              </div>
-                              <span className={`ml-auto text-xs font-bold ${t.brand}`}>↗</span>
+                          <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`hover-lift block rounded-xl border p-4 ${t.surface} ${t.border}`} style={{borderLeftWidth:4, borderLeftColor:BIAS[k].color}}>
+                            <div className="mb-2.5 flex items-center gap-2.5">
+                              <OutletAvatar o={o} side={k}/>
+                              <span className={`text-[13px] font-bold ${t.tp}`}>{o.source}</span>
+                              <span className={`mono text-[10px] ${t.tf}`}>{(o.language||"en").toUpperCase()}</span>
+                              <ArrowUpRight size={14} className={`ml-auto ${t.tf}`}/>
                             </div>
-                            {o.headline && <div className={`text-lg sm:text-xl font-bold leading-snug editorial-heading italic ${t.tp} ${isHi(lang)}`}>“{o.headline}”</div>}
+                            {o.headline && <div className={`editorial-heading text-[15px] sm:text-base font-medium italic leading-snug ${t.tp} ${isHi(lang)}`}>“{o.headline}”</div>}
                           </a>
                         ))}
                       </div>
@@ -446,57 +724,50 @@
                   );
                 })}
               </div>
+
+              {/* unrated */}
               {(() => {
                 const uns=(story.outlets||[]).filter(o=>o.lean==="unrated");
                 if(!uns.length) return null;
                 return (
                   <div className="mt-8">
-                    <div className="mb-3 flex items-center gap-3">
-                      <span className="rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{STR[lang].unratedTitle}</span>
-                      <span className={`text-xs font-bold ${t.tf}`}>{uns.length} {uns.length===1?STR[lang].source:STR[lang].sources}</span>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`rounded-full px-2.5 py-1 mono text-[10px] font-bold uppercase tracking-widest ${t.chip} ${t.ts}`}>{STR[lang].unratedTitle}</span>
+                      <span className={`mono text-[11px] ${t.tf}`}>{uns.length}</span>
                     </div>
-                    <p className={`mb-3 text-xs ${t.tf} ${isHi(lang)}`}>{STR[lang].unratedNote}</p>
+                    <p className={`mb-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{STR[lang].unratedNote}</p>
                     <div className="flex flex-wrap gap-2">
-                      {uns.map((o,i)=>(
-                        <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${t.surface} ${t.border} ${t.ts}`}>{o.source}</a>
-                      ))}
+                      {uns.map((o,i)=>(<a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold ${t.surface} ${t.border} ${t.ts}`}>{o.source}</a>))}
                     </div>
                   </div>
                 );
               })()}
             </div>
-            <aside>
-              <div className={`sticky top-24 rounded-2xl border p-8 ${t.surface} ${t.border} shadow-sm`}>
-                <h3 className={`mb-6 text-xs font-extrabold uppercase tracking-widest ${t.ts} ${isHi(lang)}`}>{STR[lang].coverageBreakdown}</h3>
-                <div className="mb-8 border-b border-zinc-100 dark:border-zinc-800/60 pb-6">
-                  <div className={`mb-2 text-6xl font-black tracking-tighter ${t.tp}`}>{story.sources + (story.unrated||0)}</div>
-                  <div className={`text-sm font-bold ${t.ts} ${isHi(lang)}`}>{STR[lang].totalSources}</div>
-                </div>
-                <div className={`mb-4 text-xs font-bold uppercase tracking-wide ${t.tf} ${isHi(lang)}`}>{STR[lang].whereLean}</div>
-                <BiasBar bias={story.bias} height="h-2.5" />
-                <div className="mt-6 flex flex-col gap-4">
-                  {["left","center","right"].map((k)=>(
-                    <div key={k} className={`flex items-center gap-3 text-sm font-semibold ${t.ts}`}>
-                      <span className="inline-block h-4 w-4 rounded-full shadow-sm" style={{backgroundColor:BIAS[k].color}} />
-                      <span style={{color:BIAS[k].color, fontWeight:800}}>{lbl(k,lang)}</span>
-                      <span className={`ml-auto text-lg font-black ${t.tp}`}>{story.counts[k]}</span>
+
+            {/* sticky coverage breakdown */}
+            <aside className="hidden lg:block">
+              <div className={`sticky top-24 rounded-2xl border p-6 ${t.surface} ${t.border}`}>
+                <div className={`mb-4 mono text-[11px] uppercase tracking-[0.16em] ${t.tf}`}>{STR[lang].coverageBreakdown}</div>
+                <div className={`mono text-6xl font-semibold leading-none ${t.tp}`}>{total}</div>
+                <div className={`mt-1 text-[13px] font-semibold ${t.ts} ${isHi(lang)}`}>{STR[lang].totalSources}</div>
+                <div className="my-5"><Spectrum bias={story.bias} t={t} height="h-2.5"/></div>
+                <div className="space-y-3">
+                  {order.map(k=>(
+                    <div key={k} className="flex items-center gap-2.5">
+                      <span className="h-3 w-3 rounded-full" style={{backgroundColor:BIAS[k].color}}/>
+                      <span className="text-[13px] font-bold" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span>
+                      <span className={`ml-auto mono text-[15px] font-semibold ${t.tp}`}>{story.counts[k]}</span>
                     </div>
                   ))}
                   {story.unrated>0 && (
-                    <div className={`flex items-center gap-3 text-sm font-semibold ${t.ts}`} title={STR[lang].unratedNote}>
-                      <span className="inline-block h-4 w-4 rounded-full shadow-sm bg-slate-300 dark:bg-slate-600" />
-                      <span className="text-slate-500 dark:text-slate-400" style={{fontWeight:800}}>{STR[lang].unratedTitle}</span>
-                      <span className={`ml-auto text-lg font-black ${t.tp}`}>{story.unrated}</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className={`h-3 w-3 rounded-full ${t.chip}`}/>
+                      <span className={`text-[13px] font-bold ${t.tf}`}>{STR[lang].unratedTitle}</span>
+                      <span className={`ml-auto mono text-[15px] font-semibold ${t.tp}`}>{story.unrated}</span>
                     </div>
                   )}
                 </div>
-                {b && (
-                  <div className={`mt-8 flex items-start gap-3 rounded-xl p-5 text-sm leading-relaxed ${t.blindSoft} ${t.blind} border border-rose-500/20 ${isHi(lang)}`}>
-                    <Eye size={20} strokeWidth={2.4} className="mt-0.5 shrink-0" />
-                    <span><strong className="block mb-2 text-base font-black uppercase tracking-wider">{lbl(side,lang)} · {STR[lang].navOS}</strong>{STR[lang].osCalloutBody1} <strong className="text-lg">{story.bias[side]}%</strong> {STR[lang].osCalloutBody2}</span>
-                  </div>
-                )}
-                <p className={`mt-8 text-xs leading-relaxed font-medium ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
+                <p className={`mt-6 border-t pt-5 text-[11px] leading-relaxed ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
               </div>
             </aside>
           </div>
@@ -504,252 +775,66 @@
       );
     }
 
-    /* ---------------- sources page ---------------- */
+    /* ---------------- sources directory ---------------- */
+    function SourceCard({ s, t, lang }) {
+      const side = ["left","center","right"].includes(s.lean) ? s.lean : null;
+      return (
+        <div className={`rounded-2xl border p-5 ${t.surface} ${t.border}`} style={side?{borderLeftWidth:4, borderLeftColor:BIAS[side].color}:{}}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className={`text-[15px] font-bold ${t.tp}`}>{s.name}</div>
+              {s.website && <a href={s.website} target="_blank" rel="noopener" className={`mono text-[11px] break-all ${t.tf} hover:${t.ts}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>}
+            </div>
+            {side ? <LeanChip side={side} lang={lang}/> : <span className={`rounded-full px-2.5 py-1 mono text-[10px] font-bold uppercase tracking-widest ${t.chip} ${t.ts}`}>{s.label||"—"}</span>}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={`mono text-[10px] uppercase tracking-wider ${t.tf}`}>{(s.language||"en").toUpperCase()}</span>
+            {s.confidence && <span className={`mono text-[10px] ${t.tf}`}>· conf {s.confidence}</span>}
+            {s.contested && <span className={`rounded px-1.5 py-0.5 mono text-[10px] font-bold ${t.blindSoft} ${t.blind}`}>{STR[lang].contested}</span>}
+          </div>
+          {s.ownership && <div className={`mt-3 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</div>}
+          {s.rationale && <p className={`mt-2 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{s.rationale}</p>}
+        </div>
+      );
+    }
+
     function SourcesPage({ t, lang, sources }) {
-      const [groupBy,setGroupBy]=useState("lean");   // lean | language | region
-      const [query,setQuery]=useState("");
-      const [open,setOpen]=useState({});
-      const all=sources||[]; const q=query.trim().toLowerCase();
-      const labels={editorial:"Ed",framing:"Fr",selection:"Sel",sourcing:"Src",ownership:"Own",panel:"Pan"};
-
-      const dist={left:0,center:0,right:0}; all.forEach(s=>{ if(dist[s.lean]!=null) dist[s.lean]++; });
-
-      const keyOf=(s)=> groupBy==="lean" ? (s.lean||"unrated")
-                      : groupBy==="language" ? (s.language||"en")
-                      : (s.region||"National");
-      const ORDER={ lean:["left","center","right","unrated"], language:["en","hi"], region:["National","Regional","International"] };
-      const groupName=(g)=> groupBy==="lean" ? lbl(g,lang)
-                          : groupBy==="language" ? (g==="hi"?STR[lang].langHI:STR[lang].langEN)
-                          : ui(g,lang);
-      const groups={}; all.forEach(s=>{ const k=keyOf(s); (groups[k]=groups[k]||[]).push(s); });
-      const keys=[...(ORDER[groupBy]||[]).filter(k=>groups[k]), ...Object.keys(groups).filter(k=>!(ORDER[groupBy]||[]).includes(k))];
-
-      const SourceCard=(s)=>{
-        const fix=`mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal: "+s.name)}&body=${encodeURIComponent("Outlet: "+s.name+"\nCurrent rating: "+(s.label||s.lean)+"\n\nWhy it should be reviewed (specific headlines or articles):\n\n")}`;
-        return (
-          <div key={s.id} className={`rounded-2xl border p-5 ${t.surface} ${t.border}`}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className={`text-base font-extrabold ${t.tp}`}>{s.name} <span className={`ml-1 text-[10px] font-bold ${t.tf}`}>{(s.language||"en").toUpperCase()}</span></div>
-                <a href={s.website} target="_blank" rel="noopener" className={`text-xs font-semibold ${t.brand}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="rounded-full px-3 py-1 text-xs font-extrabold text-white" style={{backgroundColor:BIAS[s.lean]?BIAS[s.lean].color:"#64748B"}}>{lbl(s.lean,lang)}</span>
-                <span className={`text-xs font-semibold ${t.ts} ${isHi(lang)}`}>{confName(s.confidence,lang)} {STR[lang].confidence}</span>
-                {s.contested && <span className={`rounded px-2 py-0.5 text-[10px] font-extrabold uppercase ${t.blindSoft} ${t.blind} ${isHi(lang)}`}>{STR[lang].contested}</span>}
-              </div>
-            </div>
-            <div className={`mt-3 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].ownership}:</strong> {s.ownership}</div>
-            <div className={`mt-1.5 text-sm ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].whyRated}:</strong> {s.rationale}</div>
-            {s.subscores && (
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <span className={`text-[11px] font-bold uppercase ${t.tf} ${isHi(lang)}`}>{STR[lang].signals}:</span>
-                {Object.keys(labels).map(k=>{ const v=s.subscores[k]; const c=v<0?BIAS.left.color:v>0?BIAS.right.color:BIAS.center.color;
-                  return <span key={k} className="text-[11px] font-bold rounded px-2 py-0.5 text-white" style={{backgroundColor:c}}>{labels[k]} {v>0?"+"+v:v}</span>; })}
-              </div>
-            )}
-            <a href={fix} className={`mt-4 inline-block text-xs font-bold ${t.brand} ${isHi(lang)}`}>{STR[lang].suggestFix} →</a>
-          </div>
-        );
-      };
-
-      const results = q ? all.filter(s=>(s.name||"").toLowerCase().includes(q)||(s.ownership||"").toLowerCase().includes(q)||(s.website||"").toLowerCase().includes(q)) : null;
-
+      const [f,setF]=useState("all");
+      const list=(sources||[]).filter(s=>f==="all"||s.lean===f);
+      const filters=[["all", lang==="hi"?"सभी":"All"],["left",lbl("left",lang)],["center",lbl("center",lang)],["right",lbl("right",lang)]];
       return (
-        <div className="pt-6 pb-4">
-          <h1 className={`mb-2 text-3xl font-black editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
-          <p className={`mb-5 text-base ${t.ts} ${isHi(lang)}`}>{STR[lang].srcIntro}</p>
-
-          <div className="mb-5">
-            <div className="flex gap-1 mb-2">
-              {["left","center","right"].map(k=><div key={k} className="h-2 rounded" style={{flex:Math.max(dist[k],0.001),backgroundColor:BIAS[k].color}} />)}
-            </div>
-            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold ${t.ts}`}>
-              <span><b className={t.tp}>{all.length}</b> {ui("registry",lang)}</span>
-              {["left","center","right"].map(k=><span key={k} className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}} />{lbl(k,lang)} {dist[k]}</span>)}
-            </div>
+        <div className="fade-up pt-6">
+          <h1 className={`editorial-heading text-3xl sm:text-4xl font-medium tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
+          <p className={`mb-6 mt-2 max-w-2xl text-sm leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].srcDisclaimer}</p>
+          <div className="mb-6 flex flex-wrap gap-2">
+            {filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${lang==="hi"?"deva":""}`}>{label}</button>))}
           </div>
-
-          <div className={`mb-6 rounded-2xl border p-4 text-sm leading-relaxed ${t.soft} ${t.border} ${t.ts} ${isHi(lang)}`}><strong className={t.tp}>{STR[lang].provisional}.</strong> {STR[lang].srcDisclaimer}</div>
-
-          <div className="mb-6 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${t.tf}`} />
-              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder={ui("findOutlet",lang)} className={`w-full rounded-full border py-2.5 pl-10 pr-4 text-sm font-medium outline-none focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold ${t.tf} ${isHi(lang)}`}>{ui("groupBy",lang)}</span>
-              <select value={groupBy} onChange={e=>{setGroupBy(e.target.value); setOpen({});}} className={`flex-1 rounded-full border py-2.5 px-4 text-sm font-bold outline-none focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`}>
-                <option value="lean">{ui("gLean",lang)}</option>
-                <option value="language">{ui("gLang",lang)}</option>
-                <option value="region">{ui("gRegion",lang)}</option>
-              </select>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map(s=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>)}
           </div>
-
-          {q ? (
-            results.length ? <div className="space-y-4">{results.map(SourceCard)}</div>
-              : <div className={`py-16 text-center font-semibold ${t.tf} ${isHi(lang)}`}>{ui("noOutlets",lang)}</div>
-          ) : (
-            <div className="space-y-3">
-              {keys.map((k,idx)=>{
-                const items=groups[k].slice().sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-                const isOpen = open[k]!==undefined ? open[k] : idx===0;
-                const gd={left:0,center:0,right:0}; items.forEach(s=>{ if(gd[s.lean]!=null) gd[s.lean]++; });
-                return (
-                  <div key={k} className={`rounded-2xl border overflow-hidden ${t.border} ${t.surface}`}>
-                    <button onClick={()=>setOpen(o=>({...o,[k]:!isOpen}))} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`text-base font-black ${t.tp} ${isHi(lang)}`}>{groupName(k)}</span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${t.soft} ${t.tf}`}>{items.length}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {groupBy!=="lean" && <div className="hidden sm:flex gap-1 w-24">{["left","center","right"].map(x=><div key={x} className="h-1.5 rounded" style={{flex:Math.max(gd[x],0.001),backgroundColor:BIAS[x].color}} />)}</div>}
-                        <ChevronRight size={18} className={`${t.tf} transition-transform ${isOpen?"rotate-90":""}`} />
-                      </div>
-                    </button>
-                    {isOpen && <div className={`border-t px-4 py-4 space-y-4 ${t.border}`}>{items.map(SourceCard)}</div>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       );
     }
 
-    /* ---------------- method page ---------------- */
+    /* ---------------- method ---------------- */
     function MethodPage({ t, lang }) {
-      const S=STR[lang];
-      const H=({children})=> <h2 className={`mt-10 mb-3 text-xl font-bold editorial-heading ${t.tp} ${isHi(lang)}`}>{children}</h2>;
-      const P=({children})=> <p className={`mb-3 leading-relaxed ${t.ts} ${isHi(lang)}`}>{children}</p>;
-      const fix=`mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal")}&body=${encodeURIComponent("Outlet:\nCurrent rating:\n\nWhy it should be reviewed (specific headlines or articles):\n\n")}`;
-      return (
-        <div className="pt-12 pb-24 max-w-3xl mx-auto">
-          <h1 className={`mb-6 text-3xl sm:text-4xl font-black editorial-heading ${t.tp} ${isHi(lang)}`}>{S.methodTitle}</h1>
-          <H>{S.m_doesH}</H><P>{S.m_does}</P>
-          <div className={`my-5 rounded-2xl border p-5 leading-relaxed ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`}><strong>{S.m_ruleH}.</strong> {S.m_rule}</div>
-          <H>{S.m_rateH}</H><P>{S.m_rateLede}</P>
-          <ul className={`my-4 rounded-2xl border overflow-hidden ${t.border}`}>
-            {SIGNALS.map((s,i)=>(
-              <li key={i} className={`flex items-center justify-between px-5 py-3 ${t.surface} ${i>0?`border-t ${t.border}`:""}`}>
-                <span className={`font-semibold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?s.hi:s.en}</span><span className={`font-black ${t.brand}`}>{s.w}%</span>
-              </li>
-            ))}
-          </ul>
-          <P><span className={t.tf}>{S.m_rateFoot}</span></P>
-          <H>{S.m_axisH}</H><P>{S.m_axis}</P>
-          <H>{S.m_partiesH}</H><P>{S.m_parties}</P>
-          <H>{S.m_provH}</H><P>{S.m_prov}</P>
-          <H>{S.m_readH}</H>
-          <ul className="my-3 space-y-2">
-            {M_READ[lang].map((x,i)=>(<li key={i} className={`flex items-start gap-3 leading-relaxed ${t.ts} ${isHi(lang)}`}><span className={`mt-2 inline-block shrink-0 rounded-full h-1.5 w-1.5 ${t.brandBg}`} />{x}</li>))}
-          </ul>
-          <H>{S.m_appealH}</H><P>{S.m_appeal}</P>
-          <a href={fix} className={`inline-block rounded-full px-6 py-2.5 text-sm font-bold text-white ${t.brandBg} ${isHi(lang)}`}>{S.suggestFix}</a>
+      const Row=({h,children})=>(
+        <div className={`border-b py-6 ${t.border}`}>
+          <h2 className={`editorial-heading mb-2 text-xl font-medium ${t.tp} ${isHi(lang)}`}>{h}</h2>
+          <div className={`text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{children}</div>
         </div>
       );
-    }
-
-    /* ---------------- topic chips ---------------- */
-    function TopicChips({ t, lang, topics, topic, setTopic }) {
-      if(!topics.length) return null;
-      const Chip=({on,onClick,children})=> <button onClick={onClick} className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${on?`${t.brandBg} text-white border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:bg-zinc-100 dark:hover:bg-zinc-800`} ${isHi(lang)}`}>{children}</button>;
       return (
-        <div className={`flex items-center gap-3 overflow-x-auto py-5 border-b ${t.border} [&::-webkit-scrollbar]:hidden`}>
-          <Chip on={!topic} onClick={()=>setTopic(null)}>{STR[lang].all}</Chip>
-          {topics.map(tp=><Chip key={tp} on={topic===tp} onClick={()=>setTopic(tp)}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</Chip>)}
+        <div className="fade-up max-w-3xl pt-6">
+          <h1 className={`editorial-heading text-3xl sm:text-4xl font-medium tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h1>
+          <p className={`mb-3 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_does}</p>
+          <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
+          <Row h={STR[lang].m_rateH}><p className="mb-2">{STR[lang].m_rateLede}</p><p className={`text-[12px] ${t.tf}`}>{STR[lang].m_rateFoot}</p></Row>
+          <Row h={STR[lang].m_axisH}>{STR[lang].m_axis}</Row>
+          <Row h={STR[lang].m_partiesH}>{STR[lang].m_parties}</Row>
+          <Row h={STR[lang].m_provH}>{STR[lang].m_prov}</Row>
+          <Row h={STR[lang].m_readH}>{STR[lang].m_appeal}</Row>
         </div>
-      );
-    }
-
-    /* ---------------- mobile views ---------------- */
-    function OneSidedStrip({ items, t, lang, open, goOS }) {
-      return (
-        <section className="mb-9">
-          <div className="mb-3 flex items-end justify-between">
-            <div className="flex items-center gap-2"><Eye size={20} className={t.blind} /><h2 className={`text-xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h2></div>
-            <button onClick={goOS} className={`flex items-center gap-0.5 text-sm font-bold ${t.brand} ${isHi(lang)}`}>{ui("seeAll",lang)} <ChevronRight size={15} /></button>
-          </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x [&::-webkit-scrollbar]:hidden">
-            {items.map(s=><div key={s.id} className="shrink-0 w-[270px] snap-start"><OneSidedCard story={s} t={t} lang={lang} onOpen={open} /></div>)}
-          </div>
-        </section>
-      );
-    }
-    function Section({ title, items, t, lang, open, onSeeAll }) {
-      const tpL = lang==="hi" ? (TOPIC_HI[title]||title) : title;
-      const show = items.slice(0,3);
-      return (
-        <section className="mb-9">
-          <div className="mb-3 flex items-end justify-between">
-            <h2 className={`text-xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{tpL}</h2>
-            {items.length>3 && <button onClick={onSeeAll} className={`flex items-center gap-0.5 text-sm font-bold ${t.brand} ${isHi(lang)}`}>{ui("seeAll",lang)} <ChevronRight size={15} /></button>}
-          </div>
-          <div className={`rounded-2xl border px-4 ${t.surface} ${t.border}`}>
-            {show.map((s,i)=><CompactRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===show.length-1} />)}
-          </div>
-        </section>
-      );
-    }
-    function HomeView({ cards, oneSided, t, lang, open, goSection, goOS }) {
-      const hero=cards[0];
-      const rest=cards.slice(1);
-      const byTopic={};
-      rest.forEach(c=>{ const k=c.topic||"Society"; (byTopic[k]=byTopic[k]||[]).push(c); });
-      const ordered=Object.keys(byTopic).sort((a,b)=>byTopic[b].length-byTopic[a].length);
-      return (
-        <div className="pt-5 pb-4">
-          {hero && <div className="mb-9"><HeroCard story={hero} t={t} lang={lang} onOpen={open} /></div>}
-          {oneSided.length>0 && <OneSidedStrip items={oneSided.slice(0,5)} t={t} lang={lang} open={open} goOS={goOS} />}
-          {ordered.map(tp=><Section key={tp} title={tp} items={byTopic[tp]} t={t} lang={lang} open={open} onSeeAll={()=>goSection(tp)} />)}
-        </div>
-      );
-    }
-    function SectionView({ title, items, t, lang, open, onBack }) {
-      const tpL = lang==="hi" ? (TOPIC_HI[title]||title) : title;
-      return (
-        <div className="pt-6 pb-4">
-          <button onClick={onBack} className={`group mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${t.ts} ${isHi(lang)}`}><ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> {STR[lang].back}</button>
-          <h1 className={`mb-6 text-3xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{tpL}</h1>
-          {items.length ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{items.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-          ) : <div className={`py-20 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-        </div>
-      );
-    }
-    function SectionsHub({ topics, counts, t, lang, goSection, go }) {
-      return (
-        <div className="pt-6 pb-4">
-          <h1 className={`mb-6 text-3xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{ui("browse",lang)}</h1>
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            {topics.map(tp=>(
-              <button key={tp} onClick={()=>goSection(tp)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-shadow hover:shadow-md ${t.surface} ${t.border}`}>
-                <span className={`font-bold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span>
-                <span className={`ml-2 text-xs font-black ${t.tf}`}>{counts[tp]||0}</span>
-              </button>
-            ))}
-          </div>
-          <div className="space-y-3">
-            <button onClick={()=>go("sources")} className={`w-full flex items-center justify-between rounded-2xl border px-5 py-4 ${t.surface} ${t.border}`}><span className={`font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</span><ChevronRight size={18} className={t.tf}/></button>
-            <button onClick={()=>go("method")} className={`w-full flex items-center justify-between rounded-2xl border px-5 py-4 ${t.surface} ${t.border}`}><span className={`font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</span><ChevronRight size={18} className={t.tf}/></button>
-          </div>
-        </div>
-      );
-    }
-    function BottomNav({ t, lang, view, go }) {
-      const items=[["home",ui("top",lang),Home],["sections",ui("sections",lang),Grid],["os",ui("oneSided",lang),Eye],["search",ui("searchTab",lang),Search]];
-      const isActive=(k)=> view===k || (k==="home"&&view==="section") || (k==="sections"&&(view==="sources"||view==="method"));
-      return (
-        <nav className={`fixed bottom-0 inset-x-0 z-40 border-t ${t.border} ${t.nav}`}>
-          <div className="mx-auto flex max-w-2xl">
-            {items.map(([k,label,Icon])=>(
-              <button key={k} onClick={()=>go(k)} aria-label={label} className={`flex-1 flex flex-col items-center gap-0.5 py-2 ${isActive(k)?t.brand:t.tf}`}>
-                <Icon size={22} strokeWidth={isActive(k)?2.4:2} /><span className={`text-[11px] font-bold ${isHi(lang)}`}>{label}</span>
-              </button>
-            ))}
-          </div>
-        </nav>
       );
     }
 
@@ -758,7 +843,7 @@
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
-      const [view,setView]=useState("home");   // home | section | sections | os | search | sources | method
+      const [view,setView]=useState("home");
       const [topic,setTopic]=useState(null);
       const [openId,setOpenId]=useState(null);
       const [data,setData]=useState({events:[],blindspots:[],topics:[],sources:[],summary:{}});
@@ -766,41 +851,35 @@
       const [ready,setReady]=useState(false);
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
-      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor = dark?"#0F1113":"#F1F2F3"; },[dark]);
-      useEffect(()=>{ setTopic(null); setOpenId(null); setView("home"); },[lang]);   // strict EN/HI split: reset view on language switch
+      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor = dark?"#0E0F12":"#EEEEEC"; },[dark]);
+      useEffect(()=>{ setTopic(null); setOpenId(null); setView("home"); },[lang]);
 
       const t = dark?TOKENS.dark:TOKENS.light;
       const go=(k)=>{ setView(k); setOpenId(null); setQuery(""); setTopic(null); window.scrollTo({top:0,behavior:"smooth"}); };
       const goSection=(tp)=>{ setTopic(tp); setView("section"); setOpenId(null); setQuery(""); window.scrollTo({top:0,behavior:"smooth"}); };
-      const open=async(id)=>{ if(!detail[id]){ let full=null; try{ full=await apiGet("events/"+id); }catch(e){ full=(data.events||[]).concat(data.blindspots||[]).find(x=>x.id===id)||null; if(!full){ console.error("could not open event",id,e); return; } } setDetail(d=>({...d,[id]:full})); } setOpenId(id); window.scrollTo({top:0,behavior:"smooth"}); };
+      const open=async(id)=>{ if(!detail[id]){ let full=null; try{ full=await apiGet("events/"+id); }catch(e){ full=(data.events||[]).concat(data.blindspots||[]).find(x=>x.id===id)||null; if(!full){ console.error("open failed",id,e); return; } } setDetail(d=>({...d,[id]:full})); } setOpenId(id); window.scrollTo({top:0,behavior:"smooth"}); };
       const back=()=>{ setOpenId(null); window.scrollTo({top:0,behavior:"smooth"}); };
-
       const openStory = (openId!=null && detail[openId]) ? toDetail(detail[openId],lang) : null;
 
-      // strict language separation: English view shows only English-sourced stories; Hindi view only Hindi
-      // Rank by importance DECAYED BY AGE, so the feed refreshes instead of pinning
-      // the same big stories for days. importance = #outlets x #spectrum-sides covered;
-      // gravity fades a story over ~a day. A big contested story still leads for its
-      // first several hours, then newer coverage rises. Tunable via GRAVITY.
       const importance = c => { const n=c.counts||{}; const spread=[n.left,n.center,n.right].filter(x=>x>0).length||1; return (c.sources||0)*spread; };
-      const ageHours = c => { const t=Date.parse(c.created_at||""); return isNaN(t) ? 9999 : Math.max(0,(Date.now()-t)/3600000); };
+      const ageHours = c => { const tt=Date.parse(c.created_at||""); return isNaN(tt)?9999:Math.max(0,(Date.now()-tt)/3600000); };
       const GRAVITY = 1.4;
-      const score = c => (importance(c)+2) / Math.pow(ageHours(c)+2, GRAVITY);
+      const score = c => (importance(c)+2)/Math.pow(ageHours(c)+2,GRAVITY);
       const byImportance = (a,b)=>score(b)-score(a);
       const baseCards = data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
       const baseOne   = data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
       const countsByTopic = {}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });
       const topicsOrdered = Object.keys(countsByTopic).sort((a,b)=>countsByTopic[b]-countsByTopic[a]);
-      const sectionCards = topic ? baseCards.filter(c=>c.topic===topic) : [];
+      const sectionCards = topic?baseCards.filter(c=>c.topic===topic):[];
       const q=query.trim().toLowerCase();
-      const results = q ? baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)) : [];
+      const results = q?baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)):[];
 
       return (
-        <div className={`min-h-screen font-sans transition-colors duration-300 ${t.bg} ${t.tp}`}>
-          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} />
-          <main className="mx-auto max-w-2xl px-4 pb-28">
+        <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
+          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={openStory?"":view} />
+          <main className="mx-auto max-w-6xl px-4 pb-28 sm:px-6 md:pb-20">
             {!ready ? (
-              <div className={`py-32 text-center ${t.tf}`}>Loading…</div>
+              <FeedSkeleton t={t} />
             ) : openStory ? (
               <StoryPage story={openStory} t={t} lang={lang} onBack={back} />
             ) : view==="sources" ? (
@@ -808,45 +887,37 @@
             ) : view==="method" ? (
               <MethodPage t={t} lang={lang} />
             ) : view==="search" ? (
-              <div className="pt-6 pb-4">
-                <div className="relative mb-6">
+              <div className="pt-6">
+                <div className="relative mb-6 max-w-xl">
                   <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${t.tf}`} />
-                  <input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full rounded-full border py-3 pl-11 pr-4 text-base font-medium outline-none transition-colors focus:border-[#0E7C73] ${t.soft} ${t.border} ${t.tp} ${isHi(lang)}`} />
+                  <input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full rounded-full border py-3 pl-11 pr-4 text-base outline-none focus:border-[#2D5BD0] ${t.surface} ${t.border} ${t.tp} ${isHi(lang)}`} />
                 </div>
-                {!q ? (
-                  <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
-                ) : results.length ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{results.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-                ) : (
-                  <div className={`flex flex-col items-center justify-center py-24 rounded-2xl border border-dashed ${t.border} ${t.ts}`}><Search size={40} className="mb-5 opacity-20" /><p className={`text-lg font-bold ${isHi(lang)}`}>{STR[lang].noResults}</p><p className={`text-sm mt-1.5 ${isHi(lang)}`}>{STR[lang].noResultsSub}</p></div>
-                )}
+                {!q ? <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
+                  : results.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{results.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+                  : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}><p className={`text-lg font-bold ${t.ts}`}>{STR[lang].noResults}</p><p className="mt-1 text-sm">{STR[lang].noResultsSub}</p></div>}
               </div>
             ) : view==="sections" ? (
-              <SectionsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goSection={goSection} go={go} />
+              <SectionsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goSection={goSection} />
             ) : view==="section" ? (
               <SectionView title={topic} items={sectionCards} t={t} lang={lang} open={open} onBack={()=>go("sections")} />
             ) : view==="os" ? (
-              <div className="pt-6 pb-4">
-                <div className="mb-2 flex items-center gap-2.5"><Eye size={26} className={t.blind} /><h1 className={`text-3xl font-black tracking-tight editorial-heading ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
-                <p className={`mb-7 text-sm font-medium leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-                {baseOne.length ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{baseOne.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-                ) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+              <div className="pt-6">
+                <div className="mb-2 flex items-center gap-2.5"><Eye size={24} className={t.blind}/><h1 className={`editorial-heading text-3xl sm:text-4xl font-medium tracking-tight ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
+                <p className={`mb-7 max-w-2xl text-sm leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
+                {baseOne.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{baseOne.map(s=><OneSidedCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+                  : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
               </div>
             ) : (
-              !baseCards.length ? (
-                <div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
-              ) : (
-                <HomeView cards={baseCards} oneSided={baseOne} t={t} lang={lang} open={open} goSection={goSection} goOS={()=>go("os")} />
-              )
+              !baseCards.length ? <div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+              : <HomeView cards={baseCards} oneSided={baseOne} topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} open={open} goSection={goSection} goOS={()=>go("os")} />
             )}
           </main>
           {!openStory && (
-            <footer className={`border-t py-10 mb-16 ${t.border} ${t.surface}`}>
-              <div className="mx-auto max-w-2xl px-4">
-                <div className="flex items-center gap-2"><span className="text-xl font-black deva text-[#0E7C73] dark:text-[#2DD4BF]">पक्ष</span><span className={`text-lg font-extrabold tracking-tight ${t.tp}`}>Paksh</span></div>
-                <p className={`mt-4 text-xs leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
-                <p className={`mt-3 text-[11px] font-semibold uppercase tracking-widest ${t.tf}`}>© 2026 Redstocks Technology LLP</p>
+            <footer className={`border-t ${t.border} ${t.surface}`}>
+              <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+                <div className="flex items-center gap-2"><span className="deva prism-text text-xl font-bold">पक्ष</span><span className={`text-lg font-bold tracking-tight ${t.tp}`}>Paksh</span></div>
+                <p className={`mt-3 max-w-xl text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
+                <p className={`mt-3 mono text-[10px] uppercase tracking-widest ${t.tf}`}>© 2026 Redstocks Technology LLP</p>
               </div>
             </footer>
           )}
