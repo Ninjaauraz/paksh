@@ -54,10 +54,13 @@ if BACKEND == "gemini":
     DUP_THRESHOLD  = 0.93    # at/above this, two same-outlet items are duplicates
 else:  # ollama (local bge-m3) - the default
     EMBED_MODEL    = os.environ.get("PAKSH_EMBED_MODEL", "bge-m3")
-    JOIN_THRESHOLD = 0.62
-    MERGE_THRESHOLD= 0.65
-    HIGH_SIM       = 0.80
-    STRONG_SIM     = 0.72
+    # Calibrated for bge-m3 on real Paksh data via `py calibrate.py` (2026-06).
+    JOIN_THRESHOLD = 0.61
+    MERGE_THRESHOLD= 0.64
+    HIGH_SIM       = 0.79
+    STRONG_SIM     = 0.79    # raised from 0.72: a single GENERIC shared word (e.g.
+                             # "fire") must now clear ~the median same-story score
+                             # before it can glue two different same-type events.
     DUP_THRESHOLD  = 0.90
 
 MIN_SHARED  = 2          # shared keywords needed to join a cluster's seed (1 coincidence isn't enough)

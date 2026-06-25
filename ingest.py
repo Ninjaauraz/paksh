@@ -104,6 +104,12 @@ _JUNK_RE2 = re.compile(
     r"आज का पंचांग|ताज़ा ख़बर|ताज़ा खबरे|न्यूज़ फीड)", re.I)
 _HEX_ID_RE = re.compile(r"\b[0-9a-f]{16,}\b", re.I)
 _NEWS_TODAY_RE = re.compile(r"news (today|in hindi)$", re.I)
+# Feed "roundup" titles: several unrelated headlines concatenated, ending in
+# "; more - Outlet" (e.g. India Today's RSS stitches the top story + next +
+# "more"). These mention several stories at once, so they BRIDGE unrelated
+# clusters during grouping. Match only "; more" immediately followed by a dash
+# or end-of-title, so normal uses ("...; more than 50 dead") are never caught.
+_ROUNDUP_RE = re.compile(r";\s*more\s*([-\u2013\u2014]|$)", re.I)
 _INDEX_LABELS = {"latest news", "news", "top news", "breaking news", "trending news",
                  "latest", "देश समाचार", "ताजा खबर", "latest news today"}
 
@@ -122,6 +128,8 @@ def is_junk(title: str) -> bool:
     if _JUNK_RE2.search(t):
         return True
     if t.count("|") >= 2:                            # multi-pipe SEO/section titles
+        return True
+    if _ROUNDUP_RE.search(t):                        # feed roundups ("X; Y; more - Outlet")
         return True
     if _HEX_ID_RE.search(t):                         # hash-id slugs ("6a377cd1...")
         return True
