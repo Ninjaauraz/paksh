@@ -206,7 +206,7 @@
 
     const toCard = (e, lang) => {
       const lc = e.lean_counts || {left:0,center:0,right:0};
-      return { id:e.id, topic:e.topic, srclang:e.lang||"en",
+      return { id:e.id, topic:e.topic, srclang:e.lang||"en", created_at:e.created_at,
         headline:(lang==="hi"&&e.title_hi)?e.title_hi:e.title,
         lead:(lang==="hi"&&e.summary_hi)?e.summary_hi:e.summary,
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
@@ -778,10 +778,15 @@
       const openStory = (openId!=null && detail[openId]) ? toDetail(detail[openId],lang) : null;
 
       // strict language separation: English view shows only English-sourced stories; Hindi view only Hindi
-      // importance = how many outlets covered it x how many sides of the spectrum (so the
-      // biggest, most-contested, most-compared story rises to the front cover)
+      // Rank by importance DECAYED BY AGE, so the feed refreshes instead of pinning
+      // the same big stories for days. importance = #outlets x #spectrum-sides covered;
+      // gravity fades a story over ~a day. A big contested story still leads for its
+      // first several hours, then newer coverage rises. Tunable via GRAVITY.
       const importance = c => { const n=c.counts||{}; const spread=[n.left,n.center,n.right].filter(x=>x>0).length||1; return (c.sources||0)*spread; };
-      const byImportance = (a,b)=>importance(b)-importance(a);
+      const ageHours = c => { const t=Date.parse(c.created_at||""); return isNaN(t) ? 9999 : Math.max(0,(Date.now()-t)/3600000); };
+      const GRAVITY = 1.4;
+      const score = c => (importance(c)+2) / Math.pow(ageHours(c)+2, GRAVITY);
+      const byImportance = (a,b)=>score(b)-score(a);
       const baseCards = data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
       const baseOne   = data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang).sort(byImportance);
       const countsByTopic = {}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });
