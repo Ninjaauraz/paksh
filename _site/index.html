@@ -51,6 +51,21 @@
     @keyframes shimmer { 0%{background-position:-520px 0} 100%{background-position:520px 0} }
     .skel { background-color:#e6e6e3; background-image:linear-gradient(90deg, rgba(0,0,0,0) 0, rgba(255,255,255,.65) 50%, rgba(0,0,0,0) 100%); background-size:520px 100%; background-repeat:no-repeat; animation:shimmer 1.5s infinite linear; border-radius:8px; }
     .dark .skel { background-color:#1c2025; background-image:linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,.06) 50%, rgba(255,255,255,0) 100%); }
+    /* prism masthead animation */
+    @keyframes pzdraw { from{stroke-dashoffset:620; opacity:0} to{stroke-dashoffset:0; opacity:1} }
+    @keyframes pzfade { from{opacity:0} to{opacity:1} }
+    @keyframes pzpulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+    @keyframes pzbeam { 0%{opacity:.45} 50%{opacity:.9} 100%{opacity:.45} }
+    .pz line, .pz polygon { stroke-dasharray:620; }
+    .pz-in  { animation:pzdraw .7s ease both, pzbeam 4s ease-in-out 1.4s infinite; }
+    .pz-tri { animation:pzfade .6s ease .5s both; }
+    .pz-b1  { animation:pzdraw .75s ease .8s both, pzbeam 4.5s ease-in-out 1.8s infinite; }
+    .pz-b2  { animation:pzdraw .75s ease .95s both, pzbeam 4.5s ease-in-out 2s infinite; }
+    .pz-b3  { animation:pzdraw .75s ease 1.1s both, pzbeam 4.5s ease-in-out 2.2s infinite; }
+    .pz-dot { animation:pzfade .5s ease 1.35s both, pzpulse 3.2s ease-in-out 2s infinite; }
+    .stagger { opacity:0; animation:fadeUp .5s cubic-bezier(.2,.7,.2,1) both; }
+    .live-dot { box-shadow:0 0 0 0 rgba(52,211,153,.6); animation:livePulse 2.2s ease-out infinite; }
+    @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 70%{box-shadow:0 0 0 7px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
     @media (prefers-reduced-motion: reduce){ *{ transition-duration:0.01ms !important; animation:none !important; } }
   </style>
 </head>
@@ -277,10 +292,11 @@
       useEffect(()=>{ const r=requestAnimationFrame(()=>setM(true)); return ()=>cancelAnimationFrame(r); },[]);
       const w=(p)=>(m?`${p}%`:"0%");
       return (
-        <div className={`flex w-full overflow-hidden rounded-full ${height}`} style={{background:(t&&t.line)||"#E4E4E0"}}>
+        <div className={`relative flex w-full overflow-hidden rounded-full ${height}`} style={{background:(t&&t.line)||"#E4E4E0"}}>
           <div className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias.left),   backgroundColor:BIAS.left.color}} />
           <div className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias.center), backgroundColor:BIAS.center.color}} />
           <div className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias.right),  backgroundColor:BIAS.right.color}} />
+          <div className="pointer-events-none absolute inset-0 rounded-full" style={{background:"linear-gradient(to bottom, rgba(255,255,255,.25), rgba(255,255,255,0) 55%)"}} />
         </div>
       );
     }
@@ -494,6 +510,7 @@
       );
       return (
         <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
+          <div className="prism-line h-[3px] w-full" />
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex h-16 items-center gap-4">
               <button onClick={()=>go("home")} className="flex shrink-0 items-center gap-2" aria-label="Paksh home">
@@ -540,22 +557,61 @@
     }
 
     /* ---------------- home ---------------- */
-    function HomeView({ cards, oneSided, topics, counts, t, lang, open, goSection, goOS }) {
+    function PrismHero({ stats, t, lang }) {
+      const legend=["left","center","right"];
+      const num=(n)=> <span className="text-white text-[15px] font-semibold">{n}</span>;
+      return (
+        <div className="relative mb-9 mt-6 overflow-hidden rounded-3xl border border-white/10 px-6 py-8 sm:px-10 sm:py-11" style={{background:"#0B0C0F"}}>
+          <div className="pointer-events-none absolute inset-0" style={{background:"radial-gradient(120% 90% at 78% 28%, rgba(45,91,208,0.20), rgba(0,0,0,0) 55%), radial-gradient(90% 80% at 96% 88%, rgba(194,106,27,0.16), rgba(0,0,0,0) 55%)"}} />
+          <div className="prism-line pointer-events-none absolute inset-x-0 top-0 h-[3px] opacity-90" />
+          <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="max-w-md">
+              <div className={`mb-4 mono text-[11px] uppercase tracking-[0.22em] text-white/45 ${lang==="hi"?"deva":""}`}>{lang==="hi"?"भारत की ख़बरें · हर पक्ष":"India's news, refracted"}</div>
+              <h1 className={`editorial-heading text-4xl sm:text-[3.1rem] font-medium leading-[1.03] tracking-[-0.02em] text-white ${isHi(lang)}`}>{lang==="hi"?"हर ख़बर का हर पक्ष।":"Every side of the story."}</h1>
+              <p className={`mt-4 max-w-sm text-[14px] leading-relaxed text-white/65 ${isHi(lang)}`}>{STR[lang].tagline}</p>
+              <div className="mt-5 flex items-center gap-4">
+                {legend.map(k=>(
+                  <span key={k} className={`flex items-center gap-1.5 text-[11px] text-white/75 ${lang==="hi"?"deva":"mono"}`}>
+                    <span className="h-2 w-2 rounded-full" style={{backgroundColor:BIAS[k].color, boxShadow:`0 0 7px ${BIAS[k].color}`}} />{lbl(k,lang)}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-5 mono text-[11px] text-white/50">
+                <span>{num(stats.stories)} <span className={lang==="hi"?"deva":""}>{lang==="hi"?"ख़बरें":"stories"}</span></span>
+                <span>{num(stats.outlets)} <span className={lang==="hi"?"deva":""}>{lang==="hi"?"रेटेड स्रोत":"rated outlets"}</span></span>
+                {stats.updated && <span className="flex items-center gap-2"><span className="live-dot inline-block h-2 w-2 rounded-full bg-emerald-400" /><span className={lang==="hi"?"deva":""}>{lang==="hi"?"अपडेटेड":"updated"} {stats.updated}</span></span>}
+              </div>
+            </div>
+            <div className="relative">
+              <svg className="pz w-full" viewBox="0 0 600 320" fill="none" preserveAspectRatio="xMidYMid meet" style={{height:"auto",maxHeight:280}}>
+                <line className="pz-in"  x1="34" y1="168" x2="258" y2="168" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" style={{filter:"drop-shadow(0 0 5px rgba(255,255,255,.7))"}} />
+                <polygon className="pz-tri" points="292,92 250,236 338,236" stroke="#AEB4BD" strokeWidth="1.8" strokeLinejoin="round" fill="rgba(255,255,255,0.045)" />
+                <line className="pz-b1" x1="316" y1="166" x2="566" y2="86"  stroke="#2D5BD0" strokeWidth="2.6" strokeLinecap="round" style={{filter:"drop-shadow(0 0 6px #2D5BD0)"}} />
+                <line className="pz-b2" x1="316" y1="168" x2="566" y2="168" stroke="#9AA0A8" strokeWidth="2.6" strokeLinecap="round" style={{filter:"drop-shadow(0 0 6px #9AA0A8)"}} />
+                <line className="pz-b3" x1="316" y1="170" x2="566" y2="250" stroke="#C26A1B" strokeWidth="2.6" strokeLinecap="round" style={{filter:"drop-shadow(0 0 6px #C26A1B)"}} />
+                <circle className="pz-dot" cx="566" cy="86"  r="4.5" fill="#2D5BD0" style={{filter:"drop-shadow(0 0 7px #2D5BD0)"}} />
+                <circle className="pz-dot" cx="566" cy="168" r="4.5" fill="#9AA0A8" style={{filter:"drop-shadow(0 0 7px #9AA0A8)"}} />
+                <circle className="pz-dot" cx="566" cy="250" r="4.5" fill="#C26A1B" style={{filter:"drop-shadow(0 0 7px #C26A1B)"}} />
+              </svg>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function HomeView({ cards, oneSided, topics, counts, stats, t, lang, open, goSection, goOS }) {
       const hero = cards[0]; const rest = cards.slice(1);
       return (
-        <div className="fade-up">
-          <div className="flex items-center gap-3 pt-6 pb-5">
-            <span className="prism-line h-4 w-1 rounded-full" />
-            <p className={`text-[13px] sm:text-sm font-medium ${t.ts} ${isHi(lang)}`}>{STR[lang].tagline}</p>
-          </div>
-          {hero && <div className="mb-8"><HeroCard story={hero} t={t} lang={lang} onOpen={open} /></div>}
+        <div>
+          <PrismHero stats={stats} t={t} lang={lang} />
+          {hero && <div className="mb-8 fade-up"><HeroCard story={hero} t={t} lang={lang} onOpen={open} /></div>}
 
           <OneSidedStrip items={oneSided} t={t} lang={lang} onOpen={open} />
           <TopicChips topics={topics} t={t} lang={lang} onPick={goSection} />
 
           <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
             <div className="grid gap-5 sm:grid-cols-2">
-              {rest.map(s=><StoryCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+              {rest.map((s,i)=><div key={s.id} className="stagger" style={{animationDelay:`${Math.min(i,7)*55}ms`}}><StoryCard story={s} t={t} lang={lang} onOpen={open} /></div>)}
             </div>
             <aside className="hidden space-y-9 lg:block">
               {oneSided.length>0 && (
@@ -873,6 +929,8 @@
       const sectionCards = topic?baseCards.filter(c=>c.topic===topic):[];
       const q=query.trim().toLowerCase();
       const results = q?baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)):[];
+      const lastTs = (data.events||[]).reduce((mx,e)=>{ const ts=Date.parse(e.created_at||""); return isNaN(ts)?mx:Math.max(mx,ts); },0);
+      const heroStats = { stories: baseCards.length, outlets:(data.sources||[]).length, updated: lastTs?timeAgo(new Date(lastTs).toISOString(),lang):"" };
 
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
@@ -909,7 +967,7 @@
               </div>
             ) : (
               !baseCards.length ? <div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
-              : <HomeView cards={baseCards} oneSided={baseOne} topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} open={open} goSection={goSection} goOS={()=>go("os")} />
+              : <HomeView cards={baseCards} oneSided={baseOne} topics={topicsOrdered} counts={countsByTopic} stats={heroStats} t={t} lang={lang} open={open} goSection={goSection} goOS={()=>go("os")} />
             )}
           </main>
           {!openStory && (
