@@ -490,16 +490,24 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
+    function GridGrid({ items, render, t, lang, cols, gap, every }) {
+      const N=every||8, out=[];
+      items.forEach((it,i)=>{ out.push(render(it,i)); if((i+1)%N===0 && i<items.length-1) out.push(<div key={"ad"+i} className="sm:col-span-2 lg:col-span-3"><AdSlot t={t} lang={lang} h={104} /></div>); });
+      return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{out}</div>;
+    }
     function HomeView({ cards, oneSided, topics, counts, stats, t, lang, open, goTopic, go }) {
-      const lead=cards[0]; const rest=cards.slice(1,49); const brief=cards.slice(0,7);
-      const oneSidedSection=()=>(
-        <div>
-          <SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>
-          <p className={`-mt-2 mb-4 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-          <div className="space-y-5">{oneSided.slice(0,3).map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-          {oneSided.length===0 && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-        </div>
-      );
+      // de-dup partition: every story appears in exactly ONE place on the page
+      const used=new Set();
+      const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
+      const lead=cards[0]; if(lead) used.add(lead.id);
+      const feed=take(cards,18);            // centre masonry
+      const more=take(cards,10);            // left rail headlines (distinct)
+      const oneAll=oneSided.filter(c=>!used.has(c.id));
+      const oneTop=oneAll.slice(0,3), oneRest=oneAll.slice(3,5);
+      [...oneTop,...oneRest].forEach(c=>used.add(c.id));
+      const rightExtra=take(cards,3);       // a few distinct cards for the right rail
+      const mobileFeed=[...feed,...more,...rightExtra];
+
       const methodCard=(
         <div className={`rounded-lg border p-4 ${t.surface} ${t.border}`}>
           <h3 className={`headline text-[14px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h3>
@@ -512,44 +520,61 @@ const {useState,useEffect,useMemo}=React;
           <button onClick={()=>go("topics")} className={`rounded-full border px-5 py-2.5 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
         </div>
       );
+      const osHead=()=>(<SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>);
+
       return (
         <div className="mx-auto max-w-[1800px] px-4 sm:px-6 py-6">
-          {/* DESKTOP: three columns, all scroll together (no pinning) */}
-          <div className="hidden gap-7 lg:grid lg:grid-cols-[272px_minmax(0,1fr)_340px]">
-            <aside>
-              <SectionTitle t={t} lang={lang}>{lang==="hi"?"मुख्य ख़बरें":"Top Stories"}</SectionTitle>
-              <div className={`mb-2 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें":"stories"} · {stats.outlets} {lang==="hi"?"स्रोत":"outlets"}</div>
-              {brief.map((s,i)=><BriefItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===brief.length-1} />)}
-              <div className="mt-6">{methodCard}</div>
+          {/* DESKTOP: three columns, distinct stories, masonry centre */}
+          <div className="hidden gap-7 lg:grid lg:grid-cols-[280px_minmax(0,1fr)_340px]">
+            {/* LEFT: more headlines + ads + method */}
+            <aside className="space-y-6">
+              <div>
+                <SectionTitle t={t} lang={lang}>{lang==="hi"?"और सुर्ख़ियाँ":"More Headlines"}</SectionTitle>
+                <div className={`mb-2 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें":"stories"} · {stats.outlets} {lang==="hi"?"स्रोत":"outlets"}</div>
+                {more.map((s,i)=><BriefItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===more.length-1} />)}
+              </div>
+              <AdSlot t={t} lang={lang} h={300} />
+              {methodCard}
+              <AdSlot t={t} lang={lang} h={600} />
             </aside>
+            {/* CENTRE: lead + masonry feed (cards pack tight, no holes) */}
             <main className="min-w-0">
               {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
-              <div className="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2">
-                {rest.map((s,i)=>(
+              <div className="gap-x-6 md:columns-2">
+                {feed.map((s,i)=>(
                   <React.Fragment key={s.id}>
-                    <GridCard story={s} t={t} lang={lang} onOpen={open} />
-                    {(i===5||i===17) && <div className="md:col-span-2"><AdSlot t={t} lang={lang} h={104} /></div>}
+                    <div className="mb-6 break-inside-avoid"><GridCard story={s} t={t} lang={lang} onOpen={open} /></div>
+                    {(i===5||i===11) && <div className="mb-6 break-inside-avoid"><AdSlot t={t} lang={lang} h={250} /></div>}
                   </React.Fragment>
                 ))}
               </div>
               {browse}
             </main>
+            {/* RIGHT: one-sided + distinct extra articles + ads */}
             <aside className="space-y-6">
               <AdSlot t={t} lang={lang} h={250} />
-              {oneSidedSection()}
+              <div>
+                {osHead()}
+                <p className={`-mt-2 mb-4 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].osSub}</p>
+                <div className="space-y-5">{oneTop.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+                {oneAll.length===0 && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+              </div>
               <AdSlot t={t} lang={lang} h={300} />
+              {oneRest.length>0 && <div className="space-y-5">{oneRest.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>}
+              {rightExtra.length>0 && <div className="space-y-5">{rightExtra.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>}
+              <AdSlot t={t} lang={lang} h={600} />
             </aside>
           </div>
 
-          {/* MOBILE: single column, compact rows, in-feed ads */}
+          {/* MOBILE: single column, distinct stories, in-feed ads */}
           <div className="lg:hidden">
             {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
             <div className="mb-6"><AdSlot t={t} lang={lang} h={250} /></div>
             <div className="space-y-6">
-              {rest.slice(0,26).map((s,i)=>(
+              {mobileFeed.slice(0,26).map((s,i)=>(
                 <React.Fragment key={s.id}>
                   <FeedRow story={s} t={t} lang={lang} onOpen={open} />
-                  {i===5 && oneSided.length>0 && <div className="pt-1">{oneSidedSection()}</div>}
+                  {i===5 && oneTop.length>0 && <div className="pt-1">{osHead()}<div className="mt-3 space-y-5">{oneTop.map(s2=><BlindspotCard key={s2.id} story={s2} t={t} lang={lang} onOpen={open} />)}</div></div>}
                   {(i===2||i===11||i===19) && <AdSlot t={t} lang={lang} h={250} />}
                 </React.Fragment>
               ))}
@@ -617,6 +642,8 @@ const {useState,useEffect,useMemo}=React;
                 </div>
               </div>
 
+              <div className="my-8"><AdSlot t={t} lang={lang} h={104} /></div>
+
               {/* articles */}
               <div className="mt-9">
                 <div className={`flex items-center gap-5 border-b ${t.border}`}>
@@ -646,8 +673,8 @@ const {useState,useEffect,useMemo}=React;
             </div>
 
             {/* coverage details */}
-            <aside>
-              <div className={`sticky top-[76px] rounded-lg border p-5 ${t.surface} ${t.border}`}>
+            <aside className="space-y-6">
+              <div className={`rounded-lg border p-5 ${t.surface} ${t.border}`}>
                 <h3 className={`headline mb-4 text-[15px] font-bold uppercase tracking-[0.08em] ${t.tp} ${isHi(lang)}`}>{STR[lang].coverageBreakdown}</h3>
                 {[[STR[lang].totalSources,total,null],[lbl("left",lang),counts.left,"left"],[lbl("center",lang),counts.center,"center"],[lbl("right",lang),counts.right,"right"]].map(([label,val,k],i)=>(
                   <div key={i} className={`flex items-center justify-between border-b py-2.5 ${t.border}`}>
@@ -665,6 +692,8 @@ const {useState,useEffect,useMemo}=React;
                 {story.blindspot && <div className={`mt-4 flex items-start gap-2 rounded-md p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}><Eye size={15} className="mt-0.5 shrink-0"/><span>{STR[lang].osCalloutBody1} <strong>{story.bias[story.blindspot]}%</strong> {STR[lang].osCalloutBody2}</span></div>}
                 <p className={`mt-4 border-t pt-4 text-[11px] leading-relaxed ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
               </div>
+              <AdSlot t={t} lang={lang} h={250} />
+              <AdSlot t={t} lang={lang} h={600} />
             </aside>
           </div>
         </div>
@@ -678,7 +707,7 @@ const {useState,useEffect,useMemo}=React;
         <PageWrap>
           <div className="mb-2 flex items-center gap-2.5"><Eye size={22} className={t.blind}/><h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
           <p className={`mb-6 max-w-2xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-          {items.length? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{items.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+          {items.length? <><GridGrid items={items} t={t} lang={lang} render={(s)=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} /><div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div></>
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
         </PageWrap>
       );
@@ -690,6 +719,7 @@ const {useState,useEffect,useMemo}=React;
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`flex items-center justify-between rounded-lg border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`text-[17px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span><ChevronRight size={16} className={t.tf}/></button>))}
           </div>
+          <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
@@ -698,7 +728,7 @@ const {useState,useEffect,useMemo}=React;
         <PageWrap>
           <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 mono text-[12px] uppercase tracking-wide ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
           <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
-          {items.length? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{items.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+          {items.length? <><GridGrid items={items} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} /><div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div></>
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
         </PageWrap>
       );
@@ -730,7 +760,8 @@ const {useState,useEffect,useMemo}=React;
           <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
           <p className={`mb-5 mt-2 max-w-2xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].srcDisclaimer}</p>
           <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${lang==="hi"&&k!=="all"?"deva":""}`}>{label}</button>))}</div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{list.map(s=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>)}</div>
+          <GridGrid items={list} t={t} lang={lang} gap="gap-4" render={(s)=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>} />
+          <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
@@ -748,6 +779,7 @@ const {useState,useEffect,useMemo}=React;
             <Row h={STR[lang].m_provH}>{STR[lang].m_prov}</Row>
             <Row h={STR[lang].m_readH}>{STR[lang].m_appeal}</Row>
           </div>
+          <div className="mt-8 max-w-3xl"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
@@ -759,7 +791,7 @@ const {useState,useEffect,useMemo}=React;
             <input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full rounded-full border py-3 pl-11 pr-4 text-base outline-none focus:border-[#2D5BD0] ${t.surface} ${t.border} ${t.tp} ${isHi(lang)}`} />
           </div>
           {!query.trim() ? <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
-            : results.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{results.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+            : results.length ? <GridGrid items={results} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}><p className={`text-lg font-bold ${t.ts}`}>{STR[lang].noResults}</p><p className="mt-1 text-sm">{STR[lang].noResultsSub}</p></div>}
         </PageWrap>
       );
