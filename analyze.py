@@ -268,7 +268,7 @@ Return ONLY a JSON object with these keys:
     "right": "1-2 sentences for right-leaning outlets; empty string if none"
   }},
   "framing_hi": {{ "left": "Hindi of left", "center": "Hindi of center", "right": "Hindi of right" }},
-  "topic": "exactly one of {TOPICS}"
+  "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention."
 }}
 
 COVERAGE:
@@ -372,16 +372,24 @@ _TOPIC_HINTS = [
     ("Health", ["hospital", "disease", "virus", " flu", "covid", "cancer", "vaccine",
                 "nipah", "outbreak", "अस्पताल", "बीमारी", "वायरस", "स्वास्थ्य", "कैंसर"]),
     ("Environment", ["monsoon", "climate", "el niño", "el nino", "heatwave",
-                     "rainfall", "pollution", "flood", "cyclone", "weather", "मानसून",
-                     "बारिश", "जलवायु", "बाढ़", "मौसम"]),
+                     "rainfall", "pollution", "flood", "cyclone", "weather", "drought",
+                     "wildfire", "landslide", "avalanche", "glacier", "emission",
+                     "मानसून", "बारिश", "जलवायु", "बाढ़", "मौसम", "प्रदूषण", "भूस्खलन"]),
     ("Crime & Law", ["court", "supreme court", "high court", " fir", "arrest", "murder",
                      " rape", "police", " jail", "verdict", "accused", " probe", " cbi",
                      " ed ", "convict", "अदालत", "कोर्ट", "गिरफ्तार", "हत्या",
                      "बलात्कार", "पुलिस", "जेल", "आरोपी"]),
     ("International", [" us ", "u.s.", "iran", "israel", "pakistan", "china", "russia",
-                       "ukraine", "trump", "gaza", "hormuz", "foreign", "bangladesh",
-                       "nepal", "अमेरिका", "ईरान", "इजरायल", "पाकिस्तान", "चीन", "रूस",
-                       "ट्रंप"]),
+                       "ukraine", "trump", "putin", "zelensky", "gaza", "hamas", "hormuz",
+                       "foreign", "bangladesh", "nepal", "sri lanka", "maldives", "bhutan",
+                       "myanmar", "afghanistan", "taliban", "syria", "lebanon", "yemen",
+                       "turkey", "türkiye", "qatar", "saudi", "dubai", "uae", "egypt",
+                       "venezuela", "brazil", "mexico", "canada", "australia", "japan",
+                       "korea", "taiwan", "france", "germany", "italy", "spain", "britain",
+                       " uk ", "u.k.", "london", "washington", "europe", "european union",
+                       " eu ", "nato", "united nations", " un ", "palestine", "ceasefire",
+                       "अमेरिका", "ईरान", "इजरायल", "पाकिस्तान", "चीन", "रूस", "ट्रंप",
+                       "यूक्रेन", "अफ़ग़ानिस्तान", "बांग्लादेश", "श्रीलंका", "फ़िलिस्तीन"]),
     ("Politics", [" bjp", "congress", " tmc", "modi", "election", " mla", " mp ",
                   "parliament", "minister", " cm ", "party", " poll", " vote",
                   "rajya sabha", "lok sabha", "चुनाव", "मोदी", "कांग्रेस", "भाजपा",
@@ -396,14 +404,25 @@ _TOPIC_RE = [
 ]
 
 
+# Tie-break order when two topics score equally. Foreign + specific topics beat
+# generic ones (a "Modi visits Iran" headline reads as International, not Politics).
+_TOPIC_PRIORITY = {"International": 9, "Sports": 8, "Entertainment": 7, "Health": 6,
+                   "Science & Tech": 5, "Crime & Law": 4, "Economy": 3,
+                   "Environment": 2, "Politics": 1}
+
 def _guess_topic(text: str) -> str:
-    """Best-effort topic from keywords - so extractive events still sort into the
-    right subsection instead of all landing in 'Society'."""
+    """Best-effort topic from keywords. Scores every topic by how many distinct
+    keyword hits it has and picks the strongest, breaking ties by priority - so a
+    story that merely mentions 'market' in passing does not get filed under Economy."""
     t = text or ""
+    scores = {}
     for topic, rx in _TOPIC_RE:
-        if rx.search(t):
-            return topic
-    return "Society"
+        n = len(rx.findall(t))
+        if n:
+            scores[topic] = n
+    if not scores:
+        return "Society"
+    return max(scores, key=lambda k: (scores[k], _TOPIC_PRIORITY.get(k, 0)))
 
 
 def _representative(rows):
