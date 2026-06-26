@@ -206,7 +206,7 @@ const {useState,useEffect,useMemo}=React;
 
     const toCard = (e, lang) => {
       const lc = e.lean_counts || {left:0,center:0,right:0};
-      return { id:e.id, topic:e.topic, srclang:e.lang||"en", created_at:e.created_at,
+      return { id:e.id, topic:e.topic, region:e.region||"India", srclang:e.lang||"en", created_at:e.created_at,
         headline:(lang==="hi"&&e.title_hi)?e.title_hi:e.title,
         lead:(lang==="hi"&&e.summary_hi)?e.summary_hi:e.summary,
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
@@ -237,7 +237,8 @@ const {useState,useEffect,useMemo}=React;
     const Check=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
 
     /* ---------------- helpers ---------------- */
-    const timeAgo=(iso,lang)=>{ const ts=Date.parse(iso||""); if(isNaN(ts)) return ""; const m=Math.max(0,(Date.now()-ts)/60000); const hi=lang==="hi";
+    const _ts=(iso)=>{ if(!iso) return NaN; let x=(""+iso).replace(" ","T"); if(!/[zZ]|[+\-]\d\d:?\d\d$/.test(x)) x+="Z"; return Date.parse(x); };
+    const timeAgo=(iso,lang)=>{ const ts=_ts(iso); if(isNaN(ts)) return ""; const m=Math.max(0,(Date.now()-ts)/60000); const hi=lang==="hi";
       if(m<60) return hi?`${Math.round(m)} मिनट पहले`:`${Math.round(m)}m ago`;
       const h=m/60; if(h<24) return hi?`${Math.round(h)} घंटे पहले`:`${Math.round(h)}h ago`;
       const d=Math.round(h/24); return hi?`${d} दिन पहले`:`${d}d ago`; };
@@ -806,14 +807,27 @@ const {useState,useEffect,useMemo}=React;
 
       const baseCards=data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const baseOne=data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      // --- India-first home ranking ------------------------------------------
+      // Top Stories is strictly India-centric. Foreign stories (region "World", set
+      // per-event by the pipeline) and Sports live in their own Sections, NOT on the
+      // home feed. To allow world news back on the home, drop the region check below.
+      const HOME_EXCLUDE_TOPICS = ["Sports"];
+      // Indian civic news leads: politics, law/scams, economy/price-hikes, society/protests.
+      const CIVIC = { "Politics":1.0, "Crime & Law":0.97, "Economy":0.94, "Society":0.9,
+                      "Environment":0.78, "Health":0.74, "Science & Tech":0.7, "Entertainment":0.55 };
+      const ageHours=c=>{ const tt=_ts(c.created_at); return isNaN(tt)?9999:Math.max(0,(Date.now()-tt)/3600000); };
       const importance=c=>{ const n=c.counts||{}; const spread=[n.left,n.center,n.right].filter(x=>x>0).length||1; return (c.sources||0)*spread; };
-      const ageHours=c=>{ const tt=Date.parse(c.created_at||""); return isNaN(tt)?9999:Math.max(0,(Date.now()-tt)/3600000); };
-      const score=c=>(importance(c)+2)/Math.pow(ageHours(c)+2,1.4);
-      baseCards.sort((a,b)=>score(b)-score(a)); baseOne.sort((a,b)=>score(b)-score(a));
+      // recency leads (latest first); coverage is a gentle importance booster; civic weight tilts India-first.
+      const rank=c=>((CIVIC[c.topic]||0.6)*(1+0.28*Math.log1p(importance(c))))/Math.pow(ageHours(c)+2,1.35);
+      const homeFilter=c=>!HOME_EXCLUDE_TOPICS.includes(c.topic) && (c.region||"India")!=="World";
+      const homeCards=baseCards.filter(homeFilter).sort((a,b)=>rank(b)-rank(a));
+      const homeOne=baseOne.filter(homeFilter).sort((a,b)=>rank(b)-rank(a));
+      // sections / search / topic pages: newest-first so new articles always show there too
+      baseCards.sort((a,b)=>ageHours(a)-ageHours(b)); baseOne.sort((a,b)=>ageHours(a)-ageHours(b));
       const countsByTopic={}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });
       const topicsOrdered=Object.keys(countsByTopic).sort((a,b)=>countsByTopic[b]-countsByTopic[a]);
       const lastTs=(data.events||[]).reduce((mx,e)=>{ const ts=Date.parse(e.created_at||""); return isNaN(ts)?mx:Math.max(mx,ts); },0);
-      const stats={ stories:baseCards.length, outlets:(data.sources||[]).length };
+      const stats={ stories:homeCards.length, outlets:(data.sources||[]).length };
       const q=query.trim().toLowerCase();
       const results=q?baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)):[];
       const story = route.view==="story" ? (detail[route.id]?toDetail(detail[route.id],lang):null) : null;
@@ -832,8 +846,8 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
-            : (!baseCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
-               : <HomeView cards={baseCards} oneSided={baseOne} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
+            : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
+               : <HomeView cards={homeCards} oneSided={homeOne} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
           </div>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} />

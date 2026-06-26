@@ -268,7 +268,8 @@ Return ONLY a JSON object with these keys:
     "right": "1-2 sentences for right-leaning outlets; empty string if none"
   }},
   "framing_hi": {{ "left": "Hindi of left", "center": "Hindi of center", "right": "Hindi of right" }},
-  "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention."
+  "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention.",
+  "region": "India or World - 'India' if the story is primarily about India or has a direct India angle (Indian people, government, economy, society, courts, prices, sport teams); 'World' if it is mainly about events in other countries"
 }}
 
 COVERAGE:
@@ -320,6 +321,12 @@ def postprocess(raw, articles) -> dict:
     if topic not in TOPICS:
         topic = "Society"
 
+    region = raw.get("region")
+    if region not in ("India", "World"):
+        blob = " ".join([raw.get("title", ""), raw.get("summary", "")]
+                        + [a.get("title", "") for a in articles])
+        region = _guess_region(blob)
+
     points = raw.get("summary_points") or []
     degraded = not (raw.get("title") or raw.get("summary") or points)
     title = raw.get("title") or (articles[0]["title"] if articles else "Untitled event")
@@ -334,6 +341,7 @@ def postprocess(raw, articles) -> dict:
         "framing": _clean_framing(raw.get("framing"), coverage_out),
         "framing_hi": _clean_framing(raw.get("framing_hi"), coverage_out),
         "topic": topic,
+        "region": region,
         "image_url": hero,
         "sources": sources_out,
         "coverage": coverage_out,
@@ -423,6 +431,39 @@ def _guess_topic(text: str) -> str:
     if not scores:
         return "Society"
     return max(scores, key=lambda k: (scores[k], _TOPIC_PRIORITY.get(k, 0)))
+
+
+_INDIA_RE = re.compile(
+    r"\b(india|indian|delhi|mumbai|kolkata|chennai|bengaluru|bangalore|hyderabad|"
+    r"pune|ahmedabad|jaipur|lucknow|patna|bhopal|nagpur|surat|indore|kanpur|noida|"
+    r"gurugram|gurgaon|modi|rahul gandhi|kejriwal|amit shah|\bbjp\b|congress party|"
+    r"\brss\b|lok sabha|rajya sabha|nirmala sitharaman|supreme court of india|"
+    r"\brbi\b|sensex|nifty|rupee|\bgst\b|aadhaar|\bupi\b|isro|\bcbi\b|"
+    r"uttar pradesh|maharashtra|\bbihar\b|west bengal|tamil nadu|karnataka|kerala|"
+    r"gujarat|rajasthan|punjab|haryana|telangana|odisha|assam|jharkhand|chhattisgarh|"
+    r"uttarakhand|himachal|kashmir|ayodhya|amarnath)\b"
+    r"|भारत|दिल्ली|मुंबई|मोदी|संसद|कांग्रेस|भाजपा|रुपय|उत्तर प्रदेश|बिहार|कश्मीर",
+    re.IGNORECASE)
+_FOREIGN_RE = re.compile(
+    r"\b(united states|u\.s\.|america|washington|white house|trump|biden|iran|israel|"
+    r"gaza|palestine|hamas|russia|ukraine|putin|zelensky|china|beijing|taiwan|pakistan|"
+    r"islamabad|afghanistan|taliban|syria|lebanon|yemen|turkey|türkiye|saudi|qatar|"
+    r"dubai|\buae\b|egypt|venezuela|brazil|mexico|canada|australia|japan|tokyo|korea|"
+    r"france|paris|germany|berlin|italy|spain|britain|\buk\b|london|europe|"
+    r"european union|\beu\b|nato|united nations)\b",
+    re.IGNORECASE)
+
+
+def _guess_region(text: str) -> str:
+    """India vs World. India-relevant stories (including India + a foreign country,
+    e.g. an India-US trade deal) count as India; only stories with no India angle and
+    a clear foreign focus are World. Defaults to India for this India-first platform."""
+    t = text or ""
+    if _INDIA_RE.search(t):
+        return "India"
+    if _FOREIGN_RE.search(t):
+        return "World"
+    return "India"
 
 
 def _representative(rows):

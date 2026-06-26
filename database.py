@@ -290,6 +290,9 @@ def _event_summary_row(r):
     """Shared shaping for list + blindspot feeds."""
     data = json.loads(r["analysis_json"])
     counts = lean_counts_from(data)
+    region = data.get("region")
+    if region not in ("India", "World"):           # back-fill old events
+        region = "World" if data.get("topic") == "International" else "India"
     return {
         "id": r["id"],
         "title": r["title"],
@@ -299,6 +302,7 @@ def _event_summary_row(r):
         "summary_hi": data.get("summary_hi", ""),
         "summary_points_hi": data.get("summary_points_hi", []),
         "topic": data.get("topic", "General"),
+        "region": region,
         "lang": event_language(data),
         "image_url": data.get("image_url", ""),
         "is_demo": bool(r["is_demo"]),
