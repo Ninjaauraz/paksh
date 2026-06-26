@@ -187,6 +187,41 @@ def get_articles_by_ids(ids):
     return [dict(r) for r in rows]
 
 
+def get_recent_events_for_merge(days=5, limit=400):
+    """READ-ONLY. Recent non-demo events with their member articles, for cross-cycle
+    merge matching. Returns [{event_id, created_at, title, topic, source_count,
+    articles:[{title, summary, language, source}]}]."""
+    import json
+    from datetime import datetime, timedelta
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    conn = get_connection()
+    erows = conn.execute(
+        "SELECT id, title, analysis_json, created_at FROM events "
+        "WHERE created_at >= ? AND COALESCE(is_demo, 0) = 0 "
+        "ORDER BY created_at DESC LIMIT ?",
+        (cutoff, limit),
+    ).fetchall()
+    out = []
+    for e in erows:
+        arts = conn.execute(
+            "SELECT title, summary, language, source FROM articles WHERE event_id = ?",
+            (e["id"],),
+        ).fetchall()
+        if not arts:
+            continue
+        try:
+            topic = json.loads(e["analysis_json"]).get("topic")
+        except Exception:
+            topic = None
+        out.append({
+            "event_id": e["id"], "created_at": e["created_at"], "title": e["title"],
+            "topic": topic, "source_count": len({a["source"] for a in arts}),
+            "articles": [dict(a) for a in arts],
+        })
+    conn.close()
+    return out
+
+
 def assign_articles_to_event(article_ids, event_id):
     if not article_ids:
         return

@@ -66,6 +66,16 @@ else:  # ollama (local bge-m3) - the default
 MIN_SHARED  = 2          # shared keywords needed to join a cluster's seed (1 coincidence isn't enough)
 MIN_SOURCES = 2          # a cluster needs this many distinct outlets to be an event
 
+# --- cross-cycle merge: fold a new cluster into a RECENT existing event ----------
+# Deliberately conservative: a wrong merge (two unrelated stories) is worse than a
+# duplicate, so the bar sits ABOVE the within-batch join threshold. All env-tunable.
+MERGE_WINDOW_DAYS = int(os.environ.get("PAKSH_MERGE_WINDOW_DAYS", "5"))
+XMERGE_MIN_SHARED = int(os.environ.get("PAKSH_XMERGE_MIN_SHARED", "2"))
+if BACKEND == "gemini":
+    XMERGE_SIM = float(os.environ.get("PAKSH_XMERGE_SIM", "0.84"))
+else:
+    XMERGE_SIM = float(os.environ.get("PAKSH_XMERGE_SIM", "0.66"))
+
 # Generic words too common to count as a discriminating "keyword" - including the
 # India-politics vocabulary that otherwise glues unrelated stories together.
 _STOP = set("the a an and or of to in on for with at by from as is are was were be been "
@@ -78,6 +88,15 @@ _STOP = set("the a an and or of to in on for with at by from as is are was were 
             "zee jagran bhaskar lallantop aajtak aaj tak republic swarajya opindia satya "
             "ndtv hindu hindustan express mint scroll wire navbharat amar ujala times".split())
 _HI_STOP = set("में की के का और से पर को है कि भी एक यह वह तक ने हैं था थे लिए मोदी कांग्रेस भाजपा".split())
+
+# Words that survive _keywords but are far too common to justify merging two stories
+# across cycles on their own (this is also what stops ICC vs FIFA "world cup" over-merge).
+_GENERIC_KW = set((
+    "world cup india indian government report reports new news today over after amid "
+    "first second third police court case cases minister ministers official officials "
+    "state national people public party leader leaders meeting plan plans says said "
+    "year years day days top big set launch launches reported announces announced"
+).split()) | set("भारत सरकार पुलिस मामला खबर देश राज्य".split())
 
 
 # ------------------------------ embedders ------------------------------
@@ -342,6 +361,7 @@ def cluster_with_details(articles, embedder=None):
     for group in cluster_vectors(vecs, kw=kw, langs=langs):
         kept = _dedupe_same_outlet(group, vecs, articles)
         rows = [articles[i] for i in kept]
+        _klangs = [langs[i] for i in kept]
         out.append({
             "ids": [r["id"] for r in rows],
             "size": len(rows),
@@ -349,6 +369,9 @@ def cluster_with_details(articles, embedder=None):
             "sources": sorted({r["source"] for r in rows}),
             "languages": sorted({r["language"] for r in rows}),
             "sample_title": rows[0]["title"] if rows else "",
+            "centroid": _recentroid(vecs, kept) if kept else None,
+            "keywords": (set().union(*[kw[i] for i in kept]) if kept else set()) - _GENERIC_KW,
+            "lang": (max(set(_klangs), key=_klangs.count) if _klangs else "en"),
         })
     out.sort(key=lambda d: (-d["source_count"], -d["size"]))
     return out
@@ -359,6 +382,64 @@ def cluster_articles(articles, embedder=None):
     by MIN_SOURCES+ distinct outlets."""
     return [d["ids"] for d in cluster_with_details(articles, embedder)
             if d["source_count"] >= MIN_SOURCES]
+
+
+# ------------------------- cross-cycle merge primitives -------------------------
+
+def cluster_centroid(texts, embedder=None):
+    """Unit centroid of the (cached) embeddings of `texts`. Used to give an EXISTING
+    event a vector from its member articles - free for text already embedded."""
+    texts = list(texts)
+    if not texts:
+        return None
+    embedder = embedder or default_embedder
+    vecs = _normalize(embedder(texts))
+    vecs = np.asarray(vecs, dtype=float)
+    return _recentroid(vecs, list(range(len(vecs))))
+
+
+def merge_keywords(articles):
+    """Union of discriminating keywords across an event's/cluster's articles, with
+    the too-generic terms removed - so a merge can only be gated on a SPECIFIC token."""
+    kw = set()
+    for a in articles:
+        kw |= _keywords(a)
+    return kw - _GENERIC_KW
+
+
+def match_clusters_to_events(clusters, events, sim=None, min_shared=None, hi_sim=None):
+    """For each NEW cluster, pick the single best RECENT event to fold it into - or
+    nothing. Conservative: centroid cosine >= `sim` AND a keyword gate (>= min_shared
+    specific shared words, or very-high similarity with >=1 shared / cross-lingual).
+    Inputs are dicts carrying 'centroid' (unit vec), 'keywords' (set), 'lang'.
+    Returns [{'cluster', 'event', 'sim', 'shared'}], one entry per matched cluster."""
+    sim = XMERGE_SIM if sim is None else sim
+    min_shared = XMERGE_MIN_SHARED if min_shared is None else min_shared
+    hi = HIGH_SIM if hi_sim is None else hi_sim
+    matches = []
+    for c in clusters:
+        cc = c.get("centroid")
+        if cc is None:
+            continue
+        ckw, clang = c.get("keywords", set()), c.get("lang")
+        best, best_sim, best_shared = None, -1.0, set()
+        for e in events:
+            ec = e.get("centroid")
+            if ec is None:
+                continue
+            s = float(np.dot(cc, ec))
+            if s < sim:
+                continue
+            shared = ckw & e.get("keywords", set())
+            same_lang = (clang == e.get("lang"))
+            ok = (len(shared) >= min_shared) \
+                 or (s >= hi and len(shared) >= 1) \
+                 or (s >= hi and not same_lang)
+            if ok and s > best_sim:
+                best, best_sim, best_shared = e, s, shared
+        if best is not None:
+            matches.append({"cluster": c, "event": best, "sim": best_sim, "shared": best_shared})
+    return matches
 
 
 def main():
