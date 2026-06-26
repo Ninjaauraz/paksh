@@ -491,45 +491,70 @@ const {useState,useEffect,useMemo}=React;
     }
     function HomeView({ cards, oneSided, topics, counts, stats, t, lang, open, goTopic, go }) {
       const lead=cards[0]; const rest=cards.slice(1,49); const brief=cards.slice(0,7);
+      const oneSidedSection=()=>(
+        <div>
+          <SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>
+          <p className={`-mt-2 mb-4 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].osSub}</p>
+          <div className="space-y-5">{oneSided.slice(0,3).map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+          {oneSided.length===0 && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+        </div>
+      );
+      const methodCard=(
+        <div className={`rounded-lg border p-4 ${t.surface} ${t.border}`}>
+          <h3 className={`headline text-[14px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h3>
+          <p className={`mt-1.5 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_rule}</p>
+          <button onClick={()=>go("about")} className={`mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={12}/></button>
+        </div>
+      );
+      const browse=(
+        <div className="mt-9 flex justify-center">
+          <button onClick={()=>go("topics")} className={`rounded-full border px-5 py-2.5 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
+        </div>
+      );
       return (
         <div className="mx-auto max-w-[1800px] px-4 sm:px-6 py-6">
-          <div className="grid grid-cols-1 gap-7 lg:grid-cols-[272px_minmax(0,1fr)_340px] lg:items-start">
-            {/* left rail - sticky */}
-            <aside className="order-2 lg:order-1 lg:sticky lg:top-[150px]">
+          {/* DESKTOP: three columns, all scroll together (no pinning) */}
+          <div className="hidden gap-7 lg:grid lg:grid-cols-[272px_minmax(0,1fr)_340px]">
+            <aside>
               <SectionTitle t={t} lang={lang}>{lang==="hi"?"मुख्य ख़बरें":"Top Stories"}</SectionTitle>
               <div className={`mb-2 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें":"stories"} · {stats.outlets} {lang==="hi"?"स्रोत":"outlets"}</div>
               {brief.map((s,i)=><BriefItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===brief.length-1} />)}
-              <div className={`mt-6 rounded-lg border p-4 ${t.surface} ${t.border}`}>
-                <h3 className={`headline text-[14px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h3>
-                <p className={`mt-1.5 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_rule}</p>
-                <button onClick={()=>go("about")} className={`mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={12}/></button>
-              </div>
+              <div className="mt-6">{methodCard}</div>
             </aside>
-            {/* center feed - multi-column grid */}
-            <main className="order-1 min-w-0 lg:order-2">
+            <main className="min-w-0">
               {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
               <div className="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2">
                 {rest.map((s,i)=>(
                   <React.Fragment key={s.id}>
                     <GridCard story={s} t={t} lang={lang} onOpen={open} />
-                    {i===5 && <div className="md:col-span-2"><AdSlot t={t} lang={lang} h={104} /></div>}
+                    {(i===5||i===17) && <div className="md:col-span-2"><AdSlot t={t} lang={lang} h={104} /></div>}
                   </React.Fragment>
                 ))}
               </div>
-              {cards.length>49 && <div className="mt-9 flex justify-center">
-                <button onClick={()=>go("topics")} className={`rounded-full border px-5 py-2.5 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
-              </div>}
+              {browse}
             </main>
-            {/* right rail - sticky: ad + one-sided */}
-            <aside className="order-3 space-y-6 lg:sticky lg:top-[150px]">
+            <aside className="space-y-6">
               <AdSlot t={t} lang={lang} h={250} />
-              <div>
-                <SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>
-                <p className={`-mt-2 mb-4 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-                <div className="space-y-5">{oneSided.slice(0,3).map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-                {oneSided.length===0 && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-              </div>
+              {oneSidedSection()}
+              <AdSlot t={t} lang={lang} h={300} />
             </aside>
+          </div>
+
+          {/* MOBILE: single column, compact rows, in-feed ads */}
+          <div className="lg:hidden">
+            {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
+            <div className="mb-6"><AdSlot t={t} lang={lang} h={250} /></div>
+            <div className="space-y-6">
+              {rest.slice(0,26).map((s,i)=>(
+                <React.Fragment key={s.id}>
+                  <FeedRow story={s} t={t} lang={lang} onOpen={open} />
+                  {i===5 && oneSided.length>0 && <div className="pt-1">{oneSidedSection()}</div>}
+                  {(i===2||i===11||i===19) && <AdSlot t={t} lang={lang} h={250} />}
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="mt-7">{methodCard}</div>
+            {browse}
           </div>
         </div>
       );
