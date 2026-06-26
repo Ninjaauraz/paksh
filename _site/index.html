@@ -320,17 +320,25 @@ const {useState,useEffect,useMemo}=React;
     function LeadStory({ story, t, lang, onOpen }) {
       return (
         <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
-          <div className="relative">
-            <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
-            {story.img && <div className="pointer-events-none absolute inset-0" style={{background:"linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.32) 36%, rgba(0,0,0,0) 60%)"}} />}
-            <div className={`absolute inset-x-0 bottom-0 p-5 sm:p-6 ${story.img?"text-white":t.tp}`}>
-              <div className={`mb-2 flex items-center gap-2 mono text-[11px] font-medium uppercase tracking-[0.1em] ${story.img?"text-white/80":t.ts}`}>
-                <span className={lang==="hi"?"deva":""}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</span>
-                <span className="opacity-60">·</span><span>{timeAgo(story.created_at,lang)}</span>
+          {story.img ? (
+            <div className="relative">
+              <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
+              <div className="pointer-events-none absolute inset-0" style={{background:"linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.32) 36%, rgba(0,0,0,0) 60%)"}} />
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
+                <div className="mb-2 flex items-center gap-2 mono text-[11px] font-medium uppercase tracking-[0.1em] text-white/80">
+                  <span className={lang==="hi"?"deva":""}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</span>
+                  <span className="opacity-60">·</span><span>{timeAgo(story.created_at,lang)}</span>
+                </div>
+                <h2 className={`headline text-2xl sm:text-[2rem] leading-[1.08] text-white ${isHi(lang)}`}>{story.headline}</h2>
               </div>
-              <h2 className={`headline text-2xl sm:text-[2rem] leading-[1.08] ${isHi(lang)} ${story.img?"text-white":t.tp}`}>{story.headline}</h2>
             </div>
-          </div>
+          ) : (
+            <div className="p-6 sm:p-7">
+              <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+              <h2 className={`headline mt-2 text-2xl sm:text-[2rem] leading-[1.08] ${t.tp} ${isHi(lang)}`}>{story.headline}</h2>
+              {story.lead && <p className={`mt-3 text-[15px] leading-relaxed lc-3 ${t.ts} ${isHi(lang)}`}>{story.lead}</p>}
+            </div>
+          )}
           <div className={`p-3 ${t.surface}`}><BiasBar bias={story.bias} t={t} lang={lang} height={30} /></div>
         </article>
       );
@@ -346,9 +354,7 @@ const {useState,useEffect,useMemo}=React;
               <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
             </div>
           </div>
-          <div className="shrink-0">
-            <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="1 / 1" t={t} lang={lang} className="w-24 sm:w-32 rounded-md" />
-          </div>
+          {story.img && <div className="shrink-0"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="1 / 1" t={t} lang={lang} className="w-24 sm:w-32 rounded-md" /></div>}
         </article>
       );
     }
@@ -367,7 +373,7 @@ const {useState,useEffect,useMemo}=React;
       const side=story.blindspot;
       return (
         <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-lg border ${t.surface}`} style={{borderColor:(side&&BIAS[side].color)||t.line, borderWidth:1.5}}>
-          <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
+          {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <div className="mb-2 flex items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[10px] font-bold uppercase tracking-wide text-white" style={{backgroundColor:(side&&BIAS[side].color)||"#A33A3A"}}><Eye size={11} strokeWidth={2.5}/> {STR[lang].navOS}</span>
@@ -382,7 +388,7 @@ const {useState,useEffect,useMemo}=React;
     function GridCard({ story, t, lang, onOpen }) {
       return (
         <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
-          <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
+          {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${isHi(lang)}`}>{story.headline}</h3>
@@ -398,7 +404,7 @@ const {useState,useEffect,useMemo}=React;
       const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
       return (
         <div style={{backgroundColor:"#1B1A18"}} className="text-white/85">
-          <div className="mx-auto flex max-w-[75rem] items-center justify-between px-4 sm:px-5" style={{height:34}}>
+          <div className="mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-5" style={{height:34}}>
             <span className="mono text-[11px] tracking-wide text-white/55">{lang==="hi"?"भारत संस्करण":"India Edition"}</span>
             <div className="flex items-center gap-4">
               <span className={`hidden sm:inline mono text-[11px] text-white/55 ${lang==="hi"?"deva":""}`}>{today}</span>
@@ -415,7 +421,7 @@ const {useState,useEffect,useMemo}=React;
       const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["sources",STR[lang].navSrc],["about",STR[lang].navMethod]];
       return (
         <div className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
-          <div className="mx-auto max-w-[75rem] px-4 sm:px-5">
+          <div className="mx-auto max-w-[1800px] px-4 sm:px-5">
             <div className="flex h-[60px] items-center gap-5">
               <button onClick={()=>go("home")} className="flex shrink-0 items-baseline gap-1.5" aria-label="Paksh home">
                 <span className={`deva text-[26px] font-bold leading-none ${t.tp}`}>पक्ष</span>
@@ -435,7 +441,7 @@ const {useState,useEffect,useMemo}=React;
           </div>
           {topics && topics.length>0 && (
             <div className={`border-t ${t.border} ${t.surface}`}>
-              <div className="mx-auto flex max-w-[75rem] items-center gap-2 overflow-x-auto px-4 sm:px-5 py-2">
+              <div className="mx-auto flex max-w-[1800px] items-center gap-2 overflow-x-auto px-4 sm:px-5 py-2">
                 <span className={`mono text-[10px] uppercase tracking-wide ${t.tf} shrink-0`}>{lang==="hi"?"विषय":"Topics"}</span>
                 {topics.slice(0,14).map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`shrink-0 rounded-full border px-3 py-1 text-[12.5px] font-medium ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</button>))}
               </div>
@@ -457,7 +463,7 @@ const {useState,useEffect,useMemo}=React;
     function Footer({ t, lang, go }) {
       return (
         <footer className={`mt-12 border-t ${t.border} ${t.surface}`}>
-          <div className="mx-auto max-w-[75rem] px-4 sm:px-5 py-9">
+          <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-9">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div className="max-w-md">
                 <div className="flex items-baseline gap-1.5"><span className={`deva text-xl font-bold ${t.tp}`}>पक्ष</span><span className={`text-lg font-bold ${t.tp}`}>Paksh</span></div>
@@ -476,43 +482,58 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- HOME ---------------- */
-    function HomeView({ cards, oneSided, topics, counts, stats, t, lang, open, goTopic, go }) {
-      const lead=cards[0]; const rest=cards.slice(1); const brief=cards.slice(0,7);
+    function AdSlot({ t, lang, h, label }) {
       return (
-        <div className="mx-auto max-w-[75rem] px-4 sm:px-5 py-6">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[256px_minmax(0,1fr)_300px]">
-            {/* left: briefing */}
-            <aside className="order-2 lg:order-1">
+        <div className={`flex items-center justify-center rounded-lg border border-dashed ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
+          <span className={`mono text-[10px] uppercase tracking-[0.22em] ${t.tf}`}>{label||(lang==="hi"?"विज्ञापन":"Advertisement")}</span>
+        </div>
+      );
+    }
+    function HomeView({ cards, oneSided, topics, counts, stats, t, lang, open, goTopic, go }) {
+      const lead=cards[0]; const rest=cards.slice(1,49); const brief=cards.slice(0,7);
+      return (
+        <div className="mx-auto max-w-[1800px] px-4 sm:px-6 py-6">
+          <div className="grid grid-cols-1 gap-7 lg:grid-cols-[272px_minmax(0,1fr)_340px] lg:items-start">
+            {/* left rail - sticky */}
+            <aside className="order-2 lg:order-1 lg:sticky lg:top-[150px]">
               <SectionTitle t={t} lang={lang}>{lang==="hi"?"मुख्य ख़बरें":"Top Stories"}</SectionTitle>
-              <div className={`mb-3 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें":"stories"} · {stats.outlets} {lang==="hi"?"स्रोत":"outlets"}</div>
+              <div className={`mb-2 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें":"stories"} · {stats.outlets} {lang==="hi"?"स्रोत":"outlets"}</div>
               {brief.map((s,i)=><BriefItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===brief.length-1} />)}
-            </aside>
-            {/* center: feed */}
-            <main className="order-1 min-w-0 lg:order-2">
-              {lead && <div className="mb-7"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
-              <div className="space-y-6">
-                {rest.map(s=><FeedRow key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+              <div className={`mt-6 rounded-lg border p-4 ${t.surface} ${t.border}`}>
+                <h3 className={`headline text-[14px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h3>
+                <p className={`mt-1.5 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_rule}</p>
+                <button onClick={()=>go("about")} className={`mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={12}/></button>
               </div>
+            </aside>
+            {/* center feed - multi-column grid */}
+            <main className="order-1 min-w-0 lg:order-2">
+              {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
+              <div className="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2">
+                {rest.map((s,i)=>(
+                  <React.Fragment key={s.id}>
+                    <GridCard story={s} t={t} lang={lang} onOpen={open} />
+                    {i===5 && <div className="md:col-span-2"><AdSlot t={t} lang={lang} h={104} /></div>}
+                  </React.Fragment>
+                ))}
+              </div>
+              {cards.length>49 && <div className="mt-9 flex justify-center">
+                <button onClick={()=>go("topics")} className={`rounded-full border px-5 py-2.5 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
+              </div>}
             </main>
-            {/* right: blindspot + about */}
-            <aside className="order-3 space-y-8">
+            {/* right rail - sticky: ad + one-sided */}
+            <aside className="order-3 space-y-6 lg:sticky lg:top-[150px]">
+              <AdSlot t={t} lang={lang} h={250} />
               <div>
                 <SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>
                 <p className={`-mt-2 mb-4 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].osSub}</p>
                 <div className="space-y-5">{oneSided.slice(0,3).map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
                 {oneSided.length===0 && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
               </div>
-              <div className={`rounded-lg border p-5 ${t.surface} ${t.border}`}>
-                <h3 className={`headline text-[15px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h3>
-                <p className={`mt-2 text-[12.5px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_rule}</p>
-                <button onClick={()=>go("about")} className={`mt-3 inline-flex items-center gap-1 text-[13px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={13}/></button>
-              </div>
             </aside>
           </div>
         </div>
       );
     }
-
     /* ---------------- STORY (tabbed) ---------------- */
     function StoryPage({ story, t, lang, go, openTopic }) {
       const order=["left","center","right"];
@@ -532,7 +553,7 @@ const {useState,useEffect,useMemo}=React;
       const ATab=({k,n})=>{ const on=atab===k; const lab=k==="all"?(lang==="hi"?"सभी":"All"):lbl(k,lang);
         return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"?t.ink:(k==="center"?t.ink:BIAS[k]&&BIAS[k].color)):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
       return (
-        <div className="mx-auto max-w-[75rem] px-4 sm:px-5 py-6">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-5 py-6">
           <button onClick={()=>go("home")} className={`mb-5 inline-flex items-center gap-1.5 mono text-[12px] font-medium uppercase tracking-wide ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {STR[lang].back}</button>
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_312px]">
             <div className="min-w-0">
@@ -625,7 +646,7 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- other pages ---------------- */
-    function PageWrap({ children }) { return <div className="mx-auto max-w-[75rem] px-4 sm:px-5 py-6">{children}</div>; }
+    function PageWrap({ children }) { return <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-6">{children}</div>; }
     function BlindspotPage({ items, t, lang, open }) {
       return (
         <PageWrap>
@@ -641,7 +662,7 @@ const {useState,useEffect,useMemo}=React;
         <PageWrap>
           <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{ui("sections",lang)}</h1>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`rounded-lg border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><div className={`mono text-3xl font-semibold ${t.tp}`}>{counts[tp]}</div><div className={`mt-1.5 text-[15px] font-semibold ${t.ts} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</div></button>))}
+            {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`flex items-center justify-between rounded-lg border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`text-[17px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span><ChevronRight size={16} className={t.tf}/></button>))}
           </div>
         </PageWrap>
       );
@@ -719,7 +740,7 @@ const {useState,useEffect,useMemo}=React;
     }
     function FeedSkeleton({ t }) {
       return (
-        <div className="mx-auto max-w-[75rem] px-4 sm:px-5 py-6">
+        <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-6">
           <div className="grid gap-8 lg:grid-cols-[256px_minmax(0,1fr)_300px]">
             <div className="order-2 space-y-4 lg:order-1">{[0,1,2,3,4].map(i=><div key={i} className="skel h-12 w-full"/>)}</div>
             <div className="order-1 lg:order-2"><div className="skel mb-6 w-full" style={{aspectRatio:"16/9",borderRadius:8}}/><div className="space-y-6">{[0,1,2,3].map(i=><div key={i} className="flex gap-4"><div className="flex-1 space-y-2"><div className="skel h-3 w-24"/><div className="skel h-6 w-full"/><div className="skel h-3 w-40"/></div><div className="skel h-24 w-28" style={{borderRadius:6}}/></div>)}</div></div>
