@@ -71,6 +71,10 @@ MIN_SOURCES = 2          # a cluster needs this many distinct outlets to be an e
 # duplicate, so the bar sits ABOVE the within-batch join threshold. All env-tunable.
 MERGE_WINDOW_DAYS = int(os.environ.get("PAKSH_MERGE_WINDOW_DAYS", "5"))
 XMERGE_MIN_SHARED = int(os.environ.get("PAKSH_XMERGE_MIN_SHARED", "2"))
+# diffuse-event guard: required shared keywords scale with the event's breadth, so a
+# polluted grab-bag event (huge keyword union) needs proportionally more specific
+# overlap. 1 extra shared keyword required per this many event keywords.
+XMERGE_KW_PER_SHARE = int(os.environ.get("PAKSH_MERGE_KW_PER_SHARE", "25"))
 if BACKEND == "gemini":
     XMERGE_SIM = float(os.environ.get("PAKSH_XMERGE_SIM", "0.84"))
 else:
@@ -95,8 +99,34 @@ _GENERIC_KW = set((
     "world cup india indian government report reports new news today over after amid "
     "first second third police court case cases minister ministers official officials "
     "state national people public party leader leaders meeting plan plans says said "
-    "year years day days top big set launch launches reported announces announced"
-).split()) | set("भारत सरकार पुलिस मामला खबर देश राज्य".split())
+    "year years day days top big set launch launches reported announces announced "
+    # journalism / format / roundup / date-time words that leak from bulletins & pages
+    "bulletin bulletins edition editions page pages newspaper newspapers headlines "
+    "roundup daily weekly update updates live read latest breaking jun jul june july "
+    "thu fri mon tue wed sat sun "
+    # generic sport / scoreboard words (sport-SPECIFIC tokens like cricket/fifa/icc kept)
+    "match matches final finals clash league series scores results trophy fixtures "
+    "commentary referees lineup preview intent squad "
+    # company suffixes / market-page / horoscope-page tokens that leak from junk
+    "ltd pvt inc corp limited premarket movers gallery video coverage overview "
+    "numerology astrological calendar predictions"
+).split()) | set((
+    "भारत सरकार पुलिस मामला खबर देश राज्य खबरें ख़बरें बुलेटिन बजे सुबह रात "
+    "जून जुलाई समाचार ताजा मुख्य पढ़ें"
+).split())
+
+# Distinctive outlet/masthead tokens that leak into titles & bylines and falsely
+# satisfy the keyword gate (e.g. event #2987 absorbing unrelated "deccan chronicle"
+# stories). ONLY tokens that are essentially never real content words are listed -
+# content-bearing masthead words (india, kashmir, punjab, wire, republic, times,
+# express, hindu, standard, guardian, france...) are deliberately NOT stripped.
+_OUTLET_KW = set((
+    "ndtv scroll opindia swarajya bhaskar jagran ujala navbharat aaj tak zee satya "
+    "lallantop lallant lall newslaundry caravan quint livelaw tfipost khabar lahariya "
+    "hindustan deccan chronicle herald telegraph firstpost jansatta news18 patrika "
+    "reuters bloomberg jazeera welle deutsche eastmojo mojo mathrubhumi prabhat dunia "
+    "kesari haribhoomi bhoomi hari tribune dainik pioneer"
+).split())
 
 
 # ------------------------------ embedders ------------------------------
@@ -370,7 +400,8 @@ def cluster_with_details(articles, embedder=None):
             "languages": sorted({r["language"] for r in rows}),
             "sample_title": rows[0]["title"] if rows else "",
             "centroid": _recentroid(vecs, kept) if kept else None,
-            "keywords": (set().union(*[kw[i] for i in kept]) if kept else set()) - _GENERIC_KW,
+            "keywords": ((set().union(*[kw[i] for i in kept]) if kept else set())
+                         - _GENERIC_KW - _OUTLET_KW),
             "lang": (max(set(_klangs), key=_klangs.count) if _klangs else "en"),
         })
     out.sort(key=lambda d: (-d["source_count"], -d["size"]))
@@ -385,6 +416,58 @@ def cluster_articles(articles, embedder=None):
 
 
 # ------------------------- cross-cycle merge primitives -------------------------
+
+def find_duplicate_event_groups(events, sim=None, min_shared=None, hi_sim=None,
+                               kw_per_share=None):
+    """Union-find over recent events: group events that are the SAME story fragmented
+    across cycles (e.g. several 'Venezuela earthquake' events). Same conservative gate
+    as the cross-cycle merge, but the diffuse guard scales by the LARGER of the two
+    keyword sets so a polluted magnet event can't drag focused events into it.
+    `events` are dicts with 'centroid' (unit vec), 'keywords' (set), 'lang'.
+    Returns a list of groups (each a list of >=2 event dicts)."""
+    sim = XMERGE_SIM if sim is None else sim
+    min_shared = XMERGE_MIN_SHARED if min_shared is None else min_shared
+    hi = HIGH_SIM if hi_sim is None else hi_sim
+    kps = XMERGE_KW_PER_SHARE if kw_per_share is None else kw_per_share
+    n = len(events)
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    for i in range(n):
+        ci = events[i].get("centroid")
+        if ci is None:
+            continue
+        ki, li = events[i].get("keywords", set()), events[i].get("lang")
+        for j in range(i + 1, n):
+            cj = events[j].get("centroid")
+            if cj is None:
+                continue
+            s = float(np.dot(ci, cj))
+            if s < sim:
+                continue
+            kj = events[j].get("keywords", set())
+            shared = ki & kj
+            need = max(min_shared, (max(len(ki), len(kj)) + kps - 1) // kps) if kps else min_shared
+            same = (li == events[j].get("lang"))
+            ok = (len(shared) >= need) if same else ((s >= hi) or (len(shared) >= need))
+            if ok:
+                union(i, j)
+
+    groups = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(events[i])
+    return [g for g in groups.values() if len(g) > 1]
+
 
 def cluster_centroid(texts, embedder=None):
     """Unit centroid of the (cached) embeddings of `texts`. Used to give an EXISTING
@@ -404,10 +487,11 @@ def merge_keywords(articles):
     kw = set()
     for a in articles:
         kw |= _keywords(a)
-    return kw - _GENERIC_KW
+    return kw - _GENERIC_KW - _OUTLET_KW
 
 
-def match_clusters_to_events(clusters, events, sim=None, min_shared=None, hi_sim=None):
+def match_clusters_to_events(clusters, events, sim=None, min_shared=None, hi_sim=None,
+                            kw_per_share=None):
     """For each NEW cluster, pick the single best RECENT event to fold it into - or
     nothing. Conservative: centroid cosine >= `sim` AND a keyword gate (>= min_shared
     specific shared words, or very-high similarity with >=1 shared / cross-lingual).
@@ -416,6 +500,7 @@ def match_clusters_to_events(clusters, events, sim=None, min_shared=None, hi_sim
     sim = XMERGE_SIM if sim is None else sim
     min_shared = XMERGE_MIN_SHARED if min_shared is None else min_shared
     hi = HIGH_SIM if hi_sim is None else hi_sim
+    kps = XMERGE_KW_PER_SHARE if kw_per_share is None else kw_per_share
     matches = []
     for c in clusters:
         cc = c.get("centroid")
@@ -430,11 +515,14 @@ def match_clusters_to_events(clusters, events, sim=None, min_shared=None, hi_sim
             s = float(np.dot(cc, ec))
             if s < sim:
                 continue
-            shared = ckw & e.get("keywords", set())
+            e_kw = e.get("keywords", set())
+            shared = ckw & e_kw
             same_lang = (clang == e.get("lang"))
-            ok = (len(shared) >= min_shared) \
-                 or (s >= hi and len(shared) >= 1) \
-                 or (s >= hi and not same_lang)
+            need = max(min_shared, (len(e_kw) + kps - 1) // kps) if kps else min_shared
+            if same_lang:
+                ok = len(shared) >= need
+            else:
+                ok = (s >= hi) or (len(shared) >= need)
             if ok and s > best_sim:
                 best, best_sim, best_shared = e, s, shared
         if best is not None:

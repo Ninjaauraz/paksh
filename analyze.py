@@ -38,6 +38,7 @@ except Exception:
 from database import (
     init_db, get_unclustered_articles, get_articles_by_ids,
     assign_articles_to_event, insert_event,
+    get_event, get_event_articles, update_event, get_recent_events_for_merge,
 )
 from sources import LEAN_BY_SOURCE
 import cluster
@@ -66,6 +67,12 @@ LLM_EVENT_BUDGET = int(os.environ.get(
 #     with PAKSH_LLM_BUDGET.
 MAX_EVENTS_PER_RUN = 500       # total events published per run (extractive is cheap)
 MIN_SOURCES_PER_EVENT = 2
+# Cross-cycle merge: fold clusters that continue a recent event INTO that event
+# instead of spawning a duplicate. On by default; PAKSH_CROSS_MERGE=0 disables it.
+# PAKSH_MERGE_RESUMMARISE=1 re-runs the LLM brief on a merged event (off = cheap
+# arithmetic recount only, no model call).
+MERGE_ENABLED = os.environ.get("PAKSH_CROSS_MERGE", "1") != "0"
+MERGE_RESUMMARISE = os.environ.get("PAKSH_MERGE_RESUMMARISE", "0") == "1"
 MIN_RATED_PER_EVENT = 2         # an event needs >=2 RATED outlets (real bias bar);
                                 # unrated/syndication outlets add breadth, not events
 MAX_ARTICLES_PER_EVENT = 12     # cap tokens per event
@@ -518,6 +525,57 @@ def analyze_event(articles) -> dict:
 
 # ------------------------------ entrypoint ------------------------------
 
+def recount_event(event_id, resummarise=False):
+    """Re-derive a merged event's coverage/bias/sources from its (now larger) member
+    set. Cheap arithmetic by default (reuses postprocess); optional LLM re-summary."""
+    rows = get_event_articles(event_id)
+    if not rows:
+        return
+    analysis = None
+    if resummarise:
+        try:
+            analysis = analyze_event(rows)
+        except Exception:
+            analysis = None
+    if analysis is None:                      # keep the existing brief, recount the rest
+        existing = get_event(event_id) or {}
+        raw = {k: existing.get(k) for k in (
+            "title", "summary", "summary_points", "title_hi", "summary_hi",
+            "summary_points_hi", "framing", "framing_hi", "topic", "region",
+            "summary_method")}
+        analysis = postprocess(raw, rows)
+    update_event(event_id, analysis, bump_created=True)
+
+
+def _merge_into_existing(details):
+    """Fold each new cluster that continues a RECENT event into that event (assign its
+    articles + recount), and return the id-lists of the UNMATCHED clusters (>=2 outlets)
+    so they go on to become new events through the normal path."""
+    if not details:
+        return []
+    events = get_recent_events_for_merge(days=cluster.MERGE_WINDOW_DAYS)
+    ev_clusters = []
+    for e in events:
+        arts = e["articles"]
+        centroid = cluster.cluster_centroid([cluster._text_of(x) for x in arts])
+        if centroid is None:
+            continue
+        langs = [x["language"] for x in arts]
+        ev_clusters.append({**e, "centroid": centroid,
+                            "keywords": cluster.merge_keywords(arts),
+                            "lang": max(set(langs), key=langs.count) if langs else "en"})
+    matches = cluster.match_clusters_to_events(details, ev_clusters) if ev_clusters else []
+    matched = {id(m["cluster"]) for m in matches}
+    for m in matches:
+        assign_articles_to_event(m["cluster"]["ids"], m["event"]["event_id"])
+        recount_event(m["event"]["event_id"], resummarise=MERGE_RESUMMARISE)
+    if matches:
+        print(f"Cross-cycle merge: folded {len(matches)} continuing cluster(s) "
+              f"into existing events (no duplicates created).")
+    return [d["ids"] for d in details
+            if id(d) not in matched and d["source_count"] >= MIN_SOURCES_PER_EVENT]
+
+
 def main():
     if LLM_BACKEND == "ollama":
         print("\n=== Paksh analysis (LOCAL via Ollama: %s) ===" % MODEL)
@@ -536,7 +594,16 @@ def main():
         return
 
     print("Clustering (embeddings) ...")
-    clusters = cluster_articles(articles)
+    if MERGE_ENABLED:
+        try:
+            details = cluster.cluster_with_details(articles)
+        except Exception as e:
+            print(f"    embedding clustering unavailable ({e}); using LLM fallback")
+            details = None
+        clusters = (_merge_into_existing(details) if details is not None
+                    else _cluster_articles_llm(articles))
+    else:
+        clusters = cluster_articles(articles)
 
     # Quality gate: an event needs >=2 RATED outlets so its bias bar is a real
     # comparison. Unrated outlets (the GDELT long tail, syndication farms like
