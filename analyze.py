@@ -40,19 +40,27 @@ from database import (
     assign_articles_to_event, insert_event,
     get_event, get_event_articles, update_event, get_recent_events_for_merge,
 )
-from sources import LEAN_BY_SOURCE
+from sources import LEAN_BY_SOURCE, INTERNATIONAL_SOURCES
 import cluster
 
 # ---- LLM backend for the bilingual summary --------------------------------
 # "ollama" = LOCAL text model (default; free, no API key, no bill)
 # "gemini" = Google Gemini (needs API key + billing)
 # Flip with PAKSH_LLM_BACKEND; pick the local model with PAKSH_LLM_MODEL.
+# "ollama" = local model (free) | "gemini" = Google API (paid) | "hybrid" = the
+# top LLM_LOCAL_BUDGET events summarised locally for free, the rest via Gemini.
 LLM_BACKEND = os.environ.get("PAKSH_LLM_BACKEND", "ollama").lower()
 OLLAMA_URL  = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-if LLM_BACKEND == "gemini":
-    MODEL = os.environ.get("PAKSH_LLM_MODEL", "gemini-2.5-flash")
-else:
-    MODEL = os.environ.get("PAKSH_LLM_MODEL", "qwen3.5:4b")
+# Per-backend models, so hybrid can drive BOTH at once. On a CPU-only / integrated-
+# GPU laptop a small local model (llama3.2:3b) keeps the local tier fast.
+OLLAMA_MODEL = os.environ.get("PAKSH_LLM_LOCAL_MODEL",
+                              os.environ.get("PAKSH_LLM_MODEL", "qwen3.5:4b"))
+_gem_default = "gemini-2.5-flash" if LLM_BACKEND == "gemini" else "gemini-2.5-flash-lite"
+GEMINI_MODEL = os.environ.get("PAKSH_LLM_GEMINI_MODEL",
+                              os.environ.get("PAKSH_LLM_MODEL", _gem_default))
+MODEL = GEMINI_MODEL if LLM_BACKEND == "gemini" else OLLAMA_MODEL
+# hybrid only: how many top events the free local model takes before Gemini overflow.
+LLM_LOCAL_BUDGET = int(os.environ.get("PAKSH_LLM_LOCAL_BUDGET", "8"))
 
 LEAN_ORDER = ["left", "center", "right"]
 # Two-tier summarization: the top LLM_EVENT_BUDGET events (ranked by rated
@@ -61,7 +69,13 @@ LEAN_ORDER = ["left", "center", "right"]
 # call). This decouples "events published" from "slow LLM calls", so a run can
 # publish hundreds while only making a few dozen model calls.
 LLM_EVENT_BUDGET = int(os.environ.get(
-    "PAKSH_LLM_BUDGET", "120" if LLM_BACKEND == "gemini" else "30"))
+    "PAKSH_LLM_BUDGET", "30" if LLM_BACKEND == "ollama" else "120"))
+# How many summaries to run AT ONCE. The summary call is the slow step and (for a
+# network backend) is I/O-bound, so a small thread pool cuts wall-clock ~N-fold and
+# lets the budget go up cheaply. Local Ollama on CPU is compute-bound -> default 1
+# (a GPU user can raise it); Gemini -> 6. Override with PAKSH_LLM_CONCURRENCY.
+LLM_CONCURRENCY = int(os.environ.get(
+    "PAKSH_LLM_CONCURRENCY", "1" if LLM_BACKEND == "ollama" else "6"))
 #   ^ top events that get a full LLM brief + framing. Cheap/fast on Gemini, so we
 #     default much higher there; slow on local Ollama, so stay at 30. Override
 #     with PAKSH_LLM_BUDGET.
@@ -97,7 +111,7 @@ def _ollama_generate(prompt: str, as_json: bool) -> str:
     # qwen3.x "thinks" before answering, which (under JSON mode) returns an EMPTY
     # body. Belt-and-suspenders: think:false (API switch) + /no_think (Qwen prompt
     # switch) + strip any <think> that still leaks.
-    body = {"model": MODEL, "prompt": prompt + "\n\n/no_think", "stream": False,
+    body = {"model": OLLAMA_MODEL, "prompt": prompt + "\n\n/no_think", "stream": False,
             "think": False,
             "options": {"temperature": 0.2, "num_predict": 1500}}
     if as_json:
@@ -111,48 +125,62 @@ def _ollama_generate(prompt: str, as_json: bool) -> str:
     except urllib.error.URLError as e:
         raise RuntimeError(
             "Could not reach Ollama at " + OLLAMA_URL + ". Is it running?\n"
-            "  Open the Ollama app, then run once:  ollama pull " + MODEL + "\n"
+            "  Open the Ollama app, then run once:  ollama pull " + OLLAMA_MODEL + "\n"
             "Original error: " + str(e)) from None
 
 
 def _gemini_generate(prompt: str, as_json: bool) -> str:
     from google import genai
     from google.genai import types
+    import time
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY not set")
     client = genai.Client(api_key=key)
-    if not as_json:
-        return client.models.generate_content(model=MODEL, contents=prompt).text
-    # gemini-2.5-flash "thinks" by default and can spend the whole budget; disable it.
-    cfg_kwargs = dict(response_mime_type="application/json",
-                      temperature=0.2, max_output_tokens=8192)
-    try:
-        cfg = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=0), **cfg_kwargs)
-    except Exception:
-        cfg = types.GenerateContentConfig(**cfg_kwargs)
-    return client.models.generate_content(model=MODEL, contents=prompt, config=cfg).text
+    cfg = None
+    if as_json:
+        # gemini-2.5-flash "thinks" by default and can spend the whole budget; disable it.
+        cfg_kwargs = dict(response_mime_type="application/json",
+                          temperature=0.2, max_output_tokens=8192)
+        try:
+            cfg = types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0), **cfg_kwargs)
+        except Exception:
+            cfg = types.GenerateContentConfig(**cfg_kwargs)
+    # under concurrency a few calls may hit a transient 429/503 - back off and retry
+    for attempt in range(3):
+        try:
+            if cfg is None:
+                return client.models.generate_content(model=GEMINI_MODEL, contents=prompt).text
+            return client.models.generate_content(model=GEMINI_MODEL, contents=prompt, config=cfg).text
+        except Exception as e:
+            transient = any(k in str(e) for k in
+                            ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"))
+            if transient and attempt < 2:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
 
 
-def _generate(prompt: str, as_json: bool) -> str:
-    if LLM_BACKEND == "ollama":
+def _generate(prompt: str, as_json: bool, backend=None) -> str:
+    backend = backend or LLM_BACKEND
+    if backend == "ollama":
         return _ollama_generate(prompt, as_json)
     return _gemini_generate(prompt, as_json)
 
 
-def _generate_text(prompt: str) -> str:
-    return _generate(prompt, as_json=False)
+def _generate_text(prompt: str, backend=None) -> str:
+    return _generate(prompt, as_json=False, backend=backend)
 
 
-def _call_json(prompt: str, retries: int = 1):
+def _call_json(prompt: str, retries: int = 1, backend=None):
     """Generate JSON via the active backend, tolerant-parse it, retry once.
     If the backend itself is unreachable, raise immediately so the caller can
     fall back to an extractive summary rather than retry a dead server."""
     last = None
     for _ in range(retries + 1):
         try:
-            return _extract_json(_generate(prompt, as_json=True))
+            return _extract_json(_generate(prompt, as_json=True, backend=backend))
         except RuntimeError:
             raise
         except Exception as e:
@@ -183,6 +211,11 @@ def _extract_json(text: str):
 
 
 def lean_of(name):
+    # Foreign wires (Reuters, AP, BBC, Guardian, Al Jazeera, ...) add coverage and
+    # framing, but their lean is set on their HOME-market spectrum, not India's, so
+    # they sit in a non-voting "international" tier and never move the India bias bar.
+    if name in INTERNATIONAL_SOURCES:
+        return "international"
     # Unknown outlets (e.g. the GDELT long tail) are UNRATED: they add coverage
     # and clustering density but never vote in the Left/Centre/Right bias bar.
     return LEAN_BY_SOURCE.get(name, "unrated")
@@ -320,6 +353,9 @@ def postprocess(raw, articles) -> dict:
     for side in LEAN_ORDER:
         names = [s["source"] for s in sources_out if s["lean"] == side]
         coverage_out[side] = {"count": len(names), "sources": names}
+    # foreign wires: counted for breadth + shown as international coverage, never voting
+    intl_names = [s["source"] for s in sources_out if s["lean"] == "international"]
+    coverage_out["international"] = {"count": len(intl_names), "sources": intl_names}
     # unrated outlets (GDELT long tail): counted for breadth, never for lean
     unrated_names = [s["source"] for s in sources_out if s["lean"] == "unrated"]
     coverage_out["unrated"] = {"count": len(unrated_names), "sources": unrated_names}
@@ -509,12 +545,29 @@ def _extractive_raw(articles):
     }
 
 
-def analyze_event(articles) -> dict:
+def _run_summaries(rows_list, workers, backend=None):
+    """Summarise several article-groups and return analyses IN THE SAME ORDER.
+    For a network backend a thread pool runs the slow LLM calls concurrently; each
+    group still falls back to an extractive summary on failure, so one bad call
+    never sinks the batch."""
+    def one(rows):
+        try:
+            return analyze_event(rows, backend=backend)      # self-falls-back inside
+        except Exception:
+            return postprocess(_extractive_raw(rows), rows)
+    if workers > 1 and len(rows_list) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(one, rows_list))              # ex.map preserves order
+    return [one(r) for r in rows_list]
+
+
+def analyze_event(articles, backend=None) -> dict:
     """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
     unavailable or returns nothing usable, falls back to an extractive headline
     so the event still renders (coverage + bias bar are unaffected either way)."""
     try:
-        raw = _call_json(build_prompt(articles))
+        raw = _call_json(build_prompt(articles), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
             raise ValueError("empty model output")
     except Exception as e:
@@ -631,29 +684,36 @@ def main():
     print(f"Publishing {len(budget)} event(s): top {n_llm} via {LLM_BACKEND} "
           f"summary, {len(budget) - n_llm} extractive (no model call).\n")
 
+    rows_by_rank = [get_articles_by_ids(ids) for ids in budget]
+    # the slow part: summarise the top n_llm events
+    if LLM_BACKEND == "hybrid":
+        nloc = min(LLM_LOCAL_BUDGET, n_llm)
+        print(f"  Summarising {nloc} locally (Ollama: {OLLAMA_MODEL}) + "
+              f"{n_llm - nloc} via Gemini ({GEMINI_MODEL}, {LLM_CONCURRENCY} workers) ...")
+        llm_analyses = (_run_summaries(rows_by_rank[:nloc], 1, backend="ollama")
+                        + _run_summaries(rows_by_rank[nloc:n_llm], LLM_CONCURRENCY, backend="gemini"))
+    else:
+        if n_llm and LLM_CONCURRENCY > 1:
+            print(f"  Summarising top {n_llm} with {LLM_CONCURRENCY} concurrent workers ...")
+        llm_analyses = _run_summaries(rows_by_rank[:n_llm], LLM_CONCURRENCY)
+
     llm_n = ext_n = 0
     for rank, ids in enumerate(budget):
-        rows = get_articles_by_ids(ids)
-        if rank < LLM_EVENT_BUDGET:
-            names = ", ".join(sorted({r["source"] for r in rows}))
-            print(f"  [LLM] [{rank + 1}/{n_llm}] {names[:70]} ...")
-            try:
-                analysis = analyze_event(rows)            # LLM, extractive fallback inside
-            except Exception as e:
-                print(f"    skipped ({e})")
-                continue
+        rows = rows_by_rank[rank]
+        if rank < n_llm:
+            analysis = llm_analyses[rank]                 # precomputed (maybe in parallel)
         else:
             analysis = postprocess(_extractive_raw(rows), rows)   # instant, no model call
 
-        event_id = insert_event(analysis, is_demo=False)
+        event_id = insert_event(analysis, is_demo=False)  # DB writes stay serial + ordered
         assign_articles_to_event(ids, event_id)
         if analysis.get("summary_method") == "extractive":
             ext_n += 1
         else:
             llm_n += 1
-        if rank < LLM_EVENT_BUDGET:
+        if rank < n_llm:
             c = analysis["coverage"]
-            print(f"    -> [{analysis['topic']}] {analysis['title'][:58]}  "
+            print(f"  [{rank + 1}/{n_llm}] [{analysis['topic']}] {analysis['title'][:54]}  "
                   f"(L:{c['left']['count']} C:{c['center']['count']} R:{c['right']['count']})")
 
     print("-" * 40)

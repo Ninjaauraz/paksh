@@ -656,6 +656,12 @@ def lean_by_source() -> dict:
 
 LEAN_BY_SOURCE = lean_by_source()
 
+# Foreign wire services. They are tagged region="International" and DO carry a lean,
+# but that lean is calibrated to their own home-market spectrum, not India's - so
+# they must NOT vote in the India Left/Centre/Right bias bar. analyze.lean_of() maps
+# these to a non-voting "international" tier: they still add coverage and framing.
+INTERNATIONAL_SOURCES = {s["name"] for s in SOURCES if s.get("region") == "International"}
+
 
 # ---- domain resolution (for GDELT and any URL-only article source) ----
 import re as _re

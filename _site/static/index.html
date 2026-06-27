@@ -59,6 +59,7 @@ const {useState,useEffect,useMemo}=React;
       left:   { color: "#2D5BD0", soft: "#E7EDFB", en: "Left",   hi: "वाम" },
       center: { color: "#6E7682", soft: "#ECEDEF", en: "Centre", hi: "केंद्र" },
       right:  { color: "#C26A1B", soft: "#F8EDDD", en: "Right",  hi: "दक्षिण" },
+      international: { color: "#2F8F83", soft: "#E1EFEC", en: "International", hi: "अंतरराष्ट्रीय" },
     };
     const TOKENS = {
       light: { bg:"bg-[#EDEAE4]", surface:"bg-[#FFFFFF]", soft:"bg-[#F4F2ED]", border:"border-[#DEDAD1]",
@@ -116,6 +117,7 @@ const {useState,useEffect,useMemo}=React;
         autoTag:"Auto-summary", autoFrom:"from coverage",
         autoNote:"This headline comes straight from a covering outlet — a neutral Paksh summary is being prepared.",
         unratedTitle:"Unrated outlets", unratedNote:"Outlets we found covering this story but don't rate yet — they add coverage but don't affect the bias bar.",
+        intlTitle:"International coverage", intlNote:"Foreign wire services (Reuters, AP, BBC…) covering this story — they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
         framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises — based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.",
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
@@ -155,6 +157,7 @@ const {useState,useEffect,useMemo}=React;
         autoTag:"स्वतः सारांश", autoFrom:"कवरेज से",
         autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है — पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
         unratedTitle:"बिना रेटिंग वाले आउटलेट", unratedNote:"ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं — ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
+        intlTitle:"अंतरराष्ट्रीय कवरेज", intlNote:"इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…) — ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
         framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण — एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
@@ -211,7 +214,8 @@ const {useState,useEffect,useMemo}=React;
         lead:(lang==="hi"&&e.summary_hi)?e.summary_hi:e.summary,
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
         bias:biasPct(lc), counts:lc, sources:(lc.left+lc.center+lc.right)||e.total_sources||0,
-        unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)),
+        international:(e.international||0),
+        unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)-(e.international||0)),
         blindspot:e.blindspot?e.blindspot.side:null,
         auto:e.summary_method==="extractive",
         img:e.image_url||"",
@@ -244,7 +248,7 @@ const {useState,useEffect,useMemo}=React;
       const d=Math.round(h/24); return hi?`${d} दिन पहले`:`${d}d ago`; };
     const domSide=(bias)=>["left","center","right"].reduce((a,b)=>(bias[b]||0)>(bias[a]||0)?b:a,"left");
     const tword=(lang)=> (n)=> n===1?STR[lang].source:STR[lang].sources;
-    const covLine=(story,lang)=>{ const d=domSide(story.bias); const tot=story.sources+(story.unrated||0); return `${story.bias[d]}% ${lbl(d,lang)} · ${tot} ${tot===1?STR[lang].source:STR[lang].sources}`; };
+    const covLine=(story,lang)=>{ const d=domSide(story.bias); const tot=story.sources+(story.unrated||0)+(story.international||0); return `${story.bias[d]}% ${lbl(d,lang)} · ${tot} ${tot===1?STR[lang].source:STR[lang].sources}`; };
 
     function Thumb({ src, topic, title, ratio, t, lang, className }) {
       const [err,setErr]=useState(false);
@@ -378,7 +382,7 @@ const {useState,useEffect,useMemo}=React;
           <div className="p-4">
             <div className="mb-2 flex items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[10px] font-bold uppercase tracking-wide text-white" style={{backgroundColor:(side&&BIAS[side].color)||"#A33A3A"}}><Eye size={11} strokeWidth={2.5}/> {STR[lang].navOS}</span>
-              <span className={`mono text-[11px] ${t.tf}`}>{story.sources+(story.unrated||0)} {STR[lang].sources}</span>
+              <span className={`mono text-[11px] ${t.tf}`}>{story.sources+(story.unrated||0)+(story.international||0)} {STR[lang].sources}</span>
             </div>
             <h3 className={`headline text-[17px] leading-[1.2] lc-3 ${t.tp} ${isHi(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
             <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={24} /></div>
@@ -592,10 +596,10 @@ const {useState,useEffect,useMemo}=React;
       const sideTabs=["overview",...order.filter(k=>(fr[k]||"").trim())];
       const [side,setSide]=useState("overview");
       const outlets=story.outlets||[];
-      const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
+      const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
       const [atab,setAtab]=useState("all");
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
-      const total=story.sources+(story.unrated||0);
+      const total=story.sources+(story.unrated||0)+(story.international||0);
       const [copied,setCopied]=useState(false);
       const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
       const bd=domSide(story.bias);
@@ -682,6 +686,7 @@ const {useState,useEffect,useMemo}=React;
                     <span className={`mono text-[14px] font-semibold ${t.tp}`}>{val}</span>
                   </div>
                 ))}
+                {story.international>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.international}</span></div>}
                 {story.unrated>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.unrated}</span></div>}
                 <div className="flex items-center justify-between py-2.5">
                   <span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{lang==="hi"?"अंतिम अपडेट":"Last updated"}</span>
