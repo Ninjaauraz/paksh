@@ -72,7 +72,16 @@ def main():
         return
 
     evc = _as_clusters(events)
-    groups = cluster.find_duplicate_event_groups(evc, sim=args.sim)
+    # A focused story's vocabulary is bounded; a huge keyword set (or an implausible
+    # outlet count) means the event is already an over-merged grab-bag. Such events
+    # must NOT act as consolidation anchors or they swallow everything. Wall them off.
+    kept = [e for e in evc if len(e["keywords"]) <= cluster.XMERGE_MAX_EVENT_KW
+            and e.get("source_count", 0) <= 60]
+    skipped = len(evc) - len(kept)
+    if skipped:
+        print("skipping %d already-over-merged event(s) (>%d keywords or >60 sources) - "
+              "clean these up separately\n" % (skipped, cluster.XMERGE_MAX_EVENT_KW))
+    groups = cluster.find_duplicate_event_groups(kept, sim=args.sim)
     groups.sort(key=len, reverse=True)
     absorbed = sum(len(g) - 1 for g in groups)
 
@@ -85,9 +94,10 @@ def main():
         print("SURVIVOR #%s  [%d src, %s]  \"%s\""
               % (surv["event_id"], surv.get("source_count", 0), tag, surv["title"][:64]))
         for e in others:
-            shared = sorted(surv["keywords"] & e["keywords"])[:6]
-            print("    <- #%s  \"%s\"   shared: %s"
-                  % (e["event_id"], e["title"][:58], shared or "(cross-lingual)"))
+            shared = sorted(surv["keywords"] & e["keywords"])
+            print("    <- #%s  \"%s\"   shared(%d): %s"
+                  % (e["event_id"], e["title"][:58], len(shared),
+                     shared[:6] or "(cross-lingual)"))
         print()
 
         if args.apply:

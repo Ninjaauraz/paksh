@@ -270,7 +270,8 @@ def cluster_articles(articles):
 
 def build_prompt(articles) -> str:
     _LEANWORD = {"left": "left-leaning", "center": "centrist",
-                 "right": "right-leaning", "unrated": "unrated"}
+                 "right": "right-leaning", "unrated": "unrated",
+                 "international": "international wire"}
     # rated outlets first, so the model always sees the lean-carrying coverage
     ranked = sorted(articles, key=lambda a: lean_of(a["source"]) == "unrated")
     blocks = [
@@ -613,9 +614,11 @@ def _merge_into_existing(details):
         centroid = cluster.cluster_centroid([cluster._text_of(x) for x in arts])
         if centroid is None:
             continue
+        kw = cluster.merge_keywords(arts)
+        if len(kw) > cluster.XMERGE_MAX_EVENT_KW or e.get("source_count", 0) > 60:
+            continue                                  # grab-bag / over-merged: never a merge target
         langs = [x["language"] for x in arts]
-        ev_clusters.append({**e, "centroid": centroid,
-                            "keywords": cluster.merge_keywords(arts),
+        ev_clusters.append({**e, "centroid": centroid, "keywords": kw,
                             "lang": max(set(langs), key=langs.count) if langs else "en"})
     matches = cluster.match_clusters_to_events(details, ev_clusters) if ev_clusters else []
     matched = {id(m["cluster"]) for m in matches}

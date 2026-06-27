@@ -20,3 +20,6 @@ __pycache__/
 venv/
 
 # NOTE: _site/ IS committed on purpose - it's what Vercel serves.
+*.db
+*.db.bak
+*.db-journal

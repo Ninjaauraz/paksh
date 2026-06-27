@@ -75,6 +75,8 @@ XMERGE_MIN_SHARED = int(os.environ.get("PAKSH_XMERGE_MIN_SHARED", "2"))
 # polluted grab-bag event (huge keyword union) needs proportionally more specific
 # overlap. 1 extra shared keyword required per this many event keywords.
 XMERGE_KW_PER_SHARE = int(os.environ.get("PAKSH_MERGE_KW_PER_SHARE", "25"))
+XMERGE_MIN_FRAC = float(os.environ.get("PAKSH_MERGE_MIN_FRAC", "0.22"))
+XMERGE_MAX_EVENT_KW = int(os.environ.get("PAKSH_MERGE_MAX_EVENT_KW", "140"))
 if BACKEND == "gemini":
     XMERGE_SIM = float(os.environ.get("PAKSH_XMERGE_SIM", "0.84"))
 else:
@@ -418,7 +420,7 @@ def cluster_articles(articles, embedder=None):
 # ------------------------- cross-cycle merge primitives -------------------------
 
 def find_duplicate_event_groups(events, sim=None, min_shared=None, hi_sim=None,
-                               kw_per_share=None):
+                               kw_per_share=None, min_frac=None):
     """Union-find over recent events: group events that are the SAME story fragmented
     across cycles (e.g. several 'Venezuela earthquake' events). Same conservative gate
     as the cross-cycle merge, but the diffuse guard scales by the LARGER of the two
@@ -428,7 +430,7 @@ def find_duplicate_event_groups(events, sim=None, min_shared=None, hi_sim=None,
     sim = XMERGE_SIM if sim is None else sim
     min_shared = XMERGE_MIN_SHARED if min_shared is None else min_shared
     hi = HIGH_SIM if hi_sim is None else hi_sim
-    kps = XMERGE_KW_PER_SHARE if kw_per_share is None else kw_per_share
+    min_frac = XMERGE_MIN_FRAC if min_frac is None else min_frac
     n = len(events)
     parent = list(range(n))
 
@@ -457,9 +459,13 @@ def find_duplicate_event_groups(events, sim=None, min_shared=None, hi_sim=None,
                 continue
             kj = events[j].get("keywords", set())
             shared = ki & kj
-            need = max(min_shared, (max(len(ki), len(kj)) + kps - 1) // kps) if kps else min_shared
+            frac = len(shared) / max(len(ki), len(kj), 1)
             same = (li == events[j].get("lang"))
-            ok = (len(shared) >= need) if same else ((s >= hi) or (len(shared) >= need))
+            # real duplicates share a real fraction of the larger set; a focused event
+            # whose words merely all sit inside a grab-bag scores a tiny fraction.
+            ok = (len(shared) >= min_shared and frac >= min_frac)
+            if not same and not ok:
+                ok = (s >= hi and len(shared) >= min_shared)
             if ok:
                 union(i, j)
 
