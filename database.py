@@ -187,6 +187,14 @@ def get_articles_by_ids(ids):
     return [dict(r) for r in rows]
 
 
+_JUNK_TITLE_RE = __import__("re").compile(
+    r"(diverse\s+local\s+news|diverse\s+\w+\s+news\s+topics|news\s+bulletins?\b|"
+    r"bulletins?\s+and\s+updates|various\s+editions|newspapers?\s+publish|"
+    r"publish\s+various|topics\s+reported|round[\s-]?up\b|coverage\s+overview|"
+    r"video\s+gallery|premarket\s+movers|calendar\s+events|astrological|"
+    r"share\s+price\b)", __import__("re").I)
+
+
 def get_recent_events_for_merge(days=5, limit=400):
     """READ-ONLY. Recent non-demo events with their member articles, for cross-cycle
     merge matching. Returns [{event_id, created_at, title, topic, source_count,
@@ -209,17 +217,57 @@ def get_recent_events_for_merge(days=5, limit=400):
         ).fetchall()
         if not arts:
             continue
+        if _JUNK_TITLE_RE.search(e["title"] or ""):
+            continue   # publisher roundup / bulletin / edition dump - not a real event
         try:
-            topic = json.loads(e["analysis_json"]).get("topic")
+            _aj = json.loads(e["analysis_json"])
+            topic = _aj.get("topic")
+            smethod = _aj.get("summary_method", "llm")
         except Exception:
-            topic = None
+            topic, smethod = None, "llm"
         out.append({
             "event_id": e["id"], "created_at": e["created_at"], "title": e["title"],
-            "topic": topic, "source_count": len({a["source"] for a in arts}),
+            "topic": topic, "summary_method": smethod,
+            "source_count": len({a["source"] for a in arts}),
             "articles": [dict(a) for a in arts],
         })
     conn.close()
     return out
+
+
+def delete_event(event_id):
+    """Remove an event row. Used by consolidation AFTER its articles have been
+    reassigned to the surviving event - so no article is left orphaned."""
+    conn = get_connection()
+    conn.execute("DELETE FROM events WHERE id = ?", (event_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_event_articles(event_id):
+    """All member articles of an event (for recount after a cross-cycle merge)."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, source, language, title, url, summary, image_url "
+        "FROM articles WHERE event_id = ?", (event_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_event(event_id, analysis, bump_created=True):
+    """Rewrite an event's stored analysis after its membership changed. bump_created
+    refreshes created_at so a continuing story resurfaces as recently-updated."""
+    conn = get_connection()
+    sets = ["title = ?", "summary = ?", "analysis_json = ?"]
+    params = [analysis.get("title", "Untitled event"), analysis.get("summary", ""),
+              json.dumps(analysis, ensure_ascii=False)]
+    if bump_created:
+        sets.append("created_at = ?")
+        params.append(datetime.utcnow().isoformat())
+    params.append(event_id)
+    conn.execute("UPDATE events SET %s WHERE id = ?" % ", ".join(sets), params)
+    conn.commit()
+    conn.close()
 
 
 def assign_articles_to_event(article_ids, event_id):
@@ -344,6 +392,7 @@ def _event_summary_row(r):
         "source_count": len(data.get("sources", [])),
         "summary_method": data.get("summary_method", "llm"),
         "lean_counts": counts,
+        "international": data.get("coverage", {}).get("international", {}).get("count", 0),
         "dominant": dominant_lean(counts),
         "blindspot": compute_blindspot(counts),
         "created_at": r["created_at"],
@@ -373,6 +422,21 @@ def get_topics():
         if e["topic"] not in seen:
             seen.append(e["topic"])
     return seen
+
+
+def get_event_ids(days=None):
+    """All non-demo event ids, newest first; optionally only the last `days`."""
+    conn = get_connection()
+    q = "SELECT id FROM events WHERE COALESCE(is_demo, 0) = 0"
+    params = []
+    if days:
+        from datetime import datetime, timedelta
+        q += " AND created_at >= ?"
+        params.append((datetime.utcnow() - timedelta(days=days)).isoformat())
+    q += " ORDER BY created_at DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [r["id"] for r in rows]
 
 
 def get_event(event_id):
