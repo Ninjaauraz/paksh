@@ -268,6 +268,21 @@ def cluster_articles(articles):
 
 # ------------------------------ analysis (PASS 2) ------------------------------
 
+_GENERIC_TITLE = re.compile(
+    r"(no new coverage|provided for analysis|no coverage provided|nothing to analyse|"
+    r"multiple\s+(\w+\s+){0,2}(outlets?|incidents?|events?|reports?|stories|articles?)|"
+    r"diverse\s+(events?|topics?|news|stories)|various\s+(incidents?|events?|topics?)|"
+    r"daily\s+(news\s+)?(roundup|digest|wrap|update))", re.I)
+
+
+def _looks_generic(title) -> bool:
+    """True for placeholder/refusal headlines a model emits for an empty or mixed
+    cluster ('No new coverage provided for analysis', 'Multiple outlets cover diverse
+    events') - we reject these so a real article headline is used instead."""
+    t = (title or "").strip()
+    return bool(t) and bool(_GENERIC_TITLE.search(t))
+
+
 def build_prompt(articles) -> str:
     _LEANWORD = {"left": "left-leaning", "center": "centrist",
                  "right": "right-leaning", "unrated": "unrated",
@@ -349,16 +364,17 @@ def postprocess(raw, articles) -> dict:
             "url": a["url"], "headline": a["title"],
         })
 
-    # coverage = how many outlets of each lean covered it (arithmetic, not AI)
+    # coverage = how many DISTINCT OUTLETS of each lean covered it - ONE vote per
+    # publisher, never per article (an outlet that files 5 stories still votes once).
     coverage_out = {}
     for side in LEAN_ORDER:
-        names = [s["source"] for s in sources_out if s["lean"] == side]
+        names = sorted({s["source"] for s in sources_out if s["lean"] == side})
         coverage_out[side] = {"count": len(names), "sources": names}
     # foreign wires: counted for breadth + shown as international coverage, never voting
-    intl_names = [s["source"] for s in sources_out if s["lean"] == "international"]
+    intl_names = sorted({s["source"] for s in sources_out if s["lean"] == "international"})
     coverage_out["international"] = {"count": len(intl_names), "sources": intl_names}
     # unrated outlets (GDELT long tail): counted for breadth, never for lean
-    unrated_names = [s["source"] for s in sources_out if s["lean"] == "unrated"]
+    unrated_names = sorted({s["source"] for s in sources_out if s["lean"] == "unrated"})
     coverage_out["unrated"] = {"count": len(unrated_names), "sources": unrated_names}
 
     topic = raw.get("topic", "Society")
@@ -389,7 +405,7 @@ def postprocess(raw, articles) -> dict:
         "image_url": hero,
         "sources": sources_out,
         "coverage": coverage_out,
-        "total_sources": len(sources_out),
+        "total_sources": len({s["source"] for s in sources_out}),
         "degraded": degraded,
         "summary_method": raw.get("summary_method", "llm"),
     }
@@ -571,6 +587,8 @@ def analyze_event(articles, backend=None) -> dict:
         raw = _call_json(build_prompt(articles), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
             raise ValueError("empty model output")
+        if _looks_generic(raw.get("title", "")):
+            raise ValueError("generic placeholder title")
     except Exception as e:
         print(f"    summary -> extractive fallback ({e})")
         raw = _extractive_raw(articles)
