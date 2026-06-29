@@ -346,7 +346,7 @@ const {useState,useEffect,useMemo}=React;
     /* ---------------- feed pieces ---------------- */
     function LeadStory({ story, t, lang, onOpen }) {
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
           {story.img ? (
             <div className="relative">
               <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
@@ -367,12 +367,12 @@ const {useState,useEffect,useMemo}=React;
             </div>
           )}
           <div className={`p-3 ${t.surface}`}><BiasBar bias={story.bias} t={t} lang={lang} height={30} /></div>
-        </article>
+        </a>
       );
     }
     function FeedRow({ story, t, lang, onOpen }) {
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group flex cursor-pointer gap-4 border-b pb-6 ${t.border}`}>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`no-underline group flex cursor-pointer gap-4 border-b pb-6 ${t.border}`}>
           <div className="min-w-0 flex-1">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-lg sm:text-xl leading-[1.18] lc-3 ${t.tp} ${isHi(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
@@ -382,7 +382,7 @@ const {useState,useEffect,useMemo}=React;
             </div>
           </div>
           {story.img && <div className="shrink-0"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="1 / 1" t={t} lang={lang} className="w-24 sm:w-32 rounded-md" /></div>}
-        </article>
+        </a>
       );
     }
     function BriefItem({ story, t, lang, onOpen, last }) {
@@ -399,7 +399,7 @@ const {useState,useEffect,useMemo}=React;
     function BlindspotCard({ story, t, lang, onOpen }) {
       const side=story.blindspot;
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-lg border ${t.surface}`} style={{borderColor:(side&&BIAS[side].color)||t.line, borderWidth:1.5}}>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface}`} style={{borderColor:(side&&BIAS[side].color)||t.line, borderWidth:1.5}}>
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <div className="mb-2 flex items-center gap-2">
@@ -409,12 +409,12 @@ const {useState,useEffect,useMemo}=React;
             <h3 className={`headline text-[17px] leading-[1.2] lc-3 ${t.tp} ${isHi(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
             <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={24} /></div>
           </div>
-        </article>
+        </a>
       );
     }
     function GridCard({ story, t, lang, onOpen }) {
       return (
-        <article onClick={()=>onOpen(story.id)} className={`group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
@@ -422,7 +422,7 @@ const {useState,useEffect,useMemo}=React;
             <div className="mt-3"><MiniBar bias={story.bias} t={t} /></div>
             <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</div>
           </div>
-        </article>
+        </a>
       );
     }
 
@@ -836,16 +836,16 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- routing + app ---------------- */
-    function parseHash(){
-      const h=(typeof window!=="undefined"?(window.location.hash||""):"").replace(/^#\/?/,"");
-      const [seg,arg]=h.split("/");
-      if(seg==="story"&&arg) return {view:"story", id:decodeURIComponent(arg)};
-      if(seg==="topic"&&arg) return {view:"topic", topic:decodeURIComponent(arg)};
-      if(["blindspot","topics","sources","about","search"].includes(seg)) return {view:seg};
+    function parsePath(){
+      const p=(typeof window!=="undefined"?(window.location.pathname||"/"):"/");
+      const seg=p.split("/").filter(Boolean);
+      if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
+      if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search"].includes(seg[0])) return {view:seg[0]};
       return {view:"home"};
     }
     function PakshApp() {
-      const [route,setRoute]=useState(parseHash());
+      const [route,setRoute]=useState(parsePath());
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
@@ -854,15 +854,15 @@ const {useState,useEffect,useMemo}=React;
       const [ready,setReady]=useState(false);
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
-      useEffect(()=>{ const on=()=>setRoute(parseHash()); window.addEventListener("hashchange",on); return ()=>window.removeEventListener("hashchange",on); },[]);
+      useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
       useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#15161A":"#EDEAE4"; },[dark]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
 
       const t=dark?TOKENS.dark:TOKENS.light;
-      const nav=(h)=>{ if(window.location.hash===h){ setRoute(parseHash()); } else { window.location.hash=h; } };
-      const go=(v)=> nav(v==="home"?"#/":"#/"+v);
-      const open=(id)=> nav("#/story/"+encodeURIComponent(id));
-      const goTopic=(tp)=> nav("#/topic/"+encodeURIComponent(tp));
+      const nav=(path)=>{ if(window.location.pathname!==path){ window.history.pushState(null,"",path); } setRoute(parsePath()); };
+      const go=(v)=> nav(v==="home"?"/":"/"+v);
+      const open=(id)=> nav("/story/"+encodeURIComponent(id));
+      const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
 
       const baseCards=data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const baseOne=data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
