@@ -305,8 +305,12 @@ STRICT RULES:
 - The title and summary must NOT adopt any outlet's framing or loaded words.
 - Attribute contested claims ("the government said", "critics say") instead of stating them as fact.
 - If outlets conflict, state the disagreement neutrally rather than picking a winner.
-- FRAMING: describe ONLY what is visible in the headlines/summaries below - what each
-  side emphasises, foregrounds, omits, or the words it chooses. Do NOT invent positions.
+- FRAMING: describe how each SIDE as a whole frames the story - what that lean's
+  outlets COLLECTIVELY emphasise, foreground, omit, or the words they choose. Refer to
+  the side collectively ("Left-leaning outlets...", "Centrist coverage...", "Right-leaning
+  outlets..."); do NOT name, quote, or single out any individual publication by name.
+  If outlets on a side diverge, capture the common thread and note the split. Describe
+  ONLY what is visible in the headlines/summaries below; do not invent positions.
   If a lean has no outlet in the coverage, set its framing to an empty string.
 - Write ENGLISH first, then a faithful, natural HINDI translation of every field.
 
@@ -319,9 +323,9 @@ Return ONLY a JSON object with these keys:
   "summary_hi": "Hindi translation of the summary",
   "summary_points_hi": ["Hindi translations of the points, same order"],
   "framing": {{
-    "left": "1-2 sentences on what left-leaning outlets emphasise / how they frame it; empty string if no left outlet",
-    "center": "1-2 sentences for centrist outlets; empty string if none",
-    "right": "1-2 sentences for right-leaning outlets; empty string if none"
+    "left": "1-2 sentences on how left-leaning outlets COLLECTIVELY frame it - their shared emphasis / word-choice, never a single outlet by name; empty string if no left outlet",
+    "center": "1-2 sentences on how centrist coverage collectively frames it, no outlet named; empty string if none",
+    "right": "1-2 sentences on how right-leaning outlets collectively frame it, no outlet named; empty string if none"
   }},
   "framing_hi": {{ "left": "Hindi of left", "center": "Hindi of center", "right": "Hindi of right" }},
   "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention.",
