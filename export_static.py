@@ -49,6 +49,9 @@ LEAD_SNIPPET = 240   # the card lead is clamped to ~3 lines; the full text lives
 
 
 def _snippet(text):
+    # summaries arrive as a string, a list of points, or None - normalise first
+    if isinstance(text, (list, tuple)):
+        text = " ".join(str(x) for x in text)
     text = (text or "").strip()
     if len(text) <= LEAD_SNIPPET:
         return text
