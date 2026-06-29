@@ -221,8 +221,8 @@ const {useState,useEffect,useMemo}=React;
     const confName = (c, lang) => (({en:{low:"Low",medium:"Medium",high:"High"},hi:{low:"कम",medium:"मध्यम",high:"उच्च"}}[lang])||{})[c] || c;
 
     let _mode;
-    function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok) return "api"; }catch(e){} return "static"; })(); return _mode; }
-    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok) return r.json(); } const r=await fetch("data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); return r.json(); }
+    function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
+    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
         return {events:e.events||[], blindspots:b.events||[], topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
