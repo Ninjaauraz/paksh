@@ -369,14 +369,14 @@ const {useState,useEffect,useMemo}=React;
       const states = ["Maharashtra", "Uttar Pradesh", "Karnataka", "Tamil Nadu", "Delhi", "Gujarat", "West Bengal"];
       return (
         <div className="relative shrink-0">
-          <select value={region} onChange={e=>setRegion(e.target.value)} className={`appearance-none rounded-full border px-3 py-1 pl-3 pr-7 text-[12.5px] font-medium ${t.border} ${region==="National"||region==="International" ? 'bg-[#1B1A18] text-white dark:bg-white dark:text-black border-transparent' : t.ts} hover:${t.soft} bg-transparent outline-none cursor-pointer ${lang==="hi"?"deva":""} transition-all duration-200`}>
+          <select value={region} onChange={e=>setRegion(e.target.value)} className={`appearance-none rounded-full border px-3 py-1 pl-3 pr-7 text-[12.5px] font-medium ${region==="National"||region==="International" ? `${t.cta} ${t.ctaT} border-transparent` : `${t.border} ${t.ts} hover:${t.soft} bg-transparent`} outline-none cursor-pointer ${lang==="hi"?"deva":""} transition-all duration-200`}>
             <option value="National">{ui("National", lang)}</option>
             <option value="International">{ui("International", lang)}</option>
             <optgroup label={lang==="hi"?"राज्य (जल्द आ रहे हैं)":"States (Pending)"}>
               {states.map(s=><option key={s} value={s} disabled>{s}</option>)}
             </optgroup>
           </select>
-          <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center ${region==="National"||region==="International" ? 'text-white dark:text-black' : t.tf}`}>
+          <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center ${region==="National"||region==="International" ? t.ctaT : t.tf}`}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </div>
         </div>
@@ -400,7 +400,7 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    function Header({ t, lang, setLang, dark, setDark, go, view, topics, goTopic, regionFilter, setRegionFilter }) {
+    function Header({ t, lang, setLang, dark, setDark, go, view, topics, goTopic, regionFilter, setRegionFilter, query, setQuery }) {
       const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["sources",STR[lang].navSrc],["about",STR[lang].navMethod]];
       return (
         <div className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
@@ -417,8 +417,11 @@ const {useState,useEffect,useMemo}=React;
                   </button>
                 ))}
               </nav>
-              <div className="ml-auto flex items-center gap-2">
-                <button onClick={()=>go("search")} aria-label="Search" className={`grid h-9 w-9 place-items-center rounded-full ${t.ts} hover:${t.soft}`}><Search size={18}/></button>
+              <div className="ml-auto flex items-center max-w-xs w-full sm:max-w-sm">
+                <div className="relative w-full">
+                  <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`} />
+                  <input value={query||""} onChange={(e)=>{ if (setQuery) { setQuery(e.target.value); if (view !== "search" && e.target.value.trim()) go("search"); } }} placeholder={STR[lang].search} className={`w-full rounded-full border py-1.5 pl-9 pr-3 text-[14px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#2D5BD0] ${t.tp} ${lang==="hi"?"deva":""}`} />
+                </div>
               </div>
             </div>
           </div>
@@ -774,10 +777,7 @@ const {useState,useEffect,useMemo}=React;
     function SearchPage({ t, lang, query, setQuery, results, open }) {
       return (
         <PageWrap>
-          <div className="relative mb-6 max-w-xl">
-            <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${t.tf}`} />
-            <input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full rounded-full border py-3 pl-11 pr-4 text-base outline-none focus:border-[#2D5BD0] ${t.surface} ${t.border} ${t.tp} ${isHi(lang)}`} />
-          </div>
+
           {!query.trim() ? <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
             : results.length ? <GridGrid items={results} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}><p className={`text-lg font-bold ${t.ts}`}>{STR[lang].noResults}</p><p className="mt-1 text-sm">{STR[lang].noResultsSub}</p></div>}
@@ -857,7 +857,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <UtilityStrip t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} />
-          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={headerView} topics={topicsOrdered} goTopic={goTopic} regionFilter={regionFilter} setRegionFilter={setRegionFilter} />
+          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={headerView} topics={topicsOrdered} goTopic={goTopic} regionFilter={regionFilter} setRegionFilter={setRegionFilter} query={query} setQuery={setQuery} />
           <div className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
