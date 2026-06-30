@@ -153,8 +153,8 @@ def _story_html(shell, ev):
     ) % (e2(ev.get("topic") or ""), e2(ev.get("region") or "India"),
          e2(headline), e2(summ), bias_html, SITE_URL)
     head, rest = shell.split('<div id="root">', 1)
-    _, tail = rest.split('<script type="text/babel">', 1)
-    return head + '<div id="root">' + body + '</div>\n<script type="text/babel">' + tail
+    _, tail = rest.split('<script type="text/babel" src="/static/app.jsx"></script>', 1)
+    return head + '<div id="root">' + body + '</div>\n<script type="text/babel" src="/static/app.jsx"></script>' + tail
 
 
 
