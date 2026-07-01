@@ -287,12 +287,29 @@ def build_prompt(articles) -> str:
     _LEANWORD = {"left": "left-leaning", "center": "centrist",
                  "right": "right-leaning", "unrated": "unrated",
                  "international": "international wire"}
-    # rated outlets first, so the model always sees the lean-carrying coverage
-    ranked = sorted(articles, key=lambda a: lean_of(a["source"]) == "unrated")
+    # Balance the budget across leans: guarantee up to MIN_PER_LEAN articles from EACH
+    # covered lean before filling the rest rated-first, so a side whose articles sort
+    # past the cap is never dropped from the prompt (which would leave the model with
+    # no framing for a side the coverage list still shows).
+    MIN_PER_LEAN = 2
+    by_lean = {}
+    for a in articles:
+        by_lean.setdefault(lean_of(a["source"]), []).append(a)
+    picked, seen = [], set()
+    for lean in ("left", "center", "right", "international", "unrated"):
+        for a in by_lean.get(lean, [])[:MIN_PER_LEAN]:
+            if id(a) not in seen and len(picked) < MAX_ARTICLES_PER_EVENT:
+                picked.append(a); seen.add(id(a))
+    rest = sorted((a for a in articles if id(a) not in seen),
+                  key=lambda a: lean_of(a["source"]) == "unrated")
+    for a in rest:
+        if len(picked) >= MAX_ARTICLES_PER_EVENT:
+            break
+        picked.append(a); seen.add(id(a))
     blocks = [
         f'OUTLET: {a["source"]}  [lean: {_LEANWORD[lean_of(a["source"])]}, language: {a["language"]}]\n'
         f'HEADLINE: {a["title"]}\nSUMMARY: {(a["summary"] or "(none)")[:SUMMARY_TRUNC]}'
-        for a in ranked[:MAX_ARTICLES_PER_EVENT]
+        for a in picked
     ]
     return f"""You are a neutral news engine for "Paksh", a media-transparency
 tool for India. Below is coverage of ONE event from several Indian outlets

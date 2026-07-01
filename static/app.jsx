@@ -369,14 +369,14 @@ const {useState,useEffect,useMemo}=React;
       const states = ["Maharashtra", "Uttar Pradesh", "Karnataka", "Tamil Nadu", "Delhi", "Gujarat", "West Bengal"];
       return (
         <div className="relative shrink-0">
-          <select value={region} onChange={e=>setRegion(e.target.value)} className={`appearance-none rounded-full border px-3 py-1 pl-3 pr-7 text-[12.5px] font-medium ${region==="National"||region==="International" ? `${t.cta} ${t.ctaT} border-transparent` : `${t.border} ${t.ts} hover:${t.soft} bg-transparent`} outline-none cursor-pointer ${lang==="hi"?"deva":""} transition-all duration-200`}>
+          <select value={region} onChange={e=>setRegion(e.target.value)} className={`appearance-none rounded-full border px-3 py-1 pl-3 pr-7 text-[12.5px] font-medium ${t.border} ${t.ts} hover:${t.soft} bg-transparent outline-none cursor-pointer ${lang==="hi"?"deva":""} transition-all duration-200`}>
             <option value="National">{ui("National", lang)}</option>
             <option value="International">{ui("International", lang)}</option>
             <optgroup label={lang==="hi"?"राज्य (जल्द आ रहे हैं)":"States (Pending)"}>
               {states.map(s=><option key={s} value={s} disabled>{s}</option>)}
             </optgroup>
           </select>
-          <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center ${region==="National"||region==="International" ? t.ctaT : t.tf}`}>
+          <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center ${t.tf}`}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </div>
         </div>
@@ -620,7 +620,7 @@ const {useState,useEffect,useMemo}=React;
                 <div className={`mb-4 flex items-center gap-2`}><Scale size={18} className={t.tf}/><h3 className={`headline text-[17px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].framingTitle}</h3></div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   {["left","center","right"].map(k=> (fr[k] || counts[k]>0) ? (
-                    <div key={k} className={`rounded-lg border p-4 ${t.surface} ${t.border} flex flex-col hover:-translate-y-0.5 hover:shadow-md transition-all duration-300`}>
+                    <div key={k} style={{borderTopColor:BIAS[k].color, borderTopWidth:3}} className={`rounded-lg border p-4 ${t.surface} ${t.border} flex flex-col hover:-translate-y-0.5 hover:shadow-md transition-all duration-300`}>
                       <div className="mb-3 flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}}/><span className="mono text-[11px] font-bold uppercase tracking-wide" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span></div>
                       {fr[k] ? (
                         <p className={`text-[14.5px] leading-relaxed ${t.tp} ${isHi(lang)}`}>{fr[k]}</p>
