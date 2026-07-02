@@ -463,7 +463,7 @@ const {useState,useEffect,useMemo}=React;
                 ))}
               </div>
             </div>
-            <div className={`mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`}>© 2026 Redstocks Technology LLP · paksh.vercel.app</div>
+            <div className={`mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`}>© 2026 Paksh · A Redstocks Technology LLP product</div>
           </div>
         </footer>
       );
@@ -837,11 +837,11 @@ const {useState,useEffect,useMemo}=React;
             <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp}`}>Privacy Policy</h1>
             <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 2 July 2026 · Operated by Redstocks Technology LLP</p>
             {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
-            <Row h="Who we are">Paksh (पक्ष) is a media-transparency service operated by Redstocks Technology LLP, India. It groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
-            <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply. That form is processed on our behalf by Formspree. As with most websites, our host also records standard technical logs, such as IP address and browser type, for security and reliability.</Row>
-            <Row h="Cookies and advertising">We use essential cookies for basic site function. We may in future display advertising through Google AdSense; when we do, Google and its partners may use cookies to serve and measure ads, including based on your prior visits to this and other websites. You can manage ad personalisation through Google's Ads Settings, and control or clear cookies through your browser.</Row>
-            <Row h="How we use information">To respond to your messages, keep the site secure and reliable, understand aggregate usage, and - in future - support the site through advertising. We do not sell your personal information.</Row>
-            <Row h="Third parties">We rely on Formspree (contact form), Vercel (hosting) and, where enabled, Google (advertising and analytics). Each processes data under its own privacy policy.</Row>
+            <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
+            <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. We do not run analytics, and we do not build a profile of you.</Row>
+            <Row h="Cookies and tracking">Paksh does not set advertising or analytics cookies, and does not track you across other websites. The site works without storing tracking cookies on your device, so there is nothing here to switch off. If we introduce advertising (through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
+            <Row h="How we use information">To respond to your messages, and to keep the site secure and reliable. If we add advertising in future, it would help support the site. We do not sell your personal information, and we do not profile you.</Row>
+            <Row h="Third parties">We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
             <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
             <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
             <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
