@@ -59,12 +59,35 @@ def _snippet(text):
     return text[:LEAD_SNIPPET].rsplit(" ", 1)[0].rstrip(",.;:") + "\u2026"
 
 
+def _deem(v):
+    """Strip em/en dashes (a machine-writing tell) from displayed prose."""
+    if isinstance(v, str):
+        return v.replace("\u2014", "-").replace("\u2013", "-")
+    if isinstance(v, list):
+        return [_deem(i) for i in v]
+    if isinstance(v, dict):
+        return {k: _deem(i) for k, i in v.items()}
+    return v
+
+
+_TEXT_FIELDS = ("title", "title_hi", "summary", "summary_hi", "summary_points",
+                "summary_points_hi", "framing", "framing_hi", "lead")
+
+
+def _clean_text(e):
+    e = dict(e)
+    for f in _TEXT_FIELDS:
+        if f in e:
+            e[f] = _deem(e[f])
+    return e
+
+
 def _lighten(e):
     """A list-feed row: keep every field a card / search / ranking needs, but trim the
     long summary to a snippet and drop the bullet points - both are shown only in the
     detail view, which loads the full per-event file. Shrinks events.json several-fold
     so the page stays fast (and the payload small) as the catalogue grows."""
-    e = dict(e)
+    e = _clean_text(e)
     e["summary"] = _snippet(e.get("summary"))
     e["summary_hi"] = _snippet(e.get("summary_hi"))
     e.pop("summary_points", None)
@@ -153,8 +176,8 @@ def _story_html(shell, ev):
     ) % (e2(ev.get("topic") or ""), e2(ev.get("region") or "India"),
          e2(headline), e2(summ), bias_html, SITE_URL)
     head, rest = shell.split('<div id="root">', 1)
-    _, tail = rest.split('<script type="text/babel" src="/static/app.jsx"></script>', 1)
-    return head + '<div id="root">' + body + '</div>\n<script type="text/babel" src="/static/app.jsx"></script>' + tail
+    _, tail = rest.split('<script type="text/babel">', 1)
+    return head + '<div id="root">' + body + '</div>\n<script type="text/babel">' + tail
 
 
 
@@ -192,6 +215,7 @@ def main():
         full = get_event(e["id"])
         if full is None:
             continue
+        full = _clean_text(full)
         write_json(OUT / "data" / "events" / f"{e['id']}.json", full)
         sp = OUT / "story" / f"{e['id']}.html"
         sp.parent.mkdir(parents=True, exist_ok=True)
