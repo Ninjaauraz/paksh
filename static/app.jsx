@@ -48,6 +48,7 @@ const {useState,useEffect,useMemo}=React;
           "तटस्थ सारांश AI द्वारा आउटलेट्स की अपनी कवरेज से लिखा जाता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, AI से नहीं।"],
     };
     const CONTACT = "corrections@paksh.example"; // <-- change to your real address
+    const FORMSPREE_ENDPOINT = "https://formspree.io/f/mkolqann";
 
     const UI = {
       seeAll:{en:"See all", hi:"सभी देखें"}, top:{en:"Top", hi:"मुख्य"},
@@ -457,7 +458,7 @@ const {useState,useEffect,useMemo}=React;
                 <p className={`mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)]].map(([k,l])=>(
+                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"]].map(([k,l])=>(
                   <button key={k} onClick={()=>go(k)} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</button>
                 ))}
               </div>
@@ -774,6 +775,80 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
+    function ContactPage({ t, lang }) {
+      const [status,setStatus]=useState("idle");
+      const [err,setErr]=useState("");
+      const L = lang==="hi" ? {
+        title:"संपर्क करें", lede:"सवाल, सुधार या शिकायत? हमें लिखें — हम हर संदेश पढ़ते हैं।",
+        name:"आपका नाम (वैकल्पिक)", email:"ईमेल", topic:"विषय",
+        tQ:"सामान्य सवाल", tC:"सुधार / तथ्य-जाँच", tX:"शिकायत", tO:"अन्य",
+        msg:"आपका संदेश", send:"भेजें", sending:"भेजा जा रहा है…",
+        ok:"धन्यवाद — आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
+        err:"संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।"
+      } : {
+        title:"Contact", lede:"A question, a correction, or a complaint? Write to us — we read every message.",
+        name:"Your name (optional)", email:"Email", topic:"Topic",
+        tQ:"General question", tC:"Correction / fact-check", tX:"Complaint", tO:"Other",
+        msg:"Your message", send:"Send", sending:"Sending…",
+        ok:"Thank you — your message reached us. We'll reply soon.",
+        err:"Could not send your message. Please try again."
+      };
+      async function submit(e){
+        e.preventDefault(); setStatus("sending"); setErr("");
+        const form=e.currentTarget; const body=new FormData(form);
+        try{
+          const r=await fetch(FORMSPREE_ENDPOINT,{method:"POST",body,headers:{Accept:"application/json"}});
+          if(r.ok){ setStatus("ok"); form.reset(); }
+          else{ const j=await r.json().catch(()=>({})); setErr((j.errors&&j.errors.map(x=>x.message).join(", "))||L.err); setStatus("error"); }
+        }catch(_){ setErr(L.err); setStatus("error"); }
+      }
+      const inp=`w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#2D5BD0] ${t.tp} ${isHi(lang)}`;
+      const lbl=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
+      return (
+        <PageWrap>
+          <div className="max-w-xl">
+            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{L.title}</h1>
+            <p className={`mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{L.lede}</p>
+            {status==="ok" ? (
+              <div className={`rounded-lg border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
+            ) : (
+              <form onSubmit={submit} className="space-y-4">
+                <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
+                <input type="hidden" name="_subject" value="New Paksh contact message" />
+                <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
+                <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
+                <div><label className={lbl}>{L.topic}</label>
+                  <select name="topic" className={inp}><option>{L.tQ}</option><option>{L.tC}</option><option>{L.tX}</option><option>{L.tO}</option></select>
+                </div>
+                <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" className={inp} /></div>
+                {status==="error" && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+                <button type="submit" disabled={status==="sending"} className={`rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
+              </form>
+            )}
+          </div>
+        </PageWrap>
+      );
+    }
+    function PrivacyPage({ t, lang }) {
+      const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-xl font-bold ${t.tp} mb-2`}>{h}</h2><div className={`text-[14.5px] leading-relaxed ${t.ts}`}>{children}</div></div>);
+      return (
+        <PageWrap>
+          <div className="max-w-3xl">
+            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp}`}>Privacy Policy</h1>
+            <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 2 July 2026 · Operated by Redstocks Technology LLP</p>
+            {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
+            <Row h="Who we are">Paksh (पक्ष) is a media-transparency service operated by Redstocks Technology LLP, India. It groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
+            <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply. That form is processed on our behalf by Formspree. As with most websites, our host also records standard technical logs, such as IP address and browser type, for security and reliability.</Row>
+            <Row h="Cookies and advertising">We use essential cookies for basic site function. We may in future display advertising through Google AdSense; when we do, Google and its partners may use cookies to serve and measure ads, including based on your prior visits to this and other websites. You can manage ad personalisation through Google's Ads Settings, and control or clear cookies through your browser.</Row>
+            <Row h="How we use information">To respond to your messages, keep the site secure and reliable, understand aggregate usage, and — in future — support the site through advertising. We do not sell your personal information.</Row>
+            <Row h="Third parties">We rely on Formspree (contact form), Vercel (hosting) and, where enabled, Google (advertising and analytics). Each processes data under its own privacy policy.</Row>
+            <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
+            <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
+            <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
+          </div>
+        </PageWrap>
+      );
+    }
     function SearchPage({ t, lang, query, setQuery, results, open }) {
       return (
         <PageWrap>
@@ -802,7 +877,7 @@ const {useState,useEffect,useMemo}=React;
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
-      if(seg.length===1 && ["blindspot","topics","sources","about","search"].includes(seg[0])) return {view:seg[0]};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
       return {view:"home"};
     }
     function PakshApp() {
@@ -866,6 +941,8 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} />
+            : route.view==="contact" ? <ContactPage t={t} lang={lang} />
+            : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
                : <HomeView cards={homeCards} oneSided={homeOne} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
