@@ -34,9 +34,12 @@ BACKFILL_CAP = 20      # events upgraded per run by default (each ~ one LLM call
 
 
 def _extractive_events(conn):
-    """Ids of stored extractive events, most-covered first."""
+    """Ids of stored extractive events, NEWEST first (created_at desc), then
+    most-covered. Front-page stubs (today's events, at the top of the created_at-DESC
+    homepage) get ripened before older buried ones, so a capped/interrupted run fixes
+    what visitors actually see first."""
     rows = conn.execute(
-        "SELECT id, analysis_json FROM events WHERE is_demo = 0"
+        "SELECT id, analysis_json, created_at FROM events WHERE is_demo = 0"
     ).fetchall()
     pending = []
     for r in rows:
@@ -45,9 +48,10 @@ def _extractive_events(conn):
         except (ValueError, TypeError):
             continue
         if data.get("summary_method") == "extractive":
-            pending.append((r["id"], len(data.get("sources", []))))
-    pending.sort(key=lambda t: t[1], reverse=True)     # most-covered first
-    return [eid for eid, _ in pending]
+            pending.append((r["id"], r["created_at"] or "", len(data.get("sources", []))))
+    # newest first; within the same timestamp, most-covered first
+    pending.sort(key=lambda t: (t[1], t[2]), reverse=True)
+    return [eid for eid, _, _ in pending]
 
 
 def _event_articles(conn, event_id):
