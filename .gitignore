@@ -23,3 +23,9 @@ venv/
 *.db
 *.db.bak
 *.db-journal
+
+# --- database backups, ANY variant/suffix (huge - a stray one breaks the push) ---
+# catches paksh.db.bak, paksh.db.bak2, paksh.db.bak.20260718_175451, paksh.db-wal, etc.
+paksh.db*
+*.db.bak*
+*.bak
