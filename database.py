@@ -179,7 +179,7 @@ def get_articles_by_ids(ids):
     conn = get_connection()
     placeholders = ",".join("?" for _ in ids)
     rows = conn.execute(
-        f"""SELECT id, source, language, title, url, summary, image_url
+        f"""SELECT id, source, language, title, url, summary, image_url, published
             FROM articles WHERE id IN ({placeholders})""",
         ids,
     ).fetchall()
@@ -347,7 +347,10 @@ def compute_blindspot(counts):
 
 # ---------- Events ----------
 
-def insert_event(analysis: dict, is_demo: bool = False):
+def insert_event(analysis: dict, is_demo: bool = False, created_at: str = None):
+    """Insert a new event. created_at defaults to NOW (live pipeline); a backfill run
+    over OLD articles passes the article's real publish date so it doesn't jump to the
+    top of the created_at-DESC homepage as if it were fresh."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
@@ -360,7 +363,7 @@ def insert_event(analysis: dict, is_demo: bool = False):
             analysis.get("omissions", ""),
             json.dumps(analysis, ensure_ascii=False),
             1 if is_demo else 0,
-            datetime.utcnow().isoformat(),
+            created_at or datetime.utcnow().isoformat(),
         ),
     )
     conn.commit()

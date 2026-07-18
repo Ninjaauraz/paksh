@@ -28,6 +28,7 @@ import re
 import os
 import urllib.request
 import urllib.error
+from datetime import datetime, timezone
 
 try:
     from dotenv import load_dotenv
@@ -91,6 +92,12 @@ MIN_RATED_PER_EVENT = 2         # an event needs >=2 RATED outlets (real bias ba
                                 # unrated/syndication outlets add breadth, not events
 MAX_ARTICLES_PER_EVENT = 12     # cap tokens per event
 SUMMARY_TRUNC = 300             # chars of each article summary fed to the model
+# Backfill safety: when ON, a new event is dated to its NEWEST member article's publish
+# date instead of "now", so a run over weeks-old backlog doesn't shove stale stories to
+# the top of the created_at-DESC homepage as if they were breaking news. OFF by default
+# -> the live pipeline is unchanged and genuinely fresh events still get "now". Turn ON
+# only for historical backfill runs:  $env:PAKSH_BACKDATE="1"
+BACKDATE = os.environ.get("PAKSH_BACKDATE", "0") == "1"
 
 TOPICS = ["Politics", "Economy", "International", "Sports", "Crime & Law",
           "Science & Tech", "Health", "Entertainment", "Environment", "Society"]
@@ -671,6 +678,39 @@ def _merge_into_existing(details):
             if id(d) not in matched and d["source_count"] >= MIN_SOURCES_PER_EVENT]
 
 
+def _event_created_at(rows):
+    """The newest member-article publish date, as a naive-UTC ISO string, for backfill
+    runs. Parses ISO-8601 (RSS) and YYYYMMDD (GDELT); clamps to now so a backdated event
+    can never sort ahead of live ones; returns None if nothing parses (caller then falls
+    back to now). Never raises."""
+    best = None
+    now = datetime.now(timezone.utc)
+    for r in rows:
+        raw = (r.get("published") or "").strip()
+        if not raw:
+            continue
+        dt = None
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            if re.fullmatch(r"\d{8}", raw):                # GDELT seendate: YYYYMMDD
+                try:
+                    dt = datetime(int(raw[:4]), int(raw[4:6]), int(raw[6:8]), tzinfo=timezone.utc)
+                except ValueError:
+                    dt = None
+        if dt is None:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if dt > now:                                       # bad/future feed date
+            dt = now
+        if best is None or dt > best:
+            best = dt
+    if best is None:
+        return None
+    return best.astimezone(timezone.utc).replace(tzinfo=None).isoformat()
+
+
 def main():
     if LLM_BACKEND == "ollama":
         print("\n=== Paksh analysis (LOCAL via Ollama: %s) ===" % MODEL)
@@ -747,7 +787,8 @@ def main():
         else:
             analysis = postprocess(_extractive_raw(rows), rows)   # instant, no model call
 
-        event_id = insert_event(analysis, is_demo=False)  # DB writes stay serial + ordered
+        created = _event_created_at(rows) if BACKDATE else None
+        event_id = insert_event(analysis, is_demo=False, created_at=created)  # serial + ordered
         assign_articles_to_event(ids, event_id)
         if analysis.get("summary_method") == "extractive":
             ext_n += 1
