@@ -176,6 +176,7 @@ const {useState,useEffect,useMemo}=React;
         summary:(lang==="hi"&&e.summary_points_hi&&e.summary_points_hi.length)?e.summary_points_hi:(e.summary_points||[]),
         bias:biasPct(lc), counts:lc, sources:(lc.left+lc.center+lc.right)||e.total_sources||0,
         international:(e.international||0),
+        importance:(typeof e.importance==="number"?e.importance:0),
         unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)-(e.international||0)),
         blindspot:e.blindspot?e.blindspot.side:null,
         auto:e.summary_method==="extractive",
@@ -908,16 +909,16 @@ const {useState,useEffect,useMemo}=React;
       // home feed. To allow world news back on the home, drop the region check below.
       const HOME_EXCLUDE_TOPICS = ["Sports"];
       const [regionFilter, setRegionFilter] = useState("National");
-      // Indian civic news leads: politics, law/scams, economy/price-hikes, society/protests.
-      const CIVIC = { "Politics":1.0, "Crime & Law":0.97, "Economy":0.94, "Society":0.9,
-                      "Environment":0.78, "Health":0.74, "Science & Tech":0.7, "Entertainment":0.55 };
       const ageHours=c=>{ const tt=_ts(c.created_at); return isNaN(tt)?9999:Math.max(0,(Date.now()-tt)/3600000); };
-      const importance=c=>{ const n=c.counts||{}; const spread=[n.left,n.center,n.right].filter(x=>x>0).length||1; return (c.sources||0)*spread; };
-      // recency leads (latest first); coverage is a gentle importance booster; civic weight tilts India-first.
-      const rank=c=>((CIVIC[c.topic]||0.6)*(1+0.28*Math.log1p(importance(c))))/Math.pow(ageHours(c)+2,1.35);
+      // Home feed leads by the EXPORT-TIME importance score (see export_static._importance):
+      // distinct outlets across left/centre/right, decayed by recency. It is computed in
+      // the pipeline (not here), carries no topic weighting, and is a plain field on each
+      // event. The previous in-browser rank() with per-topic CIVIC weights was removed so
+      // ordering is arithmetic and explainable. Ties fall back to newest-first.
+      const rank=c=>(typeof c.importance==="number"?c.importance:0);
       const homeFilter=c=>{ if (HOME_EXCLUDE_TOPICS.includes(c.topic)) return false; const isWorld=(c.region||"India")==="World"; return regionFilter==="International"?isWorld:!isWorld; };
-      const homeCards=baseCards.filter(homeFilter).sort((a,b)=>rank(b)-rank(a));
-      const homeOne=baseOne.filter(homeFilter).sort((a,b)=>rank(b)-rank(a));
+      const homeCards=baseCards.filter(homeFilter).sort((a,b)=>(rank(b)-rank(a))||(ageHours(a)-ageHours(b)));
+      const homeOne=baseOne.filter(homeFilter).sort((a,b)=>(rank(b)-rank(a))||(ageHours(a)-ageHours(b)));
       // sections / search / topic pages: newest-first so new articles always show there too
       baseCards.sort((a,b)=>ageHours(a)-ageHours(b)); baseOne.sort((a,b)=>ageHours(a)-ageHours(b));
       const countsByTopic={}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });

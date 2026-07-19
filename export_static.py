@@ -96,6 +96,43 @@ def _lighten(e):
     return e
 
 
+IMPORTANCE_HALF_LIFE_H = 36.0   # home-feed score halves every 36h -> fresh leads, old fades
+
+
+def _importance(e, now):
+    """Home-feed importance score. Purely arithmetic and explainable in one sentence:
+    a story ranks higher the more distinct outlets across left/centre/right cover it,
+    with the score halving every 36h so timely stories lead and old ones fade.
+
+        importance = breadth * lean_multiplier * recency_decay
+          breadth         = distinct RATED + international outlets (L+C+R+intl);
+                            the unrated GDELT long-tail is excluded so syndication
+                            can't inflate importance.
+          lean_multiplier = 1 + 0.5*(distinct L/C/R leans - 1)   # 1/1.5/2.0
+          recency_decay   = 0.5 ** (age_hours / IMPORTANCE_HALF_LIFE_H)
+
+    No LLM, no editorial weighting, no topic favouritism. It only READS the coverage
+    counts computed elsewhere - it never changes the bias-bar / coverage numbers.
+
+    DEFERRED (deliberate, recorded decision): a coverage-velocity term (outlets per
+    hour) was considered and left out. It would need per-article publish times, which
+    arrive noisy/unreliable from RSS feeds (see the staleness diagnostic), and we don't
+    want front-page ordering resting on data we don't trust. Recency decay stands in for
+    timeliness. Revisit only if we add a trusted per-event first-seen timestamp."""
+    lc = e.get("lean_counts") or {}
+    rated = sum(lc.get(s, 0) for s in ("left", "center", "right"))
+    breadth = rated + (e.get("international", 0) or 0)
+    leans = sum(1 for s in ("left", "center", "right") if lc.get(s, 0) > 0)
+    lean_mult = (1 + 0.5 * (leans - 1)) if leans else 1.0
+    try:
+        t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
+        age_h = max((now - t).total_seconds() / 3600.0, 0.0)
+    except ValueError:
+        age_h = 1e9
+    decay = 0.5 ** (age_h / IMPORTANCE_HALF_LIFE_H)
+    return round(breadth * lean_mult * decay, 4)
+
+
 def _story_html(shell, ev):
     """The app shell rewritten for ONE story: its own title / description / OG /
     canonical / NewsArticle JSON-LD, and the loading skeleton in #root replaced by
@@ -201,9 +238,16 @@ def main():
 
     # 2) the data the SPA reads (mirrors the API exactly)
     events = get_all_events()
-    write_json(OUT / "data" / "events.json", {"events": [_lighten(e) for e in events]})
+    _now = datetime.utcnow()
+
+    def _row(e):
+        d = _lighten(e)
+        d["importance"] = _importance(e, _now)   # NEW field; existing fields untouched
+        return d
+
+    write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in events]})
     write_json(OUT / "data" / "blindspots.json",
-               {"events": [_lighten(e) for e in get_blindspot_events()]})
+               {"events": [_row(e) for e in get_blindspot_events()]})
     write_json(OUT / "data" / "topics.json", {"topics": get_topics()})
     write_json(OUT / "data" / "sources.json", {
         "sources": [{k: s.get(k) for k in SRC_FIELDS} for s in SOURCES],
