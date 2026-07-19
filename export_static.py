@@ -271,7 +271,8 @@ def main():
     # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
     # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of
     # freezing for weeks. The honest aggregate (pool sizes) is disclosed for the Method page.
-    _COL_N = 15
+    _COL_N = 40   # data headroom per direction; the UI shows 15 per column AFTER the
+                  # per-language filter, so each language gets a full, equal-length column
     buckets = {"left": [], "right": []}
     agg = {"left_heavier": 0, "right_heavier": 0}
     for e in events:

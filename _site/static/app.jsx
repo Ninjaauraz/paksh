@@ -278,7 +278,7 @@ const {useState,useEffect,useMemo}=React;
         <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`}>
           <span className={t.ts}>{tp||"News"}</span>
           {created_at && <><span className={t.tf}>·</span><span className={t.tf}>{timeAgo(created_at,lang)}</span></>}
-          {blindspot && <><span className={t.tf}>·</span><span className={t.blind}>{lbl(blindspot,lang)} {STR[lang].navOS}</span></>}
+          {blindspot && <><span className={t.tf}>·</span><span className={t.blind}>{STR[lang].navOS}</span></>}
         </div>
       );
     }
@@ -725,8 +725,8 @@ const {useState,useEffect,useMemo}=React;
           <button onClick={()=>go("about")} className={`mb-7 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पूरा ब्यौरा देखें":"See the full breakdown"} <ArrowUpRight size={12}/></button>
           {/* Left-heavier first so on a phone (columns stack) the spectrum order is consistent */}
           <div className="grid gap-8 lg:grid-cols-2">
-            <Col head={STR[lang].gapLeftHead} rows={left} total={(agg.left_heavier!=null?agg.left_heavier:left.length)} />
-            <Col head={STR[lang].gapRightHead} rows={right} total={(agg.right_heavier!=null?agg.right_heavier:right.length)} />
+            <Col head={STR[lang].gapLeftHead} rows={left.slice(0,15)} total={(agg.left_heavier!=null?agg.left_heavier:left.length)} />
+            <Col head={STR[lang].gapRightHead} rows={right.slice(0,15)} total={(agg.right_heavier!=null?agg.right_heavier:right.length)} />
           </div>
           <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
