@@ -64,7 +64,7 @@ FEEDS = {
     "dainik_jagran": ["https://news.google.com/rss/search?q=site:jagran.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
     "aaj_tak": ["https://www.aajtak.in/rss"],                 # native feed (works)
     "zee_news_hindi": ["https://news.google.com/rss/search?q=site:zeenews.india.com/hindi+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
-    "satya_hindi": ["https://www.satyahindi.com/feed/"],     # native WordPress feed (works)
+    "satya_hindi": ["https://news.google.com/rss/search?q=site:satyahindi.com+when:3d&hl=hi-IN&gl=IN&ceid=IN:hi"],  # was native /feed/ (caps at 10, under-captured); GN returns ~100/3d
     "the_lallantop": ["https://news.google.com/rss/search?q=site:thelallantop.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
 
     # ---- Independent / journalist-run (v1.1) ----
@@ -76,8 +76,7 @@ FEEDS = {
     "tfipost": ["https://tfipost.com/feed/"],
     "newslaundry": ["https://news.google.com/rss/search?q=site:newslaundry.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
     "the_news_minute": ["https://news.google.com/rss/search?q=site:thenewsminute.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
-    "the_caravan": ["https://caravanmagazine.in/feed",
-                    "https://news.google.com/rss/search?q=site:caravanmagazine.in+when:14d&hl=en-IN&gl=IN&ceid=IN:en"],
+    "the_caravan": ["https://news.google.com/rss/search?q=site:caravanmagazine.in+when:30d&hl=en-IN&gl=IN&ceid=IN:en"],  # native /feed broke (Cloudflare/HTML); dropped it, widened GN 14d->30d (low-volume monthly)
     "the_quint": ["https://news.google.com/rss/search?q=site:thequint.com+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
     "livelaw": ["https://news.google.com/rss/search?q=site:livelaw.in+when:3d&hl=en-IN&gl=IN&ceid=IN:en"],
     "article14": ["https://news.google.com/rss/search?q=site:article-14.com+when:5d&hl=en-IN&gl=IN&ceid=IN:en"],
