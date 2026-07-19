@@ -133,6 +133,27 @@ def _importance(e, now):
     return round(breadth * lean_mult * decay, 4)
 
 
+GAP_HALF_LIFE_H = 72.0   # within-column recency nudge so lopsided columns don't freeze
+
+
+def _gap_parts(e):
+    """Symmetric Left<->Right coverage gap from the SAME distinct-outlet counts the bias
+    bar uses. Returns (score, direction, L, C, R). score = (L-R)^2/(L+R) grows with both
+    magnitude and skew; centre / international / unrated never enter the gap. Direction is
+    just whichever of L/R is larger. Purely descriptive - no judgement about any outlet."""
+    lc = e.get("lean_counts") or {}
+    L, C, R = lc.get("left", 0), lc.get("center", 0), lc.get("right", 0)
+    score = ((L - R) ** 2) / (L + R) if (L + R) else 0.0
+    direction = "left" if L > R else ("right" if R > L else "even")
+    return score, direction, L, C, R
+
+
+def _gap_qualifies(L, R):
+    """A real, lopsided L<->R story: enough coverage AND the smaller side <=25% of larger."""
+    lo, hi = min(L, R), max(L, R)
+    return (L + R) >= 4 and lo <= 0.25 * hi
+
+
 def _story_html(shell, ev):
     """The app shell rewritten for ONE story: its own title / description / OG /
     canonical / NewsArticle JSON-LD, and the loading skeleton in #root replaced by
@@ -246,8 +267,44 @@ def main():
         return d
 
     write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in events]})
-    write_json(OUT / "data" / "blindspots.json",
-               {"events": [_row(e) for e in get_blindspot_events()]})
+
+    # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
+    # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of
+    # freezing for weeks. The honest aggregate (pool sizes) is disclosed for the Method page.
+    _COL_N = 15
+    buckets = {"left": [], "right": []}
+    agg = {"left_heavier": 0, "right_heavier": 0}
+    for e in events:
+        score, direction, L, C, R = _gap_parts(e)
+        if direction == "even" or not _gap_qualifies(L, R):
+            continue
+        agg["left_heavier" if direction == "left" else "right_heavier"] += 1
+        try:
+            t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
+            age_h = max((_now - t).total_seconds() / 3600.0, 0.0)
+        except ValueError:
+            age_h = 1e9
+        rank = score * (0.5 ** (age_h / GAP_HALF_LIFE_H))
+        row = _row(e)
+        row["gap_score"] = round(score, 3)
+        buckets[direction].append((rank, row))
+    for k in buckets:
+        buckets[k].sort(key=lambda x: x[0], reverse=True)
+    left_col = [r for _, r in buckets["left"][:_COL_N]]
+    right_col = [r for _, r in buckets["right"][:_COL_N]]
+    left_outlets = sum(1 for s in SOURCES if s.get("lean") == "left" and s.get("region") != "International")
+    right_outlets = sum(1 for s in SOURCES if s.get("lean") == "right" and s.get("region") != "International")
+    write_json(OUT / "data" / "blindspots.json", {
+        "events": left_col + right_col,          # union, kept for detail lookups / back-compat
+        "left_heavier": left_col,
+        "right_heavier": right_col,
+        "aggregate": {
+            "total": agg["left_heavier"] + agg["right_heavier"],
+            "left_heavier": agg["left_heavier"], "right_heavier": agg["right_heavier"],
+            "left_outlets": left_outlets, "right_outlets": right_outlets,
+            "shown": _COL_N,
+        },
+    })
     write_json(OUT / "data" / "topics.json", {"topics": get_topics()})
     write_json(OUT / "data" / "sources.json", {
         "sources": [{k: s.get(k) for k in SRC_FIELDS} for s in SOURCES],

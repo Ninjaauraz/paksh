@@ -41,10 +41,10 @@ const {useState,useEffect,useMemo}=React;
     ];
     const M_READ = {
       en:["The coloured bar shows how many of the covering outlets lean Left, Centre or Right.",
-          "“One-Sided” marks a story that mostly one side of the spectrum is covering - so the other side's readers rarely see it.",
+          "“Coverage Gaps” marks a story that outlets on one side of the spectrum covered while few or none on the other did - shown with the full Left · Centre · Right count.",
           "The neutral summary is generated automatically from the outlets' own coverage; the outlet labels and the counts come from editors and the registry, not the summary engine."],
       hi:["रंगीन बार दिखाता है कि कवर करने वाले कितने आउटलेट वाम, केंद्र या दक्षिण की ओर हैं।",
-          "“एकतरफ़ा” उस खबर को चिह्नित करता है जिसे ज़्यादातर एक ही पक्ष कवर कर रहा है - इसलिए दूसरे पक्ष के पाठक उसे शायद ही देखते हैं।",
+          "“कवरेज गैप” उस खबर को चिह्नित करता है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं - पूरे वाम · केंद्र · दक्षिण आँकड़े के साथ।",
           "तटस्थ सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, सारांश इंजन से नहीं।"],
     };
     const CONTACT = "corrections@paksh.example"; // <-- change to your real address
@@ -67,10 +67,14 @@ const {useState,useEffect,useMemo}=React;
 
     const STR = {
       en: {
-        navTop:"Top Stories", navOS:"One-Sided", navSrc:"Sources", navMethod:"Method",
+        navTop:"Top Stories", navOS:"Coverage Gaps", navSrc:"Sources", navMethod:"Method",
         search:"Search coverage…", tagline:"Compare how India's media covers each story - every side, side by side.",
-        topNews:"Top Stories", osTitle:"One-Sided Stories",
-        osSub:"Stories mostly one side of the spectrum is covering - so the other side's readers rarely see them.",
+        topNews:"Top Stories", osTitle:"Coverage Gaps",
+        osSub:"A coverage gap is a story that outlets on one side of the spectrum covered while few or none on the other did. Paksh flags these by counting distinct outlets per lean - the same counts as the bias bar - and shows the full Left · Centre · Right tally on each. It's arithmetic, not a judgment about any outlet or about why a story was or wasn't covered. Outlets also differ in how much they publish, so an absence of coverage on one side may reflect an outlet's publishing volume rather than a deliberate omission.",
+        gapLeftHead:"Covered more by Left-leaning outlets", gapRightHead:"Covered more by Right-leaning outlets",
+        gapShowing:"Showing the {n} most lopsided of {total}", gapCovered:"Covered by",
+        m_gapH:"How coverage gaps break down",
+        m_gap:"Of the {total} stories Paksh flags as one-sided, {rh} are covered mainly by right-leaning outlets and {lh} mainly by left-leaning. This is not a measure of which side ignores more news. Paksh counts {lo} left-leaning and {ro} right-leaning outlets on India's spectrum, but they publish at very different volumes - the right-leaning set includes several high-volume TV and mass-market outlets, so right-leaning outlets appear about twice as often across all stories. Most of this imbalance reflects that volume difference, not editorial choice.",
         more:"More Top Stories", resultsFor:"Results for", noResults:"No stories match your search.",
         noResultsSub:"Try different keywords or browse top news.", noStories:"No stories to show right now. Please check back soon.",
         seeCoverage:"See coverage", most:"Most coverage", even:"Fairly even coverage", sources:"sources", source:"source",
@@ -83,7 +87,7 @@ const {useState,useEffect,useMemo}=React;
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
-        osCalloutBody1:"Only", osCalloutBody2:"of coverage leans this way. Readers who rely only on those outlets are likely missing this story.",
+        osCalloutBody1:"Only", osCalloutBody2:"of the covering outlets lean this way - a count of outlets, not a judgment about why a side did or didn't cover it.",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
         srcDisclaimer:"All ratings are provisional - a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
         filterLean:"Lean", filterLang:"Language", langEN:"English", langHI:"Hindi", all:"All",
@@ -107,10 +111,14 @@ const {useState,useEffect,useMemo}=React;
         footIndependence:"Paksh is an independent project and is not affiliated with any outlet shown. Lean labels are provisional and open to appeal.",
       },
       hi: {
-        navTop:"मुख्य खबरें", navOS:"एकतरफ़ा", navSrc:"स्रोत", navMethod:"कार्यप्रणाली",
+        navTop:"मुख्य खबरें", navOS:"कवरेज गैप", navSrc:"स्रोत", navMethod:"कार्यप्रणाली",
         search:"कवरेज खोजें…", tagline:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है - हर पक्ष, आमने-सामने।",
-        topNews:"मुख्य खबरें", osTitle:"एकतरफ़ा खबरें",
-        osSub:"ऐसी खबरें जिन्हें ज़्यादातर एक ही पक्ष कवर कर रहा है - दूसरे पक्ष के पाठक इन्हें शायद ही देख पाते हैं।",
+        topNews:"मुख्य खबरें", osTitle:"कवरेज गैप",
+        osSub:"कवरेज गैप वह ख़बर है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं। पक्ष हर झुकाव के अलग-अलग आउटलेट्स गिनकर इन्हें चिह्नित करता है - वही गिनती जो बायस बार में है - और हर एक पर पूरा वाम · केंद्र · दक्षिण आँकड़ा दिखाता है। यह अंकगणित है, किसी आउटलेट या कवरेज के कारण पर निर्णय नहीं। आउटलेट अलग-अलग मात्रा में प्रकाशित करते हैं, इसलिए एक तरफ़ कवरेज की अनुपस्थिति जानबूझकर की गई चूक के बजाय उस आउटलेट के प्रकाशन-आयतन को दर्शा सकती है।",
+        gapLeftHead:"ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर", gapRightHead:"ज़्यादातर दक्षिण-झुकाव आउटलेट्स द्वारा कवर",
+        gapShowing:"{total} में से {n} सबसे असंतुलित दिखाई जा रही हैं", gapCovered:"कवर किया गया:",
+        m_gapH:"कवरेज गैप का ब्यौरा",
+        m_gap:"पक्ष जिन {total} ख़बरों को एकतरफ़ा चिह्नित करता है, उनमें से {rh} ज़्यादातर दक्षिण-झुकाव आउटलेट्स ने और {lh} ज़्यादातर वाम-झुकाव आउटलेट्स ने कवर कीं। यह इस बात का माप नहीं है कि कौन-सा पक्ष ज़्यादा ख़बरें अनदेखा करता है। पक्ष भारत के स्पेक्ट्रम पर {lo} वाम-झुकाव और {ro} दक्षिण-झुकाव आउटलेट गिनता है, पर वे बहुत अलग मात्रा में प्रकाशित करते हैं - दक्षिण-झुकाव समूह में कई उच्च-आयतन टीवी और मास-मार्केट आउटलेट हैं, इसलिए दक्षिण-झुकाव आउटलेट सभी ख़बरों में लगभग दोगुनी बार दिखते हैं। इस असंतुलन का ज़्यादातर हिस्सा उस आयतन-अंतर को दर्शाता है, संपादकीय चयन को नहीं।",
         more:"और मुख्य खबरें", resultsFor:"खोज परिणाम:", noResults:"आपकी खोज से मेल खाती कोई खबर नहीं।",
         noResultsSub:"अलग शब्द आज़माएँ या मुख्य खबरें देखें।", noStories:"अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
         seeCoverage:"कवरेज देखें", most:"सबसे ज़्यादा कवरेज", even:"लगभग बराबर कवरेज", sources:"स्रोत", source:"स्रोत",
@@ -123,7 +131,7 @@ const {useState,useEffect,useMemo}=React;
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
-        osCalloutBody1:"केवल", osCalloutBody2:"कवरेज इस ओर झुकी है। जो पाठक केवल उन्हीं आउटलेट्स पर निर्भर हैं, वे शायद यह खबर चूक रहे हैं।",
+        osCalloutBody1:"केवल", osCalloutBody2:"कवर करने वाले आउटलेट इस ओर झुके हैं - यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
         srcDisclaimer:"सभी रेटिंग अस्थायी हैं - रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
         filterLean:"झुकाव", filterLang:"भाषा", langEN:"अंग्रेज़ी", langHI:"हिंदी", all:"सभी",
@@ -164,8 +172,8 @@ const {useState,useEffect,useMemo}=React;
     async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
-        return {events:e.events||[], blindspots:b.events||[], topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
-      catch(err){ console.error(err); return {events:[],blindspots:[],topics:[],sources:[],summary:{}}; }
+        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}}; }
     }
 
     const toCard = (e, lang) => {
@@ -337,17 +345,15 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BlindspotCard({ story, t, lang, onOpen }) {
-      const side=story.blindspot;
+      const c=story.counts||{}; const L=c.left||0, C=c.center||0, R=c.right||0;
+      const covered = lang==="hi" ? `${L} वाम · ${C} केंद्र · ${R} दक्षिण` : `${L} Left · ${C} Centre · ${R} Right`;
       return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface}`} style={{borderColor:(side&&BIAS[side].color)||t.line, borderWidth:1.5}}>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`} style={{borderWidth:1.5}}>
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[10px] font-bold uppercase tracking-wide text-white" style={{backgroundColor:(side&&BIAS[side].color)||"#A33A3A"}}><Eye size={11} strokeWidth={2.5}/> {STR[lang].navOS}</span>
-              <span className={`mono text-[11px] ${t.tf}`}>{story.sources+(story.unrated||0)+(story.international||0)} {STR[lang].sources}</span>
-            </div>
             <h3 className={`headline text-[17px] leading-[1.2] lc-3 ${t.tp} ${isHi(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
             <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={32} /></div>
+            <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapCovered} {covered}</div>
           </div>
         </a>
       );
@@ -483,16 +489,17 @@ const {useState,useEffect,useMemo}=React;
       items.forEach((it,i)=>{ out.push(render(it,i)); if((i+1)%N===0 && i<items.length-1) out.push(<div key={"ad"+i} className="sm:col-span-2 lg:col-span-3"><AdSlot t={t} lang={lang} h={104} /></div>); });
       return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{out}</div>;
     }
-    function HomeView({ cards, oneSided, topics, counts, stats, t, lang, open, goTopic, go }) {
+    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go }) {
       // de-dup partition: every story appears in exactly ONE place on the page
       const used=new Set();
       const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
       const lead=cards[0]; if(lead) used.add(lead.id);
       const feed=take(cards,18);            // centre masonry
       const more=take(cards,10);            // left rail headlines (distinct)
-      const oneAll=oneSided.filter(c=>!used.has(c.id));
-      const oneTop=oneAll.slice(0,3), oneRest=oneAll.slice(3,5);
-      [...oneTop,...oneRest].forEach(c=>used.add(c.id));
+      // Coverage Gaps module: 2 Left-heavier + 2 Right-heavier, equal representation
+      const notUsed=arr=>(arr||[]).filter(c=>!used.has(c.id));
+      const gL=notUsed(gapLeft).slice(0,2), gR=notUsed(gapRight).slice(0,2);
+      [...gL,...gR].forEach(c=>used.add(c.id));
       const rightExtra=take(cards,3);       // a few distinct cards for the right rail
       const mobileFeed=[...feed,...more,...rightExtra];
 
@@ -508,7 +515,19 @@ const {useState,useEffect,useMemo}=React;
           <button onClick={()=>go("topics")} className={`rounded-full border px-5 py-2.5 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
         </div>
       );
-      const osHead=()=>(<SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>);
+      const gapHead=(<SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>);
+      const gapModule=(
+        <div>
+          {gapHead}
+          <div className="space-y-5">
+            {gL.length>0 && <div className={`mono text-[10.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapLeftHead}</div>}
+            {gL.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+            {gR.length>0 && <div className={`mt-1 mono text-[10.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapRightHead}</div>}
+            {gR.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+            {(gL.length===0&&gR.length===0) && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+          </div>
+        </div>
+      );
 
       return (
         <div className="mx-auto max-w-[1800px] px-4 sm:px-6 py-6">
@@ -541,14 +560,8 @@ const {useState,useEffect,useMemo}=React;
             {/* RIGHT: one-sided + distinct extra articles + ads */}
             <aside className="space-y-6">
               <AdSlot t={t} lang={lang} h={250} />
-              <div>
-                {osHead()}
-                <p className={`-mt-2 mb-4 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-                <div className="space-y-5">{oneTop.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-                {oneAll.length===0 && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-              </div>
+              {gapModule}
               <AdSlot t={t} lang={lang} h={300} />
-              {oneRest.length>0 && <div className="space-y-5">{oneRest.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>}
               {rightExtra.length>0 && <div className="space-y-5">{rightExtra.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>}
               <AdSlot t={t} lang={lang} h={600} />
             </aside>
@@ -562,7 +575,7 @@ const {useState,useEffect,useMemo}=React;
               {mobileFeed.slice(0,26).map((s,i)=>(
                 <React.Fragment key={s.id}>
                   <FeedRow story={s} t={t} lang={lang} onOpen={open} />
-                  {i===5 && oneTop.length>0 && <div className="pt-1">{osHead()}<div className="mt-3 space-y-5">{oneTop.map(s2=><BlindspotCard key={s2.id} story={s2} t={t} lang={lang} onOpen={open} />)}</div></div>}
+                  {i===5 && (gL.length>0||gR.length>0) && <div className="pt-1">{gapModule}</div>}
                   {(i===2||i===11||i===19) && <AdSlot t={t} lang={lang} h={250} />}
                 </React.Fragment>
               ))}
@@ -695,13 +708,27 @@ const {useState,useEffect,useMemo}=React;
 
     /* ---------------- other pages ---------------- */
     function PageWrap({ children }) { return <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-6">{children}</div>; }
-    function BlindspotPage({ items, t, lang, open }) {
+    function BlindspotPage({ left, right, agg, t, lang, open, go }) {
+      const showing=(n,total)=>STR[lang].gapShowing.replace("{n}",n).replace("{total}",total);
+      const Col=({head,rows,total})=>(
+        <div>
+          <h2 className={`headline text-[17px] font-bold ${t.tp} ${isHi(lang)}`}>{head}</h2>
+          <div className={`mb-3 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{showing(rows.length,total)}</div>
+          {rows.length ? <div className="space-y-5">{rows.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+            : <div className={`rounded-lg border border-dashed p-6 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+        </div>
+      );
       return (
         <PageWrap>
           <div className="mb-2 flex items-center gap-2.5"><Eye size={22} className={t.blind}/><h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
-          <p className={`mb-6 max-w-2xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-          {items.length? <><GridGrid items={items} t={t} lang={lang} render={(s)=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} /><div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div></>
-            : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+          <p className={`mb-3 max-w-3xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
+          <button onClick={()=>go("about")} className={`mb-7 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पूरा ब्यौरा देखें":"See the full breakdown"} <ArrowUpRight size={12}/></button>
+          {/* Left-heavier first so on a phone (columns stack) the spectrum order is consistent */}
+          <div className="grid gap-8 lg:grid-cols-2">
+            <Col head={STR[lang].gapLeftHead} rows={left} total={(agg.left_heavier!=null?agg.left_heavier:left.length)} />
+            <Col head={STR[lang].gapRightHead} rows={right} total={(agg.right_heavier!=null?agg.right_heavier:right.length)} />
+          </div>
+          <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
@@ -758,14 +785,17 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
-    function AboutPage({ t, lang }) {
+    function AboutPage({ t, lang, agg }) {
       const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-xl font-bold ${t.tp} ${isHi(lang)} mb-2`}>{h}</h2><div className={`text-[14.5px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{children}</div></div>);
+      const a=agg||{};
+      const gapText=(STR[lang].m_gap||"").replace("{total}",a.total).replace("{rh}",a.right_heavier).replace("{lh}",a.left_heavier).replace("{lo}",a.left_outlets).replace("{ro}",a.right_outlets);
       return (
         <PageWrap>
           <div className="max-w-3xl">
             <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h1>
             <p className={`mb-2 mt-3 text-[15.5px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_does}</p>
             <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
+            {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
             <Row h={STR[lang].m_rateH}><p className="mb-2">{STR[lang].m_rateLede}</p><p className={`text-[12px] ${t.tf}`}>{STR[lang].m_rateFoot}</p></Row>
             <Row h={STR[lang].m_axisH}>{STR[lang].m_axis}</Row>
             <Row h={STR[lang].m_partiesH}>{STR[lang].m_parties}</Row>
@@ -886,7 +916,7 @@ const {useState,useEffect,useMemo}=React;
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
-      const [data,setData]=useState({events:[],blindspots:[],topics:[],sources:[],summary:{}});
+      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}});
       const [detail,setDetail]=useState({});
       const [ready,setReady]=useState(false);
 
@@ -903,6 +933,9 @@ const {useState,useEffect,useMemo}=React;
 
       const baseCards=data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const baseOne=data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      const gapL=(data.gaps.left||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      const gapR=(data.gaps.right||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      const gapAgg=data.gaps.agg||{};
       // --- India-first home ranking ------------------------------------------
       // Top Stories is strictly India-centric. Foreign stories (region "World", set
       // per-event by the pipeline) and Sports live in their own Sections, NOT on the
@@ -937,16 +970,16 @@ const {useState,useEffect,useMemo}=React;
           <div className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
-            : route.view==="blindspot" ? <BlindspotPage items={baseOne} t={t} lang={lang} open={open} />
+            : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} agg={gapAgg} t={t} lang={lang} open={open} go={go} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
-            : route.view==="about" ? <AboutPage t={t} lang={lang} />
+            : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} />
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
             : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
-               : <HomeView cards={homeCards} oneSided={homeOne} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
+               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
           </div>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} />
