@@ -17,9 +17,16 @@ Requires the LLM backend running, exactly like analyze.py:
 
 Usage (Windows PowerShell, from the project folder):
     py reframe.py                      # dry run - list affected events, change nothing
-    py reframe.py --apply              # re-analyse them all
+    py reframe.py --top-tier           # dry run of ONLY the high-value tier
+    py reframe.py --apply              # re-analyse them all (ranked, highest value first)
+    py reframe.py --apply --top-tier   # re-frame ONLY the high-value tier
     py reframe.py --apply --limit 50   # do 50 at a time (safe to run in batches)
     py reframe.py --apply --ids 812,905  # force specific event ids
+
+Ranking: events are ordered highest-value first, so a capped or quota-limited pass
+fixes what visitors actually see. The TOP TIER is an event that is visible on the site
+(>=2 rated outlets vote) AND has genuine L/C/R spread (2+ different leans cover it) AND
+still has a covered side with no framing. Everything else ranks below it.
 
 After --apply, rebuild and deploy as usual:
     py export_static.py   ->  push via GitHub Desktop
@@ -44,6 +51,32 @@ def _missing_sides(ev):
             and not (fr.get(s) or "").strip()]
 
 
+def _lean_counts(ev):
+    cov = ev.get("coverage") or {}
+    return {s: (cov.get(s) or {}).get("count", 0) for s in SIDES}
+
+
+def _leans_present(ev):
+    """Distinct voting leans (L/C/R) with at least one outlet covering the story."""
+    c = _lean_counts(ev)
+    return [s for s in SIDES if c[s] > 0]
+
+
+def _is_top_tier(ev):
+    """Highest value: VISIBLE on the site (>=2 voting-lean outlets total) AND genuine
+    spread (2+ DIFFERENT leans cover it) AND a covered side still unframed."""
+    c = _lean_counts(ev)
+    visible = sum(c.values()) >= 2
+    spread = len(_leans_present(ev)) >= 2
+    return visible and spread and bool(_missing_sides(ev))
+
+
+def _rank_key(ev):
+    """Sort key (used with reverse=True): top tier first, then more leans covered,
+    then newest - so a capped/quota-limited pass fixes what matters most, first."""
+    return (_is_top_tier(ev), len(_leans_present(ev)), ev.get("created_at") or "")
+
+
 def _collect(ids):
     """Full events that need re-framing (or the explicit --ids set)."""
     if ids:
@@ -66,19 +99,32 @@ def main():
     ap.add_argument("--apply", action="store_true", help="actually re-analyse (default: dry run)")
     ap.add_argument("--limit", type=int, default=0, help="process at most N events (batching)")
     ap.add_argument("--ids", default="", help="comma-separated event ids to force")
+    ap.add_argument("--top-tier", action="store_true",
+                    help="process ONLY high-value events: visible + genuine L/C/R spread "
+                         "(2+ different leans) + a covered-but-unframed side")
     args = ap.parse_args()
 
     init_db()
 
     ids = [int(x) for x in args.ids.split(",") if x.strip()]
     targets = _collect(ids)
+
+    # Rank highest-value first so a capped or quota-limited pass fixes what visitors
+    # actually see; optionally keep ONLY the top tier.
+    targets.sort(key=_rank_key, reverse=True)
+    top = [ev for ev in targets if _is_top_tier(ev)]
+    if args.top_tier:
+        targets = top
     if args.limit:
         targets = targets[:args.limit]
 
-    print(f"{len(targets)} event(s) to re-frame" + ("" if args.apply else "  (dry run)"))
+    tag = "" if args.apply else "  (dry run)"
+    print(f"{len(targets)} event(s) to re-frame{tag}   |  "
+          f"top-tier (visible + 2+ leans + unframed side): {len(top)}")
     for ev in targets:
         miss = _missing_sides(ev) or ["(forced)"]
-        print(f"  #{ev['id']:>5}  missing: {','.join(miss):<22}  {(ev.get('title') or '')[:58]}")
+        star = "*" if _is_top_tier(ev) else " "
+        print(f" {star}#{ev['id']:>5}  missing: {','.join(miss):<22}  {(ev.get('title') or '')[:56]}")
 
     if not targets:
         print("Nothing to do - every covered side already has framing.")

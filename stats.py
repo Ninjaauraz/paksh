@@ -18,7 +18,8 @@ Usage:
 
 import argparse
 import json as _json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from database import init_db, get_connection, LEAN_ORDER
 from sources import coverage_summary
@@ -167,10 +168,53 @@ def print_report(s):
     print(f"  contested  {roster['contested']}")
 
 
+def _age(iso, now):
+    """Human age of an ISO timestamp, e.g. '5h ago' / '3.2d ago'."""
+    try:
+        t = datetime.fromisoformat((iso or "").replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+    except (ValueError, AttributeError):
+        return "unknown"
+    h = (now - t).total_seconds() / 3600
+    return f"{h:.0f}h ago" if h < 48 else f"{h / 24:.1f}d ago"
+
+
+def freshness():
+    """One-line staleness signal: how old the newest story on the BUILT site is.
+    Reads _site/data/freshness.json (written by export_static.py), so it reflects
+    what was last exported/deployed - a silent pipeline stall shows up as an old date."""
+    fp = Path(__file__).parent / "_site" / "data" / "freshness.json"
+    if not fp.exists():
+        print("No _site/data/freshness.json yet - run export_static.py first.")
+        return
+    d = _json.loads(fp.read_text(encoding="utf-8"))
+    now = datetime.now(timezone.utc)
+    newest = d.get("newest_event_at", "")
+    stale = ""
+    try:
+        t = datetime.fromisoformat(newest.replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+        if (now - t).total_seconds() > 36 * 3600:
+            stale = "   <-- STALE (>36h): ingestion/pipeline may have stopped"
+    except (ValueError, AttributeError):
+        pass
+    print(f"Newest live story: {newest[:16]}  ({_age(newest, now)}){stale}")
+    print(f"Site last built:   {d.get('built_at', '')[:16]}  ({_age(d.get('built_at', ''), now)})")
+    print(f"Events on site:    {d.get('event_count', '?')}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Read-only health report for the Paksh catalogue.")
     ap.add_argument("--json", action="store_true", help="print machine-readable JSON instead")
+    ap.add_argument("--freshness", action="store_true",
+                    help="one-line staleness check: how old the newest live story is")
     args = ap.parse_args()
+
+    if args.freshness:
+        freshness()
+        return
 
     stats = collect()
     if args.json:

@@ -25,6 +25,7 @@ locally:
 import html as _html
 import json
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 from database import (
@@ -207,6 +208,16 @@ def main():
     write_json(OUT / "data" / "sources.json", {
         "sources": [{k: s.get(k) for k in SRC_FIELDS} for s in SOURCES],
         "summary": coverage_summary(),
+    })
+
+    # freshness signal: newest event date + build time, written INTO the site so a
+    # silent pipeline stall is visible (py stats.py --freshness, or GET /data/freshness.json).
+    # events come back newest-first, so events[0] is the newest published story.
+    newest_event = events[0].get("created_at") if events else ""
+    write_json(OUT / "data" / "freshness.json", {
+        "newest_event_at": newest_event or "",
+        "built_at": datetime.utcnow().isoformat(),
+        "event_count": len(events),
     })
 
     # 3) one file per event: detail JSON + a pre-rendered, crawlable HTML page

@@ -29,3 +29,8 @@ venv/
 paksh.db*
 *.db.bak*
 *.bak
+
+# --- pipeline runtime: interlock + scheduled-task logs ---
+.pipeline.lock
+reframe_log.txt
+autopush_log.txt
