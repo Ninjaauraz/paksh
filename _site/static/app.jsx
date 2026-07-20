@@ -96,7 +96,7 @@ const {useState,useEffect,useMemo}=React;
         methodTitle:"How Paksh works", m_doesH:"What Paksh does",
         m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it - so you can see the whole picture and what your usual sources leave out.",
         m_ruleH:"The golden rule",
-        m_rule:"A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side.",
+        m_rule:"A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company - say The Times of India and Navbharat Times, both Times Group - they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote.",
         m_rateH:"How we rate a publication",
         m_rateLede:"We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):",
         m_rateFoot:"Scores near zero are Centre; the further from zero, the stronger the lean.",
@@ -140,7 +140,7 @@ const {useState,useEffect,useMemo}=React;
         methodTitle:"पक्ष कैसे काम करता है", m_doesH:"पक्ष क्या करता है",
         m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं - ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
         m_ruleH:"मूल नियम",
-        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं।",
+        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों - जैसे The Times of India और Navbharat Times, दोनों Times Group - तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है।",
         m_rateH:"हम किसी प्रकाशन को कैसे आँकते हैं",
         m_rateLede:"हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):",
         m_rateFoot:"शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत।",
@@ -594,6 +594,13 @@ const {useState,useEffect,useMemo}=React;
       const [side,setSide]=useState("overview");
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
+      // ONE VOTE PER OWNER: the bias bar counts distinct OWNERS, so co-owned mastheads
+      // (Times of India + Navbharat Times) count once. voteRow() reads the authoritative
+      // server coverage (count=owner votes, sources=distinct mastheads) and groups the
+      // mastheads by owner so the reader can see WHY a side shows "N votes, M outlets".
+      const ownerOf={}; outlets.forEach(o=>{ if(o.source) ownerOf[o.source]=o.owner||o.source; });
+      const voteRow=(k)=>{ const b=(story.coverage&&story.coverage[k])||{}; const names=b.sources||[]; const votes=(typeof b.count==="number")?b.count:(counts[k]||0); const gm=new Map(); names.forEach(n=>{ const ow=ownerOf[n]||n; if(!gm.has(ow))gm.set(ow,[]); gm.get(ow).push(n); }); return {votes, outlets:names.length, groups:[...gm.entries()]}; };
+      const voteTotal=voteRow("left").votes+voteRow("center").votes+voteRow("right").votes;
       const [atab,setAtab]=useState("all");
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
       const total=story.sources+(story.unrated||0)+(story.international||0);
@@ -681,12 +688,24 @@ const {useState,useEffect,useMemo}=React;
             <aside className="space-y-6">
               <div className={`rounded-lg border p-5 ${t.surface} ${t.border}`}>
                 <h3 className={`headline mb-4 text-[15px] font-bold uppercase tracking-[0.08em] ${t.tp} ${isHi(lang)}`}>{STR[lang].coverageBreakdown}</h3>
-                {[[STR[lang].totalSources,total,null],[lbl("left",lang),counts.left,"left"],[lbl("center",lang),counts.center,"center"],[lbl("right",lang),counts.right,"right"]].map(([label,val,k],i)=>(
-                  <div key={i} className={`flex items-center justify-between border-b py-2.5 ${t.border}`}>
-                    <span className="flex items-center gap-2">{k && <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}}/>}<span className={`text-[13px] ${i===0?`font-semibold ${t.tp}`:t.ts} ${isHi(lang)}`}>{label}</span></span>
-                    <span className={`mono text-[14px] font-semibold ${t.tp}`}>{val}</span>
+                <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}>
+                  <span className={`text-[13px] font-semibold ${t.tp} ${isHi(lang)}`}>{STR[lang].totalSources}</span>
+                  <span className={`mono text-[14px] font-semibold ${t.tp}`}>{total}</span>
+                </div>
+                {["left","center","right"].map((k)=>{ const {votes,outlets:oc,groups}=voteRow(k); if(votes===0 && oc===0) return null;
+                  const coOwned=groups.some(([o,ms])=>ms.length>1);
+                  return (
+                  <div key={k} className={`border-b py-2.5 ${t.border}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}}/><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{lbl(k,lang)}</span></span>
+                      <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`(${oc} स्रोत)`:`(${oc} outlets)`}</span>}</span>
+                    </div>
+                    {coOwned && <div className="mt-1.5 space-y-0.5 pl-4">{groups.filter(([o,ms])=>ms.length>1).map(([o,ms],j)=>(
+                      <div key={j} className={`text-[11px] leading-snug ${t.tf} ${isHi(lang)}`}>{ms.join(" · ")} <span className="italic">({o} — {lang==="hi"?"1 वोट":"1 vote"})</span></div>
+                    ))}</div>}
                   </div>
-                ))}
+                  );
+                })}
                 {story.international>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.international}</span></div>}
                 {story.unrated>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.unrated}</span></div>}
                 <div className="flex items-center justify-between py-2.5">

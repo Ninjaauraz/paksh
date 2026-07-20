@@ -31,12 +31,12 @@ from pathlib import Path
 from database import (
     init_db, get_all_events, get_blindspot_events, get_topics, get_event,
 )
-from sources import SOURCES, coverage_summary
+from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
 SITE_URL = "https://paksh.vercel.app"
-SRC_FIELDS = ("id", "name", "language", "region", "website", "ownership", "lean", "label",
+SRC_FIELDS = ("id", "name", "language", "region", "website", "ownership", "owner", "lean", "label",
               "confidence", "contested", "review_status", "last_reviewed",
               "rationale", "subscores")
 
@@ -154,6 +154,19 @@ def _gap_qualifies(L, R):
     return (L + R) >= 4 and lo <= 0.25 * hi
 
 
+def _group_by_owner(names):
+    """Group masthead names by their owning group, preserving first-seen order.
+    Returns an ordered {owner: [names]} so co-owned papers render together and the
+    reader can see why they count as one vote. Outlets with no shared owner map to
+    their own name, so they stay their own group of one."""
+    from collections import OrderedDict
+    groups = OrderedDict()
+    for n in names:
+        o = OWNER_BY_SOURCE.get(n, n)
+        groups.setdefault(o, []).append(n)
+    return groups
+
+
 def _story_html(shell, ev):
     """The app shell rewritten for ONE story: its own title / description / OG /
     canonical / NewsArticle JSON-LD, and the loading skeleton in #root replaced by
@@ -219,9 +232,28 @@ def _story_html(shell, ev):
                        ("right", "Right"), ("international", "International")):
         block = cov.get(key, {}) or {}
         c = block.get("count", 0)
-        if c:
-            rows.append("<li><strong>%s (%d):</strong> %s</li>"
-                        % (label, c, e2(", ".join(block.get("sources", []) or []))))
+        if not c:
+            continue
+        names = block.get("sources", []) or []
+        # ONE VOTE PER OWNER: group co-owned mastheads so the crawlable HTML shows
+        # both papers but makes clear they count once (matches the app + the bar).
+        # International is not a vote, so it is never grouped.
+        if key == "international":
+            head = "%s (%d)" % (label, c)
+            listing = e2(", ".join(names))
+        else:
+            groups = _group_by_owner(names)
+            parts = []
+            for owner, members in groups.items():
+                if len(members) > 1:
+                    parts.append("%s <em>(%s &mdash; 1 vote)</em>"
+                                 % (e2(" · ".join(members)), e2(owner)))
+                else:
+                    parts.append(e2(members[0]))
+            listing = ", ".join(parts)
+            head = ("%s (%d)" % (label, c) if c == len(names)
+                    else "%s (%d votes, %d outlets)" % (label, c, len(names)))
+        rows.append("<li><strong>%s:</strong> %s</li>" % (head, listing))
     bias_html = ("<ul>%s</ul>" % "".join(rows)) if rows else ""
     body = (
         '<main style="max-width:46rem;margin:0 auto;padding:84px 1.25rem 40px">'

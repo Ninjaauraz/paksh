@@ -41,7 +41,7 @@ from database import (
     assign_articles_to_event, insert_event,
     get_event, get_event_articles, update_event, get_recent_events_for_merge,
 )
-from sources import LEAN_BY_SOURCE, INTERNATIONAL_SOURCES
+from sources import LEAN_BY_SOURCE, INTERNATIONAL_SOURCES, OWNER_BY_SOURCE
 import cluster
 
 # ---- LLM backend for the bilingual summary --------------------------------
@@ -384,20 +384,27 @@ def postprocess(raw, articles) -> dict:
         a["lean"] = lean_of(a["source"])
     hero = next((a.get("image_url") for a in articles if a.get("image_url")), "")
 
-    # source list: outlet, its fixed lean, language, link, and its own headline
+    # source list: outlet, its OWNER, fixed lean, language, link, and its headline.
+    # `owner` lets the UI group co-owned mastheads (Times of India + Navbharat Times)
+    # and show WHY they count as one vote.
     sources_out = []
     for a in articles:
         sources_out.append({
-            "source": a["source"], "lean": a["lean"], "language": a["language"],
+            "source": a["source"], "owner": OWNER_BY_SOURCE.get(a["source"], a["source"]),
+            "lean": a["lean"], "language": a["language"],
             "url": a["url"], "headline": a["title"],
         })
 
-    # coverage = how many DISTINCT OUTLETS of each lean covered it - ONE vote per
-    # publisher, never per article (an outlet that files 5 stories still votes once).
+    # coverage = ONE VOTE PER OWNER on each side. Co-owned mastheads (e.g. The Times
+    # of India + Navbharat Times, both Times Group) count ONCE, never per masthead
+    # and never per article. `count` is the vote (distinct OWNERS); `sources` keeps
+    # every distinct masthead for display, and `owners` is the distinct owner list.
+    # AI decides nothing here - this is pure arithmetic on OUR fixed lean + owner labels.
     coverage_out = {}
     for side in LEAN_ORDER:
         names = sorted({s["source"] for s in sources_out if s["lean"] == side})
-        coverage_out[side] = {"count": len(names), "sources": names}
+        owners = sorted({OWNER_BY_SOURCE.get(n, n) for n in names})
+        coverage_out[side] = {"count": len(owners), "sources": names, "owners": owners}
     # foreign wires: counted for breadth + shown as international coverage, never voting
     intl_names = sorted({s["source"] for s in sources_out if s["lean"] == "international"})
     coverage_out["international"] = {"count": len(intl_names), "sources": intl_names}

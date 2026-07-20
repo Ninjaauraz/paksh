@@ -45,6 +45,7 @@ SOURCES = [
         "id": "indian_express", "name": "The Indian Express", "language": "en",
         "website": "https://indianexpress.com",
         "ownership": "Indian Express Group (Viveck Goenka)",
+        "owner": "Indian Express Group",
         "lean": "center", "label": "Centre", "confidence": "medium", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Legacy daily known for investigative reporting that has "
@@ -55,6 +56,7 @@ SOURCES = [
         "id": "times_of_india", "name": "The Times of India", "language": "en",
         "website": "https://timesofindia.indiatimes.com",
         "ownership": "Bennett, Coleman & Co. Ltd (Times Group)",
+        "owner": "Times Group",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "India's largest-circulation English daily. Some bias trackers "
@@ -68,6 +70,7 @@ SOURCES = [
         "id": "mint", "name": "Mint", "language": "en",
         "website": "https://www.livemint.com",
         "ownership": "HT Media Ltd",
+        "owner": "HT Media",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Business and economy daily; market-oriented framing.",
@@ -151,6 +154,7 @@ SOURCES = [
         "id": "dainik_jagran", "name": "Dainik Jagran", "language": "hi",
         "website": "https://www.jagran.com",
         "ownership": "Jagran Prakashan Ltd",
+        "owner": "Jagran Group",
         "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Major Hindi daily often described as right-of-centre; needs "
@@ -170,6 +174,7 @@ SOURCES = [
         "id": "navbharat_times", "name": "Navbharat Times", "language": "hi",
         "website": "https://navbharattimes.indiatimes.com",
         "ownership": "Bennett, Coleman & Co. Ltd (Times Group)",
+        "owner": "Times Group",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily within the Times group; broad commercial framing.",
@@ -179,6 +184,7 @@ SOURCES = [
         "id": "aaj_tak", "name": "Aaj Tak", "language": "hi",
         "website": "https://www.aajtak.in",
         "ownership": "TV Today Network (India Today Group)",
+        "owner": "India Today Group",
         "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Leading Hindi channel; bias trackers rate it right-of-centre with "
@@ -210,6 +216,7 @@ SOURCES = [
         "id": "the_lallantop", "name": "The Lallantop", "language": "hi",
         "website": "https://www.thelallantop.com",
         "ownership": "TV Today Network (India Today Group)",
+        "owner": "India Today Group",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Youth-focused Hindi digital outlet; broad framing.",
@@ -339,6 +346,7 @@ SOURCES = [
         "id": "hindustan_times", "name": "Hindustan Times", "language": "en",
         "website": "https://www.hindustantimes.com",
         "ownership": "HT Media Ltd (KK Birla group)",
+        "owner": "HT Media",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Large national English daily; broad mainstream news framing.",
@@ -376,6 +384,7 @@ SOURCES = [
         "id": "india_today", "name": "India Today", "language": "en",
         "website": "https://www.indiatoday.in",
         "ownership": "Living Media India Ltd (India Today Group)",
+        "owner": "India Today Group",
         "lean": "right", "label": "Lean Right", "confidence": "medium", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Bias trackers (MBFC) rate it right-of-centre, favouring the "
@@ -387,6 +396,7 @@ SOURCES = [
         "id": "firstpost", "name": "Firstpost", "language": "en",
         "website": "https://www.firstpost.com",
         "ownership": "Network18 (Reliance)",
+        "owner": "Network18",
         "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Digital outlet whose opinion-and-analysis framing is commonly "
@@ -416,6 +426,7 @@ SOURCES = [
         "id": "jansatta", "name": "Jansatta", "language": "hi",
         "website": "https://www.jansatta.com",
         "ownership": "Indian Express Group",
+        "owner": "Indian Express Group",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily of the Indian Express Group; mainstream framing.",
@@ -425,6 +436,7 @@ SOURCES = [
         "id": "live_hindustan", "name": "Hindustan (Hindi)", "language": "hi",
         "website": "https://www.livehindustan.com",
         "ownership": "HT Media Ltd",
+        "owner": "HT Media",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "High-circulation Hindi daily; broad mainstream coverage.",
@@ -434,6 +446,7 @@ SOURCES = [
         "id": "news18_hindi", "name": "News18 Hindi", "language": "hi",
         "website": "https://hindi.news18.com",
         "ownership": "Network18 (Reliance)",
+        "owner": "Network18",
         "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Network18 Hindi outlet; framing commonly described as "
@@ -622,6 +635,7 @@ SOURCES = [
         "id": "nai_dunia", "name": "Nai Dunia", "language": "hi", "region": "Regional",
         "website": "https://www.naidunia.com",
         "ownership": "Jagran group",
+        "owner": "Jagran Group",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily strong in Madhya Pradesh and Chhattisgarh.",
@@ -655,6 +669,22 @@ def lean_by_source() -> dict:
     return {s["name"]: s["lean"] for s in SOURCES}
 
 LEAN_BY_SOURCE = lean_by_source()
+
+
+def owner_by_source() -> dict:
+    """{outlet name: owning group} for ONE-VOTE-PER-OWNER counting.
+
+    Co-owned mastheads (e.g. The Times of India + Navbharat Times, both Times
+    Group; Mint + Hindustan Times + Hindustan (Hindi), all HT Media) share one
+    owner and therefore cast ONE vote per side in the bias bar. An outlet with no
+    shared owner maps to its OWN name, so it stays a distinct vote. A group that
+    genuinely published on two different sides (e.g. India Today Group's right
+    outlets and its centre outlet The Lallantop) still casts one vote on EACH side
+    it covered - the collapse only ever happens WITHIN a single side. See
+    analyze.postprocess for the arithmetic. This never touches lean labels."""
+    return {s["name"]: s.get("owner", s["name"]) for s in SOURCES}
+
+OWNER_BY_SOURCE = owner_by_source()
 
 # Foreign wire services. They are tagged region="International" and DO carry a lean,
 # but that lean is calibrated to their own home-market spectrum, not India's - so
