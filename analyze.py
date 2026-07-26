@@ -320,36 +320,64 @@ def build_prompt(articles) -> str:
     ]
     return f"""You are a neutral news engine for "Paksh", a media-transparency
 tool for India. Below is coverage of ONE event from several Indian outlets
-(English and Hindi), each tagged with its political lean. Produce (1) a deep,
-neutral account a reader of any leaning would find fair, and (2) a grounded
+(English and Hindi), each tagged with its editorially-assigned political lean.
+Produce (1) a DIRECT, substantive neutral account, and (2) a CONCRETE, attributed
 description of how each side is framing the story.
 
-STRICT RULES:
-- Use ONLY facts present in the text below. Never invent facts, quotes, numbers or names.
-- The title and summary must NOT adopt any outlet's framing or loaded words.
-- Attribute contested claims ("the government said", "critics say") instead of stating them as fact.
-- If outlets conflict, state the disagreement neutrally rather than picking a winner.
-- FRAMING: describe how each SIDE as a whole frames the story - what that lean's
-  outlets COLLECTIVELY emphasise, foreground, omit, or the words they choose. Refer to
-  the side collectively ("Left-leaning outlets...", "Centrist coverage...", "Right-leaning
-  outlets..."); do NOT name, quote, or single out any individual publication by name.
-  If outlets on a side diverge, capture the common thread and note the split. Describe
-  ONLY what is visible in the headlines/summaries below; do not invent positions.
+WRITE WITH SUBSTANCE, NOT HEDGING:
+- State plainly what actually happened. Lead with the concrete facts: who did what,
+  when, where, and the specific numbers, names, claims and decisions in the coverage.
+- Strip filler, PR language and empty hedging ("sources say", "it is believed",
+  "in a significant development"). Strip jargon; use plain words.
+- Do NOT pad with vague abstractions ("various developments", "the situation
+  continues to evolve"). Every sentence must carry a specific fact.
+
+STRICT NEUTRALITY - never cross these:
+- Use ONLY facts and claims present in the coverage below. Never invent facts,
+  quotes, numbers, names, causes or consequences.
+- Describe ONLY what the coverage says. Do NOT add downstream consequences ("this
+  could lead to X"), motives the outlets did not state, or any praise or blame the
+  outlets did not themselves make.
+- Give NO verdict on who is right and do NOT fact-check. Purely descriptive.
+- Attribute every contested claim to who makes it ("the government said", "the
+  opposition alleged", "police claimed") rather than stating it as fact.
+- If outlets conflict, state the disagreement neutrally; do not pick a winner.
+- The neutral title and summary must not adopt any outlet's loaded words or framing,
+  and must NOT name individual publications - describe the event, not who reported it.
+
+FRAMING - concrete and specific, per side:
+- For EACH lean, name the SPECIFIC claim, angle or emphasis that side's outlets
+  foreground - the concrete thing they lead with, stress or repeat - WITH the reason
+  or detail they cite. Model the form on:
+    "Right-leaning outlets framed the funding row as a national-security concern,
+     stressing the foreign-donation angle and the demand for an audit."
+    "Left-leaning coverage foregrounded the crackdown on protesters, highlighting
+     detentions and alleging suppression of dissent."
+  NOT vague ("outlets emphasised different aspects", "focused on the health situation").
+- Refer to each side COLLECTIVELY ("Left-leaning outlets...", "Centrist coverage...",
+  "Right-leaning outlets..."). Never name, quote or single out any publication by name.
+- Give more than one concrete detail per side where the coverage supports it (2-4
+  sentences). If outlets on one side diverge, capture the common thread and note the split.
+- If a side genuinely did NOT frame the story distinctively - if its coverage just
+  tracks the neutral facts - SAY SO plainly (e.g. "Centrist coverage largely reported
+  the events without a distinct frame"). Do NOT manufacture a difference not in the text.
+- Describe ONLY what is visible in the headlines/summaries below; do not invent positions.
   If a lean has no outlet in the coverage, set its framing to an empty string.
-- Write ENGLISH first, then a faithful, natural HINDI translation of every field.
+
+Write ENGLISH first, then a faithful, natural HINDI translation of every field.
 
 Return ONLY a JSON object with these keys:
 {{
-  "title": "neutral English headline, max ~12 words",
-  "summary": "a full neutral overview in 3-5 sentences: what happened, the key context, and why it matters",
-  "summary_points": ["4-6 short, substantive neutral English points"],
+  "title": "neutral English headline, max ~12 words, no loaded words, no publication named",
+  "summary": "a direct neutral account in 4-6 sentences: exactly what happened, the specific facts and figures, the key attributed claims, and the concrete context - no filler, no hedging, no publication named",
+  "summary_points": ["4-6 short, specific neutral English points, each a concrete fact"],
   "title_hi": "Hindi translation of the title",
   "summary_hi": "Hindi translation of the summary",
   "summary_points_hi": ["Hindi translations of the points, same order"],
   "framing": {{
-    "left": "1-2 sentences on how left-leaning outlets COLLECTIVELY frame it - their shared emphasis / word-choice, never a single outlet by name; empty string if no left outlet",
-    "center": "1-2 sentences on how centrist coverage collectively frames it, no outlet named; empty string if none",
-    "right": "1-2 sentences on how right-leaning outlets collectively frame it, no outlet named; empty string if none"
+    "left": "2-4 sentences naming the specific claim/emphasis left-leaning outlets foreground and the detail they cite; collective, no outlet named; empty string if no left outlet; say plainly if there is no distinct frame",
+    "center": "2-4 sentences on how centrist coverage collectively frames it, same rules; empty string if none",
+    "right": "2-4 sentences on how right-leaning outlets collectively frame it, same rules; empty string if none"
   }},
   "framing_hi": {{ "left": "Hindi of left", "center": "Hindi of center", "right": "Hindi of right" }},
   "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention.",
@@ -370,7 +398,7 @@ def _clean_framing(raw_framing, coverage):
         txt = fr.get(side)
         txt = txt.strip() if isinstance(txt, str) else ""
         if txt and coverage.get(side, {}).get("count", 0) > 0:
-            out[side] = txt[:500]
+            out[side] = txt[:700]   # was 500; richer 2-4 sentence framing needs headroom
     return out
 
 
