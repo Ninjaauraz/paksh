@@ -501,7 +501,7 @@ const {useState,useEffect,useMemo}=React;
     function UtilityStrip({ t, lang, setLang, dark, setDark }) {
       const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
       return (
-        <div style={{backgroundColor:"#1B1A18"}} className="text-white/85">
+        <div style={{backgroundColor:"#15140F"}} className="text-white/85">
           <div className="mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-5" style={{height:34}}>
             <span className="mono text-[11px] tracking-wide text-white/55">{lang==="hi"?"भारत संस्करण":"India Edition"}</span>
             <div className="flex items-center gap-4">
@@ -545,7 +545,7 @@ const {useState,useEffect,useMemo}=React;
               <div className="mx-auto flex max-w-[1800px] items-center gap-2 overflow-x-auto px-4 sm:px-5 py-2">
                 <span className={`mono text-[10px] uppercase tracking-wide ${t.tf} shrink-0`}>{lang==="hi"?"विषय":"Topics"}</span>
                 {setRegionFilter && <RegionSelect region={regionFilter} setRegion={setRegionFilter} t={t} lang={lang} />}
-                {topics.slice(0,14).map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`shrink-0 rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors duration-200 ${view===tp ? 'bg-[#1B1A18] text-white dark:bg-[#E9EAEC] dark:text-[#1D1F24] border-transparent' : `${t.border} ${t.ts} hover:${t.soft}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</button>))}
+                {topics.slice(0,14).map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`shrink-0 rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors duration-200 ${view===tp ? 'bg-[#15140F] text-white dark:bg-[#E9EAEC] dark:text-[#1D1F24] border-transparent' : `${t.border} ${t.ts} hover:${t.soft}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</button>))}
               </div>
             </div>
           )}
@@ -886,8 +886,8 @@ const {useState,useEffect,useMemo}=React;
             {s.confidence && <span className={t.tf}>· conf {s.confidence}</span>}
             {s.contested && <span className={`rounded px-1.5 py-0.5 font-bold ${t.blindSoft} ${t.blind}`}>{STR[lang].contested}</span>}
           </div>
-          {s.ownership && <div className={`mt-2.5 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</div>}
-          {s.rationale && <p className={`mt-1.5 text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{s.rationale}</p>}
+          {s.ownership && <div className={`mt-2.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</div>}
+          {s.rationale && <p className={`mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{s.rationale}</p>}
         </div>
       );
     }
@@ -898,7 +898,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].srcTitle}</h1>
-          <p className={`mb-5 mt-2 max-w-2xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].srcDisclaimer}</p>
+          <p className={`mb-5 mt-2 max-w-2xl text-[14.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
           <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${lang==="hi"&&k!=="all"?"deva":""}`}>{label}</button>))}</div>
           <GridGrid items={list} t={t} lang={lang} gap="gap-4" render={(s)=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>} />
           <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
@@ -906,14 +906,14 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function AboutPage({ t, lang, agg }) {
-      const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-xl font-bold ${t.tp} ${isHi(lang)} mb-2`}>{h}</h2><div className={`text-[14.5px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{children}</div></div>);
+      const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} ${readCls(lang)} mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{children}</div></div>);
       const a=agg||{};
       const gapText=(STR[lang].m_gap||"").replace("{total}",a.total).replace("{rh}",a.right_heavier).replace("{lh}",a.left_heavier).replace("{lo}",a.left_outlets).replace("{ro}",a.right_outlets);
       return (
         <PageWrap>
           <div className="max-w-3xl">
             <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].methodTitle}</h1>
-            <p className={`mb-2 mt-3 text-[15.5px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_does}</p>
+            <p className={`mb-2 mt-3 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{STR[lang].m_does}</p>
             <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
             {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
             <Row h={STR[lang].m_rateH}><p className="mb-2">{STR[lang].m_rateLede}</p><p className={`text-[12px] ${t.tf}`}>{STR[lang].m_rateFoot}</p></Row>
@@ -981,11 +981,11 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function PrivacyPage({ t, lang }) {
-      const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-xl font-bold ${t.tp} mb-2`}>{h}</h2><div className={`text-[14.5px] leading-relaxed ${t.ts}`}>{children}</div></div>);
+      const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} serif mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] serif ${t.ts}`}>{children}</div></div>);
       return (
         <PageWrap>
           <div className="max-w-3xl">
-            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp}`}>Privacy Policy</h1>
+            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} serif`}>Privacy Policy</h1>
             <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 2 July 2026 · Operated by Redstocks Technology LLP</p>
             {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
             <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
