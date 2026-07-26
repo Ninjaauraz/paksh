@@ -702,120 +702,118 @@ const {useState,useEffect,useMemo}=React;
       const ATab=({k,n})=>{ const on=atab===k; const lab=k==="all"?(lang==="hi"?"सभी":"All"):lbl(k,lang);
         return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"?t.ink:(k==="center"?t.ink:BIAS[k]&&BIAS[k].color)):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
       return (
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-5 py-6">
-          <button onClick={()=>go("home")} className={`mb-5 inline-flex items-center gap-1.5 mono text-[12px] font-medium uppercase tracking-wide ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {STR[lang].back}</button>
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_312px]">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mono text-[11.5px] font-medium uppercase tracking-[0.08em]">
-                <button onClick={()=>openTopic(story.topic)} className={`${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</button>
-                <span className={t.tf}>·</span><span className={t.tf}>{lang==="hi"?"प्रकाशित":"Published"} {timeAgo(story.created_at,lang)}</span>
-              </div>
-              <h1 className={`headline mt-3 text-[1.85rem] sm:text-[2.6rem] leading-[1.06] ${t.tp} ${readCls(lang)}`}>{story.headline}</h1>
-              <div className="mt-4 flex items-center gap-3">
-                <button onClick={copy} className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.soft}`}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी हुआ":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"लिंक कॉपी करें":"Copy link"}</>}</button>
-                {story.auto && <AutoTag lang={lang} t={t} />}
-              </div>
-
-              {story.img && <div className="mt-6 overflow-hidden rounded-lg"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
-
-              {/* Overview / neutral summary — the story, without framing */}
-              <div className={`mt-7 border ${t.soft} ${t.border}`}>
-                <div className="p-5 sm:p-6">
-                  <div className={`mb-3 flex items-center gap-2 mono text-[10px] uppercase tracking-[0.14em] ${t.tf}`}>{story.auto?STR[lang].autoTag:STR[lang].aiSummary}{story.auto && <span className={`${isHi(lang)} normal-case`}>· {STR[lang].autoFrom}</span>}</div>
-                  {story.lead && <p className={`mb-4 text-[16.5px] leading-[1.66] ${t.tp} ${readCls(lang)}`}>{story.lead}</p>}
-                  <ul className="space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}><span className="mt-[9px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
-                </div>
-              </div>
-
-              {/* framing panels — three sides, identical structure, equal length by construction */}
-              <div className={`mt-8`}>
-                <div className={`border-b pb-2 ${t.border}`}><h3 className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{STR[lang].framingTitle}</h3></div>
-                <p className={`mt-2 mb-4 text-[13px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{STR[lang].framingSub}</p>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-stretch">
-                  {["left","center","right"].map(k=> (fr[k] || counts[k]>0) ? (
-                    <div key={k} className={`flex flex-col border ${t.surface}`} style={{borderColor:t.ink}}>
-                      <div className={BIAS[k].tex} style={{height:5}}/>
-                      <div className="flex flex-1 flex-col p-4">
-                        <div className="flex items-baseline justify-between">
-                          <span className={`text-[11px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
-                          <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"स्रोत":(counts[k]===1?"outlet":"outlets")}</span>
-                        </div>
-                        {fr[k]
-                          ? <p className={`mt-3 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{fr[k]}</p>
-                          : <p className={`mt-3 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{STR[lang].framingPending}</p>}
-                      </div>
-                    </div>
-                  ) : null)}
-                </div>
-              </div>
-
-              <div className="my-8"><AdSlot t={t} lang={lang} h={104} /></div>
-
-              {/* articles */}
-              <div className="mt-9">
-                <div className={`flex items-center gap-5 border-b ${t.border}`}>
-                  <ATab k="all" n={outlets.length} />
-                  {counts.left>0 && <ATab k="left" n={counts.left} />}
-                  {counts.center>0 && <ATab k="center" n={counts.center} />}
-                  {counts.right>0 && <ATab k="right" n={counts.right} />}
-                </div>
-                <div className="mt-4 space-y-2.5">
-                  {arts.map((o,i)=>(
-                    <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`flex items-start gap-3 rounded-lg border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
-                      <OutletAvatar o={o} side={o.lean} size={30} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[13px] font-bold ${t.tp}`}>{o.source}</span>
-                          <LeanBadge side={o.lean} lang={lang} t={t} />
-                          <span className={`ml-auto mono text-[10px] ${t.tf}`}>{(o.language||"en").toUpperCase()}</span>
-                        </div>
-                        {o.headline && <div className={`mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`}>{o.headline}</div>}
-                      </div>
-                      <ArrowUpRight size={15} className={`mt-0.5 shrink-0 ${t.tf}`} />
-                    </a>
-                  ))}
-                  {arts.length===0 && <div className={`py-10 text-center text-[13px] ${t.tf}`}>-</div>}
-                </div>
-              </div>
-            </div>
-
-            {/* coverage details */}
-            <aside className="space-y-6">
-              <div className={`rounded-lg border p-5 ${t.surface} ${t.border}`}>
-                <h3 className={`headline mb-4 text-[15px] font-bold uppercase tracking-[0.08em] ${t.tp} ${isHi(lang)}`}>{STR[lang].coverageBreakdown}</h3>
-                <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}>
-                  <span className={`text-[13px] font-semibold ${t.tp} ${isHi(lang)}`}>{STR[lang].totalSources}</span>
-                  <span className={`mono text-[14px] font-semibold ${t.tp}`}>{total}</span>
-                </div>
-                {["left","center","right"].map((k)=>{ const {votes,outlets:oc,groups}=voteRow(k); if(votes===0 && oc===0) return null;
-                  const coOwned=groups.some(([o,ms])=>ms.length>1);
-                  return (
-                  <div key={k} className={`border-b py-2.5 ${t.border}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}}/><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{lbl(k,lang)}</span></span>
-                      <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`(${oc} स्रोत)`:`(${oc} outlets)`}</span>}</span>
-                    </div>
-                    {coOwned && <div className="mt-1.5 space-y-0.5 pl-4">{groups.filter(([o,ms])=>ms.length>1).map(([o,ms],j)=>(
-                      <div key={j} className={`text-[11px] leading-snug ${t.tf} ${isHi(lang)}`}>{ms.join(" · ")} <span className="italic">({o} — {lang==="hi"?"1 वोट":"1 vote"})</span></div>
-                    ))}</div>}
-                  </div>
-                  );
-                })}
-                {story.international>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.international}</span></div>}
-                {story.unrated>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.unrated}</span></div>}
-                <div className="flex items-center justify-between py-2.5">
-                  <span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{lang==="hi"?"अंतिम अपडेट":"Last updated"}</span>
-                  <span className={`mono text-[12.5px] ${t.ts}`}>{timeAgo(story.created_at,lang)}</span>
-                </div>
-                <div className={`mt-3 mono text-[11px] uppercase tracking-wide ${t.tf}`}>{lbl(bd,lang)} {story.bias[bd]}%</div>
-                <div className="mt-2"><BiasBar bias={story.bias} t={t} lang={lang} onPick={(k)=>{ const el=document.getElementById("arts"); setAtab(k); }} active={null} height={22} /></div>
-                {story.blindspot && <div className={`mt-4 flex items-start gap-2 rounded-md p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}><Eye size={15} className="mt-0.5 shrink-0"/><span>{STR[lang].osCalloutBody1} <strong>{story.bias[story.blindspot]}%</strong> {STR[lang].osCalloutBody2}</span></div>}
-                <p className={`mt-4 border-t pt-4 text-[11px] leading-relaxed ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
-              </div>
-              <AdSlot t={t} lang={lang} h={250} />
-              <AdSlot t={t} lang={lang} h={600} />
-            </aside>
+        <div className="mx-auto max-w-[880px] px-4 sm:px-6 py-6">
+          {/* top bar */}
+          <div className={`mb-6 flex items-center justify-between border-b pb-3 ${t.border}`}>
+            <button onClick={()=>go("home")} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {STR[lang].back}</button>
+            <button onClick={copy} className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-medium uppercase tracking-[0.06em] ${t.border} ${t.ts} hover:${t.tp}`}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी हुआ":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"लिंक":"Copy link"}</>}</button>
           </div>
+
+          {/* headline block */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 eyebrow">
+            <button onClick={()=>openTopic(story.topic)} className={`${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</button>
+            <span className={t.tf}>·</span><span className={`${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India")}</span>
+          </div>
+          <h1 className={`headline mt-3 text-[1.9rem] sm:text-[2.6rem] leading-[1.07] ${t.tp} ${readCls(lang)}`}>{story.headline}</h1>
+          <div className={`mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 mono text-[11.5px] ${t.tf}`}>
+            <span>{lang==="hi"?"प्रकाशित":"Published"} {timeAgo(story.created_at,lang)}</span>
+            <span>·</span><span>{total} {lang==="hi"?"स्रोत":(total===1?"outlet":"outlets")}</span>
+            {story.auto && <><span>·</span><AutoTag lang={lang} t={t} /></>}
+          </div>
+
+          {story.img && <div className="mt-6 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
+
+          {/* the bias instrument — prominent, with the printed scale; segments filter the article list */}
+          <div className="mt-7 border-y py-5" style={{borderColor:t.ink}}>
+            <BiasBar bias={story.bias} counts={{left:voteRow("left").votes,center:voteRow("center").votes,right:voteRow("right").votes}} t={t} lang={lang} height={24} showScale onPick={(k)=>{ setAtab(k); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} />
+          </div>
+
+          {/* neutral summary — the story, without framing */}
+          <div className={`mt-7 border ${t.soft} ${t.border}`}>
+            <div className="p-5 sm:p-6">
+              <div className={`mb-3 eyebrow ${t.tf}`}>{story.auto?STR[lang].autoTag:STR[lang].aiSummary}{story.auto && <span className={`${isHi(lang)}`} style={{textTransform:"none",letterSpacing:0}}> · {STR[lang].autoFrom}</span>}</div>
+              {story.lead && <p className={`mb-4 text-[16.5px] leading-[1.66] ${t.tp} ${readCls(lang)}`}>{story.lead}</p>}
+              <ul className="space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}><span className="mt-[9px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
+            </div>
+          </div>
+
+          {/* framing panels — three sides, identical structure, equal length by construction */}
+          <div className="mt-9">
+            <div className={`border-b pb-2 ${t.border}`}><h3 className={`headline text-[19px] ${t.tp} ${readCls(lang)}`}>{STR[lang].framingTitle}</h3></div>
+            <p className={`mt-2 mb-4 text-[13px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{STR[lang].framingSub}</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-stretch">
+              {["left","center","right"].map(k=> (fr[k] || counts[k]>0) ? (
+                <div key={k} className={`flex flex-col border ${t.surface}`} style={{borderColor:t.ink}}>
+                  <div className={BIAS[k].tex} style={{height:5}}/>
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="flex items-baseline justify-between">
+                      <span className={`text-[11px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
+                      <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"स्रोत":(counts[k]===1?"outlet":"outlets")}</span>
+                    </div>
+                    {fr[k]
+                      ? <p className={`mt-3 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{fr[k]}</p>
+                      : <p className={`mt-3 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{STR[lang].framingPending}</p>}
+                  </div>
+                </div>
+              ) : null)}
+            </div>
+          </div>
+
+          {/* coverage breakdown — ONE VOTE PER OWNER, shown with textured swatches */}
+          <div className="mt-9">
+            <div className={`border-b pb-2 ${t.border}`}><h3 className={`headline text-[19px] ${t.tp} ${readCls(lang)}`}>{STR[lang].coverageBreakdown}</h3></div>
+            <div className={`mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`}>
+              <span className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{STR[lang].totalSources}</span>
+              <span className={`mono text-[14px] font-semibold ${t.tp}`}>{total}</span>
+            </div>
+            {["left","center","right"].map((k)=>{ const {votes,outlets:oc,groups}=voteRow(k); if(votes===0 && oc===0) return null;
+              const coOwned=groups.some(([o,ms])=>ms.length>1);
+              return (
+              <div key={k} className={`border-b py-3 ${t.border}`}>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2.5"><span className={`${BIAS[k].tex} shrink-0`} style={{width:14,height:14,border:`1px solid ${t.ink}`}}/><span className={`text-[13px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span></span>
+                  <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`(${oc} स्रोत)`:`(${oc} outlets)`}</span>}</span>
+                </div>
+                {coOwned && <div className="mt-1.5 space-y-0.5 pl-6">{groups.filter(([o,ms])=>ms.length>1).map(([o,ms],j)=>(
+                  <div key={j} className={`text-[11px] leading-snug ${t.tf} ${isHi(lang)}`}>{ms.join(" · ")} <span className="italic">({o} — {lang==="hi"?"1 वोट":"1 vote"})</span></div>
+                ))}</div>}
+              </div>
+              );
+            })}
+            {story.international>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.international}</span></div>}
+            {story.unrated>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.unrated}</span></div>}
+            {story.blindspot && <div className={`mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}><Eye size={15} className="mt-0.5 shrink-0"/><span>{STR[lang].osCalloutBody1} <strong>{story.bias[story.blindspot]}%</strong> {STR[lang].osCalloutBody2}</span></div>}
+            <p className={`mt-4 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
+          </div>
+
+          {/* articles */}
+          <div className="mt-9" id="arts">
+            <div className={`flex items-center gap-5 border-b ${t.border}`}>
+              <ATab k="all" n={outlets.length} />
+              {counts.left>0 && <ATab k="left" n={counts.left} />}
+              {counts.center>0 && <ATab k="center" n={counts.center} />}
+              {counts.right>0 && <ATab k="right" n={counts.right} />}
+            </div>
+            <div className="mt-4 space-y-2.5">
+              {arts.map((o,i)=>(
+                <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
+                  <OutletAvatar o={o} side={o.lean} size={30} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[13px] font-bold ${t.tp}`}>{o.source}</span>
+                      <LeanBadge side={o.lean} lang={lang} t={t} />
+                      <span className={`ml-auto mono text-[10px] ${t.tf}`}>{(o.language||"en").toUpperCase()}</span>
+                    </div>
+                    {o.headline && <div className={`mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`}>{o.headline}</div>}
+                  </div>
+                  <ArrowUpRight size={15} className={`mt-0.5 shrink-0 ${t.tf}`} />
+                </a>
+              ))}
+              {arts.length===0 && <div className={`py-10 text-center text-[13px] ${t.tf}`}>-</div>}
+            </div>
+          </div>
+
+          <div className="my-8"><AdSlot t={t} lang={lang} h={104} /></div>
         </div>
       );
     }
