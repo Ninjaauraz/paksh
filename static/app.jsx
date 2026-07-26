@@ -824,24 +824,32 @@ const {useState,useEffect,useMemo}=React;
       const showing=(n,total)=>STR[lang].gapShowing.replace("{n}",n).replace("{total}",total);
       const Col=({head,rows,total})=>(
         <div>
-          <h2 className={`headline text-[17px] font-bold ${t.tp} ${readCls(lang)}`}>{head}</h2>
-          <div className={`mb-3 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{showing(rows.length,total)}</div>
-          {rows.length ? <div className="space-y-5">{rows.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
-            : <div className={`rounded-lg border border-dashed p-6 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+          <div className={`mb-4 border-b pb-2 ${t.border}`}>
+            <h2 className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{head}</h2>
+            <div className={`mt-1 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{showing(rows.length,total)}</div>
+          </div>
+          {rows.length ? <div className="space-y-4">{rows.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
+            : <div className={`border border-dashed p-6 text-center text-[12px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
         </div>
       );
       return (
-        <PageWrap>
-          <div className="mb-2 flex items-center gap-2.5"><Eye size={22} className={t.blind}/><h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].osTitle}</h1></div>
-          <p className={`mb-3 max-w-3xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
-          <button onClick={()=>go("about")} className={`mb-7 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पूरा ब्यौरा देखें":"See the full breakdown"} <ArrowUpRight size={12}/></button>
+        <div className="mx-auto max-w-[1120px] px-4 sm:px-6 py-6">
+          {/* masthead */}
+          <div className="mb-6 border-b-2 pb-4" style={{borderColor:t.ink}}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h1 className={`headline text-[26px] sm:text-[32px] ${t.tp} ${readCls(lang)}`}>{STR[lang].osTitle}</h1>
+              {agg.total!=null && <span className={`mono text-[12px] ${t.tf}`}>{agg.total} {lang==="hi"?"आज":"today"}</span>}
+            </div>
+            <p className={`mt-3 max-w-[70ch] text-[14.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].osSub}</p>
+            <button onClick={()=>go("about")} className={`mt-3 inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पूरा ब्यौरा देखें":"See the full breakdown"} <ArrowUpRight size={12}/></button>
+          </div>
           {/* Left-heavier first so on a phone (columns stack) the spectrum order is consistent */}
           <div className="grid gap-8 lg:grid-cols-2">
             <Col head={STR[lang].gapLeftHead} rows={left.slice(0,15)} total={(agg.left_heavier!=null?agg.left_heavier:left.length)} />
             <Col head={STR[lang].gapRightHead} rows={right.slice(0,15)} total={(agg.right_heavier!=null?agg.right_heavier:right.length)} />
           </div>
-          <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
-        </PageWrap>
+          <div className="mt-8"><AdSlot t={t} lang={lang} h={104} /></div>
+        </div>
       );
     }
     function TopicsHub({ topics, counts, t, lang, goTopic }) {
