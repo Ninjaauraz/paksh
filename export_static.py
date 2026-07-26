@@ -254,18 +254,54 @@ def _story_html(shell, ev):
             head = ("%s (%d)" % (label, c) if c == len(names)
                     else "%s (%d votes, %d outlets)" % (label, c, len(names)))
         rows.append("<li><strong>%s:</strong> %s</li>" % (head, listing))
-    bias_html = ("<ul>%s</ul>" % "".join(rows)) if rows else ""
+    bias_html = ('<ul style="margin:0;padding-left:1.1em;font-size:14px;line-height:1.7">%s</ul>'
+                 % "".join(rows)) if rows else ""
+
+    # A static, crawlable bias bar whose segment sizes are the REAL distinct-owner counts
+    # (flex-grow = count; never hardcoded), in the design's textured language: Left solid,
+    # Centre 45deg hatch, Right vertical rule, hairline ink frame, fixed centre axis. React
+    # replaces this with the interactive bar on load; crawlers / no-JS readers see this.
+    _tex = {"left": "background:#476F83",
+            "center": "background:repeating-linear-gradient(45deg,#6E685C 0 3px,#8C8579 3px 6px)",
+            "right": "background:repeating-linear-gradient(90deg,#8D5B44 0 4px,#75442E 4px 5px)"}
+    _bcounts = {k: (cov.get(k, {}) or {}).get("count", 0) for k in ("left", "center", "right")}
+    _present = [k for k in ("left", "center", "right") if _bcounts[k] > 0]
+    if _present:
+        segs = []
+        for i, k in enumerate(_present):
+            if i:
+                segs.append('<div style="flex:0 0 1px;background:#F4F1EA"></div>')
+            segs.append('<div style="flex-grow:%d;flex-basis:0;min-width:2px;%s"></div>'
+                        % (_bcounts[k], _tex[k]))
+        bar_html = (
+            '<div style="font:500 11px/1 \'IBM Plex Mono\',monospace;letter-spacing:.08em;'
+            'text-transform:uppercase;color:#6B675C;margin:0 0 8px">'
+            'Left %d &middot; Centre %d &middot; Right %d &nbsp; n = %d</div>'
+            '<div style="position:relative;display:flex;height:22px;border:1px solid #15140F;'
+            'background:#EAE6DB;margin-bottom:26px">%s'
+            '<div style="position:absolute;left:50%%;top:-3px;bottom:-3px;width:1px;background:#15140F"></div>'
+            '</div>'
+        ) % (_bcounts["left"], _bcounts["center"], _bcounts["right"],
+             sum(_bcounts.values()), "".join(segs))
+    else:
+        bar_html = ""
+
     body = (
-        '<main style="max-width:46rem;margin:0 auto;padding:84px 1.25rem 40px">'
-        '<p style="font:600 12px/1.4 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6B655C">%s &middot; %s</p>'
-        '<h1 style="font:700 30px/1.25 system-ui;margin:.3em 0 .5em;color:#1B1A18">%s</h1>'
-        '<p style="font:400 17px/1.6 system-ui;color:#46423B">%s</p>'
-        '<h2 style="font:600 16px/1.3 system-ui;margin:1.6em 0 .4em;color:#1B1A18">How outlets across the spectrum covered it</h2>'
-        '%s'
-        '<p style="margin-top:1.4em"><a href="%s/">More balanced coverage on Paksh &rarr;</a></p>'
+        '<main style="max-width:44rem;margin:0 auto;padding:88px 1.25rem 48px;'
+        'font-family:\'Source Serif 4\',Georgia,serif;color:#3A372F">'
+        '<p style="font:500 11px/1.4 \'IBM Plex Mono\',monospace;letter-spacing:.14em;'
+        'text-transform:uppercase;color:#8A8371;margin:0">%s &middot; %s</p>'
+        '<h1 style="font:600 32px/1.16 \'Source Serif 4\',Georgia,serif;letter-spacing:-.014em;'
+        'margin:.35em 0 .55em;color:#15140F">%s</h1>'
+        '<p style="font:400 17px/1.66 \'Source Serif 4\',Georgia,serif;color:#26241E">%s</p>'
+        '<h2 style="font:600 12px/1.3 \'IBM Plex Sans\',system-ui,sans-serif;letter-spacing:.14em;'
+        'text-transform:uppercase;margin:2em 0 .9em;color:#15140F">How outlets across the spectrum covered it</h2>'
+        '%s%s'
+        '<p style="margin-top:1.6em;font:500 13px/1.4 \'IBM Plex Sans\',system-ui,sans-serif">'
+        '<a href="%s/" style="color:#15140F">More balanced coverage on Paksh &rarr;</a></p>'
         '</main>'
     ) % (e2(ev.get("topic") or ""), e2(ev.get("region") or "India"),
-         e2(headline), e2(summ), bias_html, SITE_URL)
+         e2(headline), e2(summ), bar_html, bias_html, SITE_URL)
     head, rest = shell.split('<div id="root">', 1)
     _, tail = rest.split('<script type="text/babel" src="/static/app.jsx"></script>', 1)
     return head + '<div id="root">' + body + '</div>\n<script type="text/babel" src="/static/app.jsx"></script>' + tail

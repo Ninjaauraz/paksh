@@ -15,21 +15,26 @@ const {useState,useEffect,useMemo}=React;
     const Grid = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
 
     /* ---------------- config ---------------- */
+    // Each side carries a COLOUR (mid-tone hex, for dots/badges) and a TEXTURE class
+    // (seg-*, defined in styles.css with an oklch value + hex fallback). All three
+    // sit at equal lightness; only hue + texture separate them, so no side reads louder.
     const BIAS = {
-      left:   { color: "#2D5BD0", soft: "#E7EDFB", en: "Left",   hi: "वाम" },
-      center: { color: "#6E7682", soft: "#ECEDEF", en: "Centre", hi: "केंद्र" },
-      right:  { color: "#C26A1B", soft: "#F8EDDD", en: "Right",  hi: "दक्षिण" },
-      international: { color: "#2F8F83", soft: "#E1EFEC", en: "International", hi: "अंतरराष्ट्रीय" },
+      left:   { color:"#476F83", tex:"seg-left",   soft:"#E3E8EA", en:"Left",   hi:"वाम" },
+      center: { color:"#7B7568", tex:"seg-center", soft:"#ECE9E1", en:"Centre", hi:"केंद्र" },
+      right:  { color:"#8D5B44", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
+      international: { color:"#5E7E78", tex:"", soft:"#E3EAE8", en:"International", hi:"अंतरराष्ट्रीय" },
     };
     const TOKENS = {
-      light: { bg:"bg-[#EDEAE4]", surface:"bg-[#FFFFFF]", soft:"bg-[#F4F2ED]", border:"border-[#DEDAD1]",
-        tp:"text-[#1B1A18]", ts:"text-[#57544E]", tf:"text-[#94908A]", brand:"text-[#1B1A18]", brandBg:"bg-[#1B1A18]",
-        blind:"text-[#A33A3A]", blindSoft:"bg-[#F6E7E3]", nav:"glass-nav-light",
-        cta:"bg-[#1B1A18]", ctaT:"text-[#FFFFFF]", line:"#DEDAD1", ink:"#1B1A18", chip:"bg-[#ECE8E0]", centerSeg:"#E4E0D7" },
-      dark: { bg:"bg-[#15161A]", surface:"bg-[#1D1F24]", soft:"bg-[#232529]", border:"border-[#2F3238]",
-        tp:"text-[#E9EAEC]", ts:"text-[#9DA1A9]", tf:"text-[#6A6E76]", brand:"text-[#E9EAEC]", brandBg:"bg-[#E9EAEC]",
-        blind:"text-[#E8888A]", blindSoft:"bg-[#3A1E1E]", nav:"glass-nav-dark",
-        cta:"bg-[#E9EAEC]", ctaT:"text-[#1D1F24]", line:"#2F3238", ink:"#E9EAEC", chip:"bg-[#262A30]", centerSeg:"#33373E" },
+      light: { bg:"bg-[#EAE6DB]", surface:"bg-[#F4F1EA]", soft:"bg-[#EFEBE1]", border:"border-[#D8D3C6]",
+        tp:"text-[#15140F]", ts:"text-[#3A372F]", tf:"text-[#8A8371]", brand:"text-[#15140F]", brandBg:"bg-[#15140F]",
+        blind:"text-[#75442E]", blindSoft:"bg-[#EFE3DB]", nav:"glass-nav-light",
+        cta:"bg-[#15140F]", ctaT:"text-[#F4F1EA]", line:"#D8D3C6", ink:"#15140F", chip:"bg-[#EAE6DB]", centerSeg:"#8C8579",
+        track:"#EAE6DB", gap:"#F4F1EA" },
+      dark: { bg:"bg-[#1A1917]", surface:"bg-[#201F1C]", soft:"bg-[#262420]", border:"border-[#35322C]",
+        tp:"text-[#EDEAE2]", ts:"text-[#B7B1A4]", tf:"text-[#847E72]", brand:"text-[#EDEAE2]", brandBg:"bg-[#EDEAE2]",
+        blind:"text-[#C89170]", blindSoft:"bg-[#2E2019]", nav:"glass-nav-dark",
+        cta:"bg-[#EDEAE2]", ctaT:"text-[#201F1C]", line:"#35322C", ink:"#EDEAE2", chip:"bg-[#2A2823]", centerSeg:"#8C8579",
+        track:"#2A2823", gap:"#1A1917" },
     };
     const TOPIC_HI = {Politics:"राजनीति", Economy:"अर्थव्यवस्था", International:"अंतरराष्ट्रीय", Sports:"खेल",
       "Crime & Law":"अपराध व कानून", "Science & Tech":"विज्ञान व तकनीक", Health:"स्वास्थ्य",
@@ -197,6 +202,9 @@ const {useState,useEffect,useMemo}=React;
       return c; };
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
+    // Reading text is serif in BOTH scripts: Source Serif 4 (Latin) / Tiro Devanagari
+    // Hindi (with extra leading). Chrome/labels keep isHi() -> "deva" (Plex Devanagari).
+    const readCls = (lang) => lang==="hi" ? "read-hi" : "serif";
 
 
 
@@ -243,28 +251,69 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- bias bars ---------------- */
-    function MiniBar({ bias, t }) {
-      const [m,setM]=useState(false);
-      useEffect(()=>{ const r=requestAnimationFrame(()=>setM(true)); return ()=>cancelAnimationFrame(r); },[]);
-      const w=(p)=>(m?`${p}%`:"0%");
+    // The signature instrument. Segment sizes come STRAIGHT from live counts
+    // (flexGrow = bias%, itself computed from the distinct-outlet L/C/R totals) — never
+    // hardcoded. Each side is textured (solid / 45deg hatch / vertical rule), separated by
+    // a 1px paper gap, inside a hairline ink frame, with a fixed centre axis so skew is
+    // judged against a constant. min-width 2px keeps a lone outlet visible. No animation.
+    function BiasSegments({ bias, t, h, onPick, active, lang }) {
+      const present=["left","center","right"].filter(k=>(bias[k]||0)>0);
       return (
-        <div className="flex h-[5px] w-full overflow-hidden rounded-full" style={{background:(t&&t.line)||"#DEDAD1"}}>
-          {["left","center","right"].map(k=><div key={k} className="h-full transition-[width] duration-700 ease-out" style={{width:w(bias[k]),backgroundColor:BIAS[k].color}}/>)}
+        <div className="relative flex w-full" style={{height:h,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}>
+          {present.map((k,i)=>(
+            <React.Fragment key={k}>
+              {i>0 && <div style={{flex:"0 0 1px",background:t.gap||"#F4F1EA"}}/>}
+              {onPick
+                ? <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onPick(k);}} aria-label={lbl(k,lang||"en")}
+                    className={`${BIAS[k].tex} cursor-pointer hover:brightness-110 ${active&&active!==k?"opacity-40":""}`}
+                    style={{flexGrow:bias[k],flexBasis:0,minWidth:2,border:0,padding:0}}/>
+                : <div className={BIAS[k].tex} style={{flexGrow:bias[k],flexBasis:0,minWidth:2}}/>}
+            </React.Fragment>
+          ))}
+          <div style={{position:"absolute",left:"50%",top:-3,bottom:-3,width:1,background:t.ink}}/>
         </div>
       );
     }
-    function BiasBar({ bias, t, lang, onPick, active, height }) {
-      const order=["left","center","right"];
-      const h=height||30;
+    function MiniBar({ bias, t }) { return <BiasSegments bias={bias} t={t} h={10} />; }
+    // Larger bar. Pass `counts` (real L/C/R outlet counts) to print the label row + n above,
+    // exactly like the design's story-page instrument.
+    function BiasBar({ bias, t, lang, onPick, active, height, counts, showN }) {
+      const h=height||26;
+      const total=counts?["left","center","right"].reduce((s,k)=>s+(counts[k]||0),0):0;
       return (
-        <div className="flex w-full overflow-hidden rounded-md" style={{height:h}}>
-          {order.map(k=> (bias[k]||0)>0 && (
-            <button key={k} onClick={onPick?(e)=>{e.stopPropagation();e.preventDefault();onPick(k);}:undefined} disabled={!onPick}
-              className={`flex items-center justify-center mono text-[11px] font-semibold transition-[filter] ${k==="center"?t.tp:"text-white"} ${onPick?"cursor-pointer hover:brightness-105":"cursor-default"} ${active&&active!==k?"opacity-45":""}`}
-              style={{width:`${bias[k]}%`, minWidth:(bias[k]>0?22:0), backgroundColor:k==="center"?t.centerSeg:BIAS[k].color}}>
-              {bias[k]>=11 && <span className="truncate px-1">{lbl(k,lang)} {bias[k]}%</span>}
-            </button>
-          ))}
+        <div>
+          {counts && (
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <div className={`flex flex-wrap gap-x-4 gap-y-1 text-[10.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>
+                {["left","center","right"].map(k=>(counts[k]||0)>0 && <span key={k}>{lbl(k,lang)} <span className="mono" style={{letterSpacing:0}}>{counts[k]}</span></span>)}
+              </div>
+              {showN!==false && total>0 && <span className={`mono text-[10.5px] ${t.tf}`}>n = {total}</span>}
+            </div>
+          )}
+          <BiasSegments bias={bias} t={t} h={h} onPick={onPick} active={active} lang={lang} />
+        </div>
+      );
+    }
+    // Coverage-gap viz: three EQUAL-WIDTH columns, bar height proportional to that side's
+    // count, an absent side drawn as the dashed hatch — so absence takes as much room as
+    // presence. Driven only by the same L/C/R distinct-outlet counts as the bias bar.
+    function GapColumns({ counts, t, lang }) {
+      const ks=["left","center","right"];
+      const mx=Math.max(1,...ks.map(k=>counts[k]||0));
+      return (
+        <div className="grid grid-cols-3 gap-1.5">
+          {ks.map(k=>{ const n=counts[k]||0; const pct=Math.round(n/mx*100);
+            return (
+              <div key={k}>
+                <div className="flex items-end" style={{height:34,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}>
+                  {n>0 ? <div className={`w-full ${BIAS[k].tex}`} style={{height:`${Math.max(8,pct)}%`}}/>
+                       : <div className="seg-absent w-full h-full"/>}
+                </div>
+                <div className={`mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</div>
+                <div className="mono text-[10.5px]" style={{color:n>0?t.ink:"#75442E"}}>{n}</div>
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -304,17 +353,17 @@ const {useState,useEffect,useMemo}=React;
                   <span className={lang==="hi"?"deva":""}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</span>
                   <span className="opacity-60">·</span><span>{timeAgo(story.created_at,lang)}</span>
                 </div>
-                <h2 className={`headline text-2xl sm:text-[2rem] leading-[1.08] text-white ${isHi(lang)}`}>{story.headline}</h2>
+                <h2 className={`headline text-2xl sm:text-[2rem] leading-[1.08] text-white ${readCls(lang)}`}>{story.headline}</h2>
               </div>
             </div>
           ) : (
             <div className="p-6 sm:p-7">
               <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
-              <h2 className={`headline mt-2 text-2xl sm:text-[2rem] leading-[1.08] ${t.tp} ${isHi(lang)}`}>{story.headline}</h2>
-              {story.lead && <p className={`mt-3 text-[15px] leading-relaxed lc-3 ${t.ts} ${isHi(lang)}`}>{story.lead}</p>}
+              <h2 className={`headline mt-2 text-2xl sm:text-[2rem] leading-[1.08] ${t.tp} ${readCls(lang)}`}>{story.headline}</h2>
+              {story.lead && <p className={`mt-3 text-[15px] leading-relaxed lc-3 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
             </div>
           )}
-          <div className={`p-3 ${t.surface}`}><BiasBar bias={story.bias} t={t} lang={lang} height={40} /></div>
+          <div className={`p-4 border-t ${t.surface} ${t.border}`}><BiasBar bias={story.bias} counts={story.counts} t={t} lang={lang} height={22} /></div>
         </a>
       );
     }
@@ -323,7 +372,7 @@ const {useState,useEffect,useMemo}=React;
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`no-underline group flex cursor-pointer gap-4 border-b pb-6 ${t.border}`}>
           <div className="min-w-0 flex-1">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
-            <h3 className={`headline mt-1.5 text-lg sm:text-xl leading-[1.18] lc-3 ${t.tp} ${isHi(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
+            <h3 className={`headline mt-1.5 text-lg sm:text-xl leading-[1.18] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
             <div className="mt-2.5 flex items-center gap-3">
               <div className="w-28 sm:w-36"><MiniBar bias={story.bias} t={t} /></div>
               <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
@@ -336,7 +385,7 @@ const {useState,useEffect,useMemo}=React;
     function BriefItem({ story, t, lang, onOpen, last }) {
       return (
         <button onClick={()=>onOpen(story.id)} className={`block w-full text-left ${last?"":"border-b"} py-3 ${t.border}`}>
-          <h4 className={`headline text-[15px] font-semibold leading-[1.2] lc-2 ${t.tp} ${isHi(lang)} hover:underline decoration-1 underline-offset-2`}>{story.headline}</h4>
+          <h4 className={`headline text-[15px] font-semibold leading-[1.2] lc-2 ${t.tp} ${readCls(lang)} hover:underline decoration-1 underline-offset-2`}>{story.headline}</h4>
           <div className="mt-2 flex items-center gap-2">
             <div className="w-16"><MiniBar bias={story.bias} t={t} /></div>
             <span className={`mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
@@ -345,15 +394,15 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BlindspotCard({ story, t, lang, onOpen }) {
-      const c=story.counts||{}; const L=c.left||0, C=c.center||0, R=c.right||0;
+      const c=story.counts||{left:0,center:0,right:0}; const L=c.left||0, C=c.center||0, R=c.right||0;
       const covered = lang==="hi" ? `${L} वाम · ${C} केंद्र · ${R} दक्षिण` : `${L} Left · ${C} Centre · ${R} Right`;
       return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`} style={{borderWidth:1.5}}>
-          {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer border ${t.surface} ${t.border}`} style={{borderLeft:"3px solid #8D5B44"}}>
           <div className="p-4">
-            <h3 className={`headline text-[17px] leading-[1.2] lc-3 ${t.tp} ${isHi(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
-            <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={32} /></div>
-            <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapCovered} {covered}</div>
+            <div className={`mono text-[10px] font-medium uppercase tracking-[0.14em] ${t.blind} ${lang==="hi"?"deva":""}`}>{STR[lang].navOS}</div>
+            <h3 className={`headline mt-2 text-[17px] leading-[1.24] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
+            <div className="mt-3"><GapColumns counts={c} t={t} lang={lang} /></div>
+            <div className={`mt-2.5 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapCovered} {covered}</div>
           </div>
         </a>
       );
@@ -364,7 +413,7 @@ const {useState,useEffect,useMemo}=React;
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
-            <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${isHi(lang)}`}>{story.headline}</h3>
+            <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)}`}>{story.headline}</h3>
             <div className="mt-3"><MiniBar bias={story.bias} t={t} /></div>
             <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</div>
           </div>
@@ -415,8 +464,8 @@ const {useState,useEffect,useMemo}=React;
           <div className="mx-auto max-w-[1800px] px-4 sm:px-5">
             <div className="flex h-[60px] items-center gap-5">
               <button onClick={()=>go("home")} className="flex shrink-0 items-baseline gap-1.5" aria-label="Paksh home">
-                <span className={`deva text-[26px] font-bold leading-none ${t.tp}`}>पक्ष</span>
-                <span className={`text-[19px] font-bold tracking-tight ${t.tp}`}>Paksh</span>
+                <span className={`brand-hi text-[26px] leading-none ${t.tp}`}>पक्ष</span>
+                <span className={`text-[16px] font-semibold uppercase tracking-[0.26em] ${t.tp}`}>Paksh</span>
               </button>
               <nav className="ml-2 hidden items-center gap-5 md:flex">
                 {NAV.map(([k,label])=>(
@@ -461,7 +510,7 @@ const {useState,useEffect,useMemo}=React;
           <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-9">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div className="max-w-md">
-                <div className="flex items-baseline gap-1.5"><span className={`deva text-xl font-bold ${t.tp}`}>पक्ष</span><span className={`text-lg font-bold ${t.tp}`}>Paksh</span></div>
+                <div className="flex items-baseline gap-1.5"><span className={`brand-hi text-xl ${t.tp}`}>पक्ष</span><span className={`text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`}>Paksh</span></div>
                 <p className={`mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -620,7 +669,7 @@ const {useState,useEffect,useMemo}=React;
                 <button onClick={()=>openTopic(story.topic)} className={`${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</button>
                 <span className={t.tf}>·</span><span className={t.tf}>{lang==="hi"?"प्रकाशित":"Published"} {timeAgo(story.created_at,lang)}</span>
               </div>
-              <h1 className={`headline mt-3 text-[1.85rem] sm:text-[2.6rem] leading-[1.06] ${t.tp} ${isHi(lang)}`}>{story.headline}</h1>
+              <h1 className={`headline mt-3 text-[1.85rem] sm:text-[2.6rem] leading-[1.06] ${t.tp} ${readCls(lang)}`}>{story.headline}</h1>
               <div className="mt-4 flex items-center gap-3">
                 <button onClick={copy} className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.soft}`}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी हुआ":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"लिंक कॉपी करें":"Copy link"}</>}</button>
                 {story.auto && <AutoTag lang={lang} t={t} />}
@@ -628,27 +677,32 @@ const {useState,useEffect,useMemo}=React;
 
               {story.img && <div className="mt-6 overflow-hidden rounded-lg"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
 
-              {/* Overview / AI Summary */}
-              <div className={`mt-7 rounded-lg border ${t.surface} ${t.border}`}>
-                <div className="p-5">
-                  <div className={`mb-3 flex items-center gap-2 mono text-[11px] uppercase tracking-wide ${t.tf}`}>{story.auto?STR[lang].autoTag:STR[lang].aiSummary}{story.auto && <span className={`${isHi(lang)} normal-case`}>· {STR[lang].autoFrom}</span>}</div>
-                  {story.lead && <p className={`mb-4 text-[16px] font-medium leading-relaxed ${t.tp} ${isHi(lang)}`}>{story.lead}</p>}
-                  <ul className="space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[14.5px] leading-relaxed ${t.tp} ${isHi(lang)}`}><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{background:t.ink}}/>{p}</li>)}</ul>
+              {/* Overview / neutral summary — the story, without framing */}
+              <div className={`mt-7 border ${t.soft} ${t.border}`}>
+                <div className="p-5 sm:p-6">
+                  <div className={`mb-3 flex items-center gap-2 mono text-[10px] uppercase tracking-[0.14em] ${t.tf}`}>{story.auto?STR[lang].autoTag:STR[lang].aiSummary}{story.auto && <span className={`${isHi(lang)} normal-case`}>· {STR[lang].autoFrom}</span>}</div>
+                  {story.lead && <p className={`mb-4 text-[16.5px] leading-[1.66] ${t.tp} ${readCls(lang)}`}>{story.lead}</p>}
+                  <ul className="space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}><span className="mt-[9px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
                 </div>
               </div>
 
-              {/* framing grid */}
-              <div className={`mt-7`}>
-                <div className={`mb-4 flex items-center gap-2`}><Scale size={18} className={t.tf}/><h3 className={`headline text-[17px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].framingTitle}</h3></div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {/* framing panels — three sides, identical structure, equal length by construction */}
+              <div className={`mt-8`}>
+                <div className={`border-b pb-2 ${t.border}`}><h3 className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{STR[lang].framingTitle}</h3></div>
+                <p className={`mt-2 mb-4 text-[13px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{STR[lang].framingSub}</p>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-stretch">
                   {["left","center","right"].map(k=> (fr[k] || counts[k]>0) ? (
-                    <div key={k} style={{borderTopColor:BIAS[k].color, borderTopWidth:3}} className={`rounded-lg border p-4 ${t.surface} ${t.border} flex flex-col hover:-translate-y-0.5 hover:shadow-md transition-all duration-300`}>
-                      <div className="mb-3 flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:BIAS[k].color}}/><span className="mono text-[11px] font-bold uppercase tracking-wide" style={{color:BIAS[k].color}}>{lbl(k,lang)}</span></div>
-                      {fr[k] ? (
-                        <p className={`text-[14.5px] leading-relaxed ${t.tp} ${isHi(lang)}`}>{fr[k]}</p>
-                      ) : (
-                        <p className={`text-[13px] italic ${t.tf} ${isHi(lang)}`}>{STR[lang].framingPending}</p>
-                      )}
+                    <div key={k} className={`flex flex-col border ${t.surface}`} style={{borderColor:t.ink}}>
+                      <div className={BIAS[k].tex} style={{height:5}}/>
+                      <div className="flex flex-1 flex-col p-4">
+                        <div className="flex items-baseline justify-between">
+                          <span className={`text-[11px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
+                          <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"स्रोत":(counts[k]===1?"outlet":"outlets")}</span>
+                        </div>
+                        {fr[k]
+                          ? <p className={`mt-3 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{fr[k]}</p>
+                          : <p className={`mt-3 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{STR[lang].framingPending}</p>}
+                      </div>
                     </div>
                   ) : null)}
                 </div>
@@ -674,7 +728,7 @@ const {useState,useEffect,useMemo}=React;
                           <LeanBadge side={o.lean} lang={lang} t={t} />
                           <span className={`ml-auto mono text-[10px] ${t.tf}`}>{(o.language||"en").toUpperCase()}</span>
                         </div>
-                        {o.headline && <div className={`mt-1 text-[14.5px] leading-snug ${t.ts} ${isHi(lang)}`}>{o.headline}</div>}
+                        {o.headline && <div className={`mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`}>{o.headline}</div>}
                       </div>
                       <ArrowUpRight size={15} className={`mt-0.5 shrink-0 ${t.tf}`} />
                     </a>
@@ -713,7 +767,7 @@ const {useState,useEffect,useMemo}=React;
                   <span className={`mono text-[12.5px] ${t.ts}`}>{timeAgo(story.created_at,lang)}</span>
                 </div>
                 <div className={`mt-3 mono text-[11px] uppercase tracking-wide ${t.tf}`}>{lbl(bd,lang)} {story.bias[bd]}%</div>
-                <div className="mt-2"><BiasBar bias={story.bias} t={t} lang={lang} onPick={(k)=>{ const el=document.getElementById("arts"); setAtab(k); }} active={null} height={40} /></div>
+                <div className="mt-2"><BiasBar bias={story.bias} t={t} lang={lang} onPick={(k)=>{ const el=document.getElementById("arts"); setAtab(k); }} active={null} height={22} /></div>
                 {story.blindspot && <div className={`mt-4 flex items-start gap-2 rounded-md p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}><Eye size={15} className="mt-0.5 shrink-0"/><span>{STR[lang].osCalloutBody1} <strong>{story.bias[story.blindspot]}%</strong> {STR[lang].osCalloutBody2}</span></div>}
                 <p className={`mt-4 border-t pt-4 text-[11px] leading-relaxed ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
               </div>
@@ -731,7 +785,7 @@ const {useState,useEffect,useMemo}=React;
       const showing=(n,total)=>STR[lang].gapShowing.replace("{n}",n).replace("{total}",total);
       const Col=({head,rows,total})=>(
         <div>
-          <h2 className={`headline text-[17px] font-bold ${t.tp} ${isHi(lang)}`}>{head}</h2>
+          <h2 className={`headline text-[17px] font-bold ${t.tp} ${readCls(lang)}`}>{head}</h2>
           <div className={`mb-3 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{showing(rows.length,total)}</div>
           {rows.length ? <div className="space-y-5">{rows.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
             : <div className={`rounded-lg border border-dashed p-6 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
@@ -739,7 +793,7 @@ const {useState,useEffect,useMemo}=React;
       );
       return (
         <PageWrap>
-          <div className="mb-2 flex items-center gap-2.5"><Eye size={22} className={t.blind}/><h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].osTitle}</h1></div>
+          <div className="mb-2 flex items-center gap-2.5"><Eye size={22} className={t.blind}/><h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].osTitle}</h1></div>
           <p className={`mb-3 max-w-3xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].osSub}</p>
           <button onClick={()=>go("about")} className={`mb-7 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पूरा ब्यौरा देखें":"See the full breakdown"} <ArrowUpRight size={12}/></button>
           {/* Left-heavier first so on a phone (columns stack) the spectrum order is consistent */}
@@ -754,7 +808,7 @@ const {useState,useEffect,useMemo}=React;
     function TopicsHub({ topics, counts, t, lang, goTopic }) {
       return (
         <PageWrap>
-          <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{ui("sections",lang)}</h1>
+          <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{ui("sections",lang)}</h1>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`flex items-center justify-between rounded-lg border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`text-[17px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span><ChevronRight size={16} className={t.tf}/></button>))}
           </div>
@@ -766,7 +820,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 mono text-[12px] uppercase tracking-wide ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
-          <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
+          <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
           {items.length? <><GridGrid items={items} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} /><div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div></>
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
         </PageWrap>
@@ -796,7 +850,7 @@ const {useState,useEffect,useMemo}=React;
       const filters=[["all",lang==="hi"?"सभी":"All"],["left",lbl("left",lang)],["center",lbl("center",lang)],["right",lbl("right",lang)]];
       return (
         <PageWrap>
-          <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].srcTitle}</h1>
+          <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].srcTitle}</h1>
           <p className={`mb-5 mt-2 max-w-2xl text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].srcDisclaimer}</p>
           <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${lang==="hi"&&k!=="all"?"deva":""}`}>{label}</button>))}</div>
           <GridGrid items={list} t={t} lang={lang} gap="gap-4" render={(s)=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>} />
@@ -811,7 +865,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <div className="max-w-3xl">
-            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h1>
+            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].methodTitle}</h1>
             <p className={`mb-2 mt-3 text-[15.5px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_does}</p>
             <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
             {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
@@ -857,7 +911,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <div className="max-w-xl">
-            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${isHi(lang)}`}>{L.title}</h1>
+            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{L.title}</h1>
             <p className={`mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{L.lede}</p>
             {status==="ok" ? (
               <div className={`rounded-lg border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
@@ -941,7 +995,7 @@ const {useState,useEffect,useMemo}=React;
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
       useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
-      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#15161A":"#EDEAE4"; },[dark]);
+      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#1A1917":"#EAE6DB"; },[dark]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
 
       const t=dark?TOKENS.dark:TOKENS.light;
