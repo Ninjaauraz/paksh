@@ -227,6 +227,9 @@ const {useState,useEffect,useMemo}=React;
     const domSide=(bias)=>["left","center","right"].reduce((a,b)=>(bias[b]||0)>(bias[a]||0)?b:a,"left");
     const tword=(lang)=> (n)=> n===1?STR[lang].source:STR[lang].sources;
     const covLine=(story,lang)=>{ const d=domSide(story.bias); const tot=story.sources+(story.unrated||0)+(story.international||0); return `${story.bias[d]}% ${lbl(d,lang)} · ${tot} ${tot===1?STR[lang].source:STR[lang].sources}`; };
+    // Newspaper count line: raw distinct-outlet counts L · C · R, plus n and age. Reads
+    // straight from the real per-lean counts (never a hardcoded ratio).
+    const countLine=(story,lang)=>{ const c=story.counts||{}; const L=c.left||0,C=c.center||0,R=c.right||0; const n=L+C+R; const ta=timeAgo(story.created_at,lang); return `${L} · ${C} · ${R}   n=${n}${ta?" · "+ta:""}`; };
 
     function Thumb({ src, topic, title, ratio, t, lang, className }) {
       const [err,setErr]=useState(false);
@@ -277,7 +280,7 @@ const {useState,useEffect,useMemo}=React;
     function MiniBar({ bias, t }) { return <BiasSegments bias={bias} t={t} h={10} />; }
     // Larger bar. Pass `counts` (real L/C/R outlet counts) to print the label row + n above,
     // exactly like the design's story-page instrument.
-    function BiasBar({ bias, t, lang, onPick, active, height, counts, showN }) {
+    function BiasBar({ bias, t, lang, onPick, active, height, counts, showN, showScale }) {
       const h=height||26;
       const total=counts?["left","center","right"].reduce((s,k)=>s+(counts[k]||0),0):0;
       return (
@@ -291,6 +294,12 @@ const {useState,useEffect,useMemo}=React;
             </div>
           )}
           <BiasSegments bias={bias} t={t} h={h} onPick={onPick} active={active} lang={lang} />
+          {showScale && (
+            <div className="relative" style={{height:14,marginTop:3}}>
+              {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,width:1,height:p===50?6:4,background:p===50?t.ink:t.line}}/>)}
+              <span className={`mono text-[9px] ${t.tf}`} style={{position:"absolute",left:"50%",top:6,transform:"translateX(-50%)",whiteSpace:"nowrap"}}>{lang==="hi"?"कवरेज का 50%":"50% of coverage"}</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -340,31 +349,80 @@ const {useState,useEffect,useMemo}=React;
       );
     }
 
-    /* ---------------- feed pieces ---------------- */
+    /* ---------------- feed pieces (newspaper hierarchy) ---------------- */
+    // A dated masthead sub-strip: today's date + how many outlets Paksh tracks.
+    function DateStrip({ t, lang, stats }) {
+      const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+      return (
+        <div className={`mb-5 flex items-center justify-between border-b pb-2 ${t.border}`}>
+          <span className={`eyebrow ${t.ts} ${lang==="hi"?"deva":""}`}>{today}{lang==="hi"?" · नई दिल्ली":" · New Delhi"}</span>
+          <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`}>{stats.outlets} {lang==="hi"?"स्रोत ट्रैक":"outlets tracked"}</span>
+        </div>
+      );
+    }
+    // LEAD — the most-covered story of the moment, given the largest type + full bias
+    // instrument with the printed scale. Text-forward; a single 2:1 image if one exists.
     function LeadStory({ story, t, lang, onOpen }) {
       return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
-          {story.img ? (
-            <div className="relative">
-              <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
-              <div className="pointer-events-none absolute inset-0" style={{background:"linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.32) 36%, rgba(0,0,0,0) 60%)"}} />
-              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
-                <div className="mb-2 flex items-center gap-2 mono text-[11px] font-medium uppercase tracking-[0.1em] text-white/80">
-                  <span className={lang==="hi"?"deva":""}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</span>
-                  <span className="opacity-60">·</span><span>{timeAgo(story.created_at,lang)}</span>
-                </div>
-                <h2 className={`headline text-2xl sm:text-[2rem] leading-[1.08] text-white ${readCls(lang)}`}>{story.headline}</h2>
-              </div>
-            </div>
-          ) : (
-            <div className="p-6 sm:p-7">
-              <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
-              <h2 className={`headline mt-2 text-2xl sm:text-[2rem] leading-[1.08] ${t.tp} ${readCls(lang)}`}>{story.headline}</h2>
-              {story.lead && <p className={`mt-3 text-[15px] leading-relaxed lc-3 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
-            </div>
-          )}
-          <div className={`p-4 border-t ${t.surface} ${t.border}`}><BiasBar bias={story.bias} counts={story.counts} t={t} lang={lang} height={22} /></div>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
+          <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:"#8D5B44"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}</div>
+          <h2 className={`headline mt-2.5 text-[26px] sm:text-[32px] lg:text-[38px] leading-[1.1] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`}>{story.headline}</h2>
+          {story.lead && <p className={`mt-3 max-w-[62ch] text-[15.5px] sm:text-[16.5px] leading-[1.62] lc-3 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
+          {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
+          <div className="mt-5"><BiasBar bias={story.bias} counts={story.counts} t={t} lang={lang} height={22} showScale /></div>
+          <div className="mt-4 flex items-center justify-between">
+            <span className={`mono text-[11px] ${t.tf}`}>{timeAgo(story.created_at,lang)}</span>
+            <span className={`text-[11.5px] font-medium uppercase tracking-[0.08em] ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"सभी पक्ष पढ़ें":"Read all sides"} →</span>
+          </div>
         </a>
+      );
+    }
+    // SECONDARY — the middle tier: a real headline + a taste of the lead + a compact bias bar.
+    function SecondaryStory({ story, t, lang, onOpen }) {
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer border-b py-5 ${t.border}`}>
+          <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+          <h3 className={`headline mt-1.5 text-[20px] sm:text-[21px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
+          {story.lead && <p className={`mt-2 text-[14px] leading-[1.55] lc-2 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
+          <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={11} /></div>
+          <div className={`mt-1.5 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{countLine(story,lang)}</div>
+        </a>
+      );
+    }
+    // DENSE — the tail: a compact headline row with a mini bias bar. High information density.
+    function DenseRow({ story, t, lang, onOpen, last }) {
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer ${last?"":"border-b"} py-3.5 ${t.border}`}>
+          <h4 className={`headline text-[16px] sm:text-[17.5px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h4>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="w-24 sm:w-28 shrink-0"><MiniBar bias={story.bias} t={t} /></div>
+            <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{countLine(story,lang)}</span>
+          </div>
+        </a>
+      );
+    }
+    // SPECTRUM RAIL — an aggregate of the visible feed: total distinct-outlet coverage by
+    // side. Pure arithmetic over the same per-lean counts; never a hardcoded ratio.
+    function SpectrumRail({ cards, t, lang }) {
+      const agg={left:0,center:0,right:0};
+      cards.forEach(c=>{ const k=c.counts||{}; agg.left+=k.left||0; agg.center+=k.center||0; agg.right+=k.right||0; });
+      const mx=Math.max(1,agg.left,agg.center,agg.right);
+      return (
+        <div className={`${t.soft} border p-5 ${t.border}`}>
+          <div className={`eyebrow border-b pb-2 ${t.tp} ${t.border} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"आज का स्पेक्ट्रम":"The spectrum today"}</div>
+          <p className={`mt-3 text-[13px] leading-[1.5] ${t.ts} ${readCls(lang)}`}>{lang==="hi"?`${cards.length} ख़बरों में पक्ष अनुसार कुल कवरेज`:`Coverage volume by side across ${cards.length} stories`}</p>
+          <div className="mt-4 flex flex-col gap-3">
+            {["left","center","right"].map(k=>(
+              <div key={k}>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className={`text-[10px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
+                  <span className="mono text-[11px]" style={{color:t.ink}}>{agg[k]}</span>
+                </div>
+                <div style={{height:8,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}><div className={BIAS[k].tex} style={{width:`${Math.round(agg[k]/mx*100)}%`,height:"100%"}}/></div>
+              </div>
+            ))}
+          </div>
+        </div>
       );
     }
     function FeedRow({ story, t, lang, onOpen }) {
@@ -477,7 +535,7 @@ const {useState,useEffect,useMemo}=React;
               <div className="ml-auto flex items-center max-w-xs w-full sm:max-w-sm">
                 <div className="relative w-full">
                   <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`} />
-                  <input value={query||""} onChange={(e)=>{ if (setQuery) { setQuery(e.target.value); if (view !== "search" && e.target.value.trim()) go("search"); } }} placeholder={STR[lang].search} className={`w-full rounded-full border py-1.5 pl-9 pr-3 text-[14px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#2D5BD0] ${t.tp} ${lang==="hi"?"deva":""}`} />
+                  <input value={query||""} onChange={(e)=>{ if (setQuery) { setQuery(e.target.value); if (view !== "search" && e.target.value.trim()) go("search"); } }} placeholder={STR[lang].search} className={`w-full rounded-full border py-1.5 pl-9 pr-3 text-[14px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang==="hi"?"deva":""}`} />
                 </div>
               </div>
             </div>
@@ -528,8 +586,8 @@ const {useState,useEffect,useMemo}=React;
     /* ---------------- HOME ---------------- */
     function AdSlot({ t, lang, h, label }) {
       return (
-        <div className={`flex items-center justify-center rounded-lg border border-dashed ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
-          <span className={`mono text-[10px] uppercase tracking-[0.22em] ${t.tf}`}>{label||(lang==="hi"?"विज्ञापन":"Advertisement")}</span>
+        <div className={`flex items-center justify-center border border-dashed ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
+          <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:".24em"}}>{label||(lang==="hi"?"विज्ञापन":"Advertisement")}</span>
         </div>
       );
     }
@@ -539,96 +597,79 @@ const {useState,useEffect,useMemo}=React;
       return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{out}</div>;
     }
     function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go }) {
-      // de-dup partition: every story appears in exactly ONE place on the page
+      // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
+      // breadth of distinct outlets across L/C/R, decayed by recency) is untouched — the
+      // top-ranked story leads, the rest fall into secondary then dense tiers in order.
       const used=new Set();
       const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
       const lead=cards[0]; if(lead) used.add(lead.id);
-      const feed=take(cards,18);            // centre masonry
-      const more=take(cards,10);            // left rail headlines (distinct)
-      // Coverage Gaps module: 2 Left-heavier + 2 Right-heavier, equal representation
+      const secondary=take(cards,5);        // middle tier
+      const dense=take(cards,16);           // dense tail
       const notUsed=arr=>(arr||[]).filter(c=>!used.has(c.id));
       const gL=notUsed(gapLeft).slice(0,2), gR=notUsed(gapRight).slice(0,2);
       [...gL,...gR].forEach(c=>used.add(c.id));
-      const rightExtra=take(cards,3);       // a few distinct cards for the right rail
-      const mobileFeed=[...feed,...more,...rightExtra];
 
       const methodCard=(
-        <div className={`rounded-lg border p-4 ${t.surface} ${t.border}`}>
-          <h3 className={`headline text-[14px] font-bold ${t.tp} ${isHi(lang)}`}>{STR[lang].methodTitle}</h3>
-          <p className={`mt-1.5 text-[12px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{STR[lang].m_rule}</p>
-          <button onClick={()=>go("about")} className={`mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={12}/></button>
+        <div className={`border p-4 ${t.surface} ${t.border}`}>
+          <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"कार्यप्रणाली":"Method"}</div>
+          <h3 className={`headline mt-2 text-[16px] ${t.tp} ${readCls(lang)}`}>{STR[lang].methodTitle}</h3>
+          <p className={`mt-1.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}>{STR[lang].m_rule}</p>
+          <button onClick={()=>go("about")} className={`mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={12}/></button>
         </div>
       );
       const browse=(
-        <div className="mt-9 flex justify-center">
-          <button onClick={()=>go("topics")} className={`rounded-full border px-5 py-2.5 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.soft} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
+        <div className="mt-8 flex justify-center">
+          <button onClick={()=>go("topics")} className={`border px-5 py-2.5 text-[12px] font-semibold uppercase tracking-[0.08em] ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
         </div>
       );
-      const gapHead=(<SectionTitle t={t} lang={lang} right={<button onClick={()=>go("blindspot")} className={`mono text-[11px] ${t.ts} hover:${t.tp} flex items-center gap-0.5`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>}>{STR[lang].navOS}</SectionTitle>);
       const gapModule=(
         <div>
-          {gapHead}
-          <div className="space-y-5">
-            {gL.length>0 && <div className={`mono text-[10.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapLeftHead}</div>}
+          <div className={`mb-3 flex items-baseline justify-between border-b pb-2 ${t.border}`}>
+            <h2 className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:"#8D5B44"}}>{STR[lang].navOS}</h2>
+            <button onClick={()=>go("blindspot")} className={`mono text-[11px] flex items-center gap-0.5 ${t.ts} hover:${t.tp}`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>
+          </div>
+          <div className="space-y-4">
             {gL.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
-            {gR.length>0 && <div className={`mt-1 mono text-[10.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapRightHead}</div>}
             {gR.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
-            {(gL.length===0&&gR.length===0) && <div className={`rounded-lg border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+            {(gL.length===0&&gR.length===0) && <div className={`border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
           </div>
         </div>
       );
 
       return (
-        <div className="mx-auto max-w-[1800px] px-4 sm:px-6 py-6">
-          {/* DESKTOP: three columns, distinct stories, masonry centre */}
-          <div className="hidden gap-7 lg:grid lg:grid-cols-[280px_minmax(0,1fr)_340px]">
-            {/* LEFT: more headlines + ads + method */}
-            <aside className="space-y-6">
-              <div>
-                <SectionTitle t={t} lang={lang}>{lang==="hi"?"और सुर्ख़ियाँ":"More Headlines"}</SectionTitle>
-                <div className={`mb-2 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें":"stories"} · {stats.outlets} {lang==="hi"?"स्रोत":"outlets"}</div>
-                {more.map((s,i)=><BriefItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===more.length-1} />)}
-              </div>
-              <AdSlot t={t} lang={lang} h={300} />
-              {methodCard}
-              <AdSlot t={t} lang={lang} h={600} />
-            </aside>
-            {/* CENTRE: lead + masonry feed (cards pack tight, no holes) */}
+        <div className="mx-auto max-w-[1240px] px-4 sm:px-6 py-6">
+          <DateStrip t={t} lang={lang} stats={stats} />
+
+          {/* DESKTOP: main column (lead / secondary grid / dense list) + spectrum rail */}
+          <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-9">
             <main className="min-w-0">
-              {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
-              <div className="gap-x-6 md:columns-2">
-                {feed.map((s,i)=>(
-                  <React.Fragment key={s.id}>
-                    <div className="mb-6 break-inside-avoid"><GridCard story={s} t={t} lang={lang} onOpen={open} /></div>
-                    {(i===5||i===11) && <div className="mb-6 break-inside-avoid"><AdSlot t={t} lang={lang} h={250} /></div>}
-                  </React.Fragment>
-                ))}
+              {lead && <div className="border-b-2 pb-7" style={{borderColor:t.ink}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
+              <div className="my-6"><AdSlot t={t} lang={lang} h={90} /></div>
+              <div className="grid grid-cols-2 gap-x-9">
+                {secondary.map(s=><SecondaryStory key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
               </div>
+              <div className="my-6"><AdSlot t={t} lang={lang} h={120} /></div>
+              <div>{dense.map((s,i)=><DenseRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===dense.length-1} />)}</div>
               {browse}
             </main>
-            {/* RIGHT: one-sided + distinct extra articles + ads */}
-            <aside className="space-y-6">
-              <AdSlot t={t} lang={lang} h={250} />
-              {gapModule}
+            <aside className="space-y-7">
+              <SpectrumRail cards={cards} t={t} lang={lang} />
+              {(gL.length>0||gR.length>0) && gapModule}
               <AdSlot t={t} lang={lang} h={300} />
-              {rightExtra.length>0 && <div className="space-y-5">{rightExtra.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>}
-              <AdSlot t={t} lang={lang} h={600} />
+              {methodCard}
+              <AdSlot t={t} lang={lang} h={250} />
             </aside>
           </div>
 
-          {/* MOBILE: single column, distinct stories, in-feed ads */}
+          {/* MOBILE: same hierarchy, single column, sparing ads */}
           <div className="lg:hidden">
-            {lead && <div className="mb-6"><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
-            <div className="mb-6"><AdSlot t={t} lang={lang} h={250} /></div>
-            <div className="space-y-6">
-              {mobileFeed.slice(0,26).map((s,i)=>(
-                <React.Fragment key={s.id}>
-                  <FeedRow story={s} t={t} lang={lang} onOpen={open} />
-                  {i===5 && (gL.length>0||gR.length>0) && <div className="pt-1">{gapModule}</div>}
-                  {(i===2||i===11||i===19) && <AdSlot t={t} lang={lang} h={250} />}
-                </React.Fragment>
-              ))}
-            </div>
+            {lead && <div className="border-b-2 pb-6" style={{borderColor:t.ink}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
+            <div className="my-6"><AdSlot t={t} lang={lang} h={250} /></div>
+            <div>{secondary.map(s=><SecondaryStory key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+            {(gL.length>0||gR.length>0) && <div className="mt-6">{gapModule}</div>}
+            <div className="mt-6"><SpectrumRail cards={cards} t={t} lang={lang} /></div>
+            <div className="my-6"><AdSlot t={t} lang={lang} h={250} /></div>
+            <div>{dense.map((s,i)=><DenseRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===dense.length-1} />)}</div>
             <div className="mt-7">{methodCard}</div>
             {browse}
           </div>
@@ -906,7 +947,7 @@ const {useState,useEffect,useMemo}=React;
           else{ const j=await r.json().catch(()=>({})); setErr((j.errors&&j.errors.map(x=>x.message).join(", "))||L.err); setStatus("error"); }
         }catch(_){ setErr(L.err); setStatus("error"); }
       }
-      const inp=`w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#2D5BD0] ${t.tp} ${isHi(lang)}`;
+      const inp=`w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
       const lbl=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
       return (
         <PageWrap>

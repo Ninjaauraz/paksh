@@ -17,6 +17,9 @@
   /* the masthead पक्ष uses the reading serif, not the chrome sans */
   .brand-hi{font-family:'Tiro Devanagari Hindi','Source Serif 4',serif !important;letter-spacing:0 !important;}
   .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  /* section / kicker label — chrome, not reading. Colour is left to the token class so
+     it works in light + dark; .deva zeroes the tracking for Devanagari. */
+  .eyebrow{font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:10px;letter-spacing:.16em;text-transform:uppercase;}
   /* chrome in Hindi = IBM Plex Sans Devanagari (labels/counts); no caps, light tracking */
   .deva,.deva *{font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif !important;letter-spacing:0 !important;}
 
