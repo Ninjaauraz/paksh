@@ -303,8 +303,39 @@ def _story_html(shell, ev):
     ) % (e2(ev.get("topic") or ""), e2(ev.get("region") or "India"),
          e2(headline), e2(summ), bar_html, bias_html, SITE_URL)
     head, rest = shell.split('<div id="root">', 1)
-    _, tail = rest.split('<script type="text/babel" src="/static/app.jsx"></script>', 1)
-    return head + '<div id="root">' + body + '</div>\n<script type="text/babel" src="/static/app.jsx"></script>' + tail
+    _, tail = rest.split('<script src="/static/app.js"></script>', 1)
+    return head + '<div id="root">' + body + '</div>\n<script src="/static/app.js"></script>' + tail
+
+
+def _precompile_jsx():
+    """Compile static/app.jsx (JSX) to _site/static/app.js (plain React.createElement JS)
+    with the vendored Babel UMD, so the browser never downloads or runs Babel. Fails LOUDLY
+    if node or the vendored babel is missing, or the transform errors - a broken build must
+    never be published."""
+    import subprocess
+    babel = ROOT / "vendor" / "babel.min.js"
+    src = ROOT / "static" / "app.jsx"
+    out = OUT / "static" / "app.js"
+    if not babel.exists():
+        raise SystemExit("[export] missing vendor/babel.min.js - run:\n"
+                         "  curl -sL https://unpkg.com/@babel/standalone@7.24.7/babel.min.js -o vendor/babel.min.js")
+    node_script = (
+        "const B=require(process.argv[1]);const fs=require('fs');"
+        "const code=B.transform(fs.readFileSync(process.argv[2],'utf8'),{presets:['react'],compact:false}).code;"
+        "fs.writeFileSync(process.argv[3],code);"
+    )
+    try:
+        r = subprocess.run(["node", "-e", node_script, str(babel), str(src), str(out)],
+                           capture_output=True, text=True)
+    except FileNotFoundError:
+        raise SystemExit("[export] node not found on PATH - required to precompile app.jsx -> app.js")
+    if r.returncode != 0:
+        raise SystemExit("[export] JSX precompile failed:\n" + (r.stderr or r.stdout))
+    # ship app.js only: drop the JSX source that copytree placed in the output
+    jsx_copy = OUT / "static" / "app.jsx"
+    if jsx_copy.exists():
+        jsx_copy.unlink()
+    print(f"  precompiled app.jsx -> app.js ({out.stat().st_size} bytes)")
 
 
 
@@ -318,6 +349,7 @@ def main():
 
     # 1) the app shell + assets
     shutil.copytree(ROOT / "static", OUT / "static")
+    _precompile_jsx()   # static/app.jsx -> _site/static/app.js (no Babel shipped to browser)
     # the served shell: inject the real domain so canonical / OG / sitemap all agree.
     # Flip SITE_URL (above) when you cut over to paksh.news - nothing else to edit.
     host = SITE_URL.split("://", 1)[-1].rstrip("/")

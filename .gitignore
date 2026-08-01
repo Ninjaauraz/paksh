@@ -33,4 +33,5 @@ paksh.db*
 # --- pipeline runtime: interlock + scheduled-task logs ---
 .pipeline.lock
 reframe_log.txt
-autopush_log.txt
+autopush_log.txtvendor/
+vendor/

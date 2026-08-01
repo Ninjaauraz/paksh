@@ -1,0 +1,12 @@
+[2026-07-19 04:45:55] skip - no _site changes to publish
+[2026-07-19 04:45:55] ABORT - index already has staged changes (not ours): ['runlocked.py']. Refusing to commit someone else's work.
+[2026-07-19 04:45:56] skip - no _site changes to publish
+[2026-07-19 04:45:58] dry-run - would publish 1 _site file(s) (e.g. ['_site/zz_test.txt']); no commit, no push
+[2026-07-19 04:47:26] ABORT - staged path looks like a db/backup: _site/zz.db-old. Refusing.
+[2026-07-19 04:47:27] ABORT - staged file over 50MB: _site/zz_big.bin (53000000 bytes). Refusing.
+[2026-07-19 06:31:31] OK - pushed 343 _site file(s) as ae0abe12  |  auto: nightly content update 2026-07-19 06:31
+[2026-07-20 06:12:12] OK - pushed 14 _site file(s) as 2d7b4168  |  auto: nightly content update 2026-07-20 06:12
+[2026-07-20 08:01:47] OK - pushed 521 _site file(s) as 4a6160ab  |  auto: reframe content update 2026-07-20 08:01
+[2026-07-21 05:57:45] OK - pushed 89 _site file(s) as b7ef4a92  |  auto: nightly content update 2026-07-21 05:57
+[2026-07-31 07:42:12] OK - pushed 445 _site file(s) as 07cb4c59  |  auto: nightly content update 2026-07-31 07:42
+[2026-07-31 08:53:41] OK - pushed 395 _site file(s) as 2e5d8010  |  auto: nightly content update 2026-07-31 08:53

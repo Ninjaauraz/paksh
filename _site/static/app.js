@@ -1,491 +1,3682 @@
-/* ============================================================
-   Paksh frontend — wired to the live FastAPI backend.
-   Renders the whole UI in JS so the EN/हिं toggle re-localizes
-   everything (chrome + content) without a page reload.
-   ============================================================ */
+const {
+  useState,
+  useEffect,
+  useMemo
+} = React;
+/* ---------------- icons ---------------- */
+const Search = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "11",
+  cy: "11",
+  r: "8"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "m21 21-4.3-4.3"
+}));
+const Sun = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "4"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+}));
+const Moon = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
+}));
+const ArrowLeft = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "m12 19-7-7 7-7"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M19 12H5"
+}));
+const Eye = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: p.strokeWidth || 2,
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "3"
+}));
+const Sparkles = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"
+}));
+const Layers = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "m12 2 3 7h7l-5 5 2 7-7-4-7 4 2-7-5-5h7z"
+}));
+const ChevronRight = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "m9 18 6-6-6-6"
+}));
+const Menu = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("line", {
+  x1: "4",
+  x2: "20",
+  y1: "12",
+  y2: "12"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "4",
+  x2: "20",
+  y1: "6",
+  y2: "6"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "4",
+  x2: "20",
+  y1: "18",
+  y2: "18"
+}));
+const X = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M18 6 6 18"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "m6 6 12 12"
+}));
+const Scale = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"
+}));
+const Home = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M3 10.5 12 3l9 7.5"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M5 9.5V21h14V9.5"
+}));
+const Grid = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("rect", {
+  x: "3",
+  y: "3",
+  width: "7",
+  height: "7",
+  rx: "1.5"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "14",
+  y: "3",
+  width: "7",
+  height: "7",
+  rx: "1.5"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "3",
+  y: "14",
+  width: "7",
+  height: "7",
+  rx: "1.5"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "14",
+  y: "14",
+  width: "7",
+  height: "7",
+  rx: "1.5"
+}));
 
-const STR = {
-  en: {
-    nav_sources:"Sources", nav_method:"Method", langEN:"English", langHI:"Hindi",
-    filterLean:"Lean", filterLang:"Language", ownership:"Ownership", whyRated:"Why this rating",
-    signals:"Signals", confidence:"confidence", contested:"Contested", provisional:"Provisional",
-    srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
-    srcDisclaimer:"All ratings are provisional — a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
-    suggestFix:"Suggest a correction", methodTitle:"How Paksh works",
-    m_doesH:"What Paksh does", m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and reveals how each side framed it — so you can see the whole picture and what your usual sources leave out.",
-    m_ruleH:"The golden rule", m_rule:"A lean label belongs to the publication, not to any single article — and never to the AI. Paksh editors assign each outlet a lean using a fixed rubric. The AI only writes neutral summaries and notes how outlets framed a story; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side.",
-    m_rateH:"How we rate a publication", m_rateLede:"We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):", m_rateFoot:"Scores near zero are Centre; the further from zero, the stronger the lean. The full rubric lives in the open in our methodology file.",
-    m_axisH:"What “Left” and “Right” mean in India", m_axis:"In India, Left and Right aren't only about economics. Paksh blends a social-and-ideological axis (secular ↔ Hindutva) with an institutional one (critical of ↔ aligned with the incumbent), and tracks economic stance separately. “Left” and “Right” are descriptive, not insults — and the same scrutiny is applied across the spectrum.",
-    m_provH:"Confidence, contested & provisional", m_prov:"Every rating today is provisional: a documented starting point based on ownership, self-described stance and well-established reputation, reviewed against the rubric — not a final verdict. Each shows a confidence level, and some are flagged Contested where lean is genuinely debated or ownership recently changed.",
-    m_readH:"How to read a Paksh story", m_appealH:"Corrections & appeals",
-    m_partiesH:"Where India's parties roughly sit", m_parties:"These labels describe ideas, not teams — and they're rough, because parties shift over time and many regional parties don't fit neatly on one line. As a common-usage guide: the Left includes communist and socialist parties such as CPI(M) and CPI, and is associated with secular, pro-welfare, labour-first positions; the Right — most prominently the BJP — is associated with Hindutva-influenced cultural nationalism and a more market-friendly economic stance; the Centre spans the middle, where the Congress is often described as centre-left and many regional parties mix positions by issue. Remember: Paksh rates news outlets, not parties — an outlet's lean is about how it covers the news, not who it votes for.",
-    m_appeal:"Think a rating is wrong? Tell us the outlet, the rating you dispute, and a few specific examples — headlines or articles — and we'll re-review it against the rubric. Ratings are meant to be challenged.",
-    m_sourcesLink:"See every outlet and its rating on the",
-    word:"Paksh", tag_pre:"Compare how India's media covers each story —", tag_b:"every side, side by side.",
-    nav_top:"Top Stories", nav_os:"One-Sided", search:"Search stories",
-    topStories:"Top Stories", osStories:"One-Sided Stories",
-    osSub:"Stories mostly one side of the spectrum is covering — so the other side rarely sees them.",
-    osShort:"One-Sided", sideBySide:"Side by Side", covBreak:"Coverage Breakdown",
-    whereLean:"Where the sources lean", aiSummary:"Paksh neutral summary",
-    aiNote:"Written by AI from the outlets' own coverage. Lean labels describe the publishers and are set by Paksh editors, not the AI; the counts come from the sources, not the summary.",
-    myMix:"My Reading Mix", myMixSub:"How balanced is your own reading?",
-    myMixNote:"Connect your reading to see how it spreads across the spectrum.", myMixSoon:"Coming soon",
-    myMixCta:"See how it works", sources:"sources", source:"source",
-    most:"Most coverage", even:"Fairly even coverage", onlyOn:"Only covered on the", notOn:"Not covered on the",
-    sideWord:"side", divergence:"How coverage differs", omissions:"What gets left out",
-    back:"Back", all:"All", demo:"Demo",
-    noStories:"No stories to show right now. Please check back soon.",
-    noOS:"No one-sided stories in the current set.",
-    left:"Left", center:"Centre", right:"Right",
-    footAbout:"About & method",
-    footFine:"Paksh compares how outlets cover the same story. Lean labels describe publishers, set by a transparent rubric — they are provisional and open to appeal. Paksh is an independent project and is not affiliated with any outlet shown."
+/* ---------------- config ---------------- */
+// Each side carries a COLOUR (mid-tone hex, for dots/badges) and a TEXTURE class
+// (seg-*, defined in styles.css with an oklch value + hex fallback). All three
+// sit at equal lightness; only hue + texture separate them, so no side reads louder.
+const BIAS = {
+  left: {
+    color: "#4A6E80",
+    tex: "seg-left",
+    soft: "#E3E8EA",
+    en: "Left",
+    hi: "वाम"
   },
-  hi: {
-    nav_sources:"स्रोत", nav_method:"कार्यप्रणाली", langEN:"अंग्रेज़ी", langHI:"हिंदी",
-    filterLean:"झुकाव", filterLang:"भाषा", ownership:"स्वामित्व", whyRated:"यह रेटिंग क्यों",
-    signals:"संकेत", confidence:"विश्वास", contested:"विवादित", provisional:"अस्थायी",
-    srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
-    srcDisclaimer:"सभी रेटिंग अस्थायी हैं — रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
-    suggestFix:"सुधार सुझाएँ", methodTitle:"पक्ष कैसे काम करता है",
-    m_doesH:"पक्ष क्या करता है", m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और बताता है कि हर पक्ष ने उसे कैसे पेश किया — ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
-    m_ruleH:"मूल नियम", m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं — और कभी AI का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। AI सिर्फ़ तटस्थ सारांश लिखता है और बताता है कि आउटलेट्स ने खबर को कैसे पेश किया; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं।",
-    m_rateH:"हम किसी प्रकाशन को कैसे आँकते हैं", m_rateLede:"हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):", m_rateFoot:"शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत। पूरी रूब्रिक हमारी कार्यप्रणाली फ़ाइल में खुले तौर पर उपलब्ध है।",
-    m_axisH:"भारत में “वाम” और “दक्षिण” का अर्थ", m_axis:"भारत में वाम और दक्षिण केवल अर्थशास्त्र के बारे में नहीं हैं। पक्ष एक सामाजिक-वैचारिक अक्ष (धर्मनिरपेक्ष ↔ हिंदुत्व) को एक संस्थागत अक्ष (सत्ता के आलोचक ↔ सत्ता के साथ) के साथ जोड़ता है, और आर्थिक रुख को अलग से देखता है। “वाम” और “दक्षिण” वर्णनात्मक हैं, अपमान नहीं — और एक ही कसौटी पूरे स्पेक्ट्रम पर लागू होती है।",
-    m_provH:"विश्वास, विवादित और अस्थायी", m_prov:"आज हर रेटिंग अस्थायी है: स्वामित्व, स्व-घोषित रुख और स्थापित प्रतिष्ठा पर आधारित एक प्रलेखित शुरुआती बिंदु, रूब्रिक के विरुद्ध समीक्षित — अंतिम फ़ैसला नहीं। हर एक के साथ एक विश्वास-स्तर दिखता है, और कुछ को ‘विवादित’ चिह्नित किया गया है जहाँ झुकाव सचमुच बहस में है या स्वामित्व हाल में बदला है।",
-    m_readH:"पक्ष की खबर कैसे पढ़ें", m_appealH:"सुधार और अपील",
-    m_partiesH:"भारत की पार्टियाँ मोटे तौर पर कहाँ हैं", m_parties:"ये लेबल विचारों का वर्णन करते हैं, टीमों का नहीं — और ये मोटे अनुमान हैं, क्योंकि पार्टियाँ समय के साथ बदलती हैं और कई क्षेत्रीय पार्टियाँ किसी एक रेखा पर ठीक से नहीं बैठतीं। आम समझ के अनुसार: वाम में CPI(M) और CPI जैसी कम्युनिस्ट और समाजवादी पार्टियाँ आती हैं, जो धर्मनिरपेक्ष और कल्याण-समर्थक, श्रमिक-पहले रुख से जुड़ी हैं; दक्षिण — सबसे प्रमुख रूप से भाजपा — हिंदुत्व-प्रभावित सांस्कृतिक राष्ट्रवाद और अधिक बाज़ार-समर्थक आर्थिक रुख से जुड़ी है; केंद्र बीच में फैला है, जहाँ कांग्रेस को अक्सर केंद्र-वाम कहा जाता है और कई क्षेत्रीय पार्टियाँ मुद्दे के हिसाब से रुख मिलाती हैं। याद रखें: पक्ष समाचार आउटलेट्स को आँकता है, पार्टियों को नहीं — किसी आउटलेट का झुकाव इस बारे में है कि वह खबरों को कैसे कवर करता है, इस बारे में नहीं कि वह किसे वोट देता है।",
-    m_appeal:"लगता है कोई रेटिंग ग़लत है? हमें आउटलेट, जिस रेटिंग से असहमत हैं, और कुछ ठोस उदाहरण — हेडलाइन या लेख — बताएँ, और हम उसे रूब्रिक के विरुद्ध फिर से देखेंगे। रेटिंग्स को चुनौती देने के लिए ही हैं।",
-    m_sourcesLink:"हर आउटलेट और उसकी रेटिंग देखें —",
-    word:"पक्ष", tag_pre:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है —", tag_b:"हर पक्ष, आमने-सामने।",
-    nav_top:"मुख्य खबरें", nav_os:"एकतरफ़ा", search:"खबर खोजें",
-    topStories:"मुख्य खबरें", osStories:"एकतरफ़ा खबरें",
-    osSub:"ऐसी खबरें जिन्हें ज़्यादातर एक ही पक्ष कवर कर रहा है — दूसरे पक्ष के पाठक इन्हें शायद ही देख पाते हैं।",
-    osShort:"एकतरफ़ा", sideBySide:"आमने-सामने", covBreak:"कवरेज का ब्यौरा",
-    whereLean:"स्रोत किस ओर झुके हैं", aiSummary:"पक्ष तटस्थ सारांश",
-    aiNote:"यह सारांश आउटलेट्स की अपनी कवरेज से AI द्वारा लिखा गया है। झुकाव के लेबल प्रकाशकों का वर्णन करते हैं और पक्ष के संपादक तय करते हैं, AI नहीं; आँकड़े स्रोतों से आते हैं, सारांश से नहीं।",
-    myMix:"मेरा पठन संतुलन", myMixSub:"आपका अपना पठन कितना संतुलित है?",
-    myMixNote:"अपने पठन को जोड़ें और देखें कि वह पूरे स्पेक्ट्रम में कैसे फैला है।", myMixSoon:"जल्द आ रहा है",
-    myMixCta:"यह कैसे काम करता है", sources:"स्रोत", source:"स्रोत",
-    most:"सबसे ज़्यादा कवरेज", even:"लगभग बराबर कवरेज", onlyOn:"केवल इस ओर कवर हुई:", notOn:"इस ओर कवर नहीं हुई:",
-    sideWord:"", divergence:"कवरेज में अंतर कैसे है", omissions:"क्या छूट जाता है",
-    back:"वापस", all:"सभी", demo:"डेमो",
-    noStories:"अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
-    noOS:"मौजूदा सेट में कोई एकतरफ़ा खबर नहीं।",
-    left:"वाम", center:"केंद्र", right:"दक्षिण",
-    footAbout:"परिचय और कार्यप्रणाली",
-    footFine:"पक्ष दिखाता है कि अलग-अलग आउटलेट एक ही खबर को कैसे कवर करते हैं। झुकाव के लेबल प्रकाशकों का वर्णन करते हैं, एक पारदर्शी रूब्रिक से तय — ये अस्थायी हैं और अपील के लिए खुले हैं। पक्ष एक स्वतंत्र परियोजना है और किसी आउटलेट से संबद्ध नहीं है।"
+  center: {
+    color: "#7E7768",
+    tex: "seg-center",
+    soft: "#ECE9E1",
+    en: "Centre",
+    hi: "केंद्र"
+  },
+  right: {
+    color: "#96603F",
+    tex: "seg-right",
+    soft: "#EFE3DB",
+    en: "Right",
+    hi: "दक्षिण"
+  },
+  international: {
+    color: "#5E7E78",
+    tex: "",
+    soft: "#E3EAE8",
+    en: "International",
+    hi: "अंतरराष्ट्रीय"
   }
 };
-const TOPIC_HI = {Politics:"राजनीति", Economy:"अर्थव्यवस्था", International:"अंतरराष्ट्रीय", Sports:"खेल",
-  "Crime & Law":"अपराध व कानून", "Science & Tech":"विज्ञान व तकनीक", Health:"स्वास्थ्य",
-  Entertainment:"मनोरंजन", Environment:"पर्यावरण", Society:"समाज", General:"सामान्य"};
-
-const SIGNALS = [
-  {en:"Editorial stance", hi:"संपादकीय रुख", w:30},
-  {en:"Framing & word choice", hi:"फ़्रेमिंग और शब्द-चयन", w:25},
-  {en:"Story selection", hi:"खबरों का चयन", w:20},
-  {en:"Sourcing & who they quote", hi:"स्रोत और उद्धरण", w:10},
-  {en:"Ownership & affiliations", hi:"स्वामित्व और संबद्धता", w:10},
-  {en:"Cross-spectrum panel check", hi:"क्रॉस-स्पेक्ट्रम पैनल जाँच", w:5},
-];
-const M_READ = {
-  en: [
-    "The coloured bar shows how many of the covering outlets lean Left, Centre or Right.",
-    "“One-Sided” marks a story that mostly one side of the spectrum is covering — so the other side's readers rarely see it.",
-    "The neutral summary is written by AI from the outlets' own coverage; the outlet labels and the counts come from editors and the registry, not the AI.",
-  ],
-  hi: [
-    "रंगीन बार दिखाता है कि कवर करने वाले कितने आउटलेट वाम, केंद्र या दक्षिण की ओर हैं।",
-    "“एकतरफ़ा” उस खबर को चिह्नित करता है जिसे ज़्यादातर एक ही पक्ष कवर कर रहा है — इसलिए दूसरे पक्ष के पाठक उसे शायद ही देखते हैं।",
-    "तटस्थ सारांश AI द्वारा आउटलेट्स की अपनी कवरेज से लिखा जाता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, AI से नहीं।",
-  ],
+const TOKENS = {
+  light: {
+    bg: "bg-[#EAE6DB]",
+    surface: "bg-[#F4F1EA]",
+    soft: "bg-[#EFEBE1]",
+    border: "border-[#D8D3C6]",
+    tp: "text-[#15140F]",
+    ts: "text-[#3A372F]",
+    tf: "text-[#8A8371]",
+    brand: "text-[#15140F]",
+    brandBg: "bg-[#15140F]",
+    blind: "text-[#75442E]",
+    blindSoft: "bg-[#EFE3DB]",
+    nav: "glass-nav-light",
+    cta: "bg-[#15140F]",
+    ctaT: "text-[#F4F1EA]",
+    line: "#D8D3C6",
+    ink: "#15140F",
+    chip: "bg-[#EAE6DB]",
+    centerSeg: "#8C8579",
+    track: "#EAE6DB",
+    gap: "#F4F1EA"
+  },
+  dark: {
+    bg: "bg-[#1A1917]",
+    surface: "bg-[#201F1C]",
+    soft: "bg-[#262420]",
+    border: "border-[#35322C]",
+    tp: "text-[#EDEAE2]",
+    ts: "text-[#B7B1A4]",
+    tf: "text-[#847E72]",
+    brand: "text-[#EDEAE2]",
+    brandBg: "bg-[#EDEAE2]",
+    blind: "text-[#C89170]",
+    blindSoft: "bg-[#2E2019]",
+    nav: "glass-nav-dark",
+    cta: "bg-[#EDEAE2]",
+    ctaT: "text-[#201F1C]",
+    line: "#35322C",
+    ink: "#EDEAE2",
+    chip: "bg-[#2A2823]",
+    centerSeg: "#8C8579",
+    track: "#2A2823",
+    gap: "#1A1917"
+  }
 };
-const CONTACT = "corrections@paksh.example";  // <-- change to your real address
+const TOPIC_HI = {
+  Politics: "राजनीति",
+  Economy: "अर्थव्यवस्था",
+  International: "अंतरराष्ट्रीय",
+  Sports: "खेल",
+  "Crime & Law": "अपराध व कानून",
+  "Science & Tech": "विज्ञान व तकनीक",
+  Health: "स्वास्थ्य",
+  Entertainment: "मनोरंजन",
+  Environment: "पर्यावरण",
+  Society: "समाज",
+  General: "सामान्य"
+};
+const SIGNALS = [{
+  en: "Editorial stance",
+  hi: "संपादकीय रुख",
+  w: 30
+}, {
+  en: "Framing & word choice",
+  hi: "फ़्रेमिंग और शब्द-चयन",
+  w: 25
+}, {
+  en: "Story selection",
+  hi: "खबरों का चयन",
+  w: 20
+}, {
+  en: "Sourcing & who they quote",
+  hi: "स्रोत और उद्धरण",
+  w: 10
+}, {
+  en: "Ownership & affiliations",
+  hi: "स्वामित्व और संबद्धता",
+  w: 10
+}, {
+  en: "Cross-spectrum panel check",
+  hi: "क्रॉस-स्पेक्ट्रम पैनल जाँच",
+  w: 5
+}];
+const M_READ = {
+  en: ["The coloured bar shows how many of the covering outlets lean Left, Centre or Right.", "“Coverage Gaps” marks a story that outlets on one side of the spectrum covered while few or none on the other did - shown with the full Left · Centre · Right count.", "The neutral summary is generated automatically from the outlets' own coverage; the outlet labels and the counts come from editors and the registry, not the summary engine."],
+  hi: ["रंगीन बार दिखाता है कि कवर करने वाले कितने आउटलेट वाम, केंद्र या दक्षिण की ओर हैं।", "“कवरेज गैप” उस खबर को चिह्नित करता है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं - पूरे वाम · केंद्र · दक्षिण आँकड़े के साथ।", "तटस्थ सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, सारांश इंजन से नहीं।"]
+};
+const CONTACT = "corrections@paksh.example"; // <-- change to your real address
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/mkolqann";
+// Google AdSense publisher id, e.g. "ca-pub-1234567890123456". Empty = ads OFF: slots
+// render as clean labelled placeholders and NO ad script/cookie loads (privacy-safe).
+// To go live: set this, and uncomment the AdSense loader <script> in static/index.html.
+const ADSENSE_CLIENT = "";
+const UI = {
+  seeAll: {
+    en: "See all",
+    hi: "सभी देखें"
+  },
+  top: {
+    en: "Top",
+    hi: "मुख्य"
+  },
+  sections: {
+    en: "Sections",
+    hi: "खंड"
+  },
+  oneSided: {
+    en: "One-Sided",
+    hi: "एकतरफ़ा"
+  },
+  searchTab: {
+    en: "Search",
+    hi: "खोज"
+  },
+  browse: {
+    en: "Browse by topic",
+    hi: "विषय से देखें"
+  },
+  searchHint: {
+    en: "Search across all coverage",
+    hi: "सभी कवरेज में खोजें"
+  },
+  groupBy: {
+    en: "Group by",
+    hi: "समूह"
+  },
+  gLean: {
+    en: "Lean",
+    hi: "झुकाव"
+  },
+  gLang: {
+    en: "Language",
+    hi: "भाषा"
+  },
+  gRegion: {
+    en: "Region",
+    hi: "क्षेत्र"
+  },
+  findOutlet: {
+    en: "Find an outlet…",
+    hi: "आउटलेट खोजें…"
+  },
+  National: {
+    en: "National",
+    hi: "राष्ट्रीय"
+  },
+  Regional: {
+    en: "Regional",
+    hi: "क्षेत्रीय"
+  },
+  International: {
+    en: "International",
+    hi: "अंतरराष्ट्रीय"
+  },
+  registry: {
+    en: "outlets tracked",
+    hi: "आउटलेट"
+  },
+  expandAll: {
+    en: "Expand all",
+    hi: "सभी खोलें"
+  },
+  collapseAll: {
+    en: "Collapse all",
+    hi: "सभी बंद करें"
+  },
+  noOutlets: {
+    en: "No outlets match.",
+    hi: "कोई आउटलेट नहीं मिला।"
+  }
+};
+const ui = (k, lang) => (UI[k] || {})[lang] || (UI[k] || {}).en || k;
+const STR = {
+  en: {
+    navTop: "Top Stories",
+    navOS: "Coverage Gaps",
+    navSrc: "Sources",
+    navMethod: "Method",
+    search: "Search coverage…",
+    tagline: "Compare how India's media covers each story - every side, side by side.",
+    topNews: "Top Stories",
+    osTitle: "Coverage Gaps",
+    osSub: "A coverage gap is a story that outlets on one side of the spectrum covered while few or none on the other did. Paksh flags these by counting distinct outlets per lean - the same counts as the bias bar - and shows the full Left · Centre · Right tally on each. It's arithmetic, not a judgment about any outlet or about why a story was or wasn't covered. Outlets also differ in how much they publish, so an absence of coverage on one side may reflect an outlet's publishing volume rather than a deliberate omission.",
+    gapLeftHead: "Covered more by Left-leaning outlets",
+    gapRightHead: "Covered more by Right-leaning outlets",
+    gapShowing: "Showing the {n} most lopsided of {total}",
+    gapCovered: "Covered by",
+    m_gapH: "How coverage gaps break down",
+    m_gap: "Of the {total} stories Paksh flags as one-sided, {rh} are covered mainly by right-leaning outlets and {lh} mainly by left-leaning. This is not a measure of which side ignores more news. Paksh counts {lo} left-leaning and {ro} right-leaning outlets on India's spectrum, but they publish at very different volumes - the right-leaning set includes several high-volume TV and mass-market outlets, so right-leaning outlets appear about twice as often across all stories. Most of this imbalance reflects that volume difference, not editorial choice.",
+    more: "More Top Stories",
+    resultsFor: "Results for",
+    noResults: "No stories match your search.",
+    noResultsSub: "Try different keywords or browse top news.",
+    noStories: "No stories to show right now. Please check back soon.",
+    seeCoverage: "See coverage",
+    most: "Most coverage",
+    even: "Fairly even coverage",
+    sources: "sources",
+    source: "source",
+    onlyLabel: "Only",
+    back: "Back to feed",
+    aiSummary: "Paksh neutral summary",
+    aiSub: "neutral synthesis",
+    autoTag: "Auto-summary",
+    autoFrom: "from coverage",
+    autoNote: "This headline comes straight from a covering outlet - a neutral Paksh summary is being prepared.",
+    unratedTitle: "Unrated outlets",
+    unratedNote: "Outlets we found covering this story but don't rate yet - they add coverage but don't affect the bias bar.",
+    intlTitle: "International coverage",
+    intlNote: "Foreign wire services (Reuters, AP, BBC…) covering this story - they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
+    framingTitle: "How each side is framing it",
+    framingSub: "A neutral read of what each side's coverage emphasises - based on the headlines collected, not opinion.",
+    framingPending: "The side-by-side framing comparison appears once a full summary is generated for this story.",
+    sideBySide: "Side by Side",
+    coverageBreakdown: "Coverage Breakdown",
+    totalSources: "Total news sources",
+    whereLean: "Where the sources lean",
+    aiNote: "Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
+    osCalloutBody1: "Only",
+    osCalloutBody2: "of the covering outlets lean this way - a count of outlets, not a judgment about why a side did or didn't cover it.",
+    srcTitle: "Source ratings",
+    srcIntro: "Every outlet Paksh tracks, how it's rated, and why.",
+    srcDisclaimer: "All ratings are provisional - a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
+    filterLean: "Lean",
+    filterLang: "Language",
+    langEN: "English",
+    langHI: "Hindi",
+    all: "All",
+    ownership: "Ownership",
+    whyRated: "Why this rating",
+    signals: "Signals",
+    confidence: "confidence",
+    contested: "Contested",
+    provisional: "Provisional",
+    suggestFix: "Suggest a correction",
+    methodTitle: "How Paksh works",
+    m_doesH: "What Paksh does",
+    m_does: "Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it - so you can see the whole picture and what your usual sources leave out.",
+    m_ruleH: "The golden rule",
+    m_rule: "A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company - say The Times of India and Navbharat Times, both Times Group - they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote.",
+    m_rateH: "How we rate a publication",
+    m_rateLede: "We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):",
+    m_rateFoot: "Scores near zero are Centre; the further from zero, the stronger the lean.",
+    m_axisH: "What “Left” and “Right” mean in India",
+    m_axis: "In India, Left and Right aren't only about economics. Paksh blends a social-and-ideological axis (secular ↔ Hindutva) with an institutional one (critical of ↔ aligned with the incumbent), and tracks economic stance separately. “Left” and “Right” are descriptive, not insults - and the same scrutiny is applied across the spectrum.",
+    m_partiesH: "Where India's parties roughly sit",
+    m_parties: "These labels describe ideas, not teams - and they're rough, because parties shift over time and many regional parties don't fit neatly on one line. As a common-usage guide: the Left includes communist and socialist parties such as CPI(M) and CPI, and is associated with secular, pro-welfare, labour-first positions; the Right - most prominently the BJP - is associated with Hindutva-influenced cultural nationalism and a more market-friendly economic stance; the Centre spans the middle, where the Congress is often described as centre-left and many regional parties mix positions by issue. Remember: Paksh rates news outlets, not parties - an outlet's lean is about how it covers the news, not who it votes for.",
+    m_provH: "Confidence, contested & provisional",
+    m_prov: "Every rating today is provisional: a documented starting point based on ownership, self-described stance and well-established reputation, reviewed against the rubric - not a final verdict. Each shows a confidence level, and some are flagged Contested where lean is genuinely debated or ownership recently changed.",
+    m_readH: "How to read a Paksh story",
+    m_appealH: "Corrections & appeals",
+    m_appeal: "Think a rating is wrong? Tell us the outlet, the rating you dispute, and a few specific examples - headlines or articles - and we'll re-review it against the rubric. Ratings are meant to be challenged.",
+    footIndependence: "Paksh is an independent project and is not affiliated with any outlet shown. Lean labels are provisional and open to appeal."
+  },
+  hi: {
+    navTop: "मुख्य खबरें",
+    navOS: "कवरेज गैप",
+    navSrc: "स्रोत",
+    navMethod: "कार्यप्रणाली",
+    search: "कवरेज खोजें…",
+    tagline: "देखिए भारत का मीडिया हर खबर को कैसे कवर करता है - हर पक्ष, आमने-सामने।",
+    topNews: "मुख्य खबरें",
+    osTitle: "कवरेज गैप",
+    osSub: "कवरेज गैप वह ख़बर है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं। पक्ष हर झुकाव के अलग-अलग आउटलेट्स गिनकर इन्हें चिह्नित करता है - वही गिनती जो बायस बार में है - और हर एक पर पूरा वाम · केंद्र · दक्षिण आँकड़ा दिखाता है। यह अंकगणित है, किसी आउटलेट या कवरेज के कारण पर निर्णय नहीं। आउटलेट अलग-अलग मात्रा में प्रकाशित करते हैं, इसलिए एक तरफ़ कवरेज की अनुपस्थिति जानबूझकर की गई चूक के बजाय उस आउटलेट के प्रकाशन-आयतन को दर्शा सकती है।",
+    gapLeftHead: "ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर",
+    gapRightHead: "ज़्यादातर दक्षिण-झुकाव आउटलेट्स द्वारा कवर",
+    gapShowing: "{total} में से {n} सबसे असंतुलित दिखाई जा रही हैं",
+    gapCovered: "कवर किया गया:",
+    m_gapH: "कवरेज गैप का ब्यौरा",
+    m_gap: "पक्ष जिन {total} ख़बरों को एकतरफ़ा चिह्नित करता है, उनमें से {rh} ज़्यादातर दक्षिण-झुकाव आउटलेट्स ने और {lh} ज़्यादातर वाम-झुकाव आउटलेट्स ने कवर कीं। यह इस बात का माप नहीं है कि कौन-सा पक्ष ज़्यादा ख़बरें अनदेखा करता है। पक्ष भारत के स्पेक्ट्रम पर {lo} वाम-झुकाव और {ro} दक्षिण-झुकाव आउटलेट गिनता है, पर वे बहुत अलग मात्रा में प्रकाशित करते हैं - दक्षिण-झुकाव समूह में कई उच्च-आयतन टीवी और मास-मार्केट आउटलेट हैं, इसलिए दक्षिण-झुकाव आउटलेट सभी ख़बरों में लगभग दोगुनी बार दिखते हैं। इस असंतुलन का ज़्यादातर हिस्सा उस आयतन-अंतर को दर्शाता है, संपादकीय चयन को नहीं।",
+    more: "और मुख्य खबरें",
+    resultsFor: "खोज परिणाम:",
+    noResults: "आपकी खोज से मेल खाती कोई खबर नहीं।",
+    noResultsSub: "अलग शब्द आज़माएँ या मुख्य खबरें देखें।",
+    noStories: "अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
+    seeCoverage: "कवरेज देखें",
+    most: "सबसे ज़्यादा कवरेज",
+    even: "लगभग बराबर कवरेज",
+    sources: "स्रोत",
+    source: "स्रोत",
+    onlyLabel: "केवल",
+    back: "फ़ीड पर वापस",
+    aiSummary: "पक्ष तटस्थ सारांश",
+    aiSub: "तटस्थ संश्लेषण",
+    autoTag: "स्वतः सारांश",
+    autoFrom: "कवरेज से",
+    autoNote: "यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है - पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
+    unratedTitle: "बिना रेटिंग वाले आउटलेट",
+    unratedNote: "ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं - ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
+    intlTitle: "अंतरराष्ट्रीय कवरेज",
+    intlNote: "इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…) - ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
+    framingTitle: "हर पक्ष इसे कैसे पेश कर रहा है",
+    framingSub: "हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण - एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
+    framingPending: "इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
+    sideBySide: "आमने-सामने",
+    coverageBreakdown: "कवरेज का ब्यौरा",
+    totalSources: "कुल समाचार स्रोत",
+    whereLean: "स्रोत किस ओर झुके हैं",
+    aiNote: "झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
+    osCalloutBody1: "केवल",
+    osCalloutBody2: "कवर करने वाले आउटलेट इस ओर झुके हैं - यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
+    srcTitle: "स्रोत रेटिंग",
+    srcIntro: "पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
+    srcDisclaimer: "सभी रेटिंग अस्थायी हैं - रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
+    filterLean: "झुकाव",
+    filterLang: "भाषा",
+    langEN: "अंग्रेज़ी",
+    langHI: "हिंदी",
+    all: "सभी",
+    ownership: "स्वामित्व",
+    whyRated: "यह रेटिंग क्यों",
+    signals: "संकेत",
+    confidence: "विश्वास",
+    contested: "विवादित",
+    provisional: "अस्थायी",
+    suggestFix: "सुधार सुझाएँ",
+    methodTitle: "पक्ष कैसे काम करता है",
+    m_doesH: "पक्ष क्या करता है",
+    m_does: "पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं - ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
+    m_ruleH: "मूल नियम",
+    m_rule: "झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों - जैसे The Times of India और Navbharat Times, दोनों Times Group - तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है।",
+    m_rateH: "हम किसी प्रकाशन को कैसे आँकते हैं",
+    m_rateLede: "हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):",
+    m_rateFoot: "शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत।",
+    m_axisH: "भारत में “वाम” और “दक्षिण” का अर्थ",
+    m_axis: "भारत में वाम और दक्षिण केवल अर्थशास्त्र के बारे में नहीं हैं। पक्ष एक सामाजिक-वैचारिक अक्ष (धर्मनिरपेक्ष ↔ हिंदुत्व) को एक संस्थागत अक्ष (सत्ता के आलोचक ↔ सत्ता के साथ) के साथ जोड़ता है, और आर्थिक रुख को अलग से देखता है। “वाम” और “दक्षिण” वर्णनात्मक हैं, अपमान नहीं - और एक ही कसौटी पूरे स्पेक्ट्रम पर लागू होती है।",
+    m_partiesH: "भारत की पार्टियाँ मोटे तौर पर कहाँ हैं",
+    m_parties: "ये लेबल विचारों का वर्णन करते हैं, टीमों का नहीं - और ये मोटे अनुमान हैं, क्योंकि पार्टियाँ समय के साथ बदलती हैं और कई क्षेत्रीय पार्टियाँ किसी एक रेखा पर ठीक से नहीं बैठतीं। आम समझ के अनुसार: वाम में CPI(M) और CPI जैसी कम्युनिस्ट और समाजवादी पार्टियाँ आती हैं, जो धर्मनिरपेक्ष और कल्याण-समर्थक, श्रमिक-पहले रुख से जुड़ी हैं; दक्षिण - सबसे प्रमुख रूप से भाजपा - हिंदुत्व-प्रभावित सांस्कृतिक राष्ट्रवाद और अधिक बाज़ार-समर्थक आर्थिक रुख से जुड़ी है; केंद्र बीच में फैला है, जहाँ कांग्रेस को अक्सर केंद्र-वाम कहा जाता है और कई क्षेत्रीय पार्टियाँ मुद्दे के हिसाब से रुख मिलाती हैं। याद रखें: पक्ष समाचार आउटलेट्स को आँकता है, पार्टियों को नहीं - किसी आउटलेट का झुकाव इस बारे में है कि वह खबरों को कैसे कवर करता है, इस बारे में नहीं कि वह किसे वोट देता है।",
+    m_provH: "विश्वास, विवादित और अस्थायी",
+    m_prov: "आज हर रेटिंग अस्थायी है: स्वामित्व, स्व-घोषित रुख और स्थापित प्रतिष्ठा पर आधारित एक प्रलेखित शुरुआती बिंदु, रूब्रिक के विरुद्ध समीक्षित - अंतिम फ़ैसला नहीं। हर एक के साथ एक विश्वास-स्तर दिखता है, और कुछ को ‘विवादित’ चिह्नित किया गया है जहाँ झुकाव सचमुच बहस में है या स्वामित्व हाल में बदला है।",
+    m_readH: "पक्ष की खबर कैसे पढ़ें",
+    m_appealH: "सुधार और अपील",
+    m_appeal: "लगता है कोई रेटिंग ग़लत है? हमें आउटलेट, जिस रेटिंग से असहमत हैं, और कुछ ठोस उदाहरण - हेडलाइन या लेख - बताएँ, और हम उसे रूब्रिक के विरुद्ध फिर से देखेंगे। रेटिंग्स को चुनौती देने के लिए ही हैं।",
+    footIndependence: "पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है। झुकाव के लेबल अस्थायी हैं और अपील के लिए खुले हैं।"
+  }
+};
 
-const app = document.getElementById("app");
-const S = { lang:"en", mode:"top", topic:null, query:"", detailId:null, fLean:null, fLang:null };
-const DATA = { events:null, blindspots:null, topics:null };
-const DETAIL = {};
-
-const t = k => STR[S.lang][k];
-const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c =>
-  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const hiClass = () => S.lang === "hi" ? "hi" : "";
-const titleOf = e => (S.lang==="hi" && e.title_hi) ? e.title_hi : e.title;
-const summaryOf = e => (S.lang==="hi" && e.summary_hi) ? e.summary_hi : e.summary;
-const pointsOf = e => (S.lang==="hi" && e.summary_points_hi && e.summary_points_hi.length)
-  ? e.summary_points_hi : (e.summary_points || []);
-const leanName = side => t(side);
-const topicLabel = tp => S.lang==="hi" ? (TOPIC_HI[tp] || tp) : tp;
-
-const confName = c => (({en:{low:"Low",medium:"Medium",high:"High"},hi:{low:"कम",medium:"मध्यम",high:"उच्च"}}[S.lang])||{})[c] || c;
-
-function hueOf(s){ let h=0; for(const ch of String(s)) h=(h*31+ch.charCodeAt(0))%360; return h; }
-function thumb(e){
-  if (e.image_url) return `<div class="thumb"><img src="${esc(e.image_url)}" alt="" loading="lazy"></div>`;
-  const h = hueOf(e.topic || e.title);
-  const bg = `linear-gradient(135deg, hsl(${h} 42% 40%), hsl(${(h+40)%360} 50% 30%))`;
-  return `<div class="thumb"><div class="ph" style="background:${bg}"><span>${esc(topicLabel(e.topic))}</span></div></div>`;
-}
-
-// Two data modes, auto-detected: a live API (local FastAPI / self-hosted) OR
-// pre-built static JSON files (GitHub Pages). Probe once, then stick with it.
+/* ---------------- helpers ---------------- */
+const imgFor = hue => {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='480' height='300'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='hsl(${hue} 36% 44%)'/><stop offset='1' stop-color='hsl(${(hue + 38) % 360} 42% 19%)'/></linearGradient><radialGradient id='b' cx='28%' cy='22%' r='65%'><stop offset='0' stop-color='rgba(255,255,255,0.30)'/><stop offset='1' stop-color='rgba(255,255,255,0)'/></radialGradient></defs><rect width='480' height='300' fill='url(%23a)'/><rect width='480' height='300' fill='url(%23b)'/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+const hueOf = s => {
+  let h = 0;
+  for (const c of String(s || "")) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+};
+const biasPct = lc => {
+  const tot = lc.left + lc.center + lc.right || 1;
+  return {
+    left: Math.round(lc.left / tot * 100),
+    center: Math.round(lc.center / tot * 100),
+    right: Math.round(lc.right / tot * 100)
+  };
+};
+const dominant = b => {
+  const k = Object.keys(b).sort((x, y) => b[y] - b[x])[0];
+  return {
+    side: k,
+    pct: b[k]
+  };
+};
+const lbl = (side, lang) => BIAS[side][lang] || BIAS[side].en;
+const confName = (c, lang) => (({
+  en: {
+    low: "Low",
+    medium: "Medium",
+    high: "High"
+  },
+  hi: {
+    low: "कम",
+    medium: "मध्यम",
+    high: "उच्च"
+  }
+})[lang] || {})[c] || c;
 let _mode;
-function detectMode(){
+function detectMode() {
   if (!_mode) _mode = (async () => {
-    try { const r = await fetch("/api/topics"); if (r.ok) return "api"; } catch (e) {}
-    return "static";   // no live API -> use the exported data/*.json files
+    try {
+      const r = await fetch("/api/topics");
+      if (r.ok && (r.headers.get("content-type") || "").includes("json")) return "api";
+    } catch (e) {}
+    return "static";
   })();
   return _mode;
 }
-async function apiGet(resource){
-  if (await detectMode() === "api"){
-    const r = await fetch("/api/" + resource);
-    if (r.ok) return r.json();
+async function apiGet(res) {
+  if ((await detectMode()) === "api") {
+    const r = await fetch("/api/" + res);
+    if (r.ok && (r.headers.get("content-type") || "").includes("json")) return r.json();
   }
-  const r = await fetch("data/" + resource + ".json");
-  if (!r.ok) throw new Error("data/" + resource);
+  const r = await fetch("/data/" + res + ".json?t=" + Date.now());
+  if (!r.ok) throw new Error(res);
+  const ct = r.headers.get("content-type") || "";
+  if (!ct.includes("json")) throw new Error("not-json:" + res);
   return r.json();
 }
-
-async function load(){
-  try{
-    const [e,b,tp,sr] = await Promise.all([
-      apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources")]);
-    DATA.events = e.events; DATA.blindspots = b.events; DATA.topics = tp.topics;
-    DATA.sources = sr.sources; DATA.sourcesSummary = sr.summary;
-  }catch(err){ console.error(err); DATA.events=[]; DATA.blindspots=[]; DATA.topics=[]; DATA.sources=[]; }
-  render();
-}
-
-/* ---------- bias bar (Paksh treatment: gapped segments + legend below) ---------- */
-function counts(e){ const c = e.lean_counts || {left:0,center:0,right:0};
-  return {left:c.left||0, center:c.center||0, right:c.right||0}; }
-function biasBar(e, withCaption=true){
-  const c = counts(e), total = c.left + c.center + c.right || 1;
-  const pct = s => Math.round(c[s]/total*100);
-  const seg = s => c[s] ? `<div class="seg ${s}" style="width:${c[s]/total*100}%"></div>` : "";
-  const lg = s => c[s] ? `<span class="lg"><span class="swatch ${s}"></span>${leanName(s)} ${pct(s)}%</span>` : "";
-  let caption = "";
-  if (withCaption){
-    const top = ["left","center","right"].sort((a,b)=>c[b]-c[a]);
-    const lead = top[0], even = (c[lead]-c[top[1]]) <= 0;
-    const n = c.left+c.center+c.right;
-    const word = n===1 ? t("source") : t("sources");
-    caption = `<div class="bias-caption">${ even
-      ? `<b>${t("even")}</b>` : `${t("most")}: <b>${leanName(lead)}</b>` }
-      <span class="pin">· ${n} ${word}</span></div>`;
+async function loadAll() {
+  try {
+    const [e, b, tp, sr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources")]);
+    return {
+      events: e.events || [],
+      blindspots: b.events || [],
+      gaps: {
+        left: b.left_heavier || [],
+        right: b.right_heavier || [],
+        agg: b.aggregate || {}
+      },
+      topics: tp.topics || [],
+      sources: sr.sources || [],
+      summary: sr.summary || {}
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      events: [],
+      blindspots: [],
+      gaps: {
+        left: [],
+        right: [],
+        agg: {}
+      },
+      topics: [],
+      sources: [],
+      summary: {}
+    };
   }
-  return `<div class="bias">
-    <div class="bias-track">${seg("left")}${seg("center")}${seg("right")}</div>
-    <div class="bias-legend">${lg("left")}${lg("center")}${lg("right")}</div>
-    ${caption}</div>`;
+}
+const toCard = (e, lang) => {
+  const lc = e.lean_counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  return {
+    id: e.id,
+    topic: e.topic,
+    region: e.region || "India",
+    srclang: e.lang || "en",
+    created_at: e.created_at,
+    headline: lang === "hi" && e.title_hi ? e.title_hi : e.title,
+    lead: lang === "hi" && e.summary_hi ? e.summary_hi : e.summary,
+    summary: lang === "hi" && e.summary_points_hi && e.summary_points_hi.length ? e.summary_points_hi : e.summary_points || [],
+    bias: biasPct(lc),
+    counts: lc,
+    sources: lc.left + lc.center + lc.right || e.total_sources || 0,
+    international: e.international || 0,
+    importance: typeof e.importance === "number" ? e.importance : 0,
+    unrated: Math.max(0, (e.source_count || 0) - (lc.left + lc.center + lc.right) - (e.international || 0)),
+    blindspot: e.blindspot ? e.blindspot.side : null,
+    auto: e.summary_method === "extractive",
+    img: e.image_url || "",
+    image: e.image_url || imgFor(hueOf(e.topic || e.title))
+  };
+};
+const toDetail = (e, lang) => {
+  const c = toCard(e, lang);
+  c.coverage = e.coverage || {};
+  c.outlets = e.sources || [];
+  c.framing = lang === "hi" && e.framing_hi && Object.keys(e.framing_hi).length ? e.framing_hi : e.framing || {};
+  return c;
+};
+const isHi = lang => lang === "hi" ? "deva" : "";
+// Reading text is serif in BOTH scripts: Source Serif 4 (Latin) / Tiro Devanagari
+// Hindi (with extra leading). Chrome/labels keep isHi() -> "deva" (Plex Devanagari).
+const readCls = lang => lang === "hi" ? "read-hi" : "serif";
+
+/* ---------------- extra icons ---------------- */
+const ArrowUpRight = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M7 17 17 7M7 7h10v10"
+}));
+const Compass = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("polygon", {
+  points: "16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9"
+}));
+const Globe = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10Z"
+}));
+const Clock = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M12 7v5l3 2"
+}));
+const LinkIcon = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"
+}));
+const Check = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2.4",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M20 6 9 17l-5-5"
+}));
+
+/* ---------------- helpers ---------------- */
+const _ts = iso => {
+  if (!iso) return NaN;
+  let x = ("" + iso).replace(" ", "T");
+  if (!/[zZ]|[+\-]\d\d:?\d\d$/.test(x)) x += "Z";
+  return Date.parse(x);
+};
+const timeAgo = (iso, lang) => {
+  const ts = _ts(iso);
+  if (isNaN(ts)) return "";
+  const m = Math.max(0, (Date.now() - ts) / 60000);
+  const hi = lang === "hi";
+  if (m < 60) return hi ? `${Math.round(m)} मिनट पहले` : `${Math.round(m)}m ago`;
+  const h = m / 60;
+  if (h < 24) return hi ? `${Math.round(h)} घंटे पहले` : `${Math.round(h)}h ago`;
+  const d = Math.round(h / 24);
+  return hi ? `${d} दिन पहले` : `${d}d ago`;
+};
+const domSide = bias => ["left", "center", "right"].reduce((a, b) => (bias[b] || 0) > (bias[a] || 0) ? b : a, "left");
+const tword = lang => n => n === 1 ? STR[lang].source : STR[lang].sources;
+const covLine = (story, lang) => {
+  const d = domSide(story.bias);
+  const tot = story.sources + (story.unrated || 0) + (story.international || 0);
+  return `${story.bias[d]}% ${lbl(d, lang)} · ${tot} ${tot === 1 ? STR[lang].source : STR[lang].sources}`;
+};
+// Newspaper count line: raw distinct-outlet counts L · C · R, plus n and age. Reads
+// straight from the real per-lean counts (never a hardcoded ratio).
+const countLine = (story, lang) => {
+  const c = story.counts || {};
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0;
+  const n = L + C + R;
+  const ta = timeAgo(story.created_at, lang);
+  return `${L} · ${C} · ${R}   n=${n}${ta ? " · " + ta : ""}`;
+};
+function Thumb({
+  src,
+  topic,
+  title,
+  ratio,
+  t,
+  lang,
+  className
+}) {
+  const [err, setErr] = useState(false);
+  const real = src && !err;
+  const tp = lang === "hi" ? TOPIC_HI[topic] || topic : topic || "News";
+  return /*#__PURE__*/React.createElement("div", {
+    className: `relative overflow-hidden ${t.soft} ${className || ""}`,
+    style: {
+      aspectRatio: ratio || "16 / 9"
+    }
+  }, real ? /*#__PURE__*/React.createElement("img", {
+    src: src,
+    alt: "",
+    loading: "lazy",
+    decoding: "async",
+    onError: () => setErr(true),
+    className: "absolute inset-0 h-full w-full object-cover"
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "absolute inset-0 flex items-center justify-center"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[11px] font-semibold uppercase tracking-[0.16em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, tp)));
+}
+function OutletAvatar({
+  o,
+  side,
+  size
+}) {
+  const [err, setErr] = useState(false);
+  let host = "";
+  try {
+    host = new URL(o.url).hostname.replace(/^www\./, "");
+  } catch (e) {}
+  const s = size || 26;
+  const ring = side === "unrated" ? "#B8B4AC" : BIAS[side] && BIAS[side].color || "#8A8F98";
+  if (err || !host) return /*#__PURE__*/React.createElement("span", {
+    className: "grid shrink-0 place-items-center rounded-md mono font-semibold text-white",
+    style: {
+      width: s,
+      height: s,
+      fontSize: s * 0.42,
+      backgroundColor: ring
+    }
+  }, (o.source || "?")[0]);
+  return /*#__PURE__*/React.createElement("span", {
+    className: "grid shrink-0 place-items-center rounded-md bg-white",
+    style: {
+      width: s,
+      height: s,
+      boxShadow: `0 0 0 1.5px ${ring}`
+    }
+  }, /*#__PURE__*/React.createElement("img", {
+    src: `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
+    alt: "",
+    width: s * 0.62,
+    height: s * 0.62,
+    loading: "lazy",
+    onError: () => setErr(true),
+    className: "object-contain"
+  }));
 }
 
-/* ---------- cards ---------- */
-function card(e, featured=false){
-  const cls = featured ? "card featured" : "card row-card";
-  const demo = e.is_demo ? `<span class="demo">${t("demo")}</span>` : "";
-  return `<article class="${cls}" data-act="open:${e.id}">
-    ${thumb(e)}
-    <div class="card-body">
-      <div class="eyebrow"><span class="topic">${esc(topicLabel(e.topic))}</span>${demo}</div>
-      <h3 class="headline ${hiClass()}">${esc(titleOf(e))}</h3>
-      <p class="dek ${hiClass()}">${esc(summaryOf(e))}</p>
-      ${biasBar(e)}
-    </div>
-  </article>`;
+/* ---------------- bias bars ---------------- */
+// The signature instrument. Segment sizes come STRAIGHT from live counts
+// (flexGrow = bias%, itself computed from the distinct-outlet L/C/R totals) — never
+// hardcoded. Each side is textured (solid / 45deg hatch / vertical rule), separated by
+// a 1px paper gap, inside a hairline ink frame, with a fixed centre axis so skew is
+// judged against a constant. min-width 2px keeps a lone outlet visible. No animation.
+function BiasSegments({
+  bias,
+  t,
+  h,
+  onPick,
+  active,
+  lang
+}) {
+  const present = ["left", "center", "right"].filter(k => (bias[k] || 0) > 0);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "relative flex w-full",
+    style: {
+      height: h,
+      border: `1px solid ${t.ink}`,
+      background: t.track || "#EAE6DB"
+    }
+  }, present.map((k, i) => /*#__PURE__*/React.createElement(React.Fragment, {
+    key: k
+  }, i > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: "0 0 1px",
+      background: t.gap || "#F4F1EA"
+    }
+  }), onPick ? /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      e.preventDefault();
+      onPick(k);
+    },
+    "aria-label": lbl(k, lang || "en"),
+    className: `${BIAS[k].tex} cursor-pointer hover:brightness-110 ${active && active !== k ? "opacity-40" : ""}`,
+    style: {
+      flexGrow: bias[k],
+      flexBasis: 0,
+      minWidth: 2,
+      border: 0,
+      padding: 0
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: BIAS[k].tex,
+    style: {
+      flexGrow: bias[k],
+      flexBasis: 0,
+      minWidth: 2
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: "50%",
+      top: -3,
+      bottom: -3,
+      width: 1,
+      background: t.ink
+    }
+  }));
 }
-
-function osItem(e){
-  const side = e.blindspot ? e.blindspot.side : null;
-  const missLabel = side ? `<span class="os-miss"><span class="tag ${side}">${t("notOn")} ${leanName(side)}</span></span>` : "";
-  const n = (counts(e).left+counts(e).center+counts(e).right);
-  return `<button class="os-item" data-act="open:${e.id}">
-    ${missLabel}
-    <div class="h ${hiClass()}">${esc(titleOf(e))}</div>
-    <div class="m">${esc(topicLabel(e.topic))} · ${n} ${n===1?t("source"):t("sources")}</div>
-  </button>`;
+function MiniBar({
+  bias,
+  t
+}) {
+  return /*#__PURE__*/React.createElement(BiasSegments, {
+    bias: bias,
+    t: t,
+    h: 10
+  });
 }
-
-function readingMix(){
-  return `<div class="panel">
-    <div class="panel-h"><h3 class="${hiClass()}">${t("myMix")}</h3><p class="${hiClass()}">${t("myMixSub")}</p></div>
-    <div class="mix-body">
-      <div class="mix-bar">
-        <div class="seg left" style="width:34%;background:var(--left)">34%</div>
-        <div class="seg center" style="width:38%;background:var(--center)">38%</div>
-        <div class="seg right" style="width:28%;background:var(--right)">28%</div>
-      </div>
-      <p class="mix-note ${hiClass()}">${t("myMixNote")} <b>${t("myMixSoon")}</b></p>
-      <button class="mix-cta ${hiClass()}" data-act="about">${t("myMixCta")}</button>
-    </div>
-  </div>`;
+// Larger bar. Pass `counts` (real L/C/R outlet counts) to print the label row + n above,
+// exactly like the design's story-page instrument.
+function BiasBar({
+  bias,
+  t,
+  lang,
+  onPick,
+  active,
+  height,
+  counts,
+  showN,
+  showScale
+}) {
+  const h = height || 26;
+  const total = counts ? ["left", "center", "right"].reduce((s, k) => s + (counts[k] || 0), 0) : 0;
+  return /*#__PURE__*/React.createElement("div", null, counts && /*#__PURE__*/React.createElement("div", {
+    className: "mb-2 flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-wrap gap-x-4 gap-y-1 text-[10.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, ["left", "center", "right"].map(k => (counts[k] || 0) > 0 && /*#__PURE__*/React.createElement("span", {
+    key: k
+  }, lbl(k, lang), " ", /*#__PURE__*/React.createElement("span", {
+    className: "mono",
+    style: {
+      letterSpacing: 0
+    }
+  }, counts[k])))), showN !== false && total > 0 && /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] ${t.tf}`
+  }, "n = ", total)), /*#__PURE__*/React.createElement(BiasSegments, {
+    bias: bias,
+    t: t,
+    h: h,
+    onPick: onPick,
+    active: active,
+    lang: lang
+  }), showScale && /*#__PURE__*/React.createElement("div", {
+    className: "relative",
+    style: {
+      height: 14,
+      marginTop: 3
+    }
+  }, [25, 50, 75].map(p => /*#__PURE__*/React.createElement("div", {
+    key: p,
+    style: {
+      position: "absolute",
+      left: p + "%",
+      top: 0,
+      width: 1,
+      height: p === 50 ? 6 : 4,
+      background: p === 50 ? t.ink : t.line
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[9px] ${t.tf}`,
+    style: {
+      position: "absolute",
+      left: "50%",
+      top: 6,
+      transform: "translateX(-50%)",
+      whiteSpace: "nowrap"
+    }
+  }, lang === "hi" ? "कवरेज का 50%" : "50% of coverage")));
 }
-
-function sidebar(){
-  const os = (DATA.blindspots || []).slice(0,4).map(osItem).join("") ||
-    `<div style="padding:16px" class="m ${hiClass()}">${t("noOS")}</div>`;
-  return `<aside class="side">
-    <div class="panel">
-      <div class="panel-h">
-        <div class="kicker"><span class="badge-os">● ${t("osShort")}</span></div>
-        <h3 class="${hiClass()}">${t("osStories")}</h3>
-        <p class="${hiClass()}">${t("osSub")}</p>
-      </div>
-      ${os}
-    </div>
-    ${readingMix()}
-  </aside>`;
+// Coverage-gap viz: three EQUAL-WIDTH columns, bar height proportional to that side's
+// count, an absent side drawn as the dashed hatch — so absence takes as much room as
+// presence. Driven only by the same L/C/R distinct-outlet counts as the bias bar.
+function GapColumns({
+  counts,
+  t,
+  lang
+}) {
+  const ks = ["left", "center", "right"];
+  const mx = Math.max(1, ...ks.map(k => counts[k] || 0));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-1.5"
+  }, ks.map(k => {
+    const n = counts[k] || 0;
+    const pct = Math.round(n / mx * 100);
+    return /*#__PURE__*/React.createElement("div", {
+      key: k
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-end",
+      style: {
+        height: 34,
+        border: `1px solid ${t.ink}`,
+        background: t.track || "#EAE6DB"
+      }
+    }, n > 0 ? /*#__PURE__*/React.createElement("div", {
+      className: `w-full ${BIAS[k].tex}`,
+      style: {
+        height: `${Math.max(8, pct)}%`
+      }
+    }) : /*#__PURE__*/React.createElement("div", {
+      className: "seg-absent w-full h-full"
+    })), /*#__PURE__*/React.createElement("div", {
+      className: `mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+    }, lbl(k, lang)), /*#__PURE__*/React.createElement("div", {
+      className: "mono text-[10.5px]",
+      style: {
+        color: n > 0 ? t.ink : "#75442E"
+      }
+    }, n));
+  }));
 }
-
-/* ---------- feed view ---------- */
-function filterList(list){
-  let r = list || [];
-  if (S.topic) r = r.filter(e => e.topic === S.topic);
-  if (S.query){ const q = S.query.toLowerCase();
-    r = r.filter(e => (e.title||"").toLowerCase().includes(q) || (e.title_hi||"").includes(S.query)); }
-  return r;
-}
-function feedView(){
-  const isOS = S.mode === "oneSided";
-  const base = isOS ? DATA.blindspots : DATA.events;
-  const list = filterList(base);
-  const head = isOS
-    ? `<div class="section-h"><h2 class="${hiClass()}">${t("osStories")}</h2><div class="rule"></div></div>`
-    : `<div class="section-h"><h2 class="${hiClass()}">${t("topStories")}</h2><div class="rule"></div></div>`;
-  let body;
-  if (!list.length){
-    body = `<div class="empty ${hiClass()}">${isOS ? t("noOS") : t("noStories")}</div>`;
-  } else if (isOS){
-    body = `<div class="feed">${list.map(e=>card(e)).join("")}</div>`;
-  } else {
-    const [first, ...rest] = list;
-    body = `<div class="feed">${card(first,true)}${rest.map(e=>card(e)).join("")}</div>`;
+const LeanBadge = ({
+  side,
+  lang,
+  t
+}) => side === "unrated" ? /*#__PURE__*/React.createElement("span", {
+  className: `shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${t.chip} ${t.tf}`
+}, lang === "hi" ? "अनरेटेड" : "Unrated") : /*#__PURE__*/React.createElement("span", {
+  className: "shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white",
+  style: {
+    backgroundColor: BIAS[side].color
   }
-  return `<div class="cols"><div>${head}${body}</div>${sidebar()}</div>`;
+}, lbl(side, lang));
+function AutoTag({
+  lang,
+  t
+}) {
+  return /*#__PURE__*/React.createElement("span", {
+    className: `inline-flex items-center gap-1 rounded mono px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${t.chip} ${t.tf}`
+  }, STR[lang].autoTag);
+}
+function Eyebrow({
+  topic,
+  created_at,
+  blindspot,
+  t,
+  lang
+}) {
+  const tp = lang === "hi" ? TOPIC_HI[topic] || topic : topic;
+  const face = lang === "hi" ? "deva" : "mono";
+  return /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-wrap items-center gap-x-2 gap-y-1 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: t.ts
+  }, tp || "News"), created_at && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: t.tf
+  }, "\xB7"), /*#__PURE__*/React.createElement("span", {
+    className: t.tf
+  }, timeAgo(created_at, lang))), blindspot && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: t.tf
+  }, "\xB7"), /*#__PURE__*/React.createElement("span", {
+    className: t.blind
+  }, STR[lang].navOS)));
+}
+function SectionTitle({
+  children,
+  t,
+  lang,
+  right
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: `mb-4 flex items-baseline justify-between gap-3 border-b pb-2 ${t.border}`
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline text-[15px] font-bold uppercase tracking-[0.08em] ${t.tp} ${isHi(lang)}`
+  }, children), right);
 }
 
-/* ---------- detail view ---------- */
-function outletRow(o){
-  return `<div class="outlet ${o.lean}">
-    <div class="bar"></div>
-    <div>
-      <div class="nm">${esc(o.source)} <span class="lang">${(o.language||"en").toUpperCase()}</span></div>
-      ${o.headline ? `<div class="hl">${esc(o.headline)}</div>`:""}
-      ${o.framing ? `<div class="frm">${esc(o.framing)}</div>`:""}
-    </div>
-  </div>`;
+/* ---------------- feed pieces (newspaper hierarchy) ---------------- */
+// A dated masthead sub-strip: today's date + how many outlets Paksh tracks.
+// The dated strip under the masthead: a 2px rule over a 1px rule (design 2a), carrying
+// the edition toggle + today's date on the left, the live tally in the centre, and the
+// freshness on the right. Every number is real (homeCards / sources / gaps / newest event).
+function DateStrip({
+  t,
+  lang,
+  stats,
+  regionFilter,
+  setRegionFilter
+}) {
+  const today = new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+  const upd = stats.updated ? timeAgo(stats.updated, lang) : "";
+  const ls = lang === "hi" ? 0 : ".14em";
+  const eb = `eyebrow ${lang === "hi" ? "deva" : ""}`;
+  const region = (k, label) => /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRegionFilter && setRegionFilter(k),
+    className: `${eb} ${regionFilter === k ? t.tp : `${t.tf} hover:${t.tp}`}`,
+    style: {
+      letterSpacing: ls
+    }
+  }, label);
+  const tally = lang === "hi" ? `${stats.stories} ख़बरें · ${stats.outlets} स्रोत · ${stats.gaps} कवरेज गैप` : `${stats.stories} stories · ${stats.outlets} outlets tracked · ${stats.gaps} coverage gaps`;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between gap-4 py-[7px]",
+    style: {
+      borderTop: `2px solid ${t.ink}`,
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 sm:gap-4 min-w-0"
+  }, region("National", ui("National", lang)), region("International", ui("International", lang)), /*#__PURE__*/React.createElement("span", {
+    className: `hidden md:inline ${eb} ${t.tf}`,
+    style: {
+      letterSpacing: ls
+    }
+  }, today)), /*#__PURE__*/React.createElement("span", {
+    className: `hidden sm:inline ${eb} ${t.tf} truncate`,
+    style: {
+      letterSpacing: ls
+    }
+  }, tally), /*#__PURE__*/React.createElement("span", {
+    className: `${eb} ${t.tf} shrink-0`,
+    style: {
+      letterSpacing: ls
+    }
+  }, upd ? lang === "hi" ? `अपडेट ${upd}` : `Updated ${upd}` : today));
 }
-function sbsSide(e, side){
-  const cov = (e.coverage||{})[side] || {count:0, sources:[], framing:""};
-  if (!cov.count) return "";
-  const outlets = (e.sources||[]).filter(s=>s.lean===side).map(outletRow).join("");
-  return `<div class="sbs-side ${side}">
-    <div class="top"><span>${leanName(side)}</span><span>${cov.count}</span></div>
-    ${cov.framing ? `<div class="fr ${hiClass()}">${esc(cov.framing)}</div>`:""}
-    ${outlets}
-  </div>`;
+// LEAD — the most-covered story of the moment, given the largest type + full bias
+// instrument with the printed scale. Text-forward; a single 2:1 image if one exists.
+// LEAD — the single most-covered story, at 54px on desktop / 31px on mobile: the one
+// dominant moment that gives the eye somewhere to land (design 2a/2c). Text-forward,
+// no image. The bias block sits beside the lead paragraph on desktop, below on mobile;
+// every count/width is live (BiasSegments flex-grow = bias%, computed from L/C/R owners).
+function LeadStory({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0,
+    n = L + C + R;
+  const b = story.bias || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const tp = lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: "block no-underline group cursor-pointer"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      color: BIAS.right.color,
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "आज सबसे ज़्यादा कवरेज" : "Most covered today", tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h2", {
+    className: `headline mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
+    style: {
+      lineHeight: lang === "hi" ? 1.14 : 1.06,
+      letterSpacing: lang === "hi" ? 0 : "-0.022em",
+      textWrap: "balance"
+    }
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8"
+  }, story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`,
+    style: {
+      lineHeight: lang === "hi" ? 1.85 : 1.6,
+      textWrap: "pretty"
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `mb-2 flex justify-between text-[10px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("span", {
+    key: k
+  }, lang === "hi" ? BIAS[k].hi : BIAS[k].en.charAt(0), " ", /*#__PURE__*/React.createElement("span", {
+    className: "mono",
+    style: {
+      letterSpacing: 0
+    }
+  }, c[k] || 0)))), /*#__PURE__*/React.createElement(BiasSegments, {
+    bias: b,
+    t: t,
+    h: 28,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 mono text-[10.5px] ${t.tf}`
+  }, "n = ", n, " \xB7 ", b.left, " / ", b.center, " / ", b.right, "%"), /*#__PURE__*/React.createElement("div", {
+    className: `mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      paddingBottom: 2
+    }
+  }, lang === "hi" ? "सभी पक्ष पढ़ें" : "Read all sides", " \u2192")))));
 }
-function detailView(e){
-  const c = counts(e), n = c.left+c.center+c.right;
-  const hero = e.image_url
-    ? `<img class="hero-img" src="${esc(e.image_url)}" alt="">`
-    : `<div class="hero-ph" style="background:linear-gradient(135deg,hsl(${hueOf(e.topic||e.title)} 42% 40%),hsl(${(hueOf(e.topic||e.title)+40)%360} 50% 30%))"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.06em">${esc(topicLabel(e.topic))}</span></div>`;
-  const os = e.blindspot ? `<div class="os-callout ${hiClass()}"><span>●</span><div><b>${t("osShort")}.</b> ${t("notOn")} <b>${leanName(e.blindspot.side)}</b> ${t("sideWord")}.</div></div>` : "";
-  const pts = pointsOf(e).map(p=>`<li class="${hiClass()}">${esc(p)}</li>`).join("");
-  const sbs = ["left","center","right"].map(s=>sbsSide(e,s)).join("");
-  const covRows = ["left","center","right"].map(s=>{
-    const ct = (e.coverage&&e.coverage[s]) ? e.coverage[s].count : 0;
-    return `<div class="cov-row"><span class="nm"><span class="swatch ${s}"></span>${leanName(s)}</span><span class="ct">${ct}</span></div>`;
-  }).join("");
-  return `<div class="detail">
-    <button class="back ${hiClass()}" data-act="back">← ${t("back")}</button>
-    ${hero}
-    ${os}
-    <div class="meta"><span class="topic">${esc(topicLabel(e.topic))}</span><span>·</span><span>${n} ${n===1?t("source"):t("sources")}</span>${e.is_demo?`<span>·</span><span>${t("demo")}</span>`:""}</div>
-    <h1 class="${hiClass()}">${esc(titleOf(e))}</h1>
-    <div class="summary-card">
-      <div class="lab ${hiClass()}">${t("aiSummary")}</div>
-      <p class="lede ${hiClass()}">${esc(summaryOf(e))}</p>
-      <ul>${pts}</ul>
-      <div class="ai-note ${hiClass()}">${t("aiNote")}</div>
-    </div>
-    <div class="cov-grid">
-      <div>
-        <div class="block-h ${hiClass()}">${t("sideBySide")}</div>
-        <div class="sbs">${sbs}</div>
-      </div>
-      <div>
-        <div class="cov-panel">
-          <div class="ttl ${hiClass()}">${t("whereLean")}</div>
-          ${biasBar(e,false)}
-          <div style="margin-top:12px">${covRows}</div>
-        </div>
-        ${e.divergence ? `<div class="divergence ${hiClass()}"><b>${t("divergence")}.</b> ${esc(S.lang==="hi"&&e.divergence_hi?e.divergence_hi:e.divergence)}</div>`:""}
-        ${e.omissions ? `<div class="divergence ${hiClass()}"><b>${t("omissions")}.</b> ${esc(S.lang==="hi"&&e.omissions_hi?e.omissions_hi:e.omissions)}</div>`:""}
-      </div>
-    </div>
-  </div>`;
+// SECONDARY — the middle tier: a real headline + a taste of the lead + a compact bias bar.
+function SecondaryStory({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `block no-underline group cursor-pointer border-b py-5 ${t.border}`
+  }, /*#__PURE__*/React.createElement(Eyebrow, {
+    topic: story.topic,
+    created_at: story.created_at,
+    blindspot: story.blindspot,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-1.5 text-[20px] sm:text-[21px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`
+  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[14px] leading-[1.55] lc-2 ${t.ts} ${readCls(lang)}`
+  }, story.lead), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, /*#__PURE__*/React.createElement(BiasBar, {
+    bias: story.bias,
+    t: t,
+    lang: lang,
+    height: 11
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, countLine(story, lang)));
+}
+// DENSE — the tail: a compact headline row with a mini bias bar. High information density.
+function DenseRow({
+  story,
+  t,
+  lang,
+  onOpen,
+  last
+}) {
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `block no-underline group cursor-pointer ${last ? "" : "border-b"} py-3.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("h4", {
+    className: `headline text-[16px] sm:text-[17.5px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-24 sm:w-28 shrink-0"
+  }, /*#__PURE__*/React.createElement(MiniBar, {
+    bias: story.bias,
+    t: t
+  })), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, countLine(story, lang))));
+}
+// SPECTRUM RAIL — an aggregate of the visible feed: total distinct-outlet coverage by
+// side. Pure arithmetic over the same per-lean counts; never a hardcoded ratio.
+// SPECTRUM RAIL — an aggregate of the visible feed: each side's SHARE of total
+// distinct-outlet coverage today. Pure arithmetic over the same per-lean counts as
+// the bias bars; never a hardcoded ratio. Rail-style (no card) per design 2a.
+function SpectrumRail({
+  cards,
+  t,
+  lang
+}) {
+  const agg = {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  cards.forEach(c => {
+    const k = c.counts || {};
+    agg.left += k.left || 0;
+    agg.center += k.center || 0;
+    agg.right += k.right || 0;
+  });
+  const sum = Math.max(1, agg.left + agg.center + agg.right);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow pb-2 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "आज का स्पेक्ट्रम" : "The spectrum today"), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3.5 flex flex-col gap-2.5"
+  }, ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("div", {
+    key: k
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-1.5 flex items-center justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[10px] font-medium uppercase tracking-[0.1em] ${t.ts} ${lang === "hi" ? "deva" : ""}`
+  }, lbl(k, lang)), /*#__PURE__*/React.createElement("span", {
+    className: "mono text-[11px]",
+    style: {
+      color: t.ink
+    }
+  }, agg[k])), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 7,
+      background: t.track || "#E1DCCE",
+      border: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: BIAS[k].tex,
+    style: {
+      width: `${Math.round(agg[k] / sum * 100)}%`,
+      height: "100%"
+    }
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2.5 mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "आज प्रति पक्ष ख़बरें" : "Stories run per side, today"));
+}
+function FeedRow({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `no-underline group flex cursor-pointer gap-4 border-b pb-6 ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0 flex-1"
+  }, /*#__PURE__*/React.createElement(Eyebrow, {
+    topic: story.topic,
+    created_at: story.created_at,
+    blindspot: story.blindspot,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-1.5 text-lg sm:text-xl leading-[1.18] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5 flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-28 sm:w-36"
+  }, /*#__PURE__*/React.createElement(MiniBar, {
+    bias: story.bias,
+    t: t
+  })), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, covLine(story, lang)))), story.img && /*#__PURE__*/React.createElement("div", {
+    className: "shrink-0"
+  }, /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "1 / 1",
+    t: t,
+    lang: lang,
+    className: "w-24 sm:w-32 rounded-md"
+  })));
+}
+function BriefItem({
+  story,
+  t,
+  lang,
+  onOpen,
+  last
+}) {
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOpen(story.id),
+    className: `block w-full text-left ${last ? "" : "border-b"} py-3 ${t.border}`
+  }, /*#__PURE__*/React.createElement("h4", {
+    className: `headline text-[15px] font-semibold leading-[1.2] lc-2 ${t.tp} ${readCls(lang)} hover:underline decoration-1 underline-offset-2`
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-16"
+  }, /*#__PURE__*/React.createElement(MiniBar, {
+    bias: story.bias,
+    t: t
+  })), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, covLine(story, lang))));
+}
+function BlindspotCard({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0;
+  const covered = lang === "hi" ? `${L} वाम · ${C} केंद्र · ${R} दक्षिण` : `${L} Left · ${C} Centre · ${R} Right`;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `block no-underline group cursor-pointer border ${t.surface} ${t.border}`,
+    style: {
+      borderLeft: "3px solid #8D5B44"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "p-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[10px] font-medium uppercase tracking-[0.14em] ${t.blind} ${lang === "hi" ? "deva" : ""}`
+  }, STR[lang].navOS), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-2 text-[17px] leading-[1.24] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, /*#__PURE__*/React.createElement(GapColumns, {
+    counts: c,
+    t: t,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2.5 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, STR[lang].gapCovered, " ", covered)));
+}
+function GridCard({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`
+  }, story.img && /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "16 / 9",
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "p-4"
+  }, /*#__PURE__*/React.createElement(Eyebrow, {
+    topic: story.topic,
+    created_at: story.created_at,
+    blindspot: story.blindspot,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)}`
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, /*#__PURE__*/React.createElement(MiniBar, {
+    bias: story.bias,
+    t: t
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, covLine(story, lang))));
 }
 
-/* ---------- sources (transparency) ---------- */
-function srcCard(s){
-  const labels = {editorial:"Ed", framing:"Fr", selection:"Sel", sourcing:"Src", ownership:"Own", panel:"Pan"};
-  const sub = s.subscores ? `<div class="signals"><span class="sg-lab ${hiClass()}">${t("signals")}:</span>` +
-    Object.entries(labels).map(([k,lab])=>{ const v=s.subscores[k]; const cls=v<0?"neg":v>0?"pos":"zero";
-      return `<span class="sg ${cls}">${lab} ${v>0?"+"+v:v}</span>`; }).join("") + `</div>` : "";
-  const contested = s.contested ? `<span class="contested ${hiClass()}">${t("contested")}</span>` : "";
-  const site = (s.website||"").replace(/^https?:\/\//,"");
-  const body = "Outlet: "+s.name+"\nCurrent rating: "+(s.label||s.lean)+
-    "\n\nI think this should be reviewed because (please give specific headlines or articles):\n\n";
-  const fix = `mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal: "+s.name)}&body=${encodeURIComponent(body)}`;
-  return `<div class="src-card">
-    <div class="src-head">
-      <div>
-        <div class="src-name">${esc(s.name)} <span class="lang">${(s.language||"en").toUpperCase()}</span></div>
-        <a class="src-site" href="${esc(s.website)}" target="_blank" rel="noopener">${esc(site)}</a>
-      </div>
-      <div class="src-rate">
-        <span class="lean-chip ${s.lean}">${leanName(s.lean)}</span>
-        <span class="conf ${hiClass()}">${confName(s.confidence)} ${t("confidence")}</span>
-        ${contested}
-      </div>
-    </div>
-    <div class="src-meta ${hiClass()}"><b>${t("ownership")}:</b> ${esc(s.ownership)}</div>
-    <div class="src-why ${hiClass()}"><b>${t("whyRated")}:</b> ${esc(s.rationale)}</div>
-    ${sub}
-    <a class="src-fix ${hiClass()}" href="${fix}">${t("suggestFix")} →</a>
-  </div>`;
+/* ---------------- shell ---------------- */
+function RegionSelect({
+  region,
+  setRegion,
+  t,
+  lang
+}) {
+  const states = ["Maharashtra", "Uttar Pradesh", "Karnataka", "Tamil Nadu", "Delhi", "Gujarat", "West Bengal"];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "relative shrink-0"
+  }, /*#__PURE__*/React.createElement("select", {
+    value: region,
+    onChange: e => setRegion(e.target.value),
+    className: `appearance-none rounded-full border px-3 py-1 pl-3 pr-7 text-[12.5px] font-medium ${t.border} ${t.ts} hover:${t.soft} bg-transparent outline-none cursor-pointer ${lang === "hi" ? "deva" : ""} transition-all duration-200`
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "National"
+  }, ui("National", lang)), /*#__PURE__*/React.createElement("option", {
+    value: "International"
+  }, ui("International", lang)), /*#__PURE__*/React.createElement("optgroup", {
+    label: lang === "hi" ? "राज्य (जल्द आ रहे हैं)" : "States (Pending)"
+  }, states.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s,
+    disabled: true
+  }, s)))), /*#__PURE__*/React.createElement("div", {
+    className: `pointer-events-none absolute inset-y-0 right-2 flex items-center ${t.tf}`
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "12",
+    height: "12",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "m6 9 6 6 6-6"
+  }))));
 }
-function sourcesView(){
-  let list = DATA.sources || [];
-  if (S.fLean) list = list.filter(s => s.lean === S.fLean);
-  if (S.fLang) list = list.filter(s => s.language === S.fLang);
-  const leanF = ["", "left","center","right"].map(v =>
-    `<button class="chip ${(S.fLean||"")===v?"on":""} ${hiClass()}" data-act="flean:${v}">${v?leanName(v):t("all")}</button>`).join("");
-  const langF = ["", "en","hi"].map(v =>
-    `<button class="chip ${(S.fLang||"")===v?"on":""} ${hiClass()}" data-act="flang:${v}">${v?(v==="en"?t("langEN"):t("langHI")):t("all")}</button>`).join("");
-  const cards = list.length ? list.map(srcCard).join("") : `<div class="empty">—</div>`;
-  return `<div class="doc">
-    <h1 class="${hiClass()}">${t("srcTitle")}</h1>
-    <p class="lede ${hiClass()}">${t("srcIntro")}</p>
-    <div class="callout ${hiClass()}"><b>${t("provisional")}.</b> ${t("srcDisclaimer")}</div>
-    <div class="filters">
-      <span class="flab ${hiClass()}">${t("filterLean")}:</span>${leanF}
-      <span class="flab ${hiClass()}" style="margin-left:8px">${t("filterLang")}:</span>${langF}
-    </div>
-    <div class="src-list">${cards}</div>
-  </div>`;
+function UtilityStrip({
+  t,
+  lang,
+  setLang,
+  dark,
+  setDark
+}) {
+  const today = new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      backgroundColor: "#15140F"
+    },
+    className: "text-white/85"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-5",
+    style: {
+      height: 34
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "mono text-[11px] tracking-wide text-white/55"
+  }, lang === "hi" ? "भारत संस्करण" : "India Edition"), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-4"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `hidden sm:inline mono text-[11px] text-white/55 ${lang === "hi" ? "deva" : ""}`
+  }, today), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-1"
+  }, ["en", "hi"].map(l => /*#__PURE__*/React.createElement("button", {
+    key: l,
+    onClick: () => setLang(l),
+    className: `px-1.5 mono text-[11px] font-semibold ${lang === l ? "text-white underline underline-offset-4" : "text-white/50 hover:text-white/80"} ${l === "hi" ? "deva" : ""}`
+  }, l === "en" ? "EN" : "हिं"))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDark(!dark),
+    className: "text-white/55 hover:text-white",
+    "aria-label": "Theme"
+  }, dark ? /*#__PURE__*/React.createElement(Sun, {
+    size: 15
+  }) : /*#__PURE__*/React.createElement(Moon, {
+    size: 15
+  })))));
+}
+// Language switch — the design's bordered EN/हिं toggle. Active side fills with ink,
+// inactive stays paper. 44px tap target on mobile. No caps on Devanagari.
+function LangToggle({
+  t,
+  lang,
+  setLang,
+  dark
+}) {
+  return /*#__PURE__*/React.createElement("span", {
+    className: "flex",
+    style: {
+      border: `1px solid ${t.ink}`
+    }
+  }, ["en", "hi"].map(l => {
+    const on = lang === l;
+    return /*#__PURE__*/React.createElement("button", {
+      key: l,
+      onClick: () => setLang(l),
+      "aria-label": l === "en" ? "English" : "हिन्दी",
+      className: `flex items-center justify-center ${l === "hi" ? "deva" : ""}`,
+      style: {
+        minWidth: 40,
+        minHeight: 30,
+        padding: "0 11px",
+        font: l === "en" ? "500 11px/1 'IBM Plex Sans',sans-serif" : "400 14px/1 'IBM Plex Sans Devanagari',sans-serif",
+        letterSpacing: l === "en" ? ".1em" : 0,
+        background: on ? t.ink : "transparent",
+        color: on ? dark ? "#201F1C" : "#F4F1EA" : t.ink
+      }
+    }, l === "en" ? "EN" : "हिं");
+  }));
+}
+// Masthead — brand, inline nav with a 2px active underline, search as an icon, the
+// language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
+// utility strip, no topic-chip rail (design spec 2a).
+function Header({
+  t,
+  lang,
+  setLang,
+  dark,
+  setDark,
+  go,
+  view
+}) {
+  const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
+  return /*#__PURE__*/React.createElement("div", {
+    className: `sticky top-0 z-40 border-b ${t.border} ${t.nav}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1280px] px-4 sm:px-10"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex h-[58px] items-center gap-6"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("home"),
+    className: "flex shrink-0 items-baseline gap-2",
+    "aria-label": "Paksh home"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `brand-hi text-[27px] leading-none ${t.tp}`
+  }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("span", {
+    className: `text-[17px] font-semibold uppercase tracking-[0.30em] ${t.tp}`
+  }, "Paksh")), /*#__PURE__*/React.createElement("nav", {
+    className: "ml-1 hidden items-center gap-6 md:flex"
+  }, NAV.map(([k, label]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => go(k),
+    className: `eyebrow relative py-1 ${view === k ? t.tp : `${t.tf} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, label, view === k && /*#__PURE__*/React.createElement("span", {
+    className: "absolute -bottom-[3px] left-0 right-0",
+    style: {
+      height: 2,
+      background: t.ink
+    }
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "ml-auto flex items-center gap-3 sm:gap-4"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("search"),
+    "aria-label": "Search",
+    className: `${t.tf} hover:${t.tp}`
+  }, /*#__PURE__*/React.createElement(Search, {
+    size: 17
+  })), /*#__PURE__*/React.createElement(LangToggle, {
+    t: t,
+    lang: lang,
+    setLang: setLang,
+    dark: dark
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDark(!dark),
+    className: `${t.tf} hover:${t.tp}`,
+    "aria-label": "Theme"
+  }, dark ? /*#__PURE__*/React.createElement(Sun, {
+    size: 16
+  }) : /*#__PURE__*/React.createElement(Moon, {
+    size: 16
+  }))))));
+}
+function BottomNav({
+  t,
+  lang,
+  view,
+  go
+}) {
+  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["sources", STR[lang].navSrc, Globe], ["about", STR[lang].navMethod, Scale]];
+  return /*#__PURE__*/React.createElement("nav", {
+    className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex"
+  }, items.map(([k, label, Ic]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => go(k),
+    className: `flex flex-1 flex-col items-center gap-0.5 py-2 ${view === k ? t.tp : t.tf}`
+  }, /*#__PURE__*/React.createElement(Ic, {
+    size: 19
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `text-[9.5px] font-semibold ${lang === "hi" ? "deva" : ""}`
+  }, label)))));
+}
+function Footer({
+  t,
+  lang,
+  go
+}) {
+  return /*#__PURE__*/React.createElement("footer", {
+    className: `mt-12 border-t ${t.border} ${t.surface}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1800px] px-4 sm:px-5 py-9"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap items-end justify-between gap-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-md"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline gap-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `brand-hi text-xl ${t.tp}`
+  }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("span", {
+    className: `text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`
+  }, "Paksh")), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].footIndependence)), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-x-6 gap-y-2"
+  }, [["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => go(k),
+    className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, l)))), /*#__PURE__*/React.createElement("div", {
+    className: `mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`
+  }, "\xA9 2026 Paksh \xB7 A Redstocks Technology LLP product")));
 }
 
-/* ---------- method (how it works) ---------- */
-function methodView(){
-  const sig = SIGNALS.map(s =>
-    `<li class="sig-li"><span class="sig-name ${hiClass()}">${S.lang==="hi"?s.hi:s.en}</span><span class="sig-w">${s.w}%</span></li>`).join("");
-  const reads = (S.lang==="hi"?M_READ.hi:M_READ.en).map(x => `<li class="${hiClass()}">${x}</li>`).join("");
-  const body = "Outlet:\nCurrent rating:\n\nWhy it should be reviewed (specific headlines or articles):\n\n";
-  const fix = `mailto:${CONTACT}?subject=${encodeURIComponent("Paksh rating appeal")}&body=${encodeURIComponent(body)}`;
-  return `<div class="doc">
-    <h1 class="${hiClass()}">${t("methodTitle")}</h1>
-    <h2 class="${hiClass()}">${t("m_doesH")}</h2>
-    <p class="${hiClass()}">${t("m_does")}</p>
-    <div class="callout ${hiClass()}"><b>${t("m_ruleH")}.</b> ${t("m_rule")}</div>
-    <h2 class="${hiClass()}">${t("m_rateH")}</h2>
-    <p class="${hiClass()}">${t("m_rateLede")}</p>
-    <ul class="sig-list">${sig}</ul>
-    <p class="fineprint ${hiClass()}">${t("m_rateFoot")}</p>
-    <h2 class="${hiClass()}">${t("m_axisH")}</h2>
-    <p class="${hiClass()}">${t("m_axis")}</p>
-    <h2 class="${hiClass()}">${t("m_partiesH")}</h2>
-    <p class="${hiClass()}">${t("m_parties")}</p>
-    <h2 class="${hiClass()}">${t("m_provH")}</h2>
-    <p class="${hiClass()}">${t("m_prov")}</p>
-    <h2 class="${hiClass()}">${t("m_readH")}</h2>
-    <ul class="read-list">${reads}</ul>
-    <h2 class="${hiClass()}">${t("m_appealH")}</h2>
-    <p class="${hiClass()}">${t("m_appeal")}</p>
-    <a class="btn-primary ${hiClass()}" href="${fix}">${t("suggestFix")}</a>
-    <p class="fineprint ${hiClass()}" style="margin-top:18px">${t("m_sourcesLink")} <a data-act="view-sources" style="color:var(--brand-ink);font-weight:700;cursor:pointer">${t("nav_sources")} →</a></p>
-  </div>`;
+/* ---------------- HOME ---------------- */
+// Ad slot — a live Google AdSense unit when ADSENSE_CLIENT is set, otherwise a clean,
+// on-brand reserved space (hairline frame, paper-sunk, small "Advertisement" label) so
+// placements are visible without loading any ad script or cookie. Kept restrained to
+// preserve the design's calm — one per page, at natural breaks.
+function AdSlot({
+  t,
+  lang,
+  slot,
+  format,
+  h,
+  label
+}) {
+  React.useEffect(() => {
+    if (ADSENSE_CLIENT) {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {}
+    }
+  }, []);
+  return /*#__PURE__*/React.createElement("div", {
+    className: `relative flex items-center justify-center overflow-hidden border ${t.border} ${t.soft}`,
+    style: {
+      minHeight: h || 250
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: ".24em"
+    }
+  }, label || (lang === "hi" ? "विज्ञापन" : "Advertisement")), ADSENSE_CLIENT && /*#__PURE__*/React.createElement("ins", {
+    className: "adsbygoogle",
+    style: {
+      display: "block",
+      position: "absolute",
+      inset: 0,
+      width: "100%",
+      height: "100%"
+    },
+    "data-ad-client": ADSENSE_CLIENT,
+    "data-ad-slot": slot || "",
+    "data-ad-format": format || "auto",
+    "data-full-width-responsive": "true"
+  }));
+}
+function GridGrid({
+  items,
+  render,
+  t,
+  lang,
+  cols,
+  gap
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: `grid ${gap || "gap-5"} ${cols || "sm:grid-cols-2 lg:grid-cols-3"}`
+  }, items.map((it, i) => render(it, i)));
+}
+// SECOND tier — the "Also leading" rail: 22px headline, a taste of the lead, a 12px
+// bias bar, mono counts. Data-driven like everything else.
+function AlsoLeadingItem({
+  story,
+  t,
+  lang,
+  onOpen,
+  last
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0,
+    n = L + C + R;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `block no-underline group cursor-pointer py-4 ${last ? "" : "border-b"} ${t.border}`
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: `headline text-[20px] sm:text-[22px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: lang === "hi" ? 1.34 : 1.24,
+      letterSpacing: lang === "hi" ? 0 : "-0.01em",
+      textWrap: "pretty"
+    }
+  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13.5px] lc-2 ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.7 : 1.55
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, /*#__PURE__*/React.createElement(BiasSegments, {
+    bias: story.bias,
+    t: t,
+    h: 12,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 mono text-[10.5px] ${t.tf}`
+  }, L, " \xB7 ", C, " \xB7 ", R, " \xA0", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: t.ink,
+      opacity: .55
+    }
+  }, "n = ", n)));
+}
+// SECTION tier — 4-up band: kicker + 19px headline + 10px bar + mono counts.
+function SectionCard({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0,
+    n = L + C + R;
+  const tp = lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: "block no-underline group cursor-pointer"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, tp || "News"), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-2 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: 1.28,
+      textWrap: "pretty"
+    }
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, /*#__PURE__*/React.createElement(BiasSegments, {
+    bias: story.bias,
+    t: t,
+    h: 10,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 mono text-[10.5px] ${t.tf}`
+  }, L, " \xB7 ", C, " \xB7 ", R, " \xB7 n = ", n));
+}
+// BRIEF tier bar — 6px, FLAT fills (hatch would moiré this small), no centre axis; the
+// printed count carries the exact reading. Under 3 outlets: the hatched "too thin" state.
+function BriefBar({
+  bias,
+  counts,
+  t
+}) {
+  const L = counts.left || 0,
+    C = counts.center || 0,
+    R = counts.right || 0,
+    n = L + C + R;
+  if (n < 3) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 6,
+      border: `1px dashed ${t.tf}`,
+      background: "repeating-linear-gradient(45deg,#EAE6DB 0 3px,#E1DCCE 3px 6px)"
+    }
+  });
+  const clsOf = {
+    left: "seg-left",
+    center: "seg-center-tight",
+    right: "seg-right-flat"
+  };
+  const present = ["left", "center", "right"].filter(k => (bias[k] || 0) > 0);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "relative flex",
+    style: {
+      height: 6,
+      border: `1px solid ${t.ink}`,
+      background: t.track || "#EAE6DB"
+    }
+  }, present.map((k, i) => /*#__PURE__*/React.createElement(React.Fragment, {
+    key: k
+  }, i > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: "0 0 1px",
+      background: t.gap || "#F4F1EA"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: clsOf[k],
+    style: {
+      flexGrow: bias[k],
+      flexBasis: 0,
+      minWidth: 2
+    }
+  }))));
+}
+// BRIEF tier row — 15px, no summary; a 64px mini-bar to the left with the printed count.
+function BriefRow({
+  story,
+  t,
+  lang,
+  onOpen,
+  first
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0,
+    n = L + C + R;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: `flex items-baseline gap-3 no-underline group cursor-pointer ${first ? "" : "border-t pt-2.5 mt-2.5"} ${t.border}`,
+    style: {
+      breakInside: "avoid",
+      WebkitColumnBreakInside: "avoid"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "shrink-0",
+    style: {
+      width: 64
+    }
+  }, /*#__PURE__*/React.createElement(BriefBar, {
+    bias: story.bias,
+    counts: c,
+    t: t
+  }), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1 mono text-[10px] ${t.tf}`
+  }, n < 3 ? "n<3" : `${L}·${C}·${R}`)), /*#__PURE__*/React.createElement("h4", {
+    className: `text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: lang === "hi" ? 1.6 : 1.42,
+      textWrap: "pretty"
+    }
+  }, story.headline));
+}
+// THE ONE REVERSAL — the ink-filled Coverage Gaps band at the fold. The page's only
+// ink area; it spends that emphasis on what Paksh exists to say: what one side didn't
+// run. Each label ("Missing: Left · 1 of 12") is computed from the real per-lean counts.
+function InkGapBand({
+  items,
+  t,
+  lang,
+  go,
+  open
+}) {
+  if (!items.length) return null;
+  const paper = "#F4F1EA",
+    faint = "rgba(244,241,234,.28)";
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#15140F"
+    },
+    className: "px-4 sm:px-10 py-5 sm:py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between gap-3 pb-3",
+    style: {
+      borderBottom: `1px solid ${faint}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      color: paper,
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "कवरेज गैप · जो एक पक्ष ने नहीं चलाया" : "Coverage gaps · what one side didn’t run"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("blindspot"),
+    className: "mono text-[10.5px] shrink-0",
+    style: {
+      color: "rgba(244,241,234,.6)"
+    }
+  }, items.length, " ", lang === "hi" ? "आज" : "today", " \xB7 ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      borderBottom: "1px solid rgba(244,241,234,.5)"
+    }
+  }, lang === "hi" ? "सभी गैप" : "all gaps", " \u2192"))), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-y-5 sm:grid-cols-2 lg:grid-cols-3 pt-4"
+  }, items.map((it, i) => /*#__PURE__*/React.createElement("a", {
+    key: it.story.id,
+    href: "/story/" + encodeURIComponent(it.story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open(it.story.id);
+    },
+    className: `block no-underline group cursor-pointer ${i > 0 ? "sm:border-l sm:pl-8" : ""}`,
+    style: i > 0 ? {
+      borderColor: faint
+    } : {}
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[10.5px] gap-accent ${lang === "hi" ? "deva" : ""}`
+  }, it.label), /*#__PURE__*/React.createElement("div", {
+    className: `headline mt-2 text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      color: paper,
+      lineHeight: 1.3,
+      textWrap: "pretty"
+    }
+  }, it.story.headline)))));
+}
+// Right-rail companion to the spectrum: the stories where the spectrum agrees most —
+// 2+ sides present, smallest skew. Derived arithmetic over the same live counts.
+function WidestAgreement({
+  cards,
+  t,
+  lang,
+  onOpen
+}) {
+  const scored = cards.filter(c => {
+    const k = c.counts || {};
+    return (k.left > 0 ? 1 : 0) + (k.center > 0 ? 1 : 0) + (k.right > 0 ? 1 : 0) >= 2;
+  }).map(c => {
+    const b = c.bias;
+    const skew = Math.max(b.left, b.center, b.right) - Math.min(b.left, b.center, b.right);
+    return {
+      c,
+      skew,
+      n: c.sources
+    };
+  }).sort((a, b) => a.skew - b.skew || b.n - a.n).slice(0, 2);
+  if (!scored.length) return null;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow pb-2 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "सबसे ज़्यादा सहमति" : "Widest agreement"), scored.map(({
+    c
+  }, i) => {
+    const k = c.counts || {};
+    const L = k.left || 0,
+      C = k.center || 0,
+      R = k.right || 0,
+      n = L + C + R;
+    return /*#__PURE__*/React.createElement("a", {
+      key: c.id,
+      href: "/story/" + encodeURIComponent(c.id),
+      onClick: e => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        onOpen(c.id);
+      },
+      className: `block no-underline group cursor-pointer py-3 ${i < scored.length - 1 ? "border-b" : ""} ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `headline text-[14.5px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      style: {
+        lineHeight: 1.35,
+        textWrap: "pretty"
+      }
+    }, c.headline), /*#__PURE__*/React.createElement("div", {
+      className: "mt-2"
+    }, /*#__PURE__*/React.createElement(BiasSegments, {
+      bias: c.bias,
+      t: t,
+      h: 8,
+      lang: lang
+    })), /*#__PURE__*/React.createElement("div", {
+      className: `mt-1.5 mono text-[10px] ${t.tf}`
+    }, L, " \xB7 ", C, " \xB7 ", R, " \xB7 n = ", n));
+  }));
+}
+function HomeView({
+  cards,
+  gapLeft,
+  gapRight,
+  topics,
+  counts,
+  stats,
+  t,
+  lang,
+  open,
+  goTopic,
+  go
+}) {
+  // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
+  // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
+  // top-ranked story leads, the rest fall into the tier ladder in ranked order.
+  const used = new Set();
+  const take = (arr, n) => {
+    const out = [];
+    for (const c of arr) {
+      if (out.length >= n) break;
+      if (!used.has(c.id)) {
+        out.push(c);
+        used.add(c.id);
+      }
+    }
+    return out;
+  };
+  const lead = cards[0];
+  if (lead) used.add(lead.id);
+  const alsoLeading = take(cards, 2); // "Also leading" rail (2)
+  const section = take(cards, 4); // 4-up Section band
+  const brief = take(cards, 15); // "In brief" tier
+  const notUsed = arr => (arr || []).filter(c => !used.has(c.id));
+  // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
+  // are "Missing: Right". Labels read the real per-lean counts (N of total).
+  const nOf = c => {
+    const k = c.counts || {};
+    return (k.left || 0) + (k.center || 0) + (k.right || 0);
+  };
+  const gapItems = [];
+  notUsed(gapRight).slice(0, 2).forEach(s => {
+    const k = s.counts || {};
+    gapItems.push({
+      story: s,
+      label: lang === "hi" ? `ग़ायब: वाम · ${k.left || 0}/${nOf(s)}` : `Missing: Left · ${k.left || 0} of ${nOf(s)}`
+    });
+  });
+  notUsed(gapLeft).slice(0, 1).forEach(s => {
+    const k = s.counts || {};
+    gapItems.push({
+      story: s,
+      label: lang === "hi" ? `ग़ायब: दक्षिण · ${k.right || 0}/${nOf(s)}` : `Missing: Right · ${k.right || 0} of ${nOf(s)}`
+    });
+  });
+  gapItems.slice(0, 3).forEach(g => used.add(g.story.id));
+  const pad = "px-4 sm:px-10";
+  const browse = /*#__PURE__*/React.createElement("div", {
+    className: "mt-9 flex justify-center"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("topics"),
+    className: `border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lang === "hi" ? "सभी सेक्शन देखें" : "Browse all sections", " \u2192"));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1280px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement(DateStrip, {
+    t: t,
+    lang: lang,
+    stats: stats,
+    regionFilter: stats.regionFilter,
+    setRegionFilter: stats.setRegionFilter
+  })), /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid lg:grid-cols-[250px_1fr_280px]",
+    style: {}
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "order-2 lg:order-1 py-4 lg:py-6 lg:pr-7 lg:border-r",
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow pb-2 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "ये भी प्रमुख" : "Also leading"), alsoLeading.map((s, i) => /*#__PURE__*/React.createElement(AlsoLeadingItem, {
+    key: s.id,
+    story: s,
+    t: t,
+    lang: lang,
+    onOpen: open,
+    last: i === alsoLeading.length - 1
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "order-1 lg:order-2 py-4 lg:py-6 lg:px-7 lg:border-r border-b-2 lg:border-b-0",
+    style: {
+      borderColor: t.line,
+      borderBottomColor: t.ink
+    }
+  }, lead && /*#__PURE__*/React.createElement(LeadStory, {
+    story: lead,
+    t: t,
+    lang: lang,
+    onOpen: open
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "order-3 py-4 lg:py-6 lg:pl-7 space-y-6"
+  }, /*#__PURE__*/React.createElement(SpectrumRail, {
+    cards: cards,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement(WidestAgreement, {
+    cards: cards,
+    t: t,
+    lang: lang,
+    onOpen: open
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement(InkGapBand, {
+    items: gapItems.slice(0, 3),
+    t: t,
+    lang: lang,
+    go: go,
+    open: open
+  })), /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 py-7",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, section.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s.id,
+    className: i > 0 ? "lg:border-l lg:pl-6" : "",
+    style: i > 0 ? {
+      borderColor: t.line
+    } : {}
+  }, /*#__PURE__*/React.createElement(SectionCard, {
+    story: s,
+    t: t,
+    lang: lang,
+    onOpen: open
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-2"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 90,
+    format: "horizontal"
+  }))), brief.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-7"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-3.5 flex items-baseline justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "संक्षेप में · आज ट्रैक की गई बाक़ी सब" : "In brief · everything else tracked today")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      columnGap: "2.25rem",
+      columnRule: `1px solid ${t.line}`
+    },
+    className: "[column-count:1] sm:[column-count:2] lg:[column-count:3]"
+  }, brief.map((s, i) => /*#__PURE__*/React.createElement(BriefRow, {
+    key: s.id,
+    story: s,
+    t: t,
+    lang: lang,
+    onOpen: open,
+    first: i === 0
+  }))), browse)));
+}
+/* ---------------- STORY (tabbed) ---------------- */
+function StoryPage({
+  story,
+  t,
+  lang,
+  go,
+  openTopic
+}) {
+  const fr = story.framing || {};
+  const outlets = story.outlets || [];
+  const counts = {
+    left: outlets.filter(o => o.lean === "left").length,
+    center: outlets.filter(o => o.lean === "center").length,
+    right: outlets.filter(o => o.lean === "right").length,
+    international: outlets.filter(o => o.lean === "international").length,
+    unrated: outlets.filter(o => o.lean === "unrated").length
+  };
+  // ONE VOTE PER OWNER: the bias bar counts distinct OWNERS, so co-owned mastheads
+  // (Times of India + Navbharat Times) count once. voteRow() reads the authoritative
+  // server coverage (count=owner votes, sources=distinct mastheads) and groups the
+  // mastheads by owner so the reader can see WHY a side shows "N votes, M outlets".
+  const ownerOf = {};
+  outlets.forEach(o => {
+    if (o.source) ownerOf[o.source] = o.owner || o.source;
+  });
+  const voteRow = k => {
+    const b = story.coverage && story.coverage[k] || {};
+    const names = b.sources || [];
+    const votes = typeof b.count === "number" ? b.count : counts[k] || 0;
+    const gm = new Map();
+    names.forEach(n => {
+      const ow = ownerOf[n] || n;
+      if (!gm.has(ow)) gm.set(ow, []);
+      gm.get(ow).push(n);
+    });
+    return {
+      votes,
+      outlets: names.length,
+      groups: [...gm.entries()]
+    };
+  };
+  // The bias bar's widths come from the distinct-OWNER votes (vc); percentages are
+  // derived from those, so the printed scale matches the segments exactly.
+  const vc = {
+    left: voteRow("left").votes,
+    center: voteRow("center").votes,
+    right: voteRow("right").votes
+  };
+  const nVotes = vc.left + vc.center + vc.right;
+  const bpct = biasPct(vc);
+  const [atab, setAtab] = useState("all");
+  const arts = atab === "all" ? outlets : outlets.filter(o => o.lean === atab);
+  const total = story.sources + (story.unrated || 0) + (story.international || 0);
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    try {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch (e) {}
+  };
+  const tp = lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic;
+  const region = lang === "hi" ? story.region === "World" ? "विश्व" : "भारत" : story.region || "India";
+  const metaLine = lang === "hi" ? `${total} स्रोत · वाम ${vc.left} · केंद्र ${vc.center} · दक्षिण ${vc.right} · ${timeAgo(story.created_at, lang)}` : `${total} outlets · ${vc.left} left · ${vc.center} centre · ${vc.right} right · ${timeAgo(story.created_at, lang)}`;
+  const ATab = ({
+    k,
+    n
+  }) => {
+    const on = atab === k;
+    const lab = k === "all" ? lang === "hi" ? "सभी" : "All" : lbl(k, lang);
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: () => setAtab(k),
+      className: `flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on ? t.tp : `${t.tf} hover:${t.ts}`}`,
+      style: {
+        borderColor: on ? k === "all" ? t.ink : k === "center" ? t.ink : BIAS[k] && BIAS[k].color : "transparent"
+      }
+    }, lab, /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[11px] ${on ? t.ts : t.tf}`
+    }, n));
+  };
+  const sides = ["left", "center", "right"].filter(k => fr[k] || counts[k] > 0);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-8 flex items-center justify-between gap-3 pb-3",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("home"),
+    className: `inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".1em"
+    }
+  }, /*#__PURE__*/React.createElement(ArrowLeft, {
+    size: 14
+  }), " ", STR[lang].back), /*#__PURE__*/React.createElement("button", {
+    onClick: () => openTopic(story.topic),
+    className: `hidden sm:inline truncate eyebrow ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, tp, " \xB7 ", region), /*#__PURE__*/React.createElement("button", {
+    onClick: copy,
+    className: `inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".1em"
+    }
+  }, copied ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Check, {
+    size: 13
+  }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
+    size: 13
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[840px] text-left sm:text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow sm:hidden ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, tp, " \xB7 ", region), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-3 sm:mt-0 text-[28px] sm:text-[42px] lg:text-[50px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.18 : 1.1,
+      letterSpacing: lang === "hi" ? 0 : "-0.02em",
+      textWrap: "balance"
+    }
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 mono text-[11.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, metaLine, story.auto && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 ", /*#__PURE__*/React.createElement("span", {
+    className: "uppercase"
+  }, STR[lang].autoTag)))), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-8 max-w-[840px] py-6",
+    style: {
+      borderTop: `1px solid ${t.ink}`,
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-2.5 flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `flex gap-5 sm:gap-6 text-[11px] font-medium uppercase tracking-[0.12em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, ["left", "center", "right"].map(k => vc[k] > 0 ? /*#__PURE__*/React.createElement("span", {
+    key: k
+  }, lbl(k, lang), " ", /*#__PURE__*/React.createElement("span", {
+    className: "mono",
+    style: {
+      letterSpacing: 0
+    }
+  }, vc[k])) : null)), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[11px] shrink-0 ${t.tf}`
+  }, "n = ", nVotes, " \xB7 ", bpct.left, "/", bpct.center, "/", bpct.right, "%")), /*#__PURE__*/React.createElement(BiasSegments, {
+    bias: bpct,
+    t: t,
+    h: 28,
+    lang: lang,
+    onPick: k => {
+      setAtab(k);
+      const el = document.getElementById("arts");
+      if (el) el.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    },
+    active: atab !== "all" ? atab : null
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "relative",
+    style: {
+      height: 15,
+      marginTop: 3
+    }
+  }, [25, 50, 75].map(p => /*#__PURE__*/React.createElement("div", {
+    key: p,
+    style: {
+      position: "absolute",
+      left: p + "%",
+      top: 0,
+      width: 1,
+      height: p === 50 ? 7 : 4,
+      background: p === 50 ? t.ink : t.line
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] ${t.tf}`,
+    style: {
+      position: "absolute",
+      left: "50%",
+      top: 7,
+      transform: "translateX(-50%)",
+      whiteSpace: "nowrap"
+    }
+  }, lang === "hi" ? "कवरेज का 50%" : "50% of coverage"))), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-9 max-w-[840px] grid gap-5 md:grid-cols-[200px_1fr] md:gap-11"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "बिना फ़्रेमिंग की ख़बर" : "The story, without framing"), story.auto && /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      textTransform: "none",
+      letterSpacing: 0
+    }
+  }, STR[lang].autoFrom)), /*#__PURE__*/React.createElement("div", null, story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `text-[16px] md:text-[19px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.85 : 1.6
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("ul", {
+    className: "mt-3 space-y-2.5"
+  }, (story.summary || []).map((p, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    className: `flex gap-2.5 text-[15px] md:text-[16px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.8 : 1.6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "mt-[10px] h-1 w-2 shrink-0",
+    style: {
+      background: t.ink
+    }
+  }), p))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].aiNote))), sides.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-10"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-4 flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, STR[lang].framingTitle), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] hidden sm:inline ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "बराबर कॉलम · क्रम बार जैसा" : "equal columns · order matches the bar")), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0 md:border",
+    style: {
+      borderColor: t.ink
+    }
+  }, sides.map(k => /*#__PURE__*/React.createElement("div", {
+    key: k,
+    className: `flex flex-col border md:border-0 md:border-r last:md:border-r-0 ${t.surface}`,
+    style: {
+      borderColor: t.ink
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: BIAS[k].tex,
+    style: {
+      height: 6
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-1 flex-col p-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, lbl(k, lang)), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, counts[k], " ", lang === "hi" ? "स्रोत" : counts[k] === 1 ? "outlet" : "outlets")), fr[k] ? /*#__PURE__*/React.createElement("p", {
+    className: `mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.75 : 1.62
+    }
+  }, fr[k]) : /*#__PURE__*/React.createElement("p", {
+    className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
+  }, STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pb-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, STR[lang].coverageBreakdown)), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-semibold ${t.tp} ${readCls(lang)}`
+  }, STR[lang].totalSources), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[14px] font-semibold ${t.tp}`
+  }, total)), ["left", "center", "right"].map(k => {
+    const {
+      votes,
+      outlets: oc,
+      groups
+    } = voteRow(k);
+    if (votes === 0 && oc === 0) return null;
+    const coOwned = groups.some(([o, ms]) => ms.length > 1);
+    return /*#__PURE__*/React.createElement("div", {
+      key: k,
+      className: `border-b py-3 ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "flex items-center gap-2.5"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: `${BIAS[k].tex} shrink-0`,
+      style: {
+        width: 14,
+        height: 14,
+        border: `1px solid ${t.ink}`
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      className: `text-[13px] ${t.ts} ${lang === "hi" ? "deva" : ""}`
+    }, lbl(k, lang))), /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[14px] font-semibold ${t.tp}`
+    }, votes, oc > votes && /*#__PURE__*/React.createElement("span", {
+      className: `ml-1 text-[11px] font-normal ${t.tf}`
+    }, lang === "hi" ? `(${oc} स्रोत)` : `(${oc} outlets)`))), coOwned && /*#__PURE__*/React.createElement("div", {
+      className: "mt-1.5 space-y-0.5 pl-6"
+    }, groups.filter(([o, ms]) => ms.length > 1).map(([o, ms], j) => /*#__PURE__*/React.createElement("div", {
+      key: j,
+      className: `text-[11px] leading-snug ${t.tf} ${isHi(lang)}`
+    }, ms.join(" · "), " ", /*#__PURE__*/React.createElement("span", {
+      className: "italic"
+    }, "(", o, " \u2014 ", lang === "hi" ? "1 वोट" : "1 vote", ")")))));
+  }), story.international > 0 && /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center justify-between border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] ${t.ts} ${isHi(lang)}`
+  }, STR[lang].intlTitle), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[14px] font-semibold ${t.tp}`
+  }, story.international)), story.unrated > 0 && /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center justify-between border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] ${t.ts} ${isHi(lang)}`
+  }, STR[lang].unratedTitle), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[14px] font-semibold ${t.tp}`
+  }, story.unrated)), story.blindspot && /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement(Eye, {
+    size: 15,
+    className: "mt-0.5 shrink-0"
+  }), /*#__PURE__*/React.createElement("span", null, STR[lang].osCalloutBody1, " ", /*#__PURE__*/React.createElement("strong", null, story.bias[story.blindspot], "%"), " ", STR[lang].osCalloutBody2)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].aiNote)), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 110,
+    format: "horizontal"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]",
+    id: "arts"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mb-3 eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center gap-5 border-b ${t.border}`
+  }, /*#__PURE__*/React.createElement(ATab, {
+    k: "all",
+    n: outlets.length
+  }), counts.left > 0 && /*#__PURE__*/React.createElement(ATab, {
+    k: "left",
+    n: counts.left
+  }), counts.center > 0 && /*#__PURE__*/React.createElement(ATab, {
+    k: "center",
+    n: counts.center
+  }), counts.right > 0 && /*#__PURE__*/React.createElement(ATab, {
+    k: "right",
+    n: counts.right
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 space-y-2.5"
+  }, arts.map((o, i) => /*#__PURE__*/React.createElement("a", {
+    key: i,
+    href: o.url || "#",
+    target: "_blank",
+    rel: "noopener",
+    className: `flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`
+  }, /*#__PURE__*/React.createElement(OutletAvatar, {
+    o: o,
+    side: o.lean,
+    size: 30
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0 flex-1"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-bold ${t.tp}`
+  }, o.source), /*#__PURE__*/React.createElement(LeanBadge, {
+    side: o.lean,
+    lang: lang,
+    t: t
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `ml-auto mono text-[10px] ${t.tf}`
+  }, (o.language || "en").toUpperCase())), o.headline && /*#__PURE__*/React.createElement("div", {
+    className: `mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`
+  }, o.headline)), /*#__PURE__*/React.createElement(ArrowUpRight, {
+    size: 15,
+    className: `mt-0.5 shrink-0 ${t.tf}`
+  }))), arts.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: `py-10 text-center text-[13px] ${t.tf}`
+  }, "-"))));
 }
 
-/* ---------- chrome ---------- */
-function header(){
-  const chips = [`<button class="chip ${!S.topic?"on":""}" data-act="topic:">${t("all")}</button>`]
-    .concat((DATA.topics||[]).map(tp =>
-      `<button class="chip ${S.topic===tp?"on":""} ${hiClass()}" data-act="topic:${esc(tp)}">${esc(topicLabel(tp))}</button>`)).join("");
-  return `<header class="brandbar">
-    <div class="wrap brandbar-row">
-      <a class="logo" data-act="home"><span class="mark">पक्ष</span><span class="word">Paksh</span><span class="dot"></span></a>
-      <nav class="nav">
-        <button class="${S.mode==="top"?"on":""} ${hiClass()}" data-act="view-top">${t("nav_top")}</button>
-        <button class="${S.mode==="oneSided"?"on":""} ${hiClass()}" data-act="view-os">${t("nav_os")}</button>
-        <button class="${S.mode==="sources"?"on":""} ${hiClass()}" data-act="view-sources">${t("nav_sources")}</button>
-        <button class="${S.mode==="method"?"on":""} ${hiClass()}" data-act="view-method">${t("nav_method")}</button>
-      </nav>
-      <div class="spring"></div>
-      <div class="search">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="q" placeholder="${t("search")}" value="${esc(S.query)}" />
-      </div>
-      <div class="langtog">
-        <button class="${S.lang==="en"?"on":""}" data-act="lang:en">EN</button>
-        <button class="${S.lang==="hi"?"on":""}" data-act="lang:hi">हिं</button>
-      </div>
-    </div>
-    <div class="subbar"><div class="wrap subbar-row">
-      <span class="tagline ${hiClass()}">${t("tag_pre")} <b>${t("tag_b")}</b></span>
-      <div class="chips">${chips}</div>
-    </div></div>
-  </header>`;
+/* ---------------- other pages ---------------- */
+function PageWrap({
+  children
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1280px] px-4 sm:px-10 py-8"
+  }, children);
 }
-function footer(){
-  return `<footer class="foot"><div class="wrap foot-row">
-    <div><a data-act="about" class="${hiClass()}">${t("footAbout")}</a> · <a data-act="view-sources" class="${hiClass()}">${t("nav_sources")}</a></div>
-    <div class="fine ${hiClass()}">${t("footFine")}</div>
-  </div></footer>`;
+// Coverage-gap rate columns — three EQUAL-WIDTH slots; each fill's height is that side's
+// SHARE of its own tracked outlets that ran the story (a rate, not a raw count, so a
+// side with more tracked outlets is normalised, not penalised). The absent side is drawn
+// as a hatch so absence occupies space. Driven by live per-lean counts + the roster.
+function GapRateColumns({
+  counts,
+  roster,
+  gapSide,
+  t,
+  lang
+}) {
+  const ks = ["left", "center", "right"];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-2"
+  }, ks.map(k => {
+    const n = counts[k] || 0;
+    const m = roster[k] || 0;
+    const rate = m > 0 ? Math.min(100, Math.round(n / m * 100)) : 0;
+    const isGap = k === gapSide;
+    return /*#__PURE__*/React.createElement("div", {
+      key: k
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `flex items-end ${n > 0 ? "" : "seg-absent"}`,
+      style: {
+        height: 56,
+        border: n > 0 ? `1px solid ${t.ink}` : `1px dashed ${t.tf}`,
+        background: n > 0 ? t.track || "#EAE6DB" : undefined
+      }
+    }, n > 0 && /*#__PURE__*/React.createElement("div", {
+      className: `w-full ${BIAS[k].tex}`,
+      style: {
+        height: `${Math.max(8, rate)}%`
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      className: `mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+    }, lbl(k, lang)), /*#__PURE__*/React.createElement("div", {
+      className: `mono text-[10.5px] ${isGap ? t.blind : t.tf}`
+    }, n, " / ", m));
+  }));
 }
-
-/* ---------- render ---------- */
-function render(){
-  let view;
-  if (S.detailId != null && DETAIL[S.detailId]) view = detailView(DETAIL[S.detailId]);
-  else if (S.mode === "sources") view = sourcesView();
-  else if (S.mode === "method") view = methodView();
-  else view = feedView();
-  app.innerHTML = header() + `<main class="wrap page">${view}</main>` + footer();
-  const q = document.getElementById("q");
-  if (q && document.activeElement !== q && S.query){ q.focus(); q.selectionStart = q.value.length; }
+// A single coverage-gap card: which side missed it (eyebrow, clay), the headline, a
+// taste of the neutral summary, the rate columns, and a link into the story.
+function GapCard({
+  story,
+  roster,
+  gapSide,
+  t,
+  lang,
+  onOpen
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const gapN = c[gapSide] || 0;
+  const sideWord = lang === "hi" ? gapSide === "left" ? "वाम" : "दक्षिण" : gapSide;
+  const eyebrow = lang === "hi" ? gapN === 0 ? `${sideWord} पर अप्रकाशित` : `${sideWord} पर कम कवरेज` : gapN === 0 ? `Unreported on the ${sideWord}` : `Under-covered on the ${sideWord}`;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: "flex h-full flex-col no-underline group cursor-pointer"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, eyebrow), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-3 text-[20px] lg:text-[24px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: 1.24,
+      textWrap: "pretty"
+    }
+  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[14px] lg:text-[15px] lc-3 ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.7 : 1.6
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("div", {
+    className: "mt-5"
+  }, /*#__PURE__*/React.createElement(GapRateColumns, {
+    counts: c,
+    roster: roster,
+    gapSide: gapSide,
+    t: t,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      paddingBottom: 2
+    }
+  }, lang === "hi" ? "तटस्थ सारांश पढ़ें" : "Read the neutral summary", " \u2192")));
 }
-
-async function openEvent(id){
-  if (!DETAIL[id]){
-    try { DETAIL[id] = await apiGet("events/" + id); }
-    catch(err){ console.error(err); return; }
+function BlindspotPage({
+  left,
+  right,
+  roster,
+  agg,
+  stats,
+  t,
+  lang,
+  open,
+  go
+}) {
+  // left = left_heavier (RIGHT is the under-covered side); right = right_heavier (LEFT is).
+  const cards = [];
+  (right || []).forEach(s => cards.push({
+    story: s,
+    gapSide: "left"
+  }));
+  (left || []).forEach(s => cards.push({
+    story: s,
+    gapSide: "right"
+  }));
+  // Starkest first: the smallest under-covered count (0 = unreported) leads.
+  cards.sort((a, b) => ((a.story.counts || {})[a.gapSide] || 0) - ((b.story.counts || {})[b.gapSide] || 0));
+  const shown = cards.slice(0, 15);
+  const gapsToday = agg.total != null ? agg.total : cards.length;
+  const pad = "px-4 sm:px-10";
+  const explain = (head, body) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, head), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.75 : 1.65
+    }
+  }, body));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1280px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `${pad} pt-6`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap items-end justify-between gap-4 pb-5",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-[62ch]"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, STR[lang].osTitle), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.75 : 1.6
+    }
+  }, STR[lang].osSub)), /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[11px] leading-[1.7] text-right shrink-0 ${t.tf}`
+  }, gapsToday, " ", lang === "hi" ? "गैप आज" : "gaps today", /*#__PURE__*/React.createElement("br", null), stats.stories, " ", lang === "hi" ? "ख़बरें ट्रैक" : "stories tracked"))), /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, shown.length ? /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-x-6 gap-y-9 py-8 sm:grid-cols-2 lg:grid-cols-3",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, shown.map((g, i) => /*#__PURE__*/React.createElement("div", {
+    key: g.story.id,
+    className: i > 0 ? "lg:border-l lg:pl-6" : "",
+    style: i > 0 ? {
+      borderColor: t.line
+    } : {}
+  }, /*#__PURE__*/React.createElement(GapCard, {
+    story: g.story,
+    roster: roster,
+    gapSide: g.gapSide,
+    t: t,
+    lang: lang,
+    onOpen: open
+  })))) : /*#__PURE__*/React.createElement("div", {
+    className: `my-8 border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`
+  }, STR[lang].noStories)), /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-6"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 90,
+    format: "horizontal"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `my-8 grid gap-8 p-6 sm:p-8 md:grid-cols-2 ${t.soft}`
+  }, explain(lang === "hi" ? "गैप कैसे तय होता है" : "How a gap is declared", lang === "hi" ? "पक्ष किसी ख़बर को गैप तब चिह्नित करता है जब स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने उसे कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं — वही अलग-अलग आउटलेट गिनती जो बायस बार में है। यह अंकगणित है, इस पर निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।" : "Paksh flags a story as a gap when outlets on one side of the spectrum covered it while few or none on the other did — the same distinct-outlet-per-lean counting as the bias bar. It's arithmetic, not a judgment about why a side did or didn't cover it."), explain(lang === "hi" ? "स्लॉट बराबर चौड़े क्यों" : "Why the slots are equal width", lang === "hi" ? "यह चार्ट बायस बार नहीं है। बायस बार जो मौजूद है उसे बाँटता है; गैप चार्ट हर पक्ष को बराबर स्लॉट देता है, ताकि ग़ैरमौजूद पक्ष ग़ायब होने के बजाय — हैच और शून्य के साथ — दिखे। अनुपस्थिति को दिखने के लिए जगह घेरनी पड़ती है।" : "This chart is not the bias bar. The bias bar divides what exists; the gap chart reserves an equal slot per side, so the empty one is drawn — hatched and labelled zero — instead of vanishing. Absence has to occupy space to be seen."))));
+}
+function TopicsHub({
+  topics,
+  counts,
+  t,
+  lang,
+  goTopic
+}) {
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, ui("sections", lang)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+  }, topics.map(tp => /*#__PURE__*/React.createElement("button", {
+    key: tp,
+    onClick: () => goTopic(tp),
+    className: `flex items-center justify-between border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `headline text-[18px] ${t.tp} ${readCls(lang)}`
+  }, lang === "hi" ? TOPIC_HI[tp] || tp : tp), /*#__PURE__*/React.createElement(ChevronRight, {
+    size: 16,
+    className: t.tf
+  })))));
+}
+function TopicPage({
+  topic,
+  items,
+  t,
+  lang,
+  open,
+  go
+}) {
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("topics"),
+    className: `mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".1em"
+    }
+  }, /*#__PURE__*/React.createElement(ArrowLeft, {
+    size: 14
+  }), " ", ui("sections", lang)), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, lang === "hi" ? TOPIC_HI[topic] || topic : topic), items.length ? /*#__PURE__*/React.createElement(GridGrid, {
+    items: items,
+    t: t,
+    lang: lang,
+    render: s => /*#__PURE__*/React.createElement(GridCard, {
+      key: s.id,
+      story: s,
+      t: t,
+      lang: lang,
+      onOpen: open
+    })
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
+  }, STR[lang].noStories), /*#__PURE__*/React.createElement("div", {
+    className: "mt-8"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 90,
+    format: "horizontal"
+  })));
+}
+function SourceCard({
+  s,
+  t,
+  lang
+}) {
+  const side = ["left", "center", "right"].includes(s.lean) ? s.lean : null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: `rounded-lg border p-4 ${t.surface} ${t.border}`,
+    style: side ? {
+      borderLeftWidth: 3,
+      borderLeftColor: BIAS[side].color
+    } : {}
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-start justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `headline text-[15px] ${t.tp} ${readCls(lang)}`
+  }, s.name), s.website && /*#__PURE__*/React.createElement("a", {
+    href: s.website,
+    target: "_blank",
+    rel: "noopener",
+    className: `mono text-[11px] break-all ${t.tf} hover:${t.ts}`
+  }, (s.website || "").replace(/^https?:\/\//, ""))), side ? /*#__PURE__*/React.createElement(LeanBadge, {
+    side: side,
+    lang: lang,
+    t: t
+  }) : /*#__PURE__*/React.createElement("span", {
+    className: `shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip} ${t.tf}`
+  }, s.label || "-")), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5 flex flex-wrap items-center gap-2 mono text-[10px]"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `uppercase ${t.tf}`
+  }, (s.language || "en").toUpperCase()), s.confidence && /*#__PURE__*/React.createElement("span", {
+    className: t.tf
+  }, "\xB7 conf ", s.confidence), s.contested && /*#__PURE__*/React.createElement("span", {
+    className: `rounded px-1.5 py-0.5 font-bold ${t.blindSoft} ${t.blind}`
+  }, STR[lang].contested)), s.ownership && /*#__PURE__*/React.createElement("div", {
+    className: `mt-2.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `font-semibold ${t.tp}`
+  }, STR[lang].ownership, ":"), " ", s.ownership), s.rationale && /*#__PURE__*/React.createElement("p", {
+    className: `mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
+  }, s.rationale));
+}
+function SourcesPage({
+  t,
+  lang,
+  sources
+}) {
+  const [f, setF] = useState("all");
+  const list = (sources || []).filter(s => f === "all" || s.lean === f);
+  const filters = [["all", lang === "hi" ? "सभी" : "All"], ["left", lbl("left", lang)], ["center", lbl("center", lang)], ["right", lbl("right", lang)]];
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, STR[lang].srcTitle), /*#__PURE__*/React.createElement("p", {
+    className: `mb-5 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`
+  }, STR[lang].srcDisclaimer), /*#__PURE__*/React.createElement("div", {
+    className: "mb-6 flex flex-wrap gap-2"
+  }, filters.map(([k, label]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => setF(k),
+    className: `border px-3.5 py-1.5 eyebrow ${f === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, label))), /*#__PURE__*/React.createElement(GridGrid, {
+    items: list,
+    t: t,
+    lang: lang,
+    gap: "gap-4",
+    render: s => /*#__PURE__*/React.createElement(SourceCard, {
+      key: s.id || s.name,
+      s: s,
+      t: t,
+      lang: lang
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "mt-8"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 90,
+    format: "horizontal"
+  })));
+}
+function AboutPage({
+  t,
+  lang,
+  agg
+}) {
+  const Row = ({
+    h,
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-6 ${t.border}`
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline text-[20px] ${t.tp} ${readCls(lang)} mb-2`
+  }, h), /*#__PURE__*/React.createElement("div", {
+    className: `text-[15px] leading-[1.62] ${t.ts} ${readCls(lang)}`
+  }, children));
+  const a = agg || {};
+  const gapText = (STR[lang].m_gap || "").replace("{total}", a.total).replace("{rh}", a.right_heavier).replace("{lh}", a.left_heavier).replace("{lo}", a.left_outlets).replace("{ro}", a.right_outlets);
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-3xl"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, STR[lang].methodTitle), /*#__PURE__*/React.createElement("p", {
+    className: `mb-2 mt-3 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`
+  }, STR[lang].m_does), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_ruleH
+  }, STR[lang].m_rule), a.total != null && /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_gapH
+  }, gapText), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_rateH
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "mb-2"
+  }, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("p", {
+    className: `text-[12px] ${t.tf}`
+  }, STR[lang].m_rateFoot)), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_axisH
+  }, STR[lang].m_axis), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_partiesH
+  }, STR[lang].m_parties), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_provH
+  }, STR[lang].m_prov), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_readH
+  }, STR[lang].m_appeal)));
+}
+function ContactPage({
+  t,
+  lang
+}) {
+  const [status, setStatus] = useState("idle");
+  const [err, setErr] = useState("");
+  const L = lang === "hi" ? {
+    title: "संपर्क करें",
+    lede: "सवाल, सुधार या शिकायत? हमें लिखें - हम हर संदेश पढ़ते हैं।",
+    name: "आपका नाम (वैकल्पिक)",
+    email: "ईमेल",
+    topic: "विषय",
+    tQ: "सामान्य सवाल",
+    tC: "सुधार / तथ्य-जाँच",
+    tX: "शिकायत",
+    tO: "अन्य",
+    msg: "आपका संदेश",
+    send: "भेजें",
+    sending: "भेजा जा रहा है…",
+    ok: "धन्यवाद - आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
+    err: "संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।"
+  } : {
+    title: "Contact",
+    lede: "A question, a correction, or a complaint? Write to us - we read every message.",
+    name: "Your name (optional)",
+    email: "Email",
+    topic: "Topic",
+    tQ: "General question",
+    tC: "Correction / fact-check",
+    tX: "Complaint",
+    tO: "Other",
+    msg: "Your message",
+    send: "Send",
+    sending: "Sending…",
+    ok: "Thank you - your message reached us. We'll reply soon.",
+    err: "Could not send your message. Please try again."
+  };
+  async function submit(e) {
+    e.preventDefault();
+    setStatus("sending");
+    setErr("");
+    const form = e.currentTarget;
+    const body = new FormData(form);
+    try {
+      const r = await fetch(FORMSPREE_ENDPOINT, {
+        method: "POST",
+        body,
+        headers: {
+          Accept: "application/json"
+        }
+      });
+      if (r.ok) {
+        setStatus("ok");
+        form.reset();
+      } else {
+        const j = await r.json().catch(() => ({}));
+        setErr(j.errors && j.errors.map(x => x.message).join(", ") || L.err);
+        setStatus("error");
+      }
+    } catch (_) {
+      setErr(L.err);
+      setStatus("error");
+    }
   }
-  S.detailId = id; window.scrollTo(0,0); render();
+  const inp = `w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
+  const lbl = `mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-xl"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, L.title), /*#__PURE__*/React.createElement("p", {
+    className: `mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`
+  }, L.lede), status === "ok" ? /*#__PURE__*/React.createElement("div", {
+    className: `rounded-lg border p-5 ${t.border} ${t.surface}`
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[15px] font-medium ${t.tp} ${isHi(lang)}`
+  }, L.ok)) : /*#__PURE__*/React.createElement("form", {
+    onSubmit: submit,
+    className: "space-y-4"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    name: "_gotcha",
+    style: {
+      display: "none"
+    },
+    tabIndex: "-1",
+    autoComplete: "off"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "_subject",
+    value: "New Paksh contact message"
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.name), /*#__PURE__*/React.createElement("input", {
+    name: "name",
+    type: "text",
+    className: inp
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.email), /*#__PURE__*/React.createElement("input", {
+    name: "email",
+    type: "email",
+    required: true,
+    className: inp
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.topic), /*#__PURE__*/React.createElement("select", {
+    name: "topic",
+    className: inp
+  }, /*#__PURE__*/React.createElement("option", null, L.tQ), /*#__PURE__*/React.createElement("option", null, L.tC), /*#__PURE__*/React.createElement("option", null, L.tX), /*#__PURE__*/React.createElement("option", null, L.tO))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.msg), /*#__PURE__*/React.createElement("textarea", {
+    name: "message",
+    required: true,
+    rows: "6",
+    className: inp
+  })), status === "error" && /*#__PURE__*/React.createElement("p", {
+    className: "text-[13px] font-medium",
+    style: {
+      color: "#C0392B"
+    }
+  }, err), /*#__PURE__*/React.createElement("button", {
+    type: "submit",
+    disabled: status === "sending",
+    className: `rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`
+  }, status === "sending" ? L.sending : L.send))));
+}
+function PrivacyPage({
+  t,
+  lang
+}) {
+  const Row = ({
+    h,
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-6 ${t.border}`
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline text-[20px] ${t.tp} serif mb-2`
+  }, h), /*#__PURE__*/React.createElement("div", {
+    className: `text-[15px] leading-[1.62] serif ${t.ts}`
+  }, children));
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-3xl"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} serif`,
+    style: {
+      letterSpacing: "-0.018em"
+    }
+  }, "Privacy Policy"), /*#__PURE__*/React.createElement("p", {
+    className: `mb-1 mt-3 text-[13px] ${t.tf}`
+  }, "Last updated: 2 July 2026 \xB7 Operated by Redstocks Technology LLP"), lang === "hi" && /*#__PURE__*/React.createElement("p", {
+    className: `mb-2 text-[12.5px] deva ${t.tf}`
+  }, "\u092F\u0939 \u0917\u094B\u092A\u0928\u0940\u092F\u0924\u093E \u0928\u0940\u0924\u093F \u0905\u0902\u0917\u094D\u0930\u0947\u091C\u093C\u0940 \u092E\u0947\u0902 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u0948\u0964"), /*#__PURE__*/React.createElement(Row, {
+    h: "Who we are"
+  }, "Paksh (\u092A\u0915\u094D\u0937) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum."), /*#__PURE__*/React.createElement(Row, {
+    h: "What we collect"
+  }, "When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. We do not run analytics, and we do not build a profile of you."), /*#__PURE__*/React.createElement(Row, {
+    h: "Cookies and tracking"
+  }, "Paksh does not set advertising or analytics cookies, and does not track you across other websites. The site works without storing tracking cookies on your device, so there is nothing here to switch off. If we introduce advertising (through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set."), /*#__PURE__*/React.createElement(Row, {
+    h: "How we use information"
+  }, "To respond to your messages, and to keep the site secure and reliable. If we add advertising in future, it would help support the site. We do not sell your personal information, and we do not profile you."), /*#__PURE__*/React.createElement(Row, {
+    h: "Third parties"
+  }, "We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens."), /*#__PURE__*/React.createElement(Row, {
+    h: "Your choices"
+  }, "You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page."), /*#__PURE__*/React.createElement(Row, {
+    h: "Children"
+  }, "Paksh is a general news service and is not directed at children."), /*#__PURE__*/React.createElement(Row, {
+    h: "Changes"
+  }, "We may update this policy from time to time; material changes will be reflected by the date shown above.")));
+}
+function SearchPage({
+  t,
+  lang,
+  query,
+  setQuery,
+  results,
+  open
+}) {
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
+    className: `headline mb-5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, ui("searchTab", lang)), /*#__PURE__*/React.createElement("div", {
+    className: "mb-8 max-w-xl"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "relative"
+  }, /*#__PURE__*/React.createElement(Search, {
+    size: 17,
+    className: `absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`
+  }), /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    value: query || "",
+    onChange: e => setQuery(e.target.value),
+    placeholder: STR[lang].search,
+    className: `w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }))), !query.trim() ? /*#__PURE__*/React.createElement("div", {
+    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
+  }, ui("searchHint", lang)) : results.length ? /*#__PURE__*/React.createElement(GridGrid, {
+    items: results,
+    t: t,
+    lang: lang,
+    render: s => /*#__PURE__*/React.createElement(GridCard, {
+      key: s.id,
+      story: s,
+      t: t,
+      lang: lang,
+      onOpen: open
+    })
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-lg font-bold ${t.ts}`
+  }, STR[lang].noResults), /*#__PURE__*/React.createElement("p", {
+    className: "mt-1 text-sm"
+  }, STR[lang].noResultsSub)));
+}
+function FeedSkeleton({
+  t
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1280px] px-4 sm:px-10 py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-[7px]",
+    style: {
+      borderTop: `2px solid ${t.ink}`,
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-3 w-40"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "grid lg:grid-cols-[250px_1fr_280px]",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "order-2 lg:order-1 py-6 lg:pr-7 lg:border-r space-y-4",
+    style: {
+      borderColor: t.line
+    }
+  }, [0, 1].map(i => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "space-y-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-5 w-full"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-3 w-24"
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "order-1 lg:order-2 py-6 lg:px-7 lg:border-r",
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-11 w-full mb-2.5"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-11 w-4/5 mb-5"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-24 w-full"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "order-3 py-6 lg:pl-7 space-y-3"
+  }, [0, 1, 2].map(i => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "skel h-4 w-full"
+  })))));
 }
 
-/* ---------- events ---------- */
-app.addEventListener("click", e => {
-  const el = e.target.closest("[data-act]"); if (!el) return;
-  const act = el.getAttribute("data-act");
-  if (act === "home" || act === "view-top"){ S.mode="top"; S.detailId=null; }
-  else if (act === "view-os"){ S.mode="oneSided"; S.detailId=null; }
-  else if (act === "view-sources"){ S.mode="sources"; S.detailId=null; }
-  else if (act === "view-method" || act === "about"){ S.mode="method"; S.detailId=null; }
-  else if (act === "back"){ S.detailId=null; }
-  else if (act.startsWith("open:")){ openEvent(parseInt(act.slice(5),10)); return; }
-  else if (act.startsWith("topic:")){ const v=act.slice(6); S.topic = v || null; S.detailId=null; }
-  else if (act.startsWith("flean:")){ const v=act.slice(6); S.fLean = v || null; }
-  else if (act.startsWith("flang:")){ const v=act.slice(6); S.fLang = v || null; }
-  else if (act.startsWith("lang:")){ S.lang = act.slice(5); }
-  if (act.startsWith("view-") || act === "home" || act === "about") window.scrollTo(0,0);
-  render();
-});
-app.addEventListener("input", e => {
-  if (e.target.id === "q"){ S.query = e.target.value; S.detailId=null; render(); }
-});
-
-load();
+/* ---------------- routing + app ---------------- */
+function parsePath() {
+  const p = typeof window !== "undefined" ? window.location.pathname || "/" : "/";
+  const seg = p.split("/").filter(Boolean);
+  if (seg[0] === "story" && seg[1]) return {
+    view: "story",
+    id: decodeURIComponent(seg[1])
+  };
+  if (seg[0] === "topic" && seg[1]) return {
+    view: "topic",
+    topic: decodeURIComponent(seg[1])
+  };
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy"].includes(seg[0])) return {
+    view: seg[0]
+  };
+  return {
+    view: "home"
+  };
+}
+function PakshApp() {
+  const [route, setRoute] = useState(parsePath());
+  const [lang, setLang] = useState("en");
+  const [dark, setDark] = useState(false);
+  const [query, setQuery] = useState("");
+  const [data, setData] = useState({
+    events: [],
+    blindspots: [],
+    gaps: {
+      left: [],
+      right: [],
+      agg: {}
+    },
+    topics: [],
+    sources: [],
+    summary: {}
+  });
+  const [detail, setDetail] = useState({});
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    loadAll().then(d => {
+      setData(d);
+      setReady(true);
+    });
+  }, []);
+  useEffect(() => {
+    const on = () => setRoute(parsePath());
+    window.addEventListener("popstate", on);
+    return () => window.removeEventListener("popstate", on);
+  }, []);
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    document.body.style.backgroundColor = dark ? "#1A1917" : "#EAE6DB";
+  }, [dark]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (route.view === "story" && route.id && !detail[route.id]) {
+      apiGet("events/" + route.id).then(full => setDetail(d => ({
+        ...d,
+        [route.id]: full
+      }))).catch(() => {
+        const f = (data.events || []).concat(data.blindspots || []).find(x => String(x.id) === String(route.id));
+        if (f) setDetail(d => ({
+          ...d,
+          [route.id]: f
+        }));
+      });
+    }
+  }, [route, data]);
+  const t = dark ? TOKENS.dark : TOKENS.light;
+  const nav = path => {
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, "", path);
+    }
+    setRoute(parsePath());
+  };
+  const go = v => nav(v === "home" ? "/" : "/" + v);
+  const open = id => nav("/story/" + encodeURIComponent(id));
+  const goTopic = tp => nav("/topic/" + encodeURIComponent(tp));
+  const baseCards = data.events.map(e => toCard(e, lang)).filter(c => c.srclang === lang);
+  const baseOne = data.blindspots.map(e => toCard(e, lang)).filter(c => c.srclang === lang);
+  const gapL = (data.gaps.left || []).map(e => toCard(e, lang)).filter(c => c.srclang === lang);
+  const gapR = (data.gaps.right || []).map(e => toCard(e, lang)).filter(c => c.srclang === lang);
+  const gapAgg = data.gaps.agg || {};
+  // --- India-first home ranking ------------------------------------------
+  // Top Stories is strictly India-centric. Foreign stories (region "World", set
+  // per-event by the pipeline) and Sports live in their own Sections, NOT on the
+  // home feed. To allow world news back on the home, drop the region check below.
+  const HOME_EXCLUDE_TOPICS = ["Sports"];
+  const [regionFilter, setRegionFilter] = useState("National");
+  const ageHours = c => {
+    const tt = _ts(c.created_at);
+    return isNaN(tt) ? 9999 : Math.max(0, (Date.now() - tt) / 3600000);
+  };
+  // Home feed leads by the EXPORT-TIME importance score (see export_static._importance):
+  // distinct outlets across left/centre/right, decayed by recency. It is computed in
+  // the pipeline (not here), carries no topic weighting, and is a plain field on each
+  // event. The previous in-browser rank() with per-topic CIVIC weights was removed so
+  // ordering is arithmetic and explainable. Ties fall back to newest-first.
+  const rank = c => typeof c.importance === "number" ? c.importance : 0;
+  const homeFilter = c => {
+    if (HOME_EXCLUDE_TOPICS.includes(c.topic)) return false;
+    const isWorld = (c.region || "India") === "World";
+    return regionFilter === "International" ? isWorld : !isWorld;
+  };
+  const homeCards = baseCards.filter(homeFilter).sort((a, b) => rank(b) - rank(a) || ageHours(a) - ageHours(b));
+  const homeOne = baseOne.filter(homeFilter).sort((a, b) => rank(b) - rank(a) || ageHours(a) - ageHours(b));
+  // sections / search / topic pages: newest-first so new articles always show there too
+  baseCards.sort((a, b) => ageHours(a) - ageHours(b));
+  baseOne.sort((a, b) => ageHours(a) - ageHours(b));
+  const countsByTopic = {};
+  baseCards.forEach(c => {
+    const k = c.topic || "Society";
+    countsByTopic[k] = (countsByTopic[k] || 0) + 1;
+  });
+  const topicsOrdered = Object.keys(countsByTopic).sort((a, b) => countsByTopic[b] - countsByTopic[a]);
+  const lastTs = (data.events || []).reduce((mx, e) => {
+    const ts = Date.parse(e.created_at || "");
+    return isNaN(ts) ? mx : Math.max(mx, ts);
+  }, 0);
+  const stats = {
+    stories: homeCards.length,
+    outlets: (data.sources || []).length,
+    gaps: gapAgg.total != null ? gapAgg.total : gapL.length + gapR.length,
+    updated: lastTs ? new Date(lastTs).toISOString() : "",
+    regionFilter,
+    setRegionFilter
+  };
+  // Roster size per lean (distinct outlets tracked), for the Coverage-Gaps rate columns.
+  const rosterByLean = {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  (data.sources || []).forEach(s => {
+    if (rosterByLean[s.lean] != null) rosterByLean[s.lean]++;
+  });
+  const q = query.trim().toLowerCase();
+  const results = q ? baseCards.filter(c => (c.headline || "").toLowerCase().includes(q)) : [];
+  const story = route.view === "story" ? detail[route.id] ? toDetail(detail[route.id], lang) : null : null;
+  const headerView = route.view === "story" ? "" : route.view;
+  return /*#__PURE__*/React.createElement("div", {
+    className: `min-h-screen font-sans ${t.bg} ${t.tp}`
+  }, /*#__PURE__*/React.createElement(Header, {
+    t: t,
+    lang: lang,
+    setLang: setLang,
+    dark: dark,
+    setDark: setDark,
+    go: go,
+    view: headerView
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "pb-24 md:pb-10"
+  }, !ready ? /*#__PURE__*/React.createElement(FeedSkeleton, {
+    t: t
+  }) : route.view === "story" ? story ? /*#__PURE__*/React.createElement(StoryPage, {
+    story: story,
+    t: t,
+    lang: lang,
+    go: go,
+    openTopic: goTopic
+  }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
+    t: t
+  }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {
+    left: gapL,
+    right: gapR,
+    roster: rosterByLean,
+    agg: gapAgg,
+    stats: stats,
+    t: t,
+    lang: lang,
+    open: open,
+    go: go
+  }) : route.view === "topics" ? /*#__PURE__*/React.createElement(TopicsHub, {
+    topics: topicsOrdered,
+    counts: countsByTopic,
+    t: t,
+    lang: lang,
+    goTopic: goTopic
+  }) : route.view === "topic" ? /*#__PURE__*/React.createElement(TopicPage, {
+    topic: route.topic,
+    items: baseCards.filter(c => c.topic === route.topic),
+    t: t,
+    lang: lang,
+    open: open,
+    go: go
+  }) : route.view === "sources" ? /*#__PURE__*/React.createElement(SourcesPage, {
+    t: t,
+    lang: lang,
+    sources: data.sources
+  }) : route.view === "about" ? /*#__PURE__*/React.createElement(AboutPage, {
+    t: t,
+    lang: lang,
+    agg: gapAgg
+  }) : route.view === "contact" ? /*#__PURE__*/React.createElement(ContactPage, {
+    t: t,
+    lang: lang
+  }) : route.view === "privacy" ? /*#__PURE__*/React.createElement(PrivacyPage, {
+    t: t,
+    lang: lang
+  }) : route.view === "search" ? /*#__PURE__*/React.createElement(SearchPage, {
+    t: t,
+    lang: lang,
+    query: query,
+    setQuery: setQuery,
+    results: results,
+    open: open
+  }) : !homeCards.length ? /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: `py-28 text-center ${t.tf} ${isHi(lang)}`
+  }, STR[lang].noStories)) : /*#__PURE__*/React.createElement(HomeView, {
+    cards: homeCards,
+    gapLeft: gapL,
+    gapRight: gapR,
+    topics: topicsOrdered,
+    counts: countsByTopic,
+    stats: stats,
+    t: t,
+    lang: lang,
+    open: open,
+    goTopic: goTopic,
+    go: go
+  })), route.view !== "story" && /*#__PURE__*/React.createElement(Footer, {
+    t: t,
+    lang: lang,
+    go: go
+  }), /*#__PURE__*/React.createElement(BottomNav, {
+    t: t,
+    lang: lang,
+    view: headerView,
+    go: go
+  }));
+}
+ReactDOM.createRoot(document.getElementById("root")).render( /*#__PURE__*/React.createElement(PakshApp, null));

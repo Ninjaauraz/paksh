@@ -54,6 +54,10 @@ const {useState,useEffect,useMemo}=React;
     };
     const CONTACT = "corrections@paksh.example"; // <-- change to your real address
     const FORMSPREE_ENDPOINT = "https://formspree.io/f/mkolqann";
+    // Google AdSense publisher id, e.g. "ca-pub-1234567890123456". Empty = ads OFF: slots
+    // render as clean labelled placeholders and NO ad script/cookie loads (privacy-safe).
+    // To go live: set this, and uncomment the AdSense loader <script> in static/index.html.
+    const ADSENSE_CLIENT = "";
 
     const UI = {
       seeAll:{en:"See all", hi:"सभी देखें"}, top:{en:"Top", hi:"मुख्य"},
@@ -629,10 +633,16 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- HOME ---------------- */
-    function AdSlot({ t, lang, h, label }) {
+    // Ad slot — a live Google AdSense unit when ADSENSE_CLIENT is set, otherwise a clean,
+    // on-brand reserved space (hairline frame, paper-sunk, small "Advertisement" label) so
+    // placements are visible without loading any ad script or cookie. Kept restrained to
+    // preserve the design's calm — one per page, at natural breaks.
+    function AdSlot({ t, lang, slot, format, h, label }) {
+      React.useEffect(()=>{ if(ADSENSE_CLIENT){ try{ (window.adsbygoogle=window.adsbygoogle||[]).push({}); }catch(e){} } },[]);
       return (
-        <div className={`flex items-center justify-center border border-dashed ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
+        <div className={`relative flex items-center justify-center overflow-hidden border ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
           <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:".24em"}}>{label||(lang==="hi"?"विज्ञापन":"Advertisement")}</span>
+          {ADSENSE_CLIENT && <ins className="adsbygoogle" style={{display:"block",position:"absolute",inset:0,width:"100%",height:"100%"}} data-ad-client={ADSENSE_CLIENT} data-ad-slot={slot||""} data-ad-format={format||"auto"} data-full-width-responsive="true"/>}
         </div>
       );
     }
@@ -808,6 +818,9 @@ const {useState,useEffect,useMemo}=React;
             </div>
           </div>
 
+          {/* AD — a single in-feed leaderboard at a natural break (calm, not cluttered) */}
+          <div className={pad}><div className="py-2"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div></div>
+
           {/* IN BRIEF — everything else tracked today, in flowing columns */}
           {brief.length>0 && (
             <div className={pad}>
@@ -953,6 +966,9 @@ const {useState,useEffect,useMemo}=React;
           </div>
 
           {/* articles */}
+          {/* AD — one in-content unit before the outlet list */}
+          <div className="mx-auto mt-10 max-w-[840px]"><AdSlot t={t} lang={lang} h={110} format="horizontal" /></div>
+
           <div className="mx-auto mt-10 max-w-[840px]" id="arts">
             <div className={`mb-3 eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
             <div className={`flex items-center gap-5 border-b ${t.border}`}>
@@ -1068,6 +1084,9 @@ const {useState,useEffect,useMemo}=React;
               </div>
             ) : <div className={`my-8 border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
           </div>
+          {/* AD — one leaderboard before the explainer */}
+          <div className={pad}><div className="py-6"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div></div>
+
           {/* explainer */}
           <div className={pad}>
             <div className={`my-8 grid gap-8 p-6 sm:p-8 md:grid-cols-2 ${t.soft}`}>
@@ -1095,6 +1114,7 @@ const {useState,useEffect,useMemo}=React;
           <h1 className={`headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
           {items.length? <GridGrid items={items} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+          <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
         </PageWrap>
       );
     }
@@ -1126,6 +1146,7 @@ const {useState,useEffect,useMemo}=React;
           <p className={`mb-5 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
           <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`border px-3.5 py-1.5 eyebrow ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{label}</button>))}</div>
           <GridGrid items={list} t={t} lang={lang} gap="gap-4" render={(s)=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>} />
+          <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
         </PageWrap>
       );
     }

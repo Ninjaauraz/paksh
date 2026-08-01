@@ -36,11 +36,14 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['IBM Plex San
 </script>
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<!-- Google AdSense loader — uncomment and set your ca-pub id (and ADSENSE_CLIENT in
+     static/app.jsx) to serve live ads; until then ad slots are inert placeholders:
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+-->
 <link rel="stylesheet" href="/static/styles.css"/>
 </head>
 <body class="antialiased">
 <div id="root"><div style="max-width:80rem;margin:0 auto;padding:0"><div style="height:58px"></div><div style="height:2px;background:#15140F;margin:0 2.5rem"></div><div style="display:grid;grid-template-columns:250px 1fr 280px;margin:0 2.5rem;border-bottom:2px solid #15140F"><div style="padding:24px 26px 26px 0;border-right:1px solid #D8D3C6"><div class="skel" style="height:14px;width:55%;margin-bottom:18px"></div><div class="skel" style="height:110px"></div></div><div style="padding:24px 28px;border-right:1px solid #D8D3C6"><div class="skel" style="height:50px;margin-bottom:12px"></div><div class="skel" style="height:50px;width:78%;margin-bottom:22px"></div><div class="skel" style="height:120px"></div></div><div style="padding:24px 0 26px 26px"><div class="skel" style="height:130px"></div></div></div></div></div>
-<script type="text/babel" src="/static/app.jsx"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>
