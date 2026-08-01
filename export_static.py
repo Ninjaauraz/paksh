@@ -261,9 +261,9 @@ def _story_html(shell, ev):
     # (flex-grow = count; never hardcoded), in the design's textured language: Left solid,
     # Centre 45deg hatch, Right vertical rule, hairline ink frame, fixed centre axis. React
     # replaces this with the interactive bar on load; crawlers / no-JS readers see this.
-    _tex = {"left": "background:#476F83",
-            "center": "background:repeating-linear-gradient(45deg,#6E685C 0 3px,#8C8579 3px 6px)",
-            "right": "background:repeating-linear-gradient(90deg,#8D5B44 0 4px,#75442E 4px 5px)"}
+    _tex = {"left": "background:#4A6E80",
+            "center": "background:repeating-linear-gradient(45deg,#7E7768 0 3px,#8C857A 3px 6px)",
+            "right": "background:repeating-linear-gradient(90deg,#96603F 0 4px,#7C4E34 4px 5px)"}
     _bcounts = {k: (cov.get(k, {}) or {}).get("count", 0) for k in ("left", "center", "right")}
     _present = [k for k in ("left", "center", "right") if _bcounts[k] > 0]
     if _present:

@@ -19,9 +19,9 @@ const {useState,useEffect,useMemo}=React;
     // (seg-*, defined in styles.css with an oklch value + hex fallback). All three
     // sit at equal lightness; only hue + texture separate them, so no side reads louder.
     const BIAS = {
-      left:   { color:"#476F83", tex:"seg-left",   soft:"#E3E8EA", en:"Left",   hi:"वाम" },
-      center: { color:"#7B7568", tex:"seg-center", soft:"#ECE9E1", en:"Centre", hi:"केंद्र" },
-      right:  { color:"#8D5B44", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
+      left:   { color:"#4A6E80", tex:"seg-left",   soft:"#E3E8EA", en:"Left",   hi:"वाम" },
+      center: { color:"#7E7768", tex:"seg-center", soft:"#ECE9E1", en:"Centre", hi:"केंद्र" },
+      right:  { color:"#96603F", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
       international: { color:"#5E7E78", tex:"", soft:"#E3EAE8", en:"International", hi:"अंतरराष्ट्रीय" },
     };
     const TOKENS = {
@@ -351,28 +351,57 @@ const {useState,useEffect,useMemo}=React;
 
     /* ---------------- feed pieces (newspaper hierarchy) ---------------- */
     // A dated masthead sub-strip: today's date + how many outlets Paksh tracks.
-    function DateStrip({ t, lang, stats }) {
+    // The dated strip under the masthead: a 2px rule over a 1px rule (design 2a), carrying
+    // the edition toggle + today's date on the left, the live tally in the centre, and the
+    // freshness on the right. Every number is real (homeCards / sources / gaps / newest event).
+    function DateStrip({ t, lang, stats, regionFilter, setRegionFilter }) {
       const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+      const upd=stats.updated?timeAgo(stats.updated,lang):"";
+      const ls=lang==="hi"?0:".14em";
+      const eb=`eyebrow ${lang==="hi"?"deva":""}`;
+      const region=(k,label)=>(
+        <button onClick={()=>setRegionFilter&&setRegionFilter(k)} className={`${eb} ${regionFilter===k?t.tp:`${t.tf} hover:${t.tp}`}`} style={{letterSpacing:ls}}>{label}</button>
+      );
+      const tally=lang==="hi"
+        ? `${stats.stories} ख़बरें · ${stats.outlets} स्रोत · ${stats.gaps} कवरेज गैप`
+        : `${stats.stories} stories · ${stats.outlets} outlets tracked · ${stats.gaps} coverage gaps`;
       return (
-        <div className={`mb-5 flex items-center justify-between border-b pb-2 ${t.border}`}>
-          <span className={`eyebrow ${t.ts} ${lang==="hi"?"deva":""}`}>{today}{lang==="hi"?" · नई दिल्ली":" · New Delhi"}</span>
-          <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`}>{stats.outlets} {lang==="hi"?"स्रोत ट्रैक":"outlets tracked"}</span>
+        <div className="flex items-center justify-between gap-4 py-[7px]" style={{borderTop:`2px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}>
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            {region("National", ui("National",lang))}
+            {region("International", ui("International",lang))}
+            <span className={`hidden md:inline ${eb} ${t.tf}`} style={{letterSpacing:ls}}>{today}</span>
+          </div>
+          <span className={`hidden sm:inline ${eb} ${t.tf} truncate`} style={{letterSpacing:ls}}>{tally}</span>
+          <span className={`${eb} ${t.tf} shrink-0`} style={{letterSpacing:ls}}>{upd?(lang==="hi"?`अपडेट ${upd}`:`Updated ${upd}`):today}</span>
         </div>
       );
     }
     // LEAD — the most-covered story of the moment, given the largest type + full bias
     // instrument with the printed scale. Text-forward; a single 2:1 image if one exists.
+    // LEAD — the single most-covered story, at 54px on desktop / 31px on mobile: the one
+    // dominant moment that gives the eye somewhere to land (design 2a/2c). Text-forward,
+    // no image. The bias block sits beside the lead paragraph on desktop, below on mobile;
+    // every count/width is live (BiasSegments flex-grow = bias%, computed from L/C/R owners).
     function LeadStory({ story, t, lang, onOpen }) {
+      const c=story.counts||{left:0,center:0,right:0};
+      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
+      const b=story.bias||{left:0,center:0,right:0};
+      const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
-          <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:"#8D5B44"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}</div>
-          <h2 className={`headline mt-2.5 text-[26px] sm:text-[32px] lg:text-[38px] leading-[1.1] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`}>{story.headline}</h2>
-          {story.lead && <p className={`mt-3 max-w-[62ch] text-[15.5px] sm:text-[16.5px] leading-[1.62] lc-3 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
-          {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
-          <div className="mt-5"><BiasBar bias={story.bias} counts={story.counts} t={t} lang={lang} height={22} showScale /></div>
-          <div className="mt-4 flex items-center justify-between">
-            <span className={`mono text-[11px] ${t.tf}`}>{timeAgo(story.created_at,lang)}</span>
-            <span className={`text-[11.5px] font-medium uppercase tracking-[0.08em] ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"सभी पक्ष पढ़ें":"Read all sides"} →</span>
+          <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:BIAS.right.color,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
+          <h2 className={`headline mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.14:1.06,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h2>
+          <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
+            {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
+            <div>
+              <div className={`mb-2 flex justify-between text-[10px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>
+                {["left","center","right"].map(k=>(<span key={k}>{lang==="hi"?BIAS[k].hi:BIAS[k].en.charAt(0)} <span className="mono" style={{letterSpacing:0}}>{c[k]||0}</span></span>))}
+              </div>
+              <BiasSegments bias={b} t={t} h={28} lang={lang} />
+              <div className={`mt-2 mono text-[10.5px] ${t.tf}`}>n = {n} · {b.left} / {b.center} / {b.right}%</div>
+              <div className={`mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}><span style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"सभी पक्ष पढ़ें":"Read all sides"} →</span></div>
+            </div>
           </div>
         </a>
       );
@@ -403,25 +432,28 @@ const {useState,useEffect,useMemo}=React;
     }
     // SPECTRUM RAIL — an aggregate of the visible feed: total distinct-outlet coverage by
     // side. Pure arithmetic over the same per-lean counts; never a hardcoded ratio.
+    // SPECTRUM RAIL — an aggregate of the visible feed: each side's SHARE of total
+    // distinct-outlet coverage today. Pure arithmetic over the same per-lean counts as
+    // the bias bars; never a hardcoded ratio. Rail-style (no card) per design 2a.
     function SpectrumRail({ cards, t, lang }) {
       const agg={left:0,center:0,right:0};
       cards.forEach(c=>{ const k=c.counts||{}; agg.left+=k.left||0; agg.center+=k.center||0; agg.right+=k.right||0; });
-      const mx=Math.max(1,agg.left,agg.center,agg.right);
+      const sum=Math.max(1,agg.left+agg.center+agg.right);
       return (
-        <div className={`${t.soft} border p-5 ${t.border}`}>
-          <div className={`eyebrow border-b pb-2 ${t.tp} ${t.border} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"आज का स्पेक्ट्रम":"The spectrum today"}</div>
-          <p className={`mt-3 text-[13px] leading-[1.5] ${t.ts} ${readCls(lang)}`}>{lang==="hi"?`${cards.length} ख़बरों में पक्ष अनुसार कुल कवरेज`:`Coverage volume by side across ${cards.length} stories`}</p>
-          <div className="mt-4 flex flex-col gap-3">
+        <div>
+          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज का स्पेक्ट्रम":"The spectrum today"}</div>
+          <div className="mt-3.5 flex flex-col gap-2.5">
             {["left","center","right"].map(k=>(
               <div key={k}>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className={`text-[10px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
+                  <span className={`text-[10px] font-medium uppercase tracking-[0.1em] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
                   <span className="mono text-[11px]" style={{color:t.ink}}>{agg[k]}</span>
                 </div>
-                <div style={{height:8,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}><div className={BIAS[k].tex} style={{width:`${Math.round(agg[k]/mx*100)}%`,height:"100%"}}/></div>
+                <div style={{height:7,background:t.track||"#E1DCCE",border:`1px solid ${t.line}`}}><div className={BIAS[k].tex} style={{width:`${Math.round(agg[k]/sum*100)}%`,height:"100%"}}/></div>
               </div>
             ))}
           </div>
+          <div className={`mt-2.5 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"आज प्रति पक्ष ख़बरें":"Stories run per side, today"}</div>
         </div>
       );
     }
@@ -515,40 +547,53 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    function Header({ t, lang, setLang, dark, setDark, go, view, topics, goTopic, regionFilter, setRegionFilter, query, setQuery }) {
-      const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["sources",STR[lang].navSrc],["about",STR[lang].navMethod]];
+    // Language switch — the design's bordered EN/हिं toggle. Active side fills with ink,
+    // inactive stays paper. 44px tap target on mobile. No caps on Devanagari.
+    function LangToggle({ t, lang, setLang, dark }) {
+      return (
+        <span className="flex" style={{border:`1px solid ${t.ink}`}}>
+          {["en","hi"].map(l=>{ const on=lang===l;
+            return (
+              <button key={l} onClick={()=>setLang(l)} aria-label={l==="en"?"English":"हिन्दी"}
+                className={`flex items-center justify-center ${l==="hi"?"deva":""}`}
+                style={{minWidth:40,minHeight:30,padding:"0 11px",
+                  font:l==="en"?"500 11px/1 'IBM Plex Sans',sans-serif":"400 14px/1 'IBM Plex Sans Devanagari',sans-serif",
+                  letterSpacing:l==="en"?".1em":0,
+                  background:on?t.ink:"transparent", color:on?(dark?"#201F1C":"#F4F1EA"):t.ink}}>
+                {l==="en"?"EN":"हिं"}
+              </button>
+            );
+          })}
+        </span>
+      );
+    }
+    // Masthead — brand, inline nav with a 2px active underline, search as an icon, the
+    // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
+    // utility strip, no topic-chip rail (design spec 2a).
+    function Header({ t, lang, setLang, dark, setDark, go, view }) {
+      const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
       return (
         <div className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
-          <div className="mx-auto max-w-[1800px] px-4 sm:px-5">
-            <div className="flex h-[60px] items-center gap-5">
-              <button onClick={()=>go("home")} className="flex shrink-0 items-baseline gap-1.5" aria-label="Paksh home">
-                <span className={`brand-hi text-[26px] leading-none ${t.tp}`}>पक्ष</span>
-                <span className={`text-[16px] font-semibold uppercase tracking-[0.26em] ${t.tp}`}>Paksh</span>
+          <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
+            <div className="flex h-[58px] items-center gap-6">
+              <button onClick={()=>go("home")} className="flex shrink-0 items-baseline gap-2" aria-label="Paksh home">
+                <span className={`brand-hi text-[27px] leading-none ${t.tp}`}>पक्ष</span>
+                <span className={`text-[17px] font-semibold uppercase tracking-[0.30em] ${t.tp}`}>Paksh</span>
               </button>
-              <nav className="ml-2 hidden items-center gap-5 md:flex">
+              <nav className="ml-1 hidden items-center gap-6 md:flex">
                 {NAV.map(([k,label])=>(
-                  <button key={k} onClick={()=>go(k)} className={`relative py-1 text-[13.5px] font-semibold ${view===k?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
-                    {label}{view===k && <span className="absolute -bottom-[1px] left-0 right-0 h-[2px]" style={{backgroundColor:t.ink}}/>}
+                  <button key={k} onClick={()=>go(k)} className={`eyebrow relative py-1 ${view===k?t.tp:`${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>
+                    {label}{view===k && <span className="absolute -bottom-[3px] left-0 right-0" style={{height:2,background:t.ink}}/>}
                   </button>
                 ))}
               </nav>
-              <div className="ml-auto flex items-center max-w-xs w-full sm:max-w-sm">
-                <div className="relative w-full">
-                  <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`} />
-                  <input value={query||""} onChange={(e)=>{ if (setQuery) { setQuery(e.target.value); if (view !== "search" && e.target.value.trim()) go("search"); } }} placeholder={STR[lang].search} className={`w-full rounded-full border py-1.5 pl-9 pr-3 text-[14px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang==="hi"?"deva":""}`} />
-                </div>
+              <div className="ml-auto flex items-center gap-3 sm:gap-4">
+                <button onClick={()=>go("search")} aria-label="Search" className={`${t.tf} hover:${t.tp}`}><Search size={17}/></button>
+                <LangToggle t={t} lang={lang} setLang={setLang} dark={dark} />
+                <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={16}/>:<Moon size={16}/>}</button>
               </div>
             </div>
           </div>
-          {topics && topics.length>0 && (
-            <div className={`border-t ${t.border} ${t.surface}`}>
-              <div className="mx-auto flex max-w-[1800px] items-center gap-2 overflow-x-auto px-4 sm:px-5 py-2">
-                <span className={`mono text-[10px] uppercase tracking-wide ${t.tf} shrink-0`}>{lang==="hi"?"विषय":"Topics"}</span>
-                {setRegionFilter && <RegionSelect region={regionFilter} setRegion={setRegionFilter} t={t} lang={lang} />}
-                {topics.slice(0,14).map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`shrink-0 rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors duration-200 ${view===tp ? 'bg-[#15140F] text-white dark:bg-[#E9EAEC] dark:text-[#1D1F24] border-transparent' : `${t.border} ${t.ts} hover:${t.soft}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</button>))}
-              </div>
-            </div>
-          )}
         </div>
       );
     }
@@ -596,83 +641,189 @@ const {useState,useEffect,useMemo}=React;
       items.forEach((it,i)=>{ out.push(render(it,i)); if((i+1)%N===0 && i<items.length-1) out.push(<div key={"ad"+i} className="sm:col-span-2 lg:col-span-3"><AdSlot t={t} lang={lang} h={104} /></div>); });
       return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{out}</div>;
     }
+    // SECOND tier — the "Also leading" rail: 22px headline, a taste of the lead, a 12px
+    // bias bar, mono counts. Data-driven like everything else.
+    function AlsoLeadingItem({ story, t, lang, onOpen, last }) {
+      const c=story.counts||{left:0,center:0,right:0};
+      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer py-4 ${last?"":"border-b"} ${t.border}`}>
+          <h3 className={`headline text-[20px] sm:text-[22px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.34:1.24,letterSpacing:lang==="hi"?0:"-0.01em",textWrap:"pretty"}}>{story.headline}</h3>
+          {story.lead && <p className={`mt-2 text-[13.5px] lc-2 ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{story.lead}</p>}
+          <div className="mt-3"><BiasSegments bias={story.bias} t={t} h={12} lang={lang} /></div>
+          <div className={`mt-2 mono text-[10.5px] ${t.tf}`}>{L} · {C} · {R} &nbsp;<span style={{color:t.ink,opacity:.55}}>n = {n}</span></div>
+        </a>
+      );
+    }
+    // SECTION tier — 4-up band: kicker + 19px headline + 10px bar + mono counts.
+    function SectionCard({ story, t, lang, onOpen }) {
+      const c=story.counts||{left:0,center:0,right:0};
+      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
+      const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
+          <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp||"News"}</div>
+          <h3 className={`headline mt-2 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.28,textWrap:"pretty"}}>{story.headline}</h3>
+          <div className="mt-3"><BiasSegments bias={story.bias} t={t} h={10} lang={lang} /></div>
+          <div className={`mt-1.5 mono text-[10.5px] ${t.tf}`}>{L} · {C} · {R} · n = {n}</div>
+        </a>
+      );
+    }
+    // BRIEF tier bar — 6px, FLAT fills (hatch would moiré this small), no centre axis; the
+    // printed count carries the exact reading. Under 3 outlets: the hatched "too thin" state.
+    function BriefBar({ bias, counts, t }) {
+      const L=(counts.left||0),C=(counts.center||0),R=(counts.right||0),n=L+C+R;
+      if(n<3) return <div style={{height:6,border:`1px dashed ${t.tf}`,background:"repeating-linear-gradient(45deg,#EAE6DB 0 3px,#E1DCCE 3px 6px)"}}/>;
+      const clsOf={left:"seg-left",center:"seg-center-tight",right:"seg-right-flat"};
+      const present=["left","center","right"].filter(k=>(bias[k]||0)>0);
+      return (
+        <div className="relative flex" style={{height:6,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}>
+          {present.map((k,i)=>(
+            <React.Fragment key={k}>
+              {i>0 && <div style={{flex:"0 0 1px",background:t.gap||"#F4F1EA"}}/>}
+              <div className={clsOf[k]} style={{flexGrow:bias[k],flexBasis:0,minWidth:2}}/>
+            </React.Fragment>
+          ))}
+        </div>
+      );
+    }
+    // BRIEF tier row — 15px, no summary; a 64px mini-bar to the left with the printed count.
+    function BriefRow({ story, t, lang, onOpen, first }) {
+      const c=story.counts||{left:0,center:0,right:0};
+      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }}
+           className={`flex items-baseline gap-3 no-underline group cursor-pointer ${first?"":"border-t pt-2.5 mt-2.5"} ${t.border}`} style={{breakInside:"avoid",WebkitColumnBreakInside:"avoid"}}>
+          <div className="shrink-0" style={{width:64}}>
+            <BriefBar bias={story.bias} counts={c} t={t} />
+            <div className={`mt-1 mono text-[10px] ${t.tf}`}>{n<3?"n<3":`${L}·${C}·${R}`}</div>
+          </div>
+          <h4 className={`text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.6:1.42,textWrap:"pretty"}}>{story.headline}</h4>
+        </a>
+      );
+    }
+    // THE ONE REVERSAL — the ink-filled Coverage Gaps band at the fold. The page's only
+    // ink area; it spends that emphasis on what Paksh exists to say: what one side didn't
+    // run. Each label ("Missing: Left · 1 of 12") is computed from the real per-lean counts.
+    function InkGapBand({ items, t, lang, go, open }) {
+      if(!items.length) return null;
+      const paper="#F4F1EA", faint="rgba(244,241,234,.28)";
+      return (
+        <div style={{background:"#15140F"}} className="px-4 sm:px-10 py-5 sm:py-6">
+          <div className="flex items-baseline justify-between gap-3 pb-3" style={{borderBottom:`1px solid ${faint}`}}>
+            <span className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:paper,letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"कवरेज गैप · जो एक पक्ष ने नहीं चलाया":"Coverage gaps · what one side didn’t run"}</span>
+            <button onClick={()=>go("blindspot")} className="mono text-[10.5px] shrink-0" style={{color:"rgba(244,241,234,.6)"}}>{items.length} {lang==="hi"?"आज":"today"} · <span style={{borderBottom:"1px solid rgba(244,241,234,.5)"}}>{lang==="hi"?"सभी गैप":"all gaps"} →</span></button>
+          </div>
+          <div className="grid gap-y-5 sm:grid-cols-2 lg:grid-cols-3 pt-4">
+            {items.map((it,i)=>(
+              <a key={it.story.id} href={"/story/"+encodeURIComponent(it.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(it.story.id); }}
+                 className={`block no-underline group cursor-pointer ${i>0?"sm:border-l sm:pl-8":""}`} style={i>0?{borderColor:faint}:{}}>
+                <div className={`mono text-[10.5px] gap-accent ${lang==="hi"?"deva":""}`}>{it.label}</div>
+                <div className={`headline mt-2 text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{color:paper,lineHeight:1.3,textWrap:"pretty"}}>{it.story.headline}</div>
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    // Right-rail companion to the spectrum: the stories where the spectrum agrees most —
+    // 2+ sides present, smallest skew. Derived arithmetic over the same live counts.
+    function WidestAgreement({ cards, t, lang, onOpen }) {
+      const scored=cards.filter(c=>{ const k=c.counts||{}; return ((k.left>0?1:0)+(k.center>0?1:0)+(k.right>0?1:0))>=2; })
+        .map(c=>{ const b=c.bias; const skew=Math.max(b.left,b.center,b.right)-Math.min(b.left,b.center,b.right); return {c,skew,n:c.sources}; })
+        .sort((a,b)=>(a.skew-b.skew)||(b.n-a.n)).slice(0,2);
+      if(!scored.length) return null;
+      return (
+        <div>
+          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"सबसे ज़्यादा सहमति":"Widest agreement"}</div>
+          {scored.map(({c},i)=>{ const k=c.counts||{}; const L=k.left||0,C=k.center||0,R=k.right||0,n=L+C+R;
+            return (
+              <a key={c.id} href={"/story/"+encodeURIComponent(c.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(c.id); }} className={`block no-underline group cursor-pointer py-3 ${i<scored.length-1?"border-b":""} ${t.border}`}>
+                <div className={`headline text-[14.5px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.35,textWrap:"pretty"}}>{c.headline}</div>
+                <div className="mt-2"><BiasSegments bias={c.bias} t={t} h={8} lang={lang} /></div>
+                <div className={`mt-1.5 mono text-[10px] ${t.tf}`}>{L} · {C} · {R} · n = {n}</div>
+              </a>
+            );
+          })}
+        </div>
+      );
+    }
     function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go }) {
       // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
-      // breadth of distinct outlets across L/C/R, decayed by recency) is untouched — the
-      // top-ranked story leads, the rest fall into secondary then dense tiers in order.
+      // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
+      // top-ranked story leads, the rest fall into the tier ladder in ranked order.
       const used=new Set();
       const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
       const lead=cards[0]; if(lead) used.add(lead.id);
-      const secondary=take(cards,5);        // middle tier
-      const dense=take(cards,16);           // dense tail
+      const alsoLeading=take(cards,2);      // "Also leading" rail (2)
+      const section=take(cards,4);          // 4-up Section band
+      const brief=take(cards,15);           // "In brief" tier
       const notUsed=arr=>(arr||[]).filter(c=>!used.has(c.id));
-      const gL=notUsed(gapLeft).slice(0,2), gR=notUsed(gapRight).slice(0,2);
-      [...gL,...gR].forEach(c=>used.add(c.id));
+      // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
+      // are "Missing: Right". Labels read the real per-lean counts (N of total).
+      const nOf=c=>{ const k=c.counts||{}; return (k.left||0)+(k.center||0)+(k.right||0); };
+      const gapItems=[];
+      notUsed(gapRight).slice(0,2).forEach(s=>{ const k=s.counts||{}; gapItems.push({story:s, label:(lang==="hi"?`ग़ायब: वाम · ${k.left||0}/${nOf(s)}`:`Missing: Left · ${k.left||0} of ${nOf(s)}`)}); });
+      notUsed(gapLeft).slice(0,1).forEach(s=>{ const k=s.counts||{}; gapItems.push({story:s, label:(lang==="hi"?`ग़ायब: दक्षिण · ${k.right||0}/${nOf(s)}`:`Missing: Right · ${k.right||0} of ${nOf(s)}`)}); });
+      gapItems.slice(0,3).forEach(g=>used.add(g.story.id));
 
-      const methodCard=(
-        <div className={`border p-4 ${t.surface} ${t.border}`}>
-          <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"कार्यप्रणाली":"Method"}</div>
-          <h3 className={`headline mt-2 text-[16px] ${t.tp} ${readCls(lang)}`}>{STR[lang].methodTitle}</h3>
-          <p className={`mt-1.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}>{STR[lang].m_rule}</p>
-          <button onClick={()=>go("about")} className={`mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"और जानें":"How it works"} <ArrowUpRight size={12}/></button>
-        </div>
-      );
+      const pad="px-4 sm:px-10";
       const browse=(
-        <div className="mt-8 flex justify-center">
-          <button onClick={()=>go("topics")} className={`border px-5 py-2.5 text-[12px] font-semibold uppercase tracking-[0.08em] ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
-        </div>
-      );
-      const gapModule=(
-        <div>
-          <div className={`mb-3 flex items-baseline justify-between border-b pb-2 ${t.border}`}>
-            <h2 className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:"#8D5B44"}}>{STR[lang].navOS}</h2>
-            <button onClick={()=>go("blindspot")} className={`mono text-[11px] flex items-center gap-0.5 ${t.ts} hover:${t.tp}`}>{ui("seeAll",lang)}<ChevronRight size={12}/></button>
-          </div>
-          <div className="space-y-4">
-            {gL.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
-            {gR.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
-            {(gL.length===0&&gR.length===0) && <div className={`border border-dashed p-5 text-center text-[12px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
-          </div>
+        <div className="mt-9 flex justify-center">
+          <button onClick={()=>go("topics")} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
         </div>
       );
 
       return (
-        <div className="mx-auto max-w-[1240px] px-4 sm:px-6 py-6">
-          <DateStrip t={t} lang={lang} stats={stats} />
+        <div className="mx-auto max-w-[1280px]">
+          <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
 
-          {/* DESKTOP: main column (lead / secondary grid / dense list) + spectrum rail */}
-          <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-9">
-            <main className="min-w-0">
-              {lead && <div className="border-b-2 pb-7" style={{borderColor:t.ink}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
-              <div className="my-6"><AdSlot t={t} lang={lang} h={90} /></div>
-              <div className="grid grid-cols-2 gap-x-9">
-                {secondary.map(s=><SecondaryStory key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+          {/* HERO — 250 / 1fr / 280 with vertical hairlines on desktop; on mobile the lead
+              leads, then the rail, then the spectrum (order utilities) */}
+          <div className={pad}>
+            <div className="grid lg:grid-cols-[250px_1fr_280px]" style={{}}>
+              <div className="order-2 lg:order-1 py-4 lg:py-6 lg:pr-7 lg:border-r" style={{borderColor:t.line}}>
+                <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"ये भी प्रमुख":"Also leading"}</div>
+                {alsoLeading.map((s,i)=><AlsoLeadingItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===alsoLeading.length-1} />)}
               </div>
-              <div className="my-6"><AdSlot t={t} lang={lang} h={120} /></div>
-              <div>{dense.map((s,i)=><DenseRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===dense.length-1} />)}</div>
-              {browse}
-            </main>
-            <aside className="space-y-7">
-              <SpectrumRail cards={cards} t={t} lang={lang} />
-              {(gL.length>0||gR.length>0) && gapModule}
-              <AdSlot t={t} lang={lang} h={300} />
-              {methodCard}
-              <AdSlot t={t} lang={lang} h={250} />
-            </aside>
+              <div className="order-1 lg:order-2 py-4 lg:py-6 lg:px-7 lg:border-r border-b-2 lg:border-b-0" style={{borderColor:t.line,borderBottomColor:t.ink}}>
+                {lead && <LeadStory story={lead} t={t} lang={lang} onOpen={open} />}
+              </div>
+              <div className="order-3 py-4 lg:py-6 lg:pl-7 space-y-6">
+                <SpectrumRail cards={cards} t={t} lang={lang} />
+                <WidestAgreement cards={cards} t={t} lang={lang} onOpen={open} />
+              </div>
+            </div>
           </div>
 
-          {/* MOBILE: same hierarchy, single column, sparing ads */}
-          <div className="lg:hidden">
-            {lead && <div className="border-b-2 pb-6" style={{borderColor:t.ink}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
-            <div className="my-6"><AdSlot t={t} lang={lang} h={250} /></div>
-            <div>{secondary.map(s=><SecondaryStory key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
-            {(gL.length>0||gR.length>0) && <div className="mt-6">{gapModule}</div>}
-            <div className="mt-6"><SpectrumRail cards={cards} t={t} lang={lang} /></div>
-            <div className="my-6"><AdSlot t={t} lang={lang} h={250} /></div>
-            <div>{dense.map((s,i)=><DenseRow key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===dense.length-1} />)}</div>
-            <div className="mt-7">{methodCard}</div>
-            {browse}
+          {/* THE INK BAND — full width within the frame */}
+          <div style={{borderTop:`2px solid ${t.ink}`}}><InkGapBand items={gapItems.slice(0,3)} t={t} lang={lang} go={go} open={open} /></div>
+
+          {/* SECTION band — 4-up on desktop, 2-up tablet, stacked mobile */}
+          <div className={pad}>
+            <div className="grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 py-7" style={{borderBottom:`1px solid ${t.ink}`}}>
+              {section.map((s,i)=>(
+                <div key={s.id} className={i>0?"lg:border-l lg:pl-6":""} style={i>0?{borderColor:t.line}:{}}>
+                  <SectionCard story={s} t={t} lang={lang} onOpen={open} />
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* IN BRIEF — everything else tracked today, in flowing columns */}
+          {brief.length>0 && (
+            <div className={pad}>
+              <div className="py-7">
+                <div className="mb-3.5 flex items-baseline justify-between">
+                  <span className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"संक्षेप में · आज ट्रैक की गई बाक़ी सब":"In brief · everything else tracked today"}</span>
+                </div>
+                <div style={{columnGap:"2.25rem",columnRule:`1px solid ${t.line}`}} className="[column-count:1] sm:[column-count:2] lg:[column-count:3]">
+                  {brief.map((s,i)=><BriefRow key={s.id} story={s} t={t} lang={lang} onOpen={open} first={i===0} />)}
+                </div>
+                {browse}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -1003,7 +1154,12 @@ const {useState,useEffect,useMemo}=React;
     function SearchPage({ t, lang, query, setQuery, results, open }) {
       return (
         <PageWrap>
-
+          <div className="mb-8 max-w-xl">
+            <div className="relative">
+              <Search size={17} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`} />
+              <input autoFocus value={query||""} onChange={e=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang==="hi"?"deva":""}`} />
+            </div>
+          </div>
           {!query.trim() ? <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
             : results.length ? <GridGrid items={results} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}><p className={`text-lg font-bold ${t.ts}`}>{STR[lang].noResults}</p><p className="mt-1 text-sm">{STR[lang].noResultsSub}</p></div>}
@@ -1012,11 +1168,12 @@ const {useState,useEffect,useMemo}=React;
     }
     function FeedSkeleton({ t }) {
       return (
-        <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-6">
-          <div className="grid gap-8 lg:grid-cols-[256px_minmax(0,1fr)_300px]">
-            <div className="order-2 space-y-4 lg:order-1">{[0,1,2,3,4].map(i=><div key={i} className="skel h-12 w-full"/>)}</div>
-            <div className="order-1 lg:order-2"><div className="skel mb-6 w-full" style={{aspectRatio:"16/9",borderRadius:8}}/><div className="space-y-6">{[0,1,2,3].map(i=><div key={i} className="flex gap-4"><div className="flex-1 space-y-2"><div className="skel h-3 w-24"/><div className="skel h-6 w-full"/><div className="skel h-3 w-40"/></div><div className="skel h-24 w-28" style={{borderRadius:6}}/></div>)}</div></div>
-            <div className="order-3 space-y-5">{[0,1,2].map(i=><div key={i} className="skel w-full" style={{height:180,borderRadius:8}}/>)}</div>
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-6">
+          <div className="py-[7px]" style={{borderTop:`2px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}><div className="skel h-3 w-40"/></div>
+          <div className="grid lg:grid-cols-[250px_1fr_280px]" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <div className="order-2 lg:order-1 py-6 lg:pr-7 lg:border-r space-y-4" style={{borderColor:t.line}}>{[0,1].map(i=><div key={i} className="space-y-2"><div className="skel h-5 w-full"/><div className="skel h-3 w-24"/></div>)}</div>
+            <div className="order-1 lg:order-2 py-6 lg:px-7 lg:border-r" style={{borderColor:t.line}}><div className="skel h-11 w-full mb-2.5"/><div className="skel h-11 w-4/5 mb-5"/><div className="skel h-24 w-full"/></div>
+            <div className="order-3 py-6 lg:pl-7 space-y-3">{[0,1,2].map(i=><div key={i} className="skel h-4 w-full"/>)}</div>
           </div>
         </div>
       );
@@ -1077,7 +1234,10 @@ const {useState,useEffect,useMemo}=React;
       const countsByTopic={}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });
       const topicsOrdered=Object.keys(countsByTopic).sort((a,b)=>countsByTopic[b]-countsByTopic[a]);
       const lastTs=(data.events||[]).reduce((mx,e)=>{ const ts=Date.parse(e.created_at||""); return isNaN(ts)?mx:Math.max(mx,ts); },0);
-      const stats={ stories:homeCards.length, outlets:(data.sources||[]).length };
+      const stats={ stories:homeCards.length, outlets:(data.sources||[]).length,
+        gaps:(gapAgg.total!=null?gapAgg.total:(gapL.length+gapR.length)),
+        updated:(lastTs?new Date(lastTs).toISOString():""),
+        regionFilter, setRegionFilter };
       const q=query.trim().toLowerCase();
       const results=q?baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)):[];
       const story = route.view==="story" ? (detail[route.id]?toDetail(detail[route.id],lang):null) : null;
@@ -1085,8 +1245,7 @@ const {useState,useEffect,useMemo}=React;
 
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
-          <UtilityStrip t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} />
-          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={headerView} topics={topicsOrdered} goTopic={goTopic} regionFilter={regionFilter} setRegionFilter={setRegionFilter} query={query} setQuery={setQuery} />
+          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={headerView} />
           <div className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
