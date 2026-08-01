@@ -636,10 +636,8 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    function GridGrid({ items, render, t, lang, cols, gap, every }) {
-      const N=every||8, out=[];
-      items.forEach((it,i)=>{ out.push(render(it,i)); if((i+1)%N===0 && i<items.length-1) out.push(<div key={"ad"+i} className="sm:col-span-2 lg:col-span-3"><AdSlot t={t} lang={lang} h={104} /></div>); });
-      return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{out}</div>;
+    function GridGrid({ items, render, t, lang, cols, gap }) {
+      return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{items.map((it,i)=>render(it,i))}</div>;
     }
     // SECOND tier — the "Also leading" rail: 22px headline, a taste of the lead, a 12px
     // bias bar, mono counts. Data-driven like everything else.
@@ -986,7 +984,7 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- other pages ---------------- */
-    function PageWrap({ children }) { return <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-6">{children}</div>; }
+    function PageWrap({ children }) { return <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-8">{children}</div>; }
     // Coverage-gap rate columns — three EQUAL-WIDTH slots; each fill's height is that side's
     // SHARE of its own tracked outlets that ran the story (a rate, not a raw count, so a
     // side with more tracked outlets is normalised, not penalised). The absent side is drawn
@@ -1083,20 +1081,19 @@ const {useState,useEffect,useMemo}=React;
     function TopicsHub({ topics, counts, t, lang, goTopic }) {
       return (
         <PageWrap>
-          <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{ui("sections",lang)}</h1>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`flex items-center justify-between rounded-lg border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`text-[17px] font-semibold ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span><ChevronRight size={16} className={t.tf}/></button>))}
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("sections",lang)}</h1>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`flex items-center justify-between border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span><ChevronRight size={16} className={t.tf}/></button>))}
           </div>
-          <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
     function TopicPage({ topic, items, t, lang, open, go }) {
       return (
         <PageWrap>
-          <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 mono text-[12px] uppercase tracking-wide ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
-          <h1 className={`headline mb-6 text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
-          {items.length? <><GridGrid items={items} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} /><div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div></>
+          <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
+          <h1 className={`headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
+          {items.length? <GridGrid items={items} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
         </PageWrap>
       );
@@ -1106,7 +1103,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`rounded-lg border p-4 ${t.surface} ${t.border}`} style={side?{borderLeftWidth:3,borderLeftColor:BIAS[side].color}:{}}>
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0"><div className={`text-[14.5px] font-bold ${t.tp}`}>{s.name}</div>{s.website && <a href={s.website} target="_blank" rel="noopener" className={`mono text-[11px] break-all ${t.tf} hover:${t.ts}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>}</div>
+            <div className="min-w-0"><div className={`headline text-[15px] ${t.tp} ${readCls(lang)}`}>{s.name}</div>{s.website && <a href={s.website} target="_blank" rel="noopener" className={`mono text-[11px] break-all ${t.tf} hover:${t.ts}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>}</div>
             {side?<LeanBadge side={side} lang={lang} t={t}/>:<span className={`shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip} ${t.tf}`}>{s.label||"-"}</span>}
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-2 mono text-[10px]">
@@ -1125,11 +1122,10 @@ const {useState,useEffect,useMemo}=React;
       const filters=[["all",lang==="hi"?"सभी":"All"],["left",lbl("left",lang)],["center",lbl("center",lang)],["right",lbl("right",lang)]];
       return (
         <PageWrap>
-          <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].srcTitle}</h1>
-          <p className={`mb-5 mt-2 max-w-2xl text-[14.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
-          <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts}`} ${lang==="hi"&&k!=="all"?"deva":""}`}>{label}</button>))}</div>
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].srcTitle}</h1>
+          <p className={`mb-5 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
+          <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`border px-3.5 py-1.5 eyebrow ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{label}</button>))}</div>
           <GridGrid items={list} t={t} lang={lang} gap="gap-4" render={(s)=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>} />
-          <div className="mt-7"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
@@ -1140,7 +1136,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <div className="max-w-3xl">
-            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{STR[lang].methodTitle}</h1>
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].methodTitle}</h1>
             <p className={`mb-2 mt-3 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{STR[lang].m_does}</p>
             <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
             {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
@@ -1150,7 +1146,6 @@ const {useState,useEffect,useMemo}=React;
             <Row h={STR[lang].m_provH}>{STR[lang].m_prov}</Row>
             <Row h={STR[lang].m_readH}>{STR[lang].m_appeal}</Row>
           </div>
-          <div className="mt-8 max-w-3xl"><AdSlot t={t} lang={lang} h={104} /></div>
         </PageWrap>
       );
     }
@@ -1186,7 +1181,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <div className="max-w-xl">
-            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} ${readCls(lang)}`}>{L.title}</h1>
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
             <p className={`mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{L.lede}</p>
             {status==="ok" ? (
               <div className={`rounded-lg border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
@@ -1213,7 +1208,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <PageWrap>
           <div className="max-w-3xl">
-            <h1 className={`headline text-2xl sm:text-3xl font-bold ${t.tp} serif`}>Privacy Policy</h1>
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} serif`} style={{letterSpacing:"-0.018em"}}>Privacy Policy</h1>
             <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 2 July 2026 · Operated by Redstocks Technology LLP</p>
             {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
             <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
@@ -1231,6 +1226,7 @@ const {useState,useEffect,useMemo}=React;
     function SearchPage({ t, lang, query, setQuery, results, open }) {
       return (
         <PageWrap>
+          <h1 className={`headline mb-5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("searchTab",lang)}</h1>
           <div className="mb-8 max-w-xl">
             <div className="relative">
               <Search size={17} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`} />
