@@ -829,10 +829,7 @@ const {useState,useEffect,useMemo}=React;
     }
     /* ---------------- STORY (tabbed) ---------------- */
     function StoryPage({ story, t, lang, go, openTopic }) {
-      const order=["left","center","right"];
       const fr=story.framing||{};
-      const sideTabs=["overview",...order.filter(k=>(fr[k]||"").trim())];
-      const [side,setSide]=useState("overview");
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
       // ONE VOTE PER OWNER: the bias bar counts distinct OWNERS, so co-owned mastheads
@@ -841,78 +838,98 @@ const {useState,useEffect,useMemo}=React;
       // mastheads by owner so the reader can see WHY a side shows "N votes, M outlets".
       const ownerOf={}; outlets.forEach(o=>{ if(o.source) ownerOf[o.source]=o.owner||o.source; });
       const voteRow=(k)=>{ const b=(story.coverage&&story.coverage[k])||{}; const names=b.sources||[]; const votes=(typeof b.count==="number")?b.count:(counts[k]||0); const gm=new Map(); names.forEach(n=>{ const ow=ownerOf[n]||n; if(!gm.has(ow))gm.set(ow,[]); gm.get(ow).push(n); }); return {votes, outlets:names.length, groups:[...gm.entries()]}; };
-      const voteTotal=voteRow("left").votes+voteRow("center").votes+voteRow("right").votes;
+      // The bias bar's widths come from the distinct-OWNER votes (vc); percentages are
+      // derived from those, so the printed scale matches the segments exactly.
+      const vc={left:voteRow("left").votes,center:voteRow("center").votes,right:voteRow("right").votes};
+      const nVotes=vc.left+vc.center+vc.right;
+      const bpct=biasPct(vc);
       const [atab,setAtab]=useState("all");
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
       const total=story.sources+(story.unrated||0)+(story.international||0);
       const [copied,setCopied]=useState(false);
       const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
-      const bd=domSide(story.bias);
-      const SideTab=({k})=>{ const lab=k==="overview"?(lang==="hi"?"सारांश":"Overview"):lbl(k,lang); const on=side===k;
-        return <button onClick={()=>setSide(k)} className={`px-3.5 py-1.5 text-[13px] font-semibold rounded-md ${on?`${t.cta} ${t.ctaT}`:`${t.ts} hover:${t.soft}`} ${lang==="hi"&&k==="overview"?"deva":""}`} style={on&&k!=="overview"&&k!=="center"?{backgroundColor:BIAS[k].color,color:"#fff"}:{}}>{lab}</button>; };
+      const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
+      const region=lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India");
+      const metaLine=lang==="hi"
+        ? `${total} स्रोत · वाम ${vc.left} · केंद्र ${vc.center} · दक्षिण ${vc.right} · ${timeAgo(story.created_at,lang)}`
+        : `${total} outlets · ${vc.left} left · ${vc.center} centre · ${vc.right} right · ${timeAgo(story.created_at,lang)}`;
       const ATab=({k,n})=>{ const on=atab===k; const lab=k==="all"?(lang==="hi"?"सभी":"All"):lbl(k,lang);
         return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"?t.ink:(k==="center"?t.ink:BIAS[k]&&BIAS[k].color)):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
+      const sides=["left","center","right"].filter(k=> fr[k] || counts[k]>0);
       return (
-        <div className="mx-auto max-w-[880px] px-4 sm:px-6 py-6">
-          {/* top bar */}
-          <div className={`mb-6 flex items-center justify-between border-b pb-3 ${t.border}`}>
-            <button onClick={()=>go("home")} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`}><ArrowLeft size={14}/> {STR[lang].back}</button>
-            <button onClick={copy} className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[11.5px] font-medium uppercase tracking-[0.06em] ${t.border} ${t.ts} hover:${t.tp}`}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी हुआ":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"लिंक":"Copy link"}</>}</button>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-6">
+          {/* secondary bar: back · breadcrumb · share */}
+          <div className="mb-8 flex items-center justify-between gap-3 pb-3" style={{borderBottom:`1px solid ${t.ink}`}}>
+            <button onClick={()=>go("home")} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {STR[lang].back}</button>
+            <button onClick={()=>openTopic(story.topic)} className={`hidden sm:inline truncate eyebrow ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}</button>
+            <button onClick={copy} className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
           </div>
 
-          {/* headline block */}
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 eyebrow">
-            <button onClick={()=>openTopic(story.topic)} className={`${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic}</button>
-            <span className={t.tf}>·</span><span className={`${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India")}</span>
-          </div>
-          <h1 className={`headline mt-3 text-[1.9rem] sm:text-[2.6rem] leading-[1.07] ${t.tp} ${readCls(lang)}`}>{story.headline}</h1>
-          <div className={`mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 mono text-[11.5px] ${t.tf}`}>
-            <span>{lang==="hi"?"प्रकाशित":"Published"} {timeAgo(story.created_at,lang)}</span>
-            <span>·</span><span>{total} {lang==="hi"?"स्रोत":(total===1?"outlet":"outlets")}</span>
-            {story.auto && <><span>·</span><AutoTag lang={lang} t={t} /></>}
+          {/* headline block — centered on desktop, left on mobile */}
+          <div className="mx-auto max-w-[840px] text-left sm:text-center">
+            <div className={`eyebrow sm:hidden ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}</div>
+            <h1 className={`headline mt-3 sm:mt-0 text-[28px] sm:text-[42px] lg:text-[50px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.18:1.1,letterSpacing:lang==="hi"?0:"-0.02em",textWrap:"balance"}}>{story.headline}</h1>
+            <div className={`mt-4 mono text-[11.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{metaLine}{story.auto && <> · <span className="uppercase">{STR[lang].autoTag}</span></>}</div>
           </div>
 
-          {story.img && <div className="mt-6 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
-
-          {/* the bias instrument — prominent, with the printed scale; segments filter the article list */}
-          <div className="mt-7 border-y py-5" style={{borderColor:t.ink}}>
-            <BiasBar bias={story.bias} counts={{left:voteRow("left").votes,center:voteRow("center").votes,right:voteRow("right").votes}} t={t} lang={lang} height={24} showScale onPick={(k)=>{ setAtab(k); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} />
-          </div>
-
-          {/* neutral summary — the story, without framing */}
-          <div className={`mt-7 border ${t.soft} ${t.border}`}>
-            <div className="p-5 sm:p-6">
-              <div className={`mb-3 eyebrow ${t.tf}`}>{story.auto?STR[lang].autoTag:STR[lang].aiSummary}{story.auto && <span className={`${isHi(lang)}`} style={{textTransform:"none",letterSpacing:0}}> · {STR[lang].autoFrom}</span>}</div>
-              {story.lead && <p className={`mb-4 text-[16.5px] leading-[1.66] ${t.tp} ${readCls(lang)}`}>{story.lead}</p>}
-              <ul className="space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}><span className="mt-[9px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
+          {/* the bias instrument — border-y ink, printed scale; segments filter the article list */}
+          <div className="mx-auto mt-8 max-w-[840px] py-6" style={{borderTop:`1px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}>
+            <div className="mb-2.5 flex items-baseline justify-between gap-3">
+              <div className={`flex gap-5 sm:gap-6 text-[11px] font-medium uppercase tracking-[0.12em] ${t.tp} ${lang==="hi"?"deva":""}`}>
+                {["left","center","right"].map(k=>(vc[k]>0)?<span key={k}>{lbl(k,lang)} <span className="mono" style={{letterSpacing:0}}>{vc[k]}</span></span>:null)}
+              </div>
+              <span className={`mono text-[11px] shrink-0 ${t.tf}`}>n = {nVotes} · {bpct.left}/{bpct.center}/{bpct.right}%</span>
+            </div>
+            <BiasSegments bias={bpct} t={t} h={28} lang={lang} onPick={(k)=>{ setAtab(k); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} active={atab!=="all"?atab:null} />
+            <div className="relative" style={{height:15,marginTop:3}}>
+              {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,width:1,height:p===50?7:4,background:p===50?t.ink:t.line}}/>)}
+              <span className={`mono text-[10px] ${t.tf}`} style={{position:"absolute",left:"50%",top:7,transform:"translateX(-50%)",whiteSpace:"nowrap"}}>{lang==="hi"?"कवरेज का 50%":"50% of coverage"}</span>
             </div>
           </div>
 
-          {/* framing panels — three sides, identical structure, equal length by construction */}
-          <div className="mt-9">
-            <div className={`border-b pb-2 ${t.border}`}><h3 className={`headline text-[19px] ${t.tp} ${readCls(lang)}`}>{STR[lang].framingTitle}</h3></div>
-            <p className={`mt-2 mb-4 text-[13px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{STR[lang].framingSub}</p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-stretch">
-              {["left","center","right"].map(k=> (fr[k] || counts[k]>0) ? (
-                <div key={k} className={`flex flex-col border ${t.surface}`} style={{borderColor:t.ink}}>
-                  <div className={BIAS[k].tex} style={{height:5}}/>
-                  <div className="flex flex-1 flex-col p-4">
+          {/* the story, without framing — label + note | summary */}
+          <div className="mx-auto mt-9 max-w-[840px] grid gap-5 md:grid-cols-[200px_1fr] md:gap-11">
+            <div>
+              <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"बिना फ़्रेमिंग की ख़बर":"The story, without framing"}</div>
+              {story.auto && <div className={`mt-2 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{textTransform:"none",letterSpacing:0}}>{STR[lang].autoFrom}</div>}
+            </div>
+            <div>
+              {story.lead && <p className={`text-[16px] md:text-[19px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.85:1.6}}>{story.lead}</p>}
+              <ul className="mt-3 space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] md:text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.8:1.6}}><span className="mt-[10px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
+              <p className={`mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
+            </div>
+          </div>
+
+          {/* how each side framed it — 3-up bordered table (desktop) / stacked cards (mobile) */}
+          {sides.length>0 && (
+          <div className="mt-10">
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].framingTitle}</h3>
+              <span className={`mono text-[10.5px] hidden sm:inline ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"बराबर कॉलम · क्रम बार जैसा":"equal columns · order matches the bar"}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0 md:border" style={{borderColor:t.ink}}>
+              {sides.map(k=>(
+                <div key={k} className={`flex flex-col border md:border-0 md:border-r last:md:border-r-0 ${t.surface}`} style={{borderColor:t.ink}}>
+                  <div className={BIAS[k].tex} style={{height:6}}/>
+                  <div className="flex flex-1 flex-col p-5">
                     <div className="flex items-baseline justify-between">
-                      <span className={`text-[11px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
+                      <span className={`text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
                       <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"स्रोत":(counts[k]===1?"outlet":"outlets")}</span>
                     </div>
                     {fr[k]
-                      ? <p className={`mt-3 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{fr[k]}</p>
-                      : <p className={`mt-3 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{STR[lang].framingPending}</p>}
+                      ? <p className={`mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.62}}>{fr[k]}</p>
+                      : <p className={`mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{STR[lang].framingPending}</p>}
                   </div>
                 </div>
-              ) : null)}
+              ))}
             </div>
+            <p className={`mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{STR[lang].framingSub}</p>
           </div>
+          )}
 
-          {/* coverage breakdown — ONE VOTE PER OWNER, shown with textured swatches */}
-          <div className="mt-9">
-            <div className={`border-b pb-2 ${t.border}`}><h3 className={`headline text-[19px] ${t.tp} ${readCls(lang)}`}>{STR[lang].coverageBreakdown}</h3></div>
+          {/* coverage breakdown — ONE VOTE PER OWNER (invariant display) */}
+          <div className="mx-auto mt-10 max-w-[840px]">
+            <div className="pb-2" style={{borderBottom:`1px solid ${t.ink}`}}><h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].coverageBreakdown}</h3></div>
             <div className={`mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`}>
               <span className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{STR[lang].totalSources}</span>
               <span className={`mono text-[14px] font-semibold ${t.tp}`}>{total}</span>
@@ -938,7 +955,8 @@ const {useState,useEffect,useMemo}=React;
           </div>
 
           {/* articles */}
-          <div className="mt-9" id="arts">
+          <div className="mx-auto mt-10 max-w-[840px]" id="arts">
+            <div className={`mb-3 eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
             <div className={`flex items-center gap-5 border-b ${t.border}`}>
               <ATab k="all" n={outlets.length} />
               {counts.left>0 && <ATab k="left" n={counts.left} />}
@@ -963,8 +981,6 @@ const {useState,useEffect,useMemo}=React;
               {arts.length===0 && <div className={`py-10 text-center text-[13px] ${t.tf}`}>-</div>}
             </div>
           </div>
-
-          <div className="my-8"><AdSlot t={t} lang={lang} h={104} /></div>
         </div>
       );
     }
