@@ -987,35 +987,96 @@ const {useState,useEffect,useMemo}=React;
 
     /* ---------------- other pages ---------------- */
     function PageWrap({ children }) { return <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-6">{children}</div>; }
-    function BlindspotPage({ left, right, agg, t, lang, open, go }) {
-      const showing=(n,total)=>STR[lang].gapShowing.replace("{n}",n).replace("{total}",total);
-      const Col=({head,rows,total})=>(
+    // Coverage-gap rate columns — three EQUAL-WIDTH slots; each fill's height is that side's
+    // SHARE of its own tracked outlets that ran the story (a rate, not a raw count, so a
+    // side with more tracked outlets is normalised, not penalised). The absent side is drawn
+    // as a hatch so absence occupies space. Driven by live per-lean counts + the roster.
+    function GapRateColumns({ counts, roster, gapSide, t, lang }) {
+      const ks=["left","center","right"];
+      return (
+        <div className="grid grid-cols-3 gap-2">
+          {ks.map(k=>{ const n=counts[k]||0; const m=roster[k]||0; const rate=m>0?Math.min(100,Math.round(n/m*100)):0; const isGap=k===gapSide;
+            return (
+              <div key={k}>
+                <div className={`flex items-end ${n>0?"":"seg-absent"}`} style={{height:56,border:n>0?`1px solid ${t.ink}`:`1px dashed ${t.tf}`,background:n>0?(t.track||"#EAE6DB"):undefined}}>
+                  {n>0 && <div className={`w-full ${BIAS[k].tex}`} style={{height:`${Math.max(8,rate)}%`}}/>}
+                </div>
+                <div className={`mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</div>
+                <div className={`mono text-[10.5px] ${isGap?t.blind:t.tf}`}>{n} / {m}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    // A single coverage-gap card: which side missed it (eyebrow, clay), the headline, a
+    // taste of the neutral summary, the rate columns, and a link into the story.
+    function GapCard({ story, roster, gapSide, t, lang, onOpen }) {
+      const c=story.counts||{left:0,center:0,right:0};
+      const gapN=c[gapSide]||0;
+      const sideWord=lang==="hi"?(gapSide==="left"?"वाम":"दक्षिण"):gapSide;
+      const eyebrow=lang==="hi"
+        ? (gapN===0?`${sideWord} पर अप्रकाशित`:`${sideWord} पर कम कवरेज`)
+        : (gapN===0?`Unreported on the ${sideWord}`:`Under-covered on the ${sideWord}`);
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="flex h-full flex-col no-underline group cursor-pointer">
+          <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{eyebrow}</div>
+          <h3 className={`headline mt-3 text-[20px] lg:text-[24px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.24,textWrap:"pretty"}}>{story.headline}</h3>
+          {story.lead && <p className={`mt-2.5 text-[14px] lg:text-[15px] lc-3 ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.6}}>{story.lead}</p>}
+          <div className="mt-5"><GapRateColumns counts={c} roster={roster} gapSide={gapSide} t={t} lang={lang} /></div>
+          <div className={`mt-4 eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}><span style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"तटस्थ सारांश पढ़ें":"Read the neutral summary"} →</span></div>
+        </a>
+      );
+    }
+    function BlindspotPage({ left, right, roster, agg, stats, t, lang, open, go }) {
+      // left = left_heavier (RIGHT is the under-covered side); right = right_heavier (LEFT is).
+      const cards=[];
+      (right||[]).forEach(s=>cards.push({story:s, gapSide:"left"}));
+      (left||[]).forEach(s=>cards.push({story:s, gapSide:"right"}));
+      // Starkest first: the smallest under-covered count (0 = unreported) leads.
+      cards.sort((a,b)=>((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0));
+      const shown=cards.slice(0,15);
+      const gapsToday=(agg.total!=null?agg.total:cards.length);
+      const pad="px-4 sm:px-10";
+      const explain=(head,body)=>(
         <div>
-          <div className={`mb-4 border-b pb-2 ${t.border}`}>
-            <h2 className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{head}</h2>
-            <div className={`mt-1 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{showing(rows.length,total)}</div>
-          </div>
-          {rows.length ? <div className="space-y-4">{rows.map(s=><BlindspotCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>)}</div>
-            : <div className={`border border-dashed p-6 text-center text-[12px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
+          <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{head}</div>
+          <p className={`mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.65}}>{body}</p>
         </div>
       );
       return (
-        <div className="mx-auto max-w-[1120px] px-4 sm:px-6 py-6">
-          {/* masthead */}
-          <div className="mb-6 border-b-2 pb-4" style={{borderColor:t.ink}}>
-            <div className="flex items-baseline justify-between gap-3">
-              <h1 className={`headline text-[26px] sm:text-[32px] ${t.tp} ${readCls(lang)}`}>{STR[lang].osTitle}</h1>
-              {agg.total!=null && <span className={`mono text-[12px] ${t.tf}`}>{agg.total} {lang==="hi"?"आज":"today"}</span>}
+        <div className="mx-auto max-w-[1280px]">
+          {/* header */}
+          <div className={`${pad} pt-6`}>
+            <div className="flex flex-wrap items-end justify-between gap-4 pb-5" style={{borderBottom:`2px solid ${t.ink}`}}>
+              <div className="max-w-[62ch]">
+                <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].osTitle}</h1>
+                <p className={`mt-3 text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{STR[lang].osSub}</p>
+              </div>
+              <div className={`mono text-[11px] leading-[1.7] text-right shrink-0 ${t.tf}`}>
+                {gapsToday} {lang==="hi"?"गैप आज":"gaps today"}<br/>{stats.stories} {lang==="hi"?"ख़बरें ट्रैक":"stories tracked"}
+              </div>
             </div>
-            <p className={`mt-3 max-w-[70ch] text-[14.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].osSub}</p>
-            <button onClick={()=>go("about")} className={`mt-3 inline-flex items-center gap-1 text-[12px] font-semibold uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पूरा ब्यौरा देखें":"See the full breakdown"} <ArrowUpRight size={12}/></button>
           </div>
-          {/* Left-heavier first so on a phone (columns stack) the spectrum order is consistent */}
-          <div className="grid gap-8 lg:grid-cols-2">
-            <Col head={STR[lang].gapLeftHead} rows={left.slice(0,15)} total={(agg.left_heavier!=null?agg.left_heavier:left.length)} />
-            <Col head={STR[lang].gapRightHead} rows={right.slice(0,15)} total={(agg.right_heavier!=null?agg.right_heavier:right.length)} />
+          {/* gap cards */}
+          <div className={pad}>
+            {shown.length? (
+              <div className="grid gap-x-6 gap-y-9 py-8 sm:grid-cols-2 lg:grid-cols-3" style={{borderBottom:`1px solid ${t.ink}`}}>
+                {shown.map((g,i)=>(
+                  <div key={g.story.id} className={i>0?"lg:border-l lg:pl-6":""} style={i>0?{borderColor:t.line}:{}}>
+                    <GapCard story={g.story} roster={roster} gapSide={g.gapSide} t={t} lang={lang} onOpen={open} />
+                  </div>
+                ))}
+              </div>
+            ) : <div className={`my-8 border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
           </div>
-          <div className="mt-8"><AdSlot t={t} lang={lang} h={104} /></div>
+          {/* explainer */}
+          <div className={pad}>
+            <div className={`my-8 grid gap-8 p-6 sm:p-8 md:grid-cols-2 ${t.soft}`}>
+              {explain(lang==="hi"?"गैप कैसे तय होता है":"How a gap is declared", lang==="hi"?"पक्ष किसी ख़बर को गैप तब चिह्नित करता है जब स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने उसे कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं — वही अलग-अलग आउटलेट गिनती जो बायस बार में है। यह अंकगणित है, इस पर निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।":"Paksh flags a story as a gap when outlets on one side of the spectrum covered it while few or none on the other did — the same distinct-outlet-per-lean counting as the bias bar. It's arithmetic, not a judgment about why a side did or didn't cover it.")}
+              {explain(lang==="hi"?"स्लॉट बराबर चौड़े क्यों":"Why the slots are equal width", lang==="hi"?"यह चार्ट बायस बार नहीं है। बायस बार जो मौजूद है उसे बाँटता है; गैप चार्ट हर पक्ष को बराबर स्लॉट देता है, ताकि ग़ैरमौजूद पक्ष ग़ायब होने के बजाय — हैच और शून्य के साथ — दिखे। अनुपस्थिति को दिखने के लिए जगह घेरनी पड़ती है।":"This chart is not the bias bar. The bias bar divides what exists; the gap chart reserves an equal slot per side, so the empty one is drawn — hatched and labelled zero — instead of vanishing. Absence has to occupy space to be seen.")}
+            </div>
+          </div>
         </div>
       );
     }
@@ -1254,6 +1315,9 @@ const {useState,useEffect,useMemo}=React;
         gaps:(gapAgg.total!=null?gapAgg.total:(gapL.length+gapR.length)),
         updated:(lastTs?new Date(lastTs).toISOString():""),
         regionFilter, setRegionFilter };
+      // Roster size per lean (distinct outlets tracked), for the Coverage-Gaps rate columns.
+      const rosterByLean={left:0,center:0,right:0};
+      (data.sources||[]).forEach(s=>{ if(rosterByLean[s.lean]!=null) rosterByLean[s.lean]++; });
       const q=query.trim().toLowerCase();
       const results=q?baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)):[];
       const story = route.view==="story" ? (detail[route.id]?toDetail(detail[route.id],lang):null) : null;
@@ -1265,7 +1329,7 @@ const {useState,useEffect,useMemo}=React;
           <div className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
-            : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} agg={gapAgg} t={t} lang={lang} open={open} go={go} />
+            : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
