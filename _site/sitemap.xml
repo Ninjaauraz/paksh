@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://paksh.vercel.app/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10701</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10624</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10613</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10567</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10633</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10678</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10447</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.vercel.app/story/10656</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10709</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10708</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10707</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
@@ -9,7 +17,6 @@
   <url><loc>https://paksh.vercel.app/story/10704</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10703</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10702</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10701</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10700</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10699</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10685</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
@@ -17,11 +24,9 @@
   <url><loc>https://paksh.vercel.app/story/10689</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10573</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10539</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10656</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10334</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/9913</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10077</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10678</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10606</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10578</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10516</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
@@ -49,21 +54,16 @@
   <url><loc>https://paksh.vercel.app/story/10540</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10506</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10460</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10613</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10633</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10592</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10514</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10447</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10392</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10265</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10660</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10467</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10567</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10463</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10318</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10400</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10300</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.vercel.app/story/10624</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10564</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10335</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.vercel.app/story/10643</loc><lastmod>2026-08-02</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
