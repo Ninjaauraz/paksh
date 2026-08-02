@@ -180,9 +180,9 @@ const {useState,useEffect,useMemo}=React;
     function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
     async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
-      try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
-        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
-      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}}; }
+      try { const [e,b,tp,sr,tr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources"),apiGet("trending").catch(()=>({en:[],hi:[]}))]);
+        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, trending:tr||{en:[],hi:[]}}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:{en:[],hi:[]}}; }
     }
 
     const toCard = (e, lang) => {
@@ -194,6 +194,7 @@ const {useState,useEffect,useMemo}=React;
         bias:biasPct(lc), counts:lc, sources:(lc.left+lc.center+lc.right)||e.total_sources||0,
         international:(e.international||0),
         importance:(typeof e.importance==="number"?e.importance:0),
+        feed_rank:(typeof e.feed_rank==="number"?e.feed_rank:(typeof e.importance==="number"?e.importance:0)),
         unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)-(e.international||0)),
         blindspot:e.blindspot?e.blindspot.side:null,
         auto:e.summary_method==="extractive",
@@ -396,6 +397,7 @@ const {useState,useEffect,useMemo}=React;
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
           <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:BIAS.right.color,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
           <h2 className={`headline mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.14:1.06,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h2>
+          {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
             {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
             <div>
@@ -575,7 +577,7 @@ const {useState,useEffect,useMemo}=React;
     // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
     // utility strip, no topic-chip rail (design spec 2a).
     function Header({ t, lang, setLang, dark, setDark, go, view }) {
-      const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
+      const NAV=[["home",STR[lang].navTop],["trending",lang==="hi"?"ट्रेंडिंग":"Trending"],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
       return (
         <div className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
           <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
@@ -602,7 +604,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BottomNav({ t, lang, view, go }) {
-      const items=[["home",STR[lang].navTop,Layers],["blindspot",STR[lang].navOS,Eye],["topics",ui("sections",lang),Compass],["sources",STR[lang].navSrc,Globe],["about",STR[lang].navMethod,Scale]];
+      const items=[["home",STR[lang].navTop,Layers],["trending",lang==="hi"?"ट्रेंडिंग":"Trending",Sparkles],["blindspot",STR[lang].navOS,Eye],["topics",ui("sections",lang),Compass],["about",STR[lang].navMethod,Scale]];
       return (
         <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>
           <div className="flex">
@@ -633,16 +635,17 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- HOME ---------------- */
-    // Ad slot — a live Google AdSense unit when ADSENSE_CLIENT is set, otherwise a clean,
-    // on-brand reserved space (hairline frame, paper-sunk, small "Advertisement" label) so
-    // placements are visible without loading any ad script or cookie. Kept restrained to
-    // preserve the design's calm — one per page, at natural breaks.
-    function AdSlot({ t, lang, slot, format, h, label }) {
+    // Ad slot — STRUCTURE ONLY until launch. The call sites (home / story / gaps / sources
+    // / topic) mark where ads go, but with no ADSENSE_CLIENT this renders NOTHING: no box,
+    // no label, no script, no cookie - zero footprint during review. Going live is the
+    // one-line ADSENSE_CLIENT change (+ uncomment the loader in index.html), which turns
+    // every reserved slot into a live responsive unit.
+    function AdSlot({ t, lang, slot, format, h }) {
       React.useEffect(()=>{ if(ADSENSE_CLIENT){ try{ (window.adsbygoogle=window.adsbygoogle||[]).push({}); }catch(e){} } },[]);
+      if(!ADSENSE_CLIENT) return null;
       return (
         <div className={`relative flex items-center justify-center overflow-hidden border ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
-          <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:".24em"}}>{label||(lang==="hi"?"विज्ञापन":"Advertisement")}</span>
-          {ADSENSE_CLIENT && <ins className="adsbygoogle" style={{display:"block",position:"absolute",inset:0,width:"100%",height:"100%"}} data-ad-client={ADSENSE_CLIENT} data-ad-slot={slot||""} data-ad-format={format||"auto"} data-full-width-responsive="true"/>}
+          <ins className="adsbygoogle" style={{display:"block",position:"absolute",inset:0,width:"100%",height:"100%"}} data-ad-client={ADSENSE_CLIENT} data-ad-slot={slot||""} data-ad-format={format||"auto"} data-full-width-responsive="true"/>
         </div>
       );
     }
@@ -670,6 +673,7 @@ const {useState,useEffect,useMemo}=React;
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
+          {story.img && <div className="mb-3 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} /></div>}
           <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp||"News"}</div>
           <h3 className={`headline mt-2 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.28,textWrap:"pretty"}}>{story.headline}</h3>
           <div className="mt-3"><BiasSegments bias={story.bias} t={t} h={10} lang={lang} /></div>
@@ -1244,6 +1248,49 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
+    // Trending — descriptive, arithmetic keyword clusters (export_static._trending), ranked
+    // by recent coverage + velocity. Tap a term to see the stories behind it. The terms are
+    // just words actually recurring in recent headlines, never a curated cause.
+    function TrendingPage({ terms, events, t, lang, open }) {
+      const list = (lang==="hi" ? (terms.hi||[]) : (terms.en||[]));
+      const [sel,setSel]=useState(null);
+      const active = (sel && list.some(x=>x.term===sel.term)) ? sel : (list[0]||null);
+      const byId = useMemo(()=>{ const m=new Map(); (events||[]).forEach(e=>m.set(e.id,e)); return m; },[events]);
+      const cards = useMemo(()=>{
+        if(!active) return [];
+        return (active.event_ids||[]).map(id=>byId.get(id)).filter(Boolean).map(e=>toCard(e,lang)).sort((a,b)=>(b.sources||0)-(a.sources||0));
+      },[active,byId,lang]);
+      const TermFace = ({term,on})=>(
+        <span className={`headline text-[14px] ${lang==="hi"?"read-hi":"serif capitalize"}`}>{term}</span>
+      );
+      return (
+        <PageWrap>
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?"ट्रेंडिंग":"Trending"}</h1>
+          <p className={`mb-6 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{lang==="hi"?"अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।":"The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."}</p>
+          {list.length ? <>
+            <div className="flex flex-wrap gap-2">
+              {list.map(term=>{ const on=active&&active.term===term.term;
+                return (
+                  <button key={term.term} onClick={()=>setSel(term)} className={`flex items-center gap-2 border px-3 py-1.5 ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`}`}>
+                    <TermFace term={term.term} on={on} />
+                    <span className={`mono text-[11px] ${on?"":t.tf}`}>{term.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {active && <div className="mt-8">
+              <div className={`mb-4 flex items-baseline gap-2 border-b pb-2 ${t.border}`}>
+                <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"इसका ज़िक्र करने वाली ख़बरें":"Stories mentioning"}</span>
+                <TermFace term={active.term} on={false} />
+                <span className={`mono text-[11px] ${t.tf}`}>{cards.length}</span>
+              </div>
+              {cards.length ? <GridGrid items={cards} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
+                : <div className={`py-16 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+            </div>}
+          </> : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+        </PageWrap>
+      );
+    }
     function SearchPage({ t, lang, query, setQuery, results, open }) {
       return (
         <PageWrap>
@@ -1279,7 +1326,7 @@ const {useState,useEffect,useMemo}=React;
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
-      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
+      if(seg.length===1 && ["trending","blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
       return {view:"home"};
     }
     function PakshApp() {
@@ -1287,7 +1334,7 @@ const {useState,useEffect,useMemo}=React;
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
-      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}});
+      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:{en:[],hi:[]}});
       const [detail,setDetail]=useState({});
       const [ready,setReady]=useState(false);
 
@@ -1319,7 +1366,11 @@ const {useState,useEffect,useMemo}=React;
       // the pipeline (not here), carries no topic weighting, and is a plain field on each
       // event. The previous in-browser rank() with per-topic CIVIC weights was removed so
       // ordering is arithmetic and explainable. Ties fall back to newest-first.
-      const rank=c=>(typeof c.importance==="number"?c.importance:0);
+      // FRONT-PAGE ordering: recency-gated feed_rank (8h half-life, computed in
+      // export_static._feed_rank) so the feed leads with what's current. Falls back to
+      // importance if an older export hasn't written feed_rank yet. Sections/search/topic
+      // stay newest-first (below); the importance score used elsewhere is unchanged.
+      const rank=c=>(typeof c.feed_rank==="number"?c.feed_rank:0);
       const homeFilter=c=>{ if (HOME_EXCLUDE_TOPICS.includes(c.topic)) return false; const isWorld=(c.region||"India")==="World"; return regionFilter==="International"?isWorld:!isWorld; };
       const homeCards=baseCards.filter(homeFilter).sort((a,b)=>(rank(b)-rank(a))||(ageHours(a)-ageHours(b)));
       const homeOne=baseOne.filter(homeFilter).sort((a,b)=>(rank(b)-rank(a))||(ageHours(a)-ageHours(b)));
@@ -1346,6 +1397,7 @@ const {useState,useEffect,useMemo}=React;
           <div className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
+            : route.view==="trending" ? <TrendingPage terms={data.trending||{en:[],hi:[]}} events={data.events||[]} t={t} lang={lang} open={open} />
             : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />

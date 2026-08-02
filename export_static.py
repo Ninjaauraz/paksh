@@ -133,6 +133,30 @@ def _importance(e, now):
     return round(breadth * lean_mult * decay, 4)
 
 
+FEED_HALF_LIFE_H = 8.0   # front-page feed halves every 8h so breaking news leads
+
+
+def _feed_rank(e, now):
+    """FRONT-PAGE ordering only. The SAME breadth*lean signal as _importance, but with a
+    much shorter 8h half-life so the feed always leads with what's current: breadth orders
+    stories of similar age, while age actively decays rank so a day-old high-coverage story
+    no longer buries an hour-old breaking one. This is feed-ONLY - _importance (used
+    elsewhere) is untouched - and it only READS coverage counts, never changing any
+    bias-bar / coverage number."""
+    lc = e.get("lean_counts") or {}
+    rated = sum(lc.get(s, 0) for s in ("left", "center", "right"))
+    breadth = rated + (e.get("international", 0) or 0)
+    leans = sum(1 for s in ("left", "center", "right") if lc.get(s, 0) > 0)
+    lean_mult = (1 + 0.5 * (leans - 1)) if leans else 1.0
+    try:
+        t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
+        age_h = max((now - t).total_seconds() / 3600.0, 0.0)
+    except ValueError:
+        age_h = 1e9
+    decay = 0.5 ** (age_h / FEED_HALF_LIFE_H)
+    return round(breadth * lean_mult * decay, 4)
+
+
 GAP_HALF_LIFE_H = 72.0   # within-column recency nudge so lopsided columns don't freeze
 
 
@@ -339,6 +363,98 @@ def _precompile_jsx():
 
 
 
+# Function words to ignore when mining trending terms - purely structural, no editorial
+# judgement. English + Hindi, plus a few news-generic words that aren't topics.
+_STOP_EN = set((
+    "the a an and or of to in on for at by with from as is are was were be been being this "
+    "that these those it its his her their our your my we you they he she but not no yes will "
+    "would can could may might must shall have has had do does did over after before under "
+    "about into out up down off new says say said amid per via report reports reported against "
+    "between during while than then them us who whom which what when where why how all any some "
+    "more most other such only own same so also just now today day week year first second two "
+    "three india indian re ll ve amid set gets get near back top big call calls launch launched "
+    "held face made plan plans seeks calls meet meets visit slams hits sets faces urges").split())
+_STOP_HI = set((
+    "के की का में से को है हैं था थे थी पर और या भी एक यह वह इस उस कि जो ने हो कर लिए साथ तक ही अब "
+    "तो नहीं क्या जब तब कोई सब बाद पहले बीच दौरान होगा होगी गया गई गए रहे रही रहा हुई हुए हुआ लेकिन "
+    "तथा एवं वाले वाली वाला अपने अपनी उनके उनकी इनके पास ओर बारे कहा भारत भारतीय पर बना रहा रही "
+    "करने खिलाफ आरोप उपाय रूप शामिल जिसमें द्वारा होने कारण").split())
+
+
+def _trending(events, now):
+    """Descriptive, ARITHMETIC trending terms - never a curated cause. Mines the recurring
+    words / bigrams actually present in recent event titles + summaries (English and Hindi
+    SEPARATELY), drops function words + bare numbers, and ranks by recent weighted coverage
+    and velocity (recent vs the prior window). A term qualifies only if it appears in >=3
+    distinct recent events, so it is a real cluster and not a one-off. Bigrams are preferred
+    over their component words, and overlapping terms are collapsed, so the list reads as
+    distinct topics. Returns {"en":[...], "hi":[...]}, each [{term, count, event_ids}]."""
+    import re, math
+    from collections import defaultdict
+    TOK = re.compile(r"[0-9a-zऀ-ॿ]+")
+
+    def _age(e):
+        try:
+            t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
+        except ValueError:
+            return 1e9
+        return max((now - t).total_seconds() / 3600.0, 0.0)
+
+    def _terms(e, field, stop):
+        # Titles only: they carry the topic densely, without the generic prose that floods
+        # summaries. Strip Devanagari danda/double-danda so Hindi words match stopwords.
+        text = str(e.get(field) or "").lower().replace("।", " ").replace("॥", " ")
+        toks = [w for w in TOK.findall(text) if len(w) > 2 and w not in stop and not w.isdigit()]
+        grams = set(toks)
+        for i in range(len(toks) - 1):
+            grams.add(toks[i] + " " + toks[i + 1])
+        return grams
+
+    def _rank(field, stop):
+        rec_ev, pri = defaultdict(set), defaultdict(int)
+        rec_total = pri_total = 0
+        for e in events:
+            age = _age(e)
+            if age <= 24:
+                rec_total += 1
+                for g in _terms(e, field, stop):
+                    rec_ev[g].add(e["id"])
+            elif age <= 72:
+                pri_total += 1
+                for g in _terms(e, field, stop):
+                    pri[g] += 1
+        rec_total, pri_total = max(rec_total, 1), max(pri_total, 1)
+        rows = []
+        for g, ids in rec_ev.items():
+            n = len(ids)
+            if n < 3:                                 # real cluster, not a one-off
+                continue
+            # LIFT = how much more common now than in the prior 24-72h window. Ever-present
+            # words (government, police) sit near 1 and drop out; genuine spikes rise.
+            recent_rate = n / rec_total
+            prior_rate = (pri.get(g, 0) + 0.5) / (pri_total + 1)
+            lift = recent_rate / prior_rate
+            if lift < 1.25:
+                continue
+            boost = 1.5 if " " in g else 1.0          # prefer informative bigrams
+            score = n * math.log(1.0 + lift) * boost
+            rows.append((g, n, round(score, 3), sorted(ids)))
+        rows.sort(key=lambda r: -r[2])
+        picked, seen = [], set()
+        for g, n, score, ids in rows:
+            if len(picked) >= 18:
+                break
+            ws = set(g.split())
+            if ws & seen:                             # collapse overlapping terms
+                continue
+            picked.append({"term": g, "count": n, "event_ids": ids[:80]})
+            seen |= ws
+        return picked
+
+    return {"en": _rank("title", _STOP_EN),
+            "hi": _rank("title_hi", _STOP_HI)}
+
+
 def main():
     init_db()
 
@@ -363,10 +479,14 @@ def main():
 
     def _row(e):
         d = _lighten(e)
-        d["importance"] = _importance(e, _now)   # NEW field; existing fields untouched
+        d["importance"] = _importance(e, _now)   # existing field; untouched, used elsewhere
+        d["feed_rank"] = _feed_rank(e, _now)      # feed-only recency-gated ordering (8h)
         return d
 
     write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in events]})
+
+    # Trending: descriptive keyword clusters mined from recent titles/summaries (EN + HI).
+    write_json(OUT / "data" / "trending.json", _trending(events, _now))
 
     # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
     # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of

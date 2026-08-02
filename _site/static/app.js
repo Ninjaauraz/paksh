@@ -665,7 +665,10 @@ async function apiGet(res) {
 }
 async function loadAll() {
   try {
-    const [e, b, tp, sr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources")]);
+    const [e, b, tp, sr, tr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources"), apiGet("trending").catch(() => ({
+      en: [],
+      hi: []
+    }))]);
     return {
       events: e.events || [],
       blindspots: b.events || [],
@@ -676,7 +679,11 @@ async function loadAll() {
       },
       topics: tp.topics || [],
       sources: sr.sources || [],
-      summary: sr.summary || {}
+      summary: sr.summary || {},
+      trending: tr || {
+        en: [],
+        hi: []
+      }
     };
   } catch (err) {
     console.error(err);
@@ -690,7 +697,11 @@ async function loadAll() {
       },
       topics: [],
       sources: [],
-      summary: {}
+      summary: {},
+      trending: {
+        en: [],
+        hi: []
+      }
     };
   }
 }
@@ -714,6 +725,7 @@ const toCard = (e, lang) => {
     sources: lc.left + lc.center + lc.right || e.total_sources || 0,
     international: e.international || 0,
     importance: typeof e.importance === "number" ? e.importance : 0,
+    feed_rank: typeof e.feed_rank === "number" ? e.feed_rank : typeof e.importance === "number" ? e.importance : 0,
     unrated: Math.max(0, (e.source_count || 0) - (lc.left + lc.center + lc.right) - (e.international || 0)),
     blindspot: e.blindspot ? e.blindspot.side : null,
     auto: e.summary_method === "extractive",
@@ -1265,7 +1277,16 @@ function LeadStory({
       letterSpacing: lang === "hi" ? 0 : "-0.022em",
       textWrap: "balance"
     }
-  }, story.headline), /*#__PURE__*/React.createElement("div", {
+  }, story.headline), story.img && /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 overflow-hidden"
+  }, /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "2 / 1",
+    t: t,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
     className: "mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8"
   }, story.lead && /*#__PURE__*/React.createElement("p", {
     className: `text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`,
@@ -1699,7 +1720,7 @@ function Header({
   go,
   view
 }) {
-  const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
+  const NAV = [["home", STR[lang].navTop], ["trending", lang === "hi" ? "ट्रेंडिंग" : "Trending"], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
   return /*#__PURE__*/React.createElement("div", {
     className: `sticky top-0 z-40 border-b ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -1758,7 +1779,7 @@ function BottomNav({
   view,
   go
 }) {
-  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["sources", STR[lang].navSrc, Globe], ["about", STR[lang].navMethod, Scale]];
+  const items = [["home", STR[lang].navTop, Layers], ["trending", lang === "hi" ? "ट्रेंडिंग" : "Trending", Sparkles], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["about", STR[lang].navMethod, Scale]];
   return /*#__PURE__*/React.createElement("nav", {
     className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -1806,17 +1827,17 @@ function Footer({
 }
 
 /* ---------------- HOME ---------------- */
-// Ad slot — a live Google AdSense unit when ADSENSE_CLIENT is set, otherwise a clean,
-// on-brand reserved space (hairline frame, paper-sunk, small "Advertisement" label) so
-// placements are visible without loading any ad script or cookie. Kept restrained to
-// preserve the design's calm — one per page, at natural breaks.
+// Ad slot — STRUCTURE ONLY until launch. The call sites (home / story / gaps / sources
+// / topic) mark where ads go, but with no ADSENSE_CLIENT this renders NOTHING: no box,
+// no label, no script, no cookie - zero footprint during review. Going live is the
+// one-line ADSENSE_CLIENT change (+ uncomment the loader in index.html), which turns
+// every reserved slot into a live responsive unit.
 function AdSlot({
   t,
   lang,
   slot,
   format,
-  h,
-  label
+  h
 }) {
   React.useEffect(() => {
     if (ADSENSE_CLIENT) {
@@ -1825,17 +1846,13 @@ function AdSlot({
       } catch (e) {}
     }
   }, []);
+  if (!ADSENSE_CLIENT) return null;
   return /*#__PURE__*/React.createElement("div", {
     className: `relative flex items-center justify-center overflow-hidden border ${t.border} ${t.soft}`,
     style: {
       minHeight: h || 250
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: ".24em"
-    }
-  }, label || (lang === "hi" ? "विज्ञापन" : "Advertisement")), ADSENSE_CLIENT && /*#__PURE__*/React.createElement("ins", {
+  }, /*#__PURE__*/React.createElement("ins", {
     className: "adsbygoogle",
     style: {
       display: "block",
@@ -1941,7 +1958,16 @@ function SectionCard({
       onOpen(story.id);
     },
     className: "block no-underline group cursor-pointer"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, story.img && /*#__PURE__*/React.createElement("div", {
+    className: "mb-3 overflow-hidden"
+  }, /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "16 / 9",
+    t: t,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -3352,6 +3378,86 @@ function PrivacyPage({
     h: "Changes"
   }, "We may update this policy from time to time; material changes will be reflected by the date shown above.")));
 }
+// Trending — descriptive, arithmetic keyword clusters (export_static._trending), ranked
+// by recent coverage + velocity. Tap a term to see the stories behind it. The terms are
+// just words actually recurring in recent headlines, never a curated cause.
+function TrendingPage({
+  terms,
+  events,
+  t,
+  lang,
+  open
+}) {
+  const list = lang === "hi" ? terms.hi || [] : terms.en || [];
+  const [sel, setSel] = useState(null);
+  const active = sel && list.some(x => x.term === sel.term) ? sel : list[0] || null;
+  const byId = useMemo(() => {
+    const m = new Map();
+    (events || []).forEach(e => m.set(e.id, e));
+    return m;
+  }, [events]);
+  const cards = useMemo(() => {
+    if (!active) return [];
+    return (active.event_ids || []).map(id => byId.get(id)).filter(Boolean).map(e => toCard(e, lang)).sort((a, b) => (b.sources || 0) - (a.sources || 0));
+  }, [active, byId, lang]);
+  const TermFace = ({
+    term,
+    on
+  }) => /*#__PURE__*/React.createElement("span", {
+    className: `headline text-[14px] ${lang === "hi" ? "read-hi" : "serif capitalize"}`
+  }, term);
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, lang === "hi" ? "ट्रेंडिंग" : "Trending"), /*#__PURE__*/React.createElement("p", {
+    className: `mb-6 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`
+  }, lang === "hi" ? "अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।" : "The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."), list.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2"
+  }, list.map(term => {
+    const on = active && active.term === term.term;
+    return /*#__PURE__*/React.createElement("button", {
+      key: term.term,
+      onClick: () => setSel(term),
+      className: `flex items-center gap-2 border px-3 py-1.5 ${on ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`}`
+    }, /*#__PURE__*/React.createElement(TermFace, {
+      term: term.term,
+      on: on
+    }), /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[11px] ${on ? "" : t.tf}`
+    }, term.count));
+  })), active && /*#__PURE__*/React.createElement("div", {
+    className: "mt-8"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mb-4 flex items-baseline gap-2 border-b pb-2 ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "इसका ज़िक्र करने वाली ख़बरें" : "Stories mentioning"), /*#__PURE__*/React.createElement(TermFace, {
+    term: active.term,
+    on: false
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[11px] ${t.tf}`
+  }, cards.length)), cards.length ? /*#__PURE__*/React.createElement(GridGrid, {
+    items: cards,
+    t: t,
+    lang: lang,
+    render: s => /*#__PURE__*/React.createElement(GridCard, {
+      key: s.id,
+      story: s,
+      t: t,
+      lang: lang,
+      onOpen: open
+    })
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: `py-16 text-center text-[13px] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].noStories))) : /*#__PURE__*/React.createElement("div", {
+    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
+  }, STR[lang].noStories));
+}
 function SearchPage({
   t,
   lang,
@@ -3460,7 +3566,7 @@ function parsePath() {
     view: "topic",
     topic: decodeURIComponent(seg[1])
   };
-  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy"].includes(seg[0])) return {
+  if (seg.length === 1 && ["trending", "blindspot", "topics", "sources", "about", "search", "contact", "privacy"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -3482,7 +3588,11 @@ function PakshApp() {
     },
     topics: [],
     sources: [],
-    summary: {}
+    summary: {},
+    trending: {
+      en: [],
+      hi: []
+    }
   });
   const [detail, setDetail] = useState({});
   const [ready, setReady] = useState(false);
@@ -3546,7 +3656,11 @@ function PakshApp() {
   // the pipeline (not here), carries no topic weighting, and is a plain field on each
   // event. The previous in-browser rank() with per-topic CIVIC weights was removed so
   // ordering is arithmetic and explainable. Ties fall back to newest-first.
-  const rank = c => typeof c.importance === "number" ? c.importance : 0;
+  // FRONT-PAGE ordering: recency-gated feed_rank (8h half-life, computed in
+  // export_static._feed_rank) so the feed leads with what's current. Falls back to
+  // importance if an older export hasn't written feed_rank yet. Sections/search/topic
+  // stay newest-first (below); the importance score used elsewhere is unchanged.
+  const rank = c => typeof c.feed_rank === "number" ? c.feed_rank : 0;
   const homeFilter = c => {
     if (HOME_EXCLUDE_TOPICS.includes(c.topic)) return false;
     const isWorld = (c.region || "India") === "World";
@@ -3610,6 +3724,15 @@ function PakshApp() {
     openTopic: goTopic
   }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
     t: t
+  }) : route.view === "trending" ? /*#__PURE__*/React.createElement(TrendingPage, {
+    terms: data.trending || {
+      en: [],
+      hi: []
+    },
+    events: data.events || [],
+    t: t,
+    lang: lang,
+    open: open
   }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {
     left: gapL,
     right: gapR,
