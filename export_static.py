@@ -362,6 +362,30 @@ def _precompile_jsx():
     print(f"  precompiled app.jsx -> app.js ({out.stat().st_size} bytes)")
 
 
+def _build_tailwind():
+    """Compile only the Tailwind utilities the app actually uses to a static
+    _site/static/tailwind.css with the vendored standalone CLI (it scans static/app.jsx +
+    index.html), replacing the runtime cdn.tailwindcss.com script. Fails LOUDLY if the CLI
+    is missing or the build errors, so an unstyled site is never published."""
+    import os
+    import subprocess
+    cli = ROOT / "vendor" / ("tailwindcss.exe" if os.name == "nt" else "tailwindcss")
+    cfg = ROOT / "tailwind.config.js"
+    inp = ROOT / "tailwind.input.css"
+    out = OUT / "static" / "tailwind.css"
+    if not cli.exists():
+        raise SystemExit("[export] missing vendor/tailwindcss (standalone CLI). Download v3:\n"
+                         "  https://github.com/tailwindlabs/tailwindcss/releases -> vendor/tailwindcss.exe")
+    try:
+        r = subprocess.run([str(cli), "-c", str(cfg), "-i", str(inp), "-o", str(out), "--minify"],
+                           cwd=str(ROOT), capture_output=True, text=True)
+    except FileNotFoundError:
+        raise SystemExit("[export] could not run the Tailwind CLI at " + str(cli))
+    if r.returncode != 0:
+        raise SystemExit("[export] Tailwind build failed:\n" + (r.stderr or r.stdout))
+    print(f"  built tailwind.css ({out.stat().st_size} bytes)")
+
+
 
 # Function words to ignore when mining trending terms - purely structural, no editorial
 # judgement. English + Hindi, plus a few news-generic words that aren't topics.
@@ -466,6 +490,7 @@ def main():
     # 1) the app shell + assets
     shutil.copytree(ROOT / "static", OUT / "static")
     _precompile_jsx()   # static/app.jsx -> _site/static/app.js (no Babel shipped to browser)
+    _build_tailwind()   # -> _site/static/tailwind.css (no cdn.tailwindcss.com at runtime)
     # the served shell: inject the real domain so canonical / OG / sitemap all agree.
     # Flip SITE_URL (above) when you cut over to paksh.news - nothing else to edit.
     host = SITE_URL.split("://", 1)[-1].rstrip("/")
