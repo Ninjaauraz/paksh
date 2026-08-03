@@ -362,6 +362,30 @@ def _precompile_jsx():
     print(f"  precompiled app.jsx -> app.js ({out.stat().st_size} bytes)")
 
 
+def _build_tailwind():
+    """Compile only the Tailwind utilities the app actually uses to a static
+    _site/static/tailwind.css with the vendored standalone CLI (it scans static/app.jsx +
+    index.html), replacing the runtime cdn.tailwindcss.com script. Fails LOUDLY if the CLI
+    is missing or the build errors, so an unstyled site is never published."""
+    import os
+    import subprocess
+    cli = ROOT / "vendor" / ("tailwindcss.exe" if os.name == "nt" else "tailwindcss")
+    cfg = ROOT / "tailwind.config.js"
+    inp = ROOT / "tailwind.input.css"
+    out = OUT / "static" / "tailwind.css"
+    if not cli.exists():
+        raise SystemExit("[export] missing vendor/tailwindcss (standalone CLI). Download v3:\n"
+                         "  https://github.com/tailwindlabs/tailwindcss/releases -> vendor/tailwindcss.exe")
+    try:
+        r = subprocess.run([str(cli), "-c", str(cfg), "-i", str(inp), "-o", str(out), "--minify"],
+                           cwd=str(ROOT), capture_output=True, text=True)
+    except FileNotFoundError:
+        raise SystemExit("[export] could not run the Tailwind CLI at " + str(cli))
+    if r.returncode != 0:
+        raise SystemExit("[export] Tailwind build failed:\n" + (r.stderr or r.stdout))
+    print(f"  built tailwind.css ({out.stat().st_size} bytes)")
+
+
 
 # Function words to ignore when mining trending terms - purely structural, no editorial
 # judgement. English + Hindi, plus a few news-generic words that aren't topics.
@@ -378,20 +402,50 @@ _STOP_HI = set((
     "के की का में से को है हैं था थे थी पर और या भी एक यह वह इस उस कि जो ने हो कर लिए साथ तक ही अब "
     "तो नहीं क्या जब तब कोई सब बाद पहले बीच दौरान होगा होगी गया गई गए रहे रही रहा हुई हुए हुआ लेकिन "
     "तथा एवं वाले वाली वाला अपने अपनी उनके उनकी इनके पास ओर बारे कहा भारत भारतीय पर बना रहा रही "
-    "करने खिलाफ आरोप उपाय रूप शामिल जिसमें द्वारा होने कारण").split())
+    "करने खिलाफ आरोप उपाय रूप शामिल जिसमें द्वारा होने कारण लॉन्च किया ध्यान केंद्रित बनाने शुरू "
+    "उठाए सवाल दिया लिया करते करता करती").split())
+
+# High-signal event types worth surfacing as a trend even as a single word (the user's
+# "earthquake / protests / crackdown / election" case). Generic words (kill/attack/claim)
+# stay OUT - proper nouns carry those stories instead.
+_EVENT_EN = set((
+    "earthquake quake aftershock flood floods flooding cyclone landslide drought heatwave "
+    "wildfire tsunami avalanche protest protests protesters strike shutdown bandh election "
+    "elections poll polls bypoll crackdown ceasefire verdict judgment budget referendum coup "
+    "sanctions tariffs recession inflation layoffs merger ban boycott blackout outage pandemic "
+    "outbreak curfew riots scam fraud").split())
+_EVENT_HI = set((
+    "भूकंप बाढ़ चक्रवात भूस्खलन सूखा प्रदर्शन विरोध हड़ताल चुनाव मतदान कार्रवाई युद्धविराम फैसला "
+    "बजट प्रतिबंध महामारी कर्फ्यू दंगा घोटाला हिमस्खलन").split())
+# Common English words used to reject sentence-initial capitals and generic terms when mining
+# proper nouns: the stopwords plus frequent news nouns/verbs. A capitalised word here is NOT
+# treated as a name (so "Building collapses..." doesn't make "Building" trend).
+_COMMON_EN = _STOP_EN | set((
+    "building buildings people person multiple several many few over after before during while "
+    "amid following man woman men women boy girl child killed kills kill dead death dies died "
+    "injured found arrest arrested held case cases report reports reported claim claims alleged "
+    "alleges government minister ministry official officials police court hearing meeting event "
+    "events group launch launches launched plan plans seeks meet meets visit visits addresses "
+    "slams hits sets faces urges announces announced approves approved passes passed clears "
+    "cleared gets actor actress star president chief head leader bomb blast fire shooting attack "
+    "security army forces restaurant hotel city state country nation world live update latest "
+    "video watch photos sparks spark near across among huge major minor big small top "
+    "january february march april june july august september october november december husband "
+    "wife bail grants grant leaves leave gets get amid over sees seen backs back set").split())
 
 
 def _trending(events, now):
-    """Descriptive, ARITHMETIC trending terms - never a curated cause. Mines the recurring
-    words / bigrams actually present in recent event titles + summaries (English and Hindi
-    SEPARATELY), drops function words + bare numbers, and ranks by recent weighted coverage
-    and velocity (recent vs the prior window). A term qualifies only if it appears in >=3
-    distinct recent events, so it is a real cluster and not a one-off. Bigrams are preferred
-    over their component words, and overlapping terms are collapsed, so the list reads as
-    distinct topics. Returns {"en":[...], "hi":[...]}, each [{term, count, event_ids}]."""
+    """Descriptive, ARITHMETIC trending TOPICS - never a curated cause. From RECENT event
+    TITLES it mines named entities (capitalised runs / acronyms in English) plus a curated
+    set of high-signal event types (earthquake, floods, election, protest...), then ranks by
+    how much a term spiked vs the prior 24-72h window (lift). Generic verbs/nouns are
+    excluded, so the list reads like real topics a reader browses, not filler. Split by
+    region into national (India) and international (World). Bilingual (EN + HI).
+    Returns {national:{en:[...],hi:[...]}, international:{en:[...],hi:[...]}}."""
     import re, math
     from collections import defaultdict
-    TOK = re.compile(r"[0-9a-zऀ-ॿ]+")
+    WORD = re.compile(r"[A-Za-z][A-Za-z&'.-]*")
+    HTOK = re.compile(r"[ऀ-ॿ]+")
 
     def _age(e):
         try:
@@ -400,59 +454,93 @@ def _trending(events, now):
             return 1e9
         return max((now - t).total_seconds() / 3600.0, 0.0)
 
-    def _terms(e, field, stop):
-        # Titles only: they carry the topic densely, without the generic prose that floods
-        # summaries. Strip Devanagari danda/double-danda so Hindi words match stopwords.
-        text = str(e.get(field) or "").lower().replace("।", " ").replace("॥", " ")
-        toks = [w for w in TOK.findall(text) if len(w) > 2 and w not in stop and not w.isdigit()]
-        grams = set(toks)
-        for i in range(len(toks) - 1):
-            grams.add(toks[i] + " " + toks[i + 1])
-        return grams
+    def _proper(w):
+        # A name: an all-caps acronym (US, UN, BJP, NEET, GST) or a capitalised word whose
+        # lowercase isn't a common / sentence-initial word.
+        if w.isupper() and 2 <= len(w) <= 6:
+            return True
+        return w[0].isupper() and len(w) > 2 and w.lower() not in _COMMON_EN
 
-    def _rank(field, stop):
-        rec_ev, pri = defaultdict(set), defaultdict(int)
+    def terms_en(title):
+        low = (title or "").lower()
+        out = []
+        for kw in _EVENT_EN:
+            if re.search(r"\b" + re.escape(kw) + r"\b", low):
+                out.append((kw, kw))
+        words = WORD.findall(title or "")
+        i, nA = 0, len(words)
+        while i < nA:
+            if _proper(words[i]):
+                phrase = [words[i]]; j = i + 1
+                while j < nA:
+                    if _proper(words[j]):
+                        phrase.append(words[j]); j += 1
+                    elif words[j].lower() in ("and", "of", "&") and j + 1 < nA and _proper(words[j + 1]):
+                        phrase.append(words[j]); phrase.append(words[j + 1]); j += 2
+                    else:
+                        break
+                disp = " ".join(phrase)
+                out.append((disp.lower(), disp))       # (norm for counting, display keeps case)
+                i = j
+            else:
+                i += 1
+        return out
+
+    def terms_hi(title):
+        text = (title or "").replace("।", " ").replace("॥", " ")
+        toks = [w for w in HTOK.findall(text) if len(w) > 2 and w not in _STOP_HI]
+        out = [(w, w) for w in toks if w in _EVENT_HI]
+        for i in range(len(toks) - 1):                # entities show up as bigrams in Devanagari
+            g = toks[i] + " " + toks[i + 1]
+            out.append((g, g))
+        return out
+
+    def rank(subset, field, extract):
+        rec_ev, pri, disp = defaultdict(set), defaultdict(int), {}
         rec_total = pri_total = 0
-        for e in events:
+        for e in subset:
             age = _age(e)
             if age <= 24:
                 rec_total += 1
-                for g in _terms(e, field, stop):
-                    rec_ev[g].add(e["id"])
+                for norm, d in extract(str(e.get(field) or "")):
+                    rec_ev[norm].add(e["id"]); disp.setdefault(norm, d)
             elif age <= 72:
                 pri_total += 1
-                for g in _terms(e, field, stop):
-                    pri[g] += 1
+                for norm, d in extract(str(e.get(field) or "")):
+                    pri[norm] += 1
         rec_total, pri_total = max(rec_total, 1), max(pri_total, 1)
         rows = []
-        for g, ids in rec_ev.items():
+        for norm, ids in rec_ev.items():
             n = len(ids)
-            if n < 3:                                 # real cluster, not a one-off
+            if n < 2:                                  # real cluster, not a one-off
                 continue
-            # LIFT = how much more common now than in the prior 24-72h window. Ever-present
-            # words (government, police) sit near 1 and drop out; genuine spikes rise.
             recent_rate = n / rec_total
-            prior_rate = (pri.get(g, 0) + 0.5) / (pri_total + 1)
-            lift = recent_rate / prior_rate
-            if lift < 1.25:
+            prior_rate = (pri.get(norm, 0) + 0.5) / (pri_total + 1)
+            lift = recent_rate / prior_rate            # spike vs the prior window
+            if lift < 1.15:
                 continue
-            boost = 1.5 if " " in g else 1.0          # prefer informative bigrams
-            score = n * math.log(1.0 + lift) * boost
-            rows.append((g, n, round(score, 3), sorted(ids)))
+            multi = 1.4 if " " in norm else 1.0        # prefer multi-word entities
+            score = n * math.log(1.0 + lift) * multi
+            rows.append((norm, n, score, sorted(ids)))
         rows.sort(key=lambda r: -r[2])
         picked, seen = [], set()
-        for g, n, score, ids in rows:
-            if len(picked) >= 18:
+        for norm, n, score, ids in rows:
+            if len(picked) >= 15:
                 break
-            ws = set(g.split())
-            if ws & seen:                             # collapse overlapping terms
+            ws = set(norm.split())
+            if ws & seen:                              # collapse overlapping terms
                 continue
-            picked.append({"term": g, "count": n, "event_ids": ids[:80]})
+            picked.append({"term": disp.get(norm, norm), "count": n, "event_ids": ids[:80]})
             seen |= ws
         return picked
 
-    return {"en": _rank("title", _STOP_EN),
-            "hi": _rank("title_hi", _STOP_HI)}
+    def block(subset):
+        return {"en": rank(subset, "title", terms_en),
+                "hi": rank(subset, "title_hi", terms_hi)}
+
+    natl = [e for e in events if (e.get("region") or "India") != "World"]
+    intl = [e for e in events if (e.get("region") or "India") == "World"]
+    return {"national": block(natl), "international": block(intl)}
 
 
 def main():
@@ -466,6 +554,7 @@ def main():
     # 1) the app shell + assets
     shutil.copytree(ROOT / "static", OUT / "static")
     _precompile_jsx()   # static/app.jsx -> _site/static/app.js (no Babel shipped to browser)
+    _build_tailwind()   # -> _site/static/tailwind.css (no cdn.tailwindcss.com at runtime)
     # the served shell: inject the real domain so canonical / OG / sitemap all agree.
     # Flip SITE_URL (above) when you cut over to paksh.news - nothing else to edit.
     host = SITE_URL.split("://", 1)[-1].rstrip("/")

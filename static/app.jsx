@@ -180,9 +180,10 @@ const {useState,useEffect,useMemo}=React;
     function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
     async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
-      try { const [e,b,tp,sr,tr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources"),apiGet("trending").catch(()=>({en:[],hi:[]}))]);
-        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, trending:tr||{en:[],hi:[]}}; }
-      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:{en:[],hi:[]}}; }
+      const EMPTY_TREND={national:{en:[],hi:[]},international:{en:[],hi:[]}};
+      try { const [e,b,tp,sr,tr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources"),apiGet("trending").catch(()=>EMPTY_TREND)]);
+        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, trending:tr||EMPTY_TREND}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:EMPTY_TREND}; }
     }
 
     const toCard = (e, lang) => {
@@ -1252,7 +1253,8 @@ const {useState,useEffect,useMemo}=React;
     // by recent coverage + velocity. Tap a term to see the stories behind it. The terms are
     // just words actually recurring in recent headlines, never a curated cause.
     function TrendingPage({ terms, events, t, lang, open }) {
-      const list = (lang==="hi" ? (terms.hi||[]) : (terms.en||[]));
+      const [region,setRegion]=useState("national");
+      const list = (((terms||{})[region]||{})[lang]) || [];
       const [sel,setSel]=useState(null);
       const active = (sel && list.some(x=>x.term===sel.term)) ? sel : (list[0]||null);
       const byId = useMemo(()=>{ const m=new Map(); (events||[]).forEach(e=>m.set(e.id,e)); return m; },[events]);
@@ -1267,6 +1269,11 @@ const {useState,useEffect,useMemo}=React;
         <PageWrap>
           <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?"ट्रेंडिंग":"Trending"}</h1>
           <p className={`mb-6 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{lang==="hi"?"अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।":"The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."}</p>
+          <div className="mb-6 flex gap-2">
+            {[["national",lang==="hi"?"राष्ट्रीय":"National"],["international",lang==="hi"?"अंतरराष्ट्रीय":"International"]].map(([k,label])=>(
+              <button key={k} onClick={()=>{setRegion(k);setSel(null);}} className={`border px-3.5 py-1.5 eyebrow ${region===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{label}</button>
+            ))}
+          </div>
           {list.length ? <>
             <div className="flex flex-wrap gap-2">
               {list.map(term=>{ const on=active&&active.term===term.term;
@@ -1334,7 +1341,7 @@ const {useState,useEffect,useMemo}=React;
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
-      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:{en:[],hi:[]}});
+      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:{national:{en:[],hi:[]},international:{en:[],hi:[]}}});
       const [detail,setDetail]=useState({});
       const [ready,setReady]=useState(false);
 

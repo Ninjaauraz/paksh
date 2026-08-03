@@ -664,11 +664,18 @@ async function apiGet(res) {
   return r.json();
 }
 async function loadAll() {
-  try {
-    const [e, b, tp, sr, tr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources"), apiGet("trending").catch(() => ({
+  const EMPTY_TREND = {
+    national: {
       en: [],
       hi: []
-    }))]);
+    },
+    international: {
+      en: [],
+      hi: []
+    }
+  };
+  try {
+    const [e, b, tp, sr, tr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources"), apiGet("trending").catch(() => EMPTY_TREND)]);
     return {
       events: e.events || [],
       blindspots: b.events || [],
@@ -680,10 +687,7 @@ async function loadAll() {
       topics: tp.topics || [],
       sources: sr.sources || [],
       summary: sr.summary || {},
-      trending: tr || {
-        en: [],
-        hi: []
-      }
+      trending: tr || EMPTY_TREND
     };
   } catch (err) {
     console.error(err);
@@ -698,10 +702,7 @@ async function loadAll() {
       topics: [],
       sources: [],
       summary: {},
-      trending: {
-        en: [],
-        hi: []
-      }
+      trending: EMPTY_TREND
     };
   }
 }
@@ -3388,7 +3389,8 @@ function TrendingPage({
   lang,
   open
 }) {
-  const list = lang === "hi" ? terms.hi || [] : terms.en || [];
+  const [region, setRegion] = useState("national");
+  const list = ((terms || {})[region] || {})[lang] || [];
   const [sel, setSel] = useState(null);
   const active = sel && list.some(x => x.term === sel.term) ? sel : list[0] || null;
   const byId = useMemo(() => {
@@ -3413,7 +3415,19 @@ function TrendingPage({
     }
   }, lang === "hi" ? "ट्रेंडिंग" : "Trending"), /*#__PURE__*/React.createElement("p", {
     className: `mb-6 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`
-  }, lang === "hi" ? "अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।" : "The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."), list.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।" : "The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."), /*#__PURE__*/React.createElement("div", {
+    className: "mb-6 flex gap-2"
+  }, [["national", lang === "hi" ? "राष्ट्रीय" : "National"], ["international", lang === "hi" ? "अंतरराष्ट्रीय" : "International"]].map(([k, label]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => {
+      setRegion(k);
+      setSel(null);
+    },
+    className: `border px-3.5 py-1.5 eyebrow ${region === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, label))), list.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2"
   }, list.map(term => {
     const on = active && active.term === term.term;
@@ -3590,8 +3604,14 @@ function PakshApp() {
     sources: [],
     summary: {},
     trending: {
-      en: [],
-      hi: []
+      national: {
+        en: [],
+        hi: []
+      },
+      international: {
+        en: [],
+        hi: []
+      }
     }
   });
   const [detail, setDetail] = useState({});
