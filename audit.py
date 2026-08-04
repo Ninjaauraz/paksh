@@ -23,6 +23,7 @@ import html as _html
 
 import sources
 import database
+from analyze import has_framing, MIN_SIDE_OWNERS
 
 LEANS = [("left", "Lean Left"), ("center", "Centre"), ("right", "Lean Right")]
 
@@ -86,8 +87,11 @@ def gather_framing_flags(days):
         cov = e.get("coverage", {})
         fr = e.get("framing") or {}
         covered = [s for s, _ in LEANS if cov.get(s, {}).get("count", 0) > 0]
-        framed = [s for s, _ in LEANS if (fr.get(s) or "").strip()]
-        missing = [s for s in covered if s not in framed]
+        framed = [s for s, _ in LEANS if has_framing(fr.get(s))]
+        # Only flag a side as "missing" if it has enough unique coverage to warrant a
+        # summary (>= MIN_SIDE_OWNERS owners); a lone-outlet side is expected to be blank.
+        missing = [s for s in covered if s not in framed
+                   and cov.get(s, {}).get("count", 0) >= MIN_SIDE_OWNERS]
         if len(covered) >= 2 and missing:
             flags.append({
                 "id": eid, "title": e.get("title", ""),

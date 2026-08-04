@@ -106,7 +106,7 @@ const {useState,useEffect,useMemo}=React;
         autoNote:"This headline comes straight from a covering outlet - a neutral Paksh summary is being prepared.",
         unratedTitle:"Unrated outlets", unratedNote:"Outlets we found covering this story but don't rate yet - they add coverage but don't affect the bias bar.",
         intlTitle:"International coverage", intlNote:"Foreign wire services (Reuters, AP, BBC…) covering this story - they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
-        framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises - based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.",
+        framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises - based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.", framingThin:"Not enough unique coverage to create a summary.",
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
@@ -150,7 +150,7 @@ const {useState,useEffect,useMemo}=React;
         autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है - पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
         unratedTitle:"बिना रेटिंग वाले आउटलेट", unratedNote:"ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं - ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
         intlTitle:"अंतरराष्ट्रीय कवरेज", intlNote:"इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…) - ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
-        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण - एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
+        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण - एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।", framingThin:"सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
@@ -884,7 +884,11 @@ const {useState,useEffect,useMemo}=React;
         : `${total} outlets · ${vc.left} left · ${vc.center} centre · ${vc.right} right · ${timeAgo(story.created_at,lang)}`;
       const ATab=({k,n})=>{ const on=atab===k; const lab=k==="all"?(lang==="hi"?"सभी":"All"):lbl(k,lang);
         return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"?t.ink:(k==="center"?t.ink:BIAS[k]&&BIAS[k].color)):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
-      const sides=["left","center","right"].filter(k=> fr[k] || counts[k]>0);
+      const frLen=(v)=>Array.isArray(v)?v.length:(typeof v==="string"&&v.trim()?1:0);
+      const sides=["left","center","right"].filter(k=> frLen(fr[k])>0 || counts[k]>0);
+      // Distinguish "this story isn't analysed yet" (all sides blank -> pending) from a side
+      // that simply lacks enough unique coverage (some side has a summary, this one doesn't).
+      const anyFraming=sides.some(k=>frLen(fr[k])>0);
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-6">
           {/* secondary bar: back · breadcrumb · share */}
@@ -945,9 +949,13 @@ const {useState,useEffect,useMemo}=React;
                       <span className={`text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
                       <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"स्रोत":(counts[k]===1?"outlet":"outlets")}</span>
                     </div>
-                    {fr[k]
-                      ? <p className={`mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.62}}>{fr[k]}</p>
-                      : <p className={`mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{STR[lang].framingPending}</p>}
+                    {Array.isArray(fr[k]) && fr[k].length
+                      ? <ul className="mt-3.5 space-y-2">{fr[k].map((p,i)=>(
+                          <li key={i} className={`flex gap-2 text-[14px] md:text-[14.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>
+                            <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full" style={{background:BIAS[k].color}}/>{p}</li>))}</ul>
+                      : (typeof fr[k]==="string" && fr[k].trim())
+                        ? <p className={`mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.62}}>{fr[k]}</p>
+                        : <p className={`mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{anyFraming?STR[lang].framingThin:STR[lang].framingPending}</p>}
                   </div>
                 </div>
               ))}

@@ -31,15 +31,10 @@ raw = {
     "title_hi": "तटस्थ शीर्षक", "summary_hi": "एक तटस्थ वाक्य।",
     "summary_points_hi": ["बिंदु एक", "बिंदु दो"],
     "topic": "Politics",
-    "sources": [
-        {"source": "the hindu", "headline": "Hindu head", "framing": "f-left",
-         "tone": "critical", "notable_language": ["sweeping"]},          # lowercase name
-        {"source": "OpIndia", "headline": "OI head", "framing": "f-right",
-         "tone": "supportive", "notable_language": []},
-        # Amar Ujala intentionally omitted by the model
-    ],
-    "sides": {"left": "left framing", "center": "center framing", "right": "right framing"},
-    "divergence": "they differ", "omissions": "some omit X",
+    # per-side framing is now a LIST of bullet points (Ground-News style)
+    "framing": {"left": ["left bullet a", "left bullet b"],
+                "center": ["center bullet"], "right": ["right bullet"]},
+    "framing_hi": {"left": ["वाम बिंदु"], "center": ["केंद्र बिंदु"], "right": ["दक्षिण बिंदु"]},
 }
 out = analyze.postprocess(raw, articles)
 cov = out["coverage"]
@@ -47,16 +42,28 @@ cov = out["coverage"]
 # lean comes from sources.py: Hindu=left, OpIndia=right, Amar Ujala=center
 assert (cov["left"]["count"], cov["center"]["count"], cov["right"]["count"]) == (1, 1, 1), cov
 assert cov["left"]["sources"] == ["The Hindu"] and cov["right"]["sources"] == ["OpIndia"]
-assert cov["center"]["framing"] == "center framing"
+# each side has only ONE owner here (< MIN_SIDE_OWNERS), so no side gets a synthesised
+# summary - _clean_framing drops them all and the UI shows "not enough unique coverage".
+assert out["framing"] == {} and out["framing_hi"] == {}, out["framing"]
 assert out["total_sources"] == 3 and out["degraded"] is False
 assert out["image_url"] == "https://img/1.jpg"                 # first article with an image
 
 byname = {s["source"]: s for s in out["sources"]}
-assert byname["The Hindu"]["framing"] == "f-left" and byname["The Hindu"]["tone"] == "critical"   # case-insensitive match
-assert byname["Amar Ujala"]["framing"] == "" and byname["Amar Ujala"]["headline"] == "हिंदी शीर्षक तीन"  # omitted -> safe defaults
+assert byname["The Hindu"]["lean"] == "left" and byname["OpIndia"]["lean"] == "right"   # case-insensitive match
+assert byname["Amar Ujala"]["lean"] == "center" and byname["Amar Ujala"]["headline"] == "हिंदी शीर्षक तीन"
 assert out["title_hi"] == "तटस्थ शीर्षक" and out["summary_points_hi"] == ["बिंदु एक", "बिंदु दो"]
 print("postprocess (healthy): coverage from our config, bilingual fields, "
-      "case-insensitive source match, hero image ... OK")
+      "per-side framing gated by unique-coverage threshold, hero image ... OK")
+
+# ---- 2b) _clean_framing: list/string normalisation + unique-coverage threshold ----
+cov2 = {"left": {"count": 3}, "center": {"count": 1}, "right": {"count": 2}}
+cf = analyze._clean_framing(
+    {"left": ["a", " b ", "", 5], "center": ["dropped - lone owner"], "right": "legacy string"},
+    cov2)
+assert cf == {"left": ["a", "b"], "right": ["legacy string"]}, cf   # center dropped; string wrapped
+assert analyze.has_framing(["", "  "]) is False and analyze.has_framing(["x"]) is True
+assert analyze.has_framing("") is False and analyze.has_framing("y") is True
+print("_clean_framing: bullets kept, lone-owner side dropped, legacy string wrapped ... OK")
 
 # ---- 3) topic validation ----
 assert analyze.postprocess({**raw, "topic": "Nonsense"}, articles)["topic"] == "Society"

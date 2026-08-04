@@ -345,24 +345,22 @@ STRICT NEUTRALITY - never cross these:
 - The neutral title and summary must not adopt any outlet's loaded words or framing,
   and must NOT name individual publications - describe the event, not who reported it.
 
-FRAMING - concrete and specific, per side:
-- For EACH lean, name the SPECIFIC claim, angle or emphasis that side's outlets
-  foreground - the concrete thing they lead with, stress or repeat - WITH the reason
-  or detail they cite. Model the form on:
-    "Right-leaning outlets framed the funding row as a national-security concern,
-     stressing the foreign-donation angle and the demand for an audit."
-    "Left-leaning coverage foregrounded the crackdown on protesters, highlighting
-     detentions and alleging suppression of dissent."
-  NOT vague ("outlets emphasised different aspects", "focused on the health situation").
-- Refer to each side COLLECTIVELY ("Left-leaning outlets...", "Centrist coverage...",
-  "Right-leaning outlets..."). Never name, quote or single out any publication by name.
-- Give more than one concrete detail per side where the coverage supports it (2-4
-  sentences). If outlets on one side diverge, capture the common thread and note the split.
-- If a side genuinely did NOT frame the story distinctively - if its coverage just
-  tracks the neutral facts - SAY SO plainly (e.g. "Centrist coverage largely reported
-  the events without a distinct frame"). Do NOT manufacture a difference not in the text.
-- Describe ONLY what is visible in the headlines/summaries below; do not invent positions.
-  If a lean has no outlet in the coverage, set its framing to an empty string.
+FRAMING - a per-side BULLET SUMMARY (like Ground News), concrete and specific:
+- For EACH lean, write 3-5 SHORT bullet points describing how that side's outlets
+  COLLECTIVELY cover the story: the specific claims, angles, numbers, names and emphases
+  they lead with, stress or repeat. Each bullet is ONE crisp point WITH the detail cited.
+- Model the substance (not the length) on:
+    "Framed the funding row as a national-security concern, stressing the foreign-donation angle."
+    "Repeated the opposition's demand for a court-monitored audit."
+  NOT vague ("emphasised different aspects", "focused on the situation").
+- Refer to each side COLLECTIVELY ("...outlets"). Never name, quote or single out any
+  publication by name in a bullet.
+- Draw ONLY on the headlines/summaries below; never invent a position, number, quote,
+  cause or consequence. Attribute contested claims to who makes them.
+- If a side's coverage just tracks the neutral facts with no distinct frame, say so in a
+  SINGLE bullet (e.g. "Largely reported the events without a distinct frame"). Do NOT
+  manufacture a difference that is not in the text.
+- If a lean has no outlet in the coverage, set its framing to an empty array [].
 
 Write ENGLISH first, then a faithful, natural HINDI translation of every field.
 
@@ -375,11 +373,11 @@ Return ONLY a JSON object with these keys:
   "summary_hi": "Hindi translation of the summary",
   "summary_points_hi": ["Hindi translations of the points, same order"],
   "framing": {{
-    "left": "2-4 sentences naming the specific claim/emphasis left-leaning outlets foreground and the detail they cite; collective, no outlet named; empty string if no left outlet; say plainly if there is no distinct frame",
-    "center": "2-4 sentences on how centrist coverage collectively frames it, same rules; empty string if none",
-    "right": "2-4 sentences on how right-leaning outlets collectively frame it, same rules; empty string if none"
+    "left": ["3-5 short bullet points on how left-leaning outlets collectively cover it; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
+    "center": ["3-5 short bullets on how centrist coverage collectively frames it, same rules; [] if none"],
+    "right": ["3-5 short bullets on how right-leaning outlets collectively frame it, same rules; [] if none"]
   }},
-  "framing_hi": {{ "left": "Hindi of left", "center": "Hindi of center", "right": "Hindi of right" }},
+  "framing_hi": {{ "left": ["Hindi bullets, same order"], "center": ["Hindi bullets"], "right": ["Hindi bullets"] }},
   "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention.",
   "region": "India or World - 'India' if the story is primarily about India or has a direct India angle (Indian people, government, economy, society, courts, prices, sport teams); 'World' if it is mainly about events in other countries"
 }}
@@ -389,17 +387,42 @@ COVERAGE:
 """
 
 
+# A side needs at least this many DISTINCT OWNERS (the same "unique coverage" the bias bar
+# counts) before we synthesise its bullet summary. Below it, the UI shows "Not enough unique
+# coverage to create a summary" for that side - so a lone outlet never stands in for a whole
+# wing, and a genuine blindspot reads as one. Editorial knob: raise/lower to taste.
+MIN_SIDE_OWNERS = 2
+
 def _clean_framing(raw_framing, coverage):
-    """Keep per-side framing ONLY for leans that actually have outlets covering
-    the story, so the model can't fabricate a side's framing out of nothing."""
+    """Normalise per-side framing to a LIST of clean bullet points, and keep a side ONLY
+    when it has enough unique coverage (>= MIN_SIDE_OWNERS distinct owners). This stops the
+    model fabricating a side's framing out of nothing and stops one outlet speaking for a
+    whole wing. Accepts either a list of bullets (preferred) or a legacy string (wrapped)."""
     fr = raw_framing if isinstance(raw_framing, dict) else {}
     out = {}
     for side in LEAN_ORDER:
-        txt = fr.get(side)
-        txt = txt.strip() if isinstance(txt, str) else ""
-        if txt and coverage.get(side, {}).get("count", 0) > 0:
-            out[side] = txt[:700]   # was 500; richer 2-4 sentence framing needs headroom
+        if coverage.get(side, {}).get("count", 0) < MIN_SIDE_OWNERS:
+            continue
+        val = fr.get(side)
+        if isinstance(val, list):
+            bullets = [b.strip() for b in val if isinstance(b, str) and b.strip()]
+        elif isinstance(val, str):
+            bullets = [val.strip()] if val.strip() else []
+        else:
+            bullets = []
+        bullets = [b[:400] for b in bullets][:6]   # cap bullet length + count
+        if bullets:
+            out[side] = bullets
     return out
+
+
+def has_framing(value) -> bool:
+    """True if a per-side framing value carries real text. Tolerates BOTH the current
+    list-of-bullets shape and the legacy single-string shape, so every consumer
+    (reframe/audit/stats) can test emptiness without crashing on the other shape."""
+    if isinstance(value, list):
+        return any(isinstance(x, str) and x.strip() for x in value)
+    return bool(isinstance(value, str) and value.strip())
 
 
 def postprocess(raw, articles) -> dict:

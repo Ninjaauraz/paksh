@@ -37,18 +37,21 @@ import argparse
 from database import (
     init_db, get_all_events, get_event, get_event_articles, update_event,
 )
-from analyze import analyze_event
+from analyze import analyze_event, has_framing, MIN_SIDE_OWNERS
 
 SIDES = ("left", "center", "right")
 
 
 def _missing_sides(ev):
-    """Leans that HAVE coverage but NO framing text - the sides to rescue."""
+    """Leans with ENOUGH unique coverage (>= MIN_SIDE_OWNERS distinct owners) but no
+    framing - the sides worth rescuing. A side below that threshold is EXPECTED to be
+    blank (the UI shows 'not enough unique coverage'), so it is not counted as missing -
+    otherwise reframe would loop forever on lone-outlet sides it can never fill."""
     cov = ev.get("coverage") or {}
     fr = ev.get("framing") or {}
     return [s for s in SIDES
-            if (cov.get(s) or {}).get("count", 0) > 0
-            and not (fr.get(s) or "").strip()]
+            if (cov.get(s) or {}).get("count", 0) >= MIN_SIDE_OWNERS
+            and not has_framing(fr.get(s))]
 
 
 def _lean_counts(ev):
@@ -144,7 +147,7 @@ def main():
             continue
         analysis = analyze_event(rows)             # fixed build_prompt + framing prompt
         new_fr = analysis.get("framing") or {}
-        filled = [s for s in want if (new_fr.get(s) or "").strip()]
+        filled = [s for s in want if has_framing(new_fr.get(s))]
         if not filled:
             # LLM produced no framing for the missing side(s) - do NOT overwrite a good
             # brief with an empty/extractive one. Most common cause: backend not running.

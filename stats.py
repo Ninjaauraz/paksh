@@ -23,6 +23,7 @@ from pathlib import Path
 
 from database import init_db, get_connection, LEAN_ORDER
 from sources import coverage_summary
+from analyze import has_framing, MIN_SIDE_OWNERS
 
 SIDES = LEAN_ORDER  # ["left", "center", "right"] - the sides that vote in the bias bar
 
@@ -33,11 +34,11 @@ def _lean_counts(data):
 
 
 def _has_empty_framing(data):
-    """A side the event actually covers, but whose framing text is blank -
-    exactly what reframe.py looks for."""
+    """A side with enough unique coverage (>= MIN_SIDE_OWNERS owners) but blank framing -
+    exactly what reframe.py looks for. Sides below the threshold are meant to be blank."""
     cov = data.get("coverage") or {}
     fr = data.get("framing") or {}
-    return any((cov.get(s) or {}).get("count", 0) > 0 and not (fr.get(s) or "").strip()
+    return any((cov.get(s) or {}).get("count", 0) >= MIN_SIDE_OWNERS and not has_framing(fr.get(s))
                for s in SIDES)
 
 

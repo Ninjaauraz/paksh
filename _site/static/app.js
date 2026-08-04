@@ -522,6 +522,7 @@ const STR = {
     framingTitle: "How each side is framing it",
     framingSub: "A neutral read of what each side's coverage emphasises - based on the headlines collected, not opinion.",
     framingPending: "The side-by-side framing comparison appears once a full summary is generated for this story.",
+    framingThin: "Not enough unique coverage to create a summary.",
     sideBySide: "Side by Side",
     coverageBreakdown: "Coverage Breakdown",
     totalSources: "Total news sources",
@@ -603,6 +604,7 @@ const STR = {
     framingTitle: "हर पक्ष इसे कैसे पेश कर रहा है",
     framingSub: "हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण - एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
     framingPending: "इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
+    framingThin: "सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
     sideBySide: "आमने-सामने",
     coverageBreakdown: "कवरेज का ब्यौरा",
     totalSources: "कुल समाचार स्रोत",
@@ -2506,7 +2508,11 @@ function StoryPage({
       className: `mono text-[11px] ${on ? t.ts : t.tf}`
     }, n));
   };
-  const sides = ["left", "center", "right"].filter(k => fr[k] || counts[k] > 0);
+  const frLen = v => Array.isArray(v) ? v.length : typeof v === "string" && v.trim() ? 1 : 0;
+  const sides = ["left", "center", "right"].filter(k => frLen(fr[k]) > 0 || counts[k] > 0);
+  // Distinguish "this story isn't analysed yet" (all sides blank -> pending) from a side
+  // that simply lacks enough unique coverage (some side has a summary, this one doesn't).
+  const anyFraming = sides.some(k => frLen(fr[k]) > 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-6"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2682,14 +2688,27 @@ function StoryPage({
     className: `text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, lbl(k, lang)), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, counts[k], " ", lang === "hi" ? "स्रोत" : counts[k] === 1 ? "outlet" : "outlets")), fr[k] ? /*#__PURE__*/React.createElement("p", {
+  }, counts[k], " ", lang === "hi" ? "स्रोत" : counts[k] === 1 ? "outlet" : "outlets")), Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("ul", {
+    className: "mt-3.5 space-y-2"
+  }, fr[k].map((p, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    className: `flex gap-2 text-[14px] md:text-[14.5px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.7 : 1.55
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full",
+    style: {
+      background: BIAS[k].color
+    }
+  }), p))) : typeof fr[k] === "string" && fr[k].trim() ? /*#__PURE__*/React.createElement("p", {
     className: `mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`,
     style: {
       lineHeight: lang === "hi" ? 1.75 : 1.62
     }
   }, fr[k]) : /*#__PURE__*/React.createElement("p", {
     className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
-  }, STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
+  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
   }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
