@@ -17,8 +17,20 @@ LEAN_ORDER = ["left", "center", "right"]
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    # timeout=30: without a busy-timeout, the moment ANOTHER process holds the write lock
+    # (reframe/analyze/live all touch paksh.db), the very next commit raises
+    # "database is locked" instantly. This makes a would-be writer WAIT up to 30s instead.
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
+    # WAL lets many readers coexist with one writer; busy_timeout backs up the connect
+    # timeout; synchronous=NORMAL is safe under WAL and faster. Wrapped because the DB may
+    # itself be momentarily locked at connect time - the PRAGMAs then apply on a later call.
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 
