@@ -38,7 +38,7 @@ OUT = ROOT / "_site"
 SITE_URL = "https://paksh.vercel.app"
 SRC_FIELDS = ("id", "name", "language", "region", "website", "ownership", "owner", "lean", "label",
               "confidence", "contested", "review_status", "last_reviewed",
-              "rationale", "subscores")
+              "rationale", "subscores", "axes")
 
 
 def write_json(path: Path, obj):
@@ -573,9 +573,6 @@ def main():
         return d
 
     write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in events]})
-
-    # Trending: descriptive keyword clusters mined from recent titles/summaries (EN + HI).
-    write_json(OUT / "data" / "trending.json", _trending(events, _now))
 
     # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
     # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of

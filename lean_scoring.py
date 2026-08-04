@@ -34,6 +34,14 @@ DIMENSIONS = [
 ]
 WEIGHTS = {k: w for k, _label, w in DIMENSIONS}
 
+# Editorial granular axes for 3-bar/radar UI visualizations
+# Values are 0-100 scales for plotting fine-grained tendencies.
+EDITORIAL_AXES = {
+    "secular_authoritative": "Secular vs. Authoritative",
+    "market_orientation": "Market Orientation",
+    "incumbent_stance": "Incumbent Stance"
+}
+
 # Each sub-score is an integer on this scale:
 #   -2 strongly Left | -1 lean Left | 0 Centre | +1 lean Right | +2 strongly Right
 SUBSCORE_MIN, SUBSCORE_MAX = -2, 2
@@ -45,10 +53,11 @@ STRONG_BAND = 6.0     # |composite| >= 6 -> "Strong", else "Lean"
 _NAME = {"left": "Left", "right": "Right", "center": "Centre", "unrated": "Unrated"}
 
 
-def score_outlet(subscores: dict) -> dict:
+def score_outlet(subscores: dict, axes: dict = None) -> dict:
     """
     subscores: {dimension_key: int in [-2, 2]}; missing/None dims are allowed
     (weights are renormalised over the dimensions actually provided).
+    axes: {axis_key: int in [0, 100]} representing detailed editorial stances.
 
     Returns a dict:
       composite     float in [-10, 10]
@@ -56,13 +65,17 @@ def score_outlet(subscores: dict) -> dict:
       label         display label e.g. "Lean Left", "Strong Right", "Centre"
       confidence    "high" | "medium" | "low" | "none"
       completeness  fraction (0-1) of total weight that was scored
+      axes          dict containing the 0-100 detailed breakdown for the UI
     """
-    present = {k: int(v) for k, v in subscores.items()
-               if k in WEIGHTS and v is not None}
+    axes = axes or {}
+    present = {}
+    if subscores:
+        present = {k: int(v) for k, v in subscores.items()
+                   if k in WEIGHTS and v is not None}
 
     if not present:
         return {"composite": 0.0, "lean": "unrated", "label": "Unrated",
-                "confidence": "none", "completeness": 0.0}
+                "confidence": "none", "completeness": 0.0, "axes": axes}
 
     weight_covered = sum(WEIGHTS[k] for k in present)
     weighted = sum(WEIGHTS[k] * present[k] for k in present) / weight_covered  # -2..2
@@ -77,7 +90,7 @@ def score_outlet(subscores: dict) -> dict:
 
     confidence = _confidence(list(present.values()), weight_covered)
     return {"composite": composite, "lean": lean, "label": label,
-            "confidence": confidence, "completeness": round(weight_covered, 2)}
+            "confidence": confidence, "completeness": round(weight_covered, 2), "axes": axes}
 
 
 def _confidence(values, weight_covered) -> str:
@@ -94,31 +107,44 @@ def _confidence(values, weight_covered) -> str:
     return "low"
 
 
-def explain(subscores: dict) -> str:
+def explain(subscores: dict, axes: dict = None) -> str:
     """Human-readable breakdown - the kind of rationale shown on an outlet's page."""
-    r = score_outlet(subscores)
+    r = score_outlet(subscores, axes)
     lines = [f"Lean: {r['label']}  (composite {r['composite']:+}, "
              f"confidence {r['confidence']}, {int(r['completeness']*100)}% scored)"]
     for key, label, w in DIMENSIONS:
-        v = subscores.get(key)
+        v = subscores.get(key) if subscores else None
         shown = "-" if v is None else f"{v:+d}"
         lines.append(f"  {label:<30} weight {int(w*100):>2}%   score {shown}")
+    
+    if axes:
+        lines.append("\nDetailed Axes (0-100):")
+        for key, name in EDITORIAL_AXES.items():
+            val = axes.get(key, 50)
+            lines.append(f"  {name:<30} {val:>3}")
+            
     return "\n".join(lines)
 
 
 if __name__ == "__main__":
     # Demo: three worked examples (illustrative sub-scores).
     examples = {
-        "Outlet A (secular, critical of govt)": {
-            "editorial": -1, "framing": -1, "selection": -1,
-            "sourcing": -1, "ownership": 0, "panel": -1},
-        "Outlet B (broad, commercial)": {
-            "editorial": 0, "framing": 0, "selection": 1,
-            "sourcing": 0, "ownership": 0, "panel": 0},
-        "Outlet C (nationalist framing)": {
-            "editorial": 1, "framing": 1, "selection": 1,
-            "sourcing": 1, "ownership": 1, "panel": 0},
+        "Outlet A (secular, critical of govt)": (
+            {"editorial": -1, "framing": -1, "selection": -1,
+             "sourcing": -1, "ownership": 0, "panel": -1},
+            {"secular_authoritative": 85, "market_orientation": 30, "incumbent_stance": 20}
+        ),
+        "Outlet B (broad, commercial)": (
+            {"editorial": 0, "framing": 0, "selection": 1,
+             "sourcing": 0, "ownership": 0, "panel": 0},
+            {"secular_authoritative": 50, "market_orientation": 85, "incumbent_stance": 65}
+        ),
+        "Outlet C (nationalist framing)": (
+            {"editorial": 1, "framing": 1, "selection": 1,
+             "sourcing": 1, "ownership": 1, "panel": 0},
+            {"secular_authoritative": 10, "market_orientation": 60, "incumbent_stance": 90}
+        ),
     }
-    for name, ss in examples.items():
+    for name, (ss, ax) in examples.items():
         print(f"\n## {name}")
-        print(explain(ss))
+        print(explain(ss, ax))

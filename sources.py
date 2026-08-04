@@ -40,6 +40,7 @@ SOURCES = [
                      "left-of-centre with a secular framing.",
         "subscores": {"editorial": -1, "framing": -1, "selection": -1,
                       "sourcing": -1, "ownership": 0, "panel": -1},
+        "axes": {"secular_authoritative": 85, "market_orientation": 30, "incumbent_stance": 20},
     },
     {
         "id": "indian_express", "name": "The Indian Express", "language": "en",
@@ -51,6 +52,7 @@ SOURCES = [
         "rationale": "Legacy daily known for investigative reporting that has "
                      "challenged governments across parties.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 50, "incumbent_stance": 40},
     },
     {
         "id": "times_of_india", "name": "The Times of India", "language": "en",
@@ -65,6 +67,7 @@ SOURCES = [
                      "confidence.",
         "subscores": {"editorial": 0, "framing": 0, "selection": 1,
                       "sourcing": 0, "ownership": 0, "panel": 0},
+        "axes": {"secular_authoritative": 50, "market_orientation": 85, "incumbent_stance": 65},
     },
     {
         "id": "mint", "name": "Mint", "language": "en",
@@ -75,6 +78,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Business and economy daily; market-oriented framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 95, "incumbent_stance": 55},
     },
     {
         "id": "ndtv", "name": "NDTV", "language": "en",
@@ -89,6 +93,7 @@ SOURCES = [
                      "tracks output, not owner) stays Centre - contested, low "
                      "confidence, ownership a standing watch-item.",
         "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 70, "incumbent_stance": 50},
     },
     {
         "id": "the_wire", "name": "The Wire", "language": "en",
@@ -99,6 +104,7 @@ SOURCES = [
         "rationale": "Independent non-profit outlet; investigative focus, frequently "
                      "critical of the incumbent government.",
         "subscores": None,
+        "axes": {"secular_authoritative": 90, "market_orientation": 20, "incumbent_stance": 10},
     },
     {
         "id": "scroll", "name": "Scroll.in", "language": "en",
@@ -109,6 +115,7 @@ SOURCES = [
         "rationale": "Independent digital outlet; reporting and commentary commonly "
                      "described as progressive/secular in framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 85, "market_orientation": 30, "incumbent_stance": 15},
     },
     {
         "id": "opindia", "name": "OpIndia", "language": "en",
@@ -120,6 +127,7 @@ SOURCES = [
                      "and Hindu-nationalist perspectives.",
         "subscores": {"editorial": 1, "framing": 1, "selection": 1,
                       "sourcing": 1, "ownership": 1, "panel": 0},
+        "axes": {"secular_authoritative": 10, "market_orientation": 60, "incumbent_stance": 90},
     },
     {
         "id": "swarajya", "name": "Swarajya", "language": "en",
@@ -129,6 +137,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Magazine that explicitly self-describes as right-of-centre.",
         "subscores": None,
+        "axes": {"secular_authoritative": 15, "market_orientation": 75, "incumbent_stance": 85},
     },
     {
         "id": "republic_world", "name": "Republic World", "language": "en",
@@ -138,6 +147,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Television/digital network with a strongly nationalist framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 20, "market_orientation": 60, "incumbent_stance": 90},
     },
 
     # ---------------- Hindi ----------------
@@ -149,6 +159,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Among the largest-circulation Hindi dailies; broad mass readership.",
         "subscores": None,
+        "axes": {"secular_authoritative": 45, "market_orientation": 55, "incumbent_stance": 50},
     },
     {
         "id": "dainik_jagran", "name": "Dainik Jagran", "language": "hi",
@@ -160,6 +171,7 @@ SOURCES = [
         "rationale": "Major Hindi daily often described as right-of-centre; needs "
                      "framing/selection analysis to confirm.",
         "subscores": None,
+        "axes": {"secular_authoritative": 30, "market_orientation": 60, "incumbent_stance": 75},
     },
     {
         "id": "amar_ujala", "name": "Amar Ujala", "language": "hi",
@@ -169,6 +181,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Large Hindi daily with general mass readership.",
         "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 50, "incumbent_stance": 55},
     },
     {
         "id": "navbharat_times", "name": "Navbharat Times", "language": "hi",
@@ -179,6 +192,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily within the Times group; broad commercial framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 70, "incumbent_stance": 60},
     },
     {
         "id": "aaj_tak", "name": "Aaj Tak", "language": "hi",
@@ -191,6 +205,7 @@ SOURCES = [
                      "pro-government framing, and it has been fined for inflammatory "
                      "primetime content. Mirrors the India Today group. Contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 25, "market_orientation": 60, "incumbent_stance": 80},
     },
     {
         "id": "zee_news_hindi", "name": "Zee News (Hindi)", "language": "hi",
@@ -201,6 +216,7 @@ SOURCES = [
         "rationale": "Hindi channel widely and consistently described as strongly "
                      "pro-BJP (a prominent 'Godi media' example); high confidence.",
         "subscores": None,
+        "axes": {"secular_authoritative": 10, "market_orientation": 65, "incumbent_stance": 95},
     },
     {
         "id": "satya_hindi", "name": "Satya Hindi", "language": "hi",
@@ -211,6 +227,7 @@ SOURCES = [
         "rationale": "Independent Hindi digital outlet; commentary commonly described "
                      "as critical/independent of the incumbent government.",
         "subscores": None,
+        "axes": {"secular_authoritative": 80, "market_orientation": 40, "incumbent_stance": 15},
     },
     {
         "id": "the_lallantop", "name": "The Lallantop", "language": "hi",
@@ -221,6 +238,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Youth-focused Hindi digital outlet; broad framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 65, "incumbent_stance": 50},
     },
 
     # ---------------- Independent / journalist-run (v1.1) ----------------
@@ -237,6 +255,7 @@ SOURCES = [
         "rationale": "Independent digital outlet; positioning commonly described "
                      "as centrist, shading centre-right on some issues.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 75, "incumbent_stance": 55},
     },
     {
         "id": "newslaundry", "name": "Newslaundry", "language": "en",
@@ -247,6 +266,7 @@ SOURCES = [
         "rationale": "Subscriber-funded media-critique and reporting outlet; "
                      "commonly described as left-of-centre.",
         "subscores": None,
+        "axes": {"secular_authoritative": 85, "market_orientation": 25, "incumbent_stance": 10},
     },
     {
         "id": "the_news_minute", "name": "The News Minute", "language": "en",
@@ -257,6 +277,7 @@ SOURCES = [
         "rationale": "Independent, South-India-focused newsroom; commonly "
                      "described as left-of-centre.",
         "subscores": None,
+        "axes": {"secular_authoritative": 80, "market_orientation": 35, "incumbent_stance": 20},
     },
     {
         "id": "the_caravan", "name": "The Caravan", "language": "en",
@@ -267,6 +288,7 @@ SOURCES = [
         "rationale": "Long-form investigative magazine; editorial stance commonly "
                      "described as left-leaning.",
         "subscores": None,
+        "axes": {"secular_authoritative": 90, "market_orientation": 20, "incumbent_stance": 5},
     },
     {
         "id": "the_quint", "name": "The Quint", "language": "en",
@@ -277,6 +299,7 @@ SOURCES = [
         "rationale": "Independent digital outlet; positioning commonly described "
                      "as centre to centre-left.",
         "subscores": None,
+        "axes": {"secular_authoritative": 75, "market_orientation": 55, "incumbent_stance": 40},
     },
     {
         "id": "livelaw", "name": "LiveLaw", "language": "en",
@@ -287,6 +310,7 @@ SOURCES = [
         "rationale": "Specialist legal-news service; largely non-partisan court "
                      "and judgment reporting.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 50, "incumbent_stance": 50},
     },
     {
         "id": "article14", "name": "Article 14", "language": "en",
@@ -297,6 +321,7 @@ SOURCES = [
         "rationale": "Rights- and rule-of-law-focused reporting; commonly "
                      "described as left-leaning.",
         "subscores": None,
+        "axes": {"secular_authoritative": 90, "market_orientation": 30, "incumbent_stance": 15},
     },
     {
         "id": "reporters_collective", "name": "The Reporters' Collective", "language": "en",
@@ -307,6 +332,7 @@ SOURCES = [
         "rationale": "Investigative collective run by a small group of journalists; "
                      "data- and document-driven framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 40, "incumbent_stance": 30},
     },
     {
         "id": "the_commune", "name": "The Commune", "language": "en",
@@ -316,6 +342,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Digital outlet with a nationalist, right-of-centre framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 20, "market_orientation": 60, "incumbent_stance": 85},
     },
     {
         "id": "tfipost", "name": "TFIPOST", "language": "en",
@@ -326,6 +353,7 @@ SOURCES = [
         "rationale": "Digital opinion-and-news outlet with a right-of-centre, "
                      "nationalist framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 15, "market_orientation": 65, "incumbent_stance": 85},
     },
     {
         "id": "khabar_lahariya", "name": "Khabar Lahariya", "language": "hi",
@@ -336,6 +364,7 @@ SOURCES = [
         "rationale": "Rural, women-run grassroots outlet reporting in Hindi and "
                      "Bundeli; ground-reporting focus.",
         "subscores": None,
+        "axes": {"secular_authoritative": 75, "market_orientation": 40, "incumbent_stance": 35},
     },
 
     # ================= v1.2 expansion (2026-06-23) =================
@@ -351,6 +380,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Large national English daily; broad mainstream news framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 65, "incumbent_stance": 60},
     },
     {
         "id": "deccan_herald", "name": "Deccan Herald", "language": "en",
@@ -360,6 +390,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Bengaluru-based national daily with conventional reportage.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 55, "incumbent_stance": 45},
     },
     {
         "id": "telegraph_india", "name": "The Telegraph (India)", "language": "en",
@@ -370,6 +401,7 @@ SOURCES = [
         "rationale": "Kolkata daily whose front pages and editorials are commonly "
                      "described as anti-establishment / left-of-centre.",
         "subscores": None,
+        "axes": {"secular_authoritative": 85, "market_orientation": 40, "incumbent_stance": 15},
     },
     {
         "id": "business_standard", "name": "Business Standard", "language": "en",
@@ -379,6 +411,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Business-and-policy daily; markets-focused, relatively neutral framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 90, "incumbent_stance": 50},
     },
     {
         "id": "india_today", "name": "India Today", "language": "en",
@@ -391,6 +424,7 @@ SOURCES = [
                      "incumbent government; appears on the widely-cited 'Godi media' "
                      "list. Retains some investigative independence, so contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 30, "market_orientation": 65, "incumbent_stance": 75},
     },
     {
         "id": "firstpost", "name": "Firstpost", "language": "en",
@@ -402,6 +436,7 @@ SOURCES = [
         "rationale": "Digital outlet whose opinion-and-analysis framing is commonly "
                      "described as right-of-centre.",
         "subscores": None,
+        "axes": {"secular_authoritative": 35, "market_orientation": 75, "incumbent_stance": 70},
     },
     {
         "id": "the_pioneer", "name": "The Pioneer", "language": "en",
@@ -411,6 +446,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Legacy daily with a right-of-centre editorial/op-ed orientation.",
         "subscores": None,
+        "axes": {"secular_authoritative": 30, "market_orientation": 55, "incumbent_stance": 70},
     },
     {
         "id": "national_herald", "name": "National Herald", "language": "en",
@@ -420,6 +456,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Outlet with explicit Congress lineage; left-of-centre framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 85, "market_orientation": 30, "incumbent_stance": 10},
     },
     # ---------------- Hindi ----------------
     {
@@ -431,6 +468,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily of the Indian Express Group; mainstream framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 50, "incumbent_stance": 45},
     },
     {
         "id": "live_hindustan", "name": "Hindustan (Hindi)", "language": "hi",
@@ -441,6 +479,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "High-circulation Hindi daily; broad mainstream coverage.",
         "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 55, "incumbent_stance": 55},
     },
     {
         "id": "news18_hindi", "name": "News18 Hindi", "language": "hi",
@@ -452,6 +491,7 @@ SOURCES = [
         "rationale": "Network18 Hindi outlet; framing commonly described as "
                      "right-of-centre. Provisional, contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 30, "market_orientation": 70, "incumbent_stance": 80},
     },
     {
         "id": "patrika", "name": "Patrika", "language": "hi",
@@ -461,6 +501,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Large Hindi daily group; conventional regional+national coverage.",
         "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 50, "incumbent_stance": 50},
     },
 
     # ================= v1.3 expansion (2026-06-23) =================
@@ -476,6 +517,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "International wire service; straight-news, agency-style reporting.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 60, "incumbent_stance": 50},
     },
     {
         "id": "ap_news", "name": "Associated Press", "language": "en", "region": "International",
@@ -485,6 +527,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "International wire service; agency-style, fact-first reporting.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 55, "incumbent_stance": 50},
     },
     {
         "id": "bbc_news", "name": "BBC News", "language": "en", "region": "International",
@@ -495,6 +538,7 @@ SOURCES = [
         "rationale": "UK public broadcaster; broad international coverage. Lean is "
                      "debated; treated as centre, contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 50, "incumbent_stance": 40},
     },
     {
         "id": "the_guardian", "name": "The Guardian", "language": "en", "region": "International",
@@ -507,6 +551,7 @@ SOURCES = [
                      "(region=International) - pending move to a non-voting international "
                      "tier so it does not skew the India bias bar.",
         "subscores": None,
+        "axes": {"secular_authoritative": 85, "market_orientation": 30, "incumbent_stance": 15},
     },
     {
         "id": "al_jazeera", "name": "Al Jazeera English", "language": "en", "region": "International",
@@ -519,6 +564,7 @@ SOURCES = [
                      "'left' in the India frame. Foreign outlet (region=International) - "
                      "pending move to a non-voting international tier.",
         "subscores": None,
+        "axes": {"secular_authoritative": 75, "market_orientation": 40, "incumbent_stance": 20},
     },
     {
         "id": "bloomberg", "name": "Bloomberg", "language": "en", "region": "International",
@@ -528,6 +574,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "International business-and-markets outlet; data-driven framing.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 95, "incumbent_stance": 50},
     },
     {
         "id": "dw_news", "name": "Deutsche Welle", "language": "en", "region": "International",
@@ -537,6 +584,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "German public broadcaster's English service; broad world coverage.",
         "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 55, "incumbent_stance": 45},
     },
     {
         "id": "france24", "name": "France 24", "language": "en", "region": "International",
@@ -546,6 +594,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "French public broadcaster's English service; international coverage.",
         "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 55, "incumbent_stance": 45},
     },
     # ---------------- Regional: English ----------------
     {
@@ -556,6 +605,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Chandigarh-based daily covering Punjab, Haryana, HP and J&K.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 50, "incumbent_stance": 50},
     },
     {
         "id": "deccan_chronicle", "name": "Deccan Chronicle", "language": "en", "region": "Regional",
@@ -565,6 +615,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hyderabad-based daily with a South India focus.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 55, "incumbent_stance": 50},
     },
     {
         "id": "telangana_today", "name": "Telangana Today", "language": "en", "region": "Regional",
@@ -575,6 +626,7 @@ SOURCES = [
         "rationale": "Telangana-focused daily; ownership ties to a state political party "
                      "noted. Provisional, contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 50, "incumbent_stance": 50},
     },
     {
         "id": "new_indian_express", "name": "The New Indian Express", "language": "en", "region": "Regional",
@@ -584,6 +636,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "South India-focused English daily.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 60, "incumbent_stance": 50},
     },
     {
         "id": "free_press_journal", "name": "The Free Press Journal", "language": "en", "region": "Regional",
@@ -593,6 +646,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Mumbai-based daily with a metro and national mix.",
         "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 60, "incumbent_stance": 45},
     },
     {
         "id": "eastmojo", "name": "EastMojo", "language": "en", "region": "Regional",
@@ -602,6 +656,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Digital outlet focused on Northeast India; under-covered region.",
         "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 45, "incumbent_stance": 40},
     },
     {
         "id": "greater_kashmir", "name": "Greater Kashmir", "language": "en", "region": "Regional",
@@ -611,6 +666,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Srinagar-based daily; primary J&K coverage. Provisional, contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 40, "incumbent_stance": 30},
     },
     {
         "id": "mathrubhumi_eng", "name": "Mathrubhumi English", "language": "en", "region": "Regional",
@@ -620,6 +676,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Kerala-based group's English service.",
         "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 55, "incumbent_stance": 45},
     },
     # ---------------- Regional: Hindi ----------------
     {
@@ -630,6 +687,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily strong in Jharkhand and Bihar.",
         "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 50, "incumbent_stance": 50},
     },
     {
         "id": "nai_dunia", "name": "Nai Dunia", "language": "hi", "region": "Regional",
@@ -640,6 +698,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily strong in Madhya Pradesh and Chhattisgarh.",
         "subscores": None,
+        "axes": {"secular_authoritative": 45, "market_orientation": 50, "incumbent_stance": 55},
     },
     {
         "id": "punjab_kesari", "name": "Punjab Kesari", "language": "hi", "region": "Regional",
@@ -650,6 +709,7 @@ SOURCES = [
         "rationale": "North-India Hindi daily; framing sometimes described as "
                      "right-of-centre. Provisional, contested.",
         "subscores": None,
+        "axes": {"secular_authoritative": 35, "market_orientation": 55, "incumbent_stance": 65},
     },
     {
         "id": "haribhoomi", "name": "Haribhoomi", "language": "hi", "region": "Regional",
@@ -659,6 +719,7 @@ SOURCES = [
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Hindi daily strong in Chhattisgarh, MP and Haryana.",
         "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 50, "incumbent_stance": 50},
     },
 ]
 
@@ -765,6 +826,6 @@ if __name__ == "__main__":
     print("\nWorked examples (lean recomputed from sub-scores via the rubric):")
     for s in SOURCES:
         if s.get("subscores"):
-            r = score_outlet(s["subscores"])
+            r = score_outlet(s["subscores"], s.get("axes"))
             print(f"  {s['name']:<22} stored={s['lean']:<7} "
                   f"computed={r['lean']:<7} ({r['label']}, conf {r['confidence']})")

@@ -265,6 +265,49 @@ const BIAS = {
     hi: "अंतरराष्ट्रीय"
   }
 };
+// Editorial tonality axes (0-100), set per PUBLISHER by editors in sources.py -
+// additive detail alongside the arithmetic Left/Centre/Right bias bar, never a
+// per-article or AI-decided score. Each value is a position between two named poles.
+const AXES = [{
+  key: "secular_authoritative",
+  color: "#4A6E80",
+  en: {
+    name: "Ideological",
+    lo: "Authoritative",
+    hi: "Secular"
+  },
+  hi: {
+    name: "वैचारिक",
+    lo: "सत्तावादी",
+    hi: "धर्मनिरपेक्ष"
+  }
+}, {
+  key: "market_orientation",
+  color: "#7E7768",
+  en: {
+    name: "Economic",
+    lo: "State-leaning",
+    hi: "Pro-market"
+  },
+  hi: {
+    name: "आर्थिक",
+    lo: "राज्य-समर्थक",
+    hi: "बाज़ार-समर्थक"
+  }
+}, {
+  key: "incumbent_stance",
+  color: "#96603F",
+  en: {
+    name: "Establishment",
+    lo: "Critical",
+    hi: "Pro-govt"
+  },
+  hi: {
+    name: "सत्ता के प्रति",
+    lo: "आलोचनात्मक",
+    hi: "सत्ता-समर्थक"
+  }
+}];
 const TOKENS = {
   light: {
     bg: "bg-[#EAE6DB]",
@@ -664,18 +707,8 @@ async function apiGet(res) {
   return r.json();
 }
 async function loadAll() {
-  const EMPTY_TREND = {
-    national: {
-      en: [],
-      hi: []
-    },
-    international: {
-      en: [],
-      hi: []
-    }
-  };
   try {
-    const [e, b, tp, sr, tr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources"), apiGet("trending").catch(() => EMPTY_TREND)]);
+    const [e, b, tp, sr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources")]);
     return {
       events: e.events || [],
       blindspots: b.events || [],
@@ -686,8 +719,7 @@ async function loadAll() {
       },
       topics: tp.topics || [],
       sources: sr.sources || [],
-      summary: sr.summary || {},
-      trending: tr || EMPTY_TREND
+      summary: sr.summary || {}
     };
   } catch (err) {
     console.error(err);
@@ -701,8 +733,7 @@ async function loadAll() {
       },
       topics: [],
       sources: [],
-      summary: {},
-      trending: EMPTY_TREND
+      summary: {}
     };
   }
 }
@@ -1721,7 +1752,7 @@ function Header({
   go,
   view
 }) {
-  const NAV = [["home", STR[lang].navTop], ["trending", lang === "hi" ? "ट्रेंडिंग" : "Trending"], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
+  const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
   return /*#__PURE__*/React.createElement("div", {
     className: `sticky top-0 z-40 border-b ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -1780,7 +1811,7 @@ function BottomNav({
   view,
   go
 }) {
-  const items = [["home", STR[lang].navTop, Layers], ["trending", lang === "hi" ? "ट्रेंडिंग" : "Trending", Sparkles], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["about", STR[lang].navMethod, Scale]];
+  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["about", STR[lang].navMethod, Scale]];
   return /*#__PURE__*/React.createElement("nav", {
     className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -3071,6 +3102,51 @@ function TopicPage({
     format: "horizontal"
   })));
 }
+// AxisBars — the 3 editorial tonality axes as labelled position markers. A dot sits
+// at value% between the two poles; purely a display of the per-publisher `axes` set by
+// editors. Does not touch, replace or feed the arithmetic bias bar.
+function AxisBars({
+  axes,
+  t,
+  lang
+}) {
+  if (!axes) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 space-y-2.5"
+  }, AXES.map(ax => {
+    const raw = axes[ax.key];
+    if (raw == null) return null;
+    const v = Math.max(0, Math.min(100, raw));
+    const L = ax[lang] || ax.en;
+    return /*#__PURE__*/React.createElement("div", {
+      key: ax.key
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `flex items-baseline justify-between mono text-[9px] uppercase tracking-wide ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".06em"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: t.tf
+    }, L.lo), /*#__PURE__*/React.createElement("span", {
+      className: `${t.ts} font-bold`
+    }, L.name), /*#__PURE__*/React.createElement("span", {
+      className: t.tf
+    }, L.hi)), /*#__PURE__*/React.createElement("div", {
+      className: "relative mt-1 h-1.5 rounded-full",
+      style: {
+        background: "rgba(120,119,104,0.20)"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full",
+      style: {
+        left: `${v}%`,
+        backgroundColor: ax.color,
+        boxShadow: "0 0 0 2px rgba(255,255,255,0.85)"
+      },
+      title: `${L.name}: ${v}/100`
+    })));
+  }));
+}
 function SourceCard({
   s,
   t,
@@ -3114,7 +3190,11 @@ function SourceCard({
     className: `font-semibold ${t.tp}`
   }, STR[lang].ownership, ":"), " ", s.ownership), s.rationale && /*#__PURE__*/React.createElement("p", {
     className: `mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
-  }, s.rationale));
+  }, s.rationale), /*#__PURE__*/React.createElement(AxisBars, {
+    axes: s.axes,
+    t: t,
+    lang: lang
+  }));
 }
 function SourcesPage({
   t,
@@ -3379,99 +3459,6 @@ function PrivacyPage({
     h: "Changes"
   }, "We may update this policy from time to time; material changes will be reflected by the date shown above.")));
 }
-// Trending — descriptive, arithmetic keyword clusters (export_static._trending), ranked
-// by recent coverage + velocity. Tap a term to see the stories behind it. The terms are
-// just words actually recurring in recent headlines, never a curated cause.
-function TrendingPage({
-  terms,
-  events,
-  t,
-  lang,
-  open
-}) {
-  const [region, setRegion] = useState("national");
-  const list = ((terms || {})[region] || {})[lang] || [];
-  const [sel, setSel] = useState(null);
-  const active = sel && list.some(x => x.term === sel.term) ? sel : list[0] || null;
-  const byId = useMemo(() => {
-    const m = new Map();
-    (events || []).forEach(e => m.set(e.id, e));
-    return m;
-  }, [events]);
-  const cards = useMemo(() => {
-    if (!active) return [];
-    return (active.event_ids || []).map(id => byId.get(id)).filter(Boolean).map(e => toCard(e, lang)).sort((a, b) => (b.sources || 0) - (a.sources || 0));
-  }, [active, byId, lang]);
-  const TermFace = ({
-    term,
-    on
-  }) => /*#__PURE__*/React.createElement("span", {
-    className: `headline text-[14px] ${lang === "hi" ? "read-hi" : "serif capitalize"}`
-  }, term);
-  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.018em"
-    }
-  }, lang === "hi" ? "ट्रेंडिंग" : "Trending"), /*#__PURE__*/React.createElement("p", {
-    className: `mb-6 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`
-  }, lang === "hi" ? "अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।" : "The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."), /*#__PURE__*/React.createElement("div", {
-    className: "mb-6 flex gap-2"
-  }, [["national", lang === "hi" ? "राष्ट्रीय" : "National"], ["international", lang === "hi" ? "अंतरराष्ट्रीय" : "International"]].map(([k, label]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    onClick: () => {
-      setRegion(k);
-      setSel(null);
-    },
-    className: `border px-3.5 py-1.5 eyebrow ${region === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em"
-    }
-  }, label))), list.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap gap-2"
-  }, list.map(term => {
-    const on = active && active.term === term.term;
-    return /*#__PURE__*/React.createElement("button", {
-      key: term.term,
-      onClick: () => setSel(term),
-      className: `flex items-center gap-2 border px-3 py-1.5 ${on ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`}`
-    }, /*#__PURE__*/React.createElement(TermFace, {
-      term: term.term,
-      on: on
-    }), /*#__PURE__*/React.createElement("span", {
-      className: `mono text-[11px] ${on ? "" : t.tf}`
-    }, term.count));
-  })), active && /*#__PURE__*/React.createElement("div", {
-    className: "mt-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `mb-4 flex items-baseline gap-2 border-b pb-2 ${t.border}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
-    }
-  }, lang === "hi" ? "इसका ज़िक्र करने वाली ख़बरें" : "Stories mentioning"), /*#__PURE__*/React.createElement(TermFace, {
-    term: active.term,
-    on: false
-  }), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[11px] ${t.tf}`
-  }, cards.length)), cards.length ? /*#__PURE__*/React.createElement(GridGrid, {
-    items: cards,
-    t: t,
-    lang: lang,
-    render: s => /*#__PURE__*/React.createElement(GridCard, {
-      key: s.id,
-      story: s,
-      t: t,
-      lang: lang,
-      onOpen: open
-    })
-  }) : /*#__PURE__*/React.createElement("div", {
-    className: `py-16 text-center text-[13px] ${t.tf} ${isHi(lang)}`
-  }, STR[lang].noStories))) : /*#__PURE__*/React.createElement("div", {
-    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
-  }, STR[lang].noStories));
-}
 function SearchPage({
   t,
   lang,
@@ -3580,7 +3567,7 @@ function parsePath() {
     view: "topic",
     topic: decodeURIComponent(seg[1])
   };
-  if (seg.length === 1 && ["trending", "blindspot", "topics", "sources", "about", "search", "contact", "privacy"].includes(seg[0])) return {
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -3602,17 +3589,7 @@ function PakshApp() {
     },
     topics: [],
     sources: [],
-    summary: {},
-    trending: {
-      national: {
-        en: [],
-        hi: []
-      },
-      international: {
-        en: [],
-        hi: []
-      }
-    }
+    summary: {}
   });
   const [detail, setDetail] = useState({});
   const [ready, setReady] = useState(false);
@@ -3744,15 +3721,6 @@ function PakshApp() {
     openTopic: goTopic
   }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
     t: t
-  }) : route.view === "trending" ? /*#__PURE__*/React.createElement(TrendingPage, {
-    terms: data.trending || {
-      en: [],
-      hi: []
-    },
-    events: data.events || [],
-    t: t,
-    lang: lang,
-    open: open
   }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {
     left: gapL,
     right: gapR,

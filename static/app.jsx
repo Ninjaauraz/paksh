@@ -24,6 +24,20 @@ const {useState,useEffect,useMemo}=React;
       right:  { color:"#96603F", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
       international: { color:"#5E7E78", tex:"", soft:"#E3EAE8", en:"International", hi:"अंतरराष्ट्रीय" },
     };
+    // Editorial tonality axes (0-100), set per PUBLISHER by editors in sources.py -
+    // additive detail alongside the arithmetic Left/Centre/Right bias bar, never a
+    // per-article or AI-decided score. Each value is a position between two named poles.
+    const AXES = [
+      { key:"secular_authoritative", color:"#4A6E80",
+        en:{ name:"Ideological",   lo:"Authoritative", hi:"Secular" },
+        hi:{ name:"वैचारिक",       lo:"सत्तावादी",     hi:"धर्मनिरपेक्ष" } },
+      { key:"market_orientation", color:"#7E7768",
+        en:{ name:"Economic",      lo:"State-leaning", hi:"Pro-market" },
+        hi:{ name:"आर्थिक",        lo:"राज्य-समर्थक",  hi:"बाज़ार-समर्थक" } },
+      { key:"incumbent_stance", color:"#96603F",
+        en:{ name:"Establishment", lo:"Critical",      hi:"Pro-govt" },
+        hi:{ name:"सत्ता के प्रति", lo:"आलोचनात्मक",    hi:"सत्ता-समर्थक" } },
+    ];
     const TOKENS = {
       light: { bg:"bg-[#EAE6DB]", surface:"bg-[#F4F1EA]", soft:"bg-[#EFEBE1]", border:"border-[#D8D3C6]",
         tp:"text-[#15140F]", ts:"text-[#3A372F]", tf:"text-[#8A8371]", brand:"text-[#15140F]", brandBg:"bg-[#15140F]",
@@ -180,10 +194,9 @@ const {useState,useEffect,useMemo}=React;
     function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
     async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
-      const EMPTY_TREND={national:{en:[],hi:[]},international:{en:[],hi:[]}};
-      try { const [e,b,tp,sr,tr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources"),apiGet("trending").catch(()=>EMPTY_TREND)]);
-        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, trending:tr||EMPTY_TREND}; }
-      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:EMPTY_TREND}; }
+      try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
+        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}}; }
     }
 
     const toCard = (e, lang) => {
@@ -578,7 +591,7 @@ const {useState,useEffect,useMemo}=React;
     // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
     // utility strip, no topic-chip rail (design spec 2a).
     function Header({ t, lang, setLang, dark, setDark, go, view }) {
-      const NAV=[["home",STR[lang].navTop],["trending",lang==="hi"?"ट्रेंडिंग":"Trending"],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
+      const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
       return (
         <div className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
           <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
@@ -605,7 +618,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BottomNav({ t, lang, view, go }) {
-      const items=[["home",STR[lang].navTop,Layers],["trending",lang==="hi"?"ट्रेंडिंग":"Trending",Sparkles],["blindspot",STR[lang].navOS,Eye],["topics",ui("sections",lang),Compass],["about",STR[lang].navMethod,Scale]];
+      const items=[["home",STR[lang].navTop,Layers],["blindspot",STR[lang].navOS,Eye],["topics",ui("sections",lang),Compass],["about",STR[lang].navMethod,Scale]];
       return (
         <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>
           <div className="flex">
@@ -1123,6 +1136,33 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
+    // AxisBars — the 3 editorial tonality axes as labelled position markers. A dot sits
+    // at value% between the two poles; purely a display of the per-publisher `axes` set by
+    // editors. Does not touch, replace or feed the arithmetic bias bar.
+    function AxisBars({ axes, t, lang }) {
+      if(!axes) return null;
+      return (
+        <div className="mt-3 space-y-2.5">
+          {AXES.map(ax=>{
+            const raw=axes[ax.key]; if(raw==null) return null;
+            const v=Math.max(0,Math.min(100,raw));
+            const L=ax[lang]||ax.en;
+            return (
+              <div key={ax.key}>
+                <div className={`flex items-baseline justify-between mono text-[9px] uppercase tracking-wide ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>
+                  <span className={t.tf}>{L.lo}</span>
+                  <span className={`${t.ts} font-bold`}>{L.name}</span>
+                  <span className={t.tf}>{L.hi}</span>
+                </div>
+                <div className="relative mt-1 h-1.5 rounded-full" style={{background:"rgba(120,119,104,0.20)"}}>
+                  <div className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{left:`${v}%`,backgroundColor:ax.color,boxShadow:"0 0 0 2px rgba(255,255,255,0.85)"}} title={`${L.name}: ${v}/100`}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
     function SourceCard({ s, t, lang }) {
       const side=["left","center","right"].includes(s.lean)?s.lean:null;
       return (
@@ -1138,6 +1178,7 @@ const {useState,useEffect,useMemo}=React;
           </div>
           {s.ownership && <div className={`mt-2.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</div>}
           {s.rationale && <p className={`mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{s.rationale}</p>}
+          <AxisBars axes={s.axes} t={t} lang={lang} />
         </div>
       );
     }
@@ -1249,55 +1290,6 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
-    // Trending — descriptive, arithmetic keyword clusters (export_static._trending), ranked
-    // by recent coverage + velocity. Tap a term to see the stories behind it. The terms are
-    // just words actually recurring in recent headlines, never a curated cause.
-    function TrendingPage({ terms, events, t, lang, open }) {
-      const [region,setRegion]=useState("national");
-      const list = (((terms||{})[region]||{})[lang]) || [];
-      const [sel,setSel]=useState(null);
-      const active = (sel && list.some(x=>x.term===sel.term)) ? sel : (list[0]||null);
-      const byId = useMemo(()=>{ const m=new Map(); (events||[]).forEach(e=>m.set(e.id,e)); return m; },[events]);
-      const cards = useMemo(()=>{
-        if(!active) return [];
-        return (active.event_ids||[]).map(id=>byId.get(id)).filter(Boolean).map(e=>toCard(e,lang)).sort((a,b)=>(b.sources||0)-(a.sources||0));
-      },[active,byId,lang]);
-      const TermFace = ({term,on})=>(
-        <span className={`headline text-[14px] ${lang==="hi"?"read-hi":"serif capitalize"}`}>{term}</span>
-      );
-      return (
-        <PageWrap>
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?"ट्रेंडिंग":"Trending"}</h1>
-          <p className={`mb-6 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{lang==="hi"?"अभी की खबरों में सबसे ज़्यादा दोहराए जा रहे शब्द-समूह — कवरेज मात्रा और गति के अनुसार। यह अंकगणित है: सिर्फ़ हाल की हेडलाइनों में असल में आने वाले शब्द, कोई संपादकीय चयन नहीं।":"The word-clusters recurring most in the news right now, ranked by how much they're covered and how fast they're rising. It's arithmetic — the terms actually appearing in recent headlines, not a curated agenda."}</p>
-          <div className="mb-6 flex gap-2">
-            {[["national",lang==="hi"?"राष्ट्रीय":"National"],["international",lang==="hi"?"अंतरराष्ट्रीय":"International"]].map(([k,label])=>(
-              <button key={k} onClick={()=>{setRegion(k);setSel(null);}} className={`border px-3.5 py-1.5 eyebrow ${region===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{label}</button>
-            ))}
-          </div>
-          {list.length ? <>
-            <div className="flex flex-wrap gap-2">
-              {list.map(term=>{ const on=active&&active.term===term.term;
-                return (
-                  <button key={term.term} onClick={()=>setSel(term)} className={`flex items-center gap-2 border px-3 py-1.5 ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`}`}>
-                    <TermFace term={term.term} on={on} />
-                    <span className={`mono text-[11px] ${on?"":t.tf}`}>{term.count}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {active && <div className="mt-8">
-              <div className={`mb-4 flex items-baseline gap-2 border-b pb-2 ${t.border}`}>
-                <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"इसका ज़िक्र करने वाली ख़बरें":"Stories mentioning"}</span>
-                <TermFace term={active.term} on={false} />
-                <span className={`mono text-[11px] ${t.tf}`}>{cards.length}</span>
-              </div>
-              {cards.length ? <GridGrid items={cards} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
-                : <div className={`py-16 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-            </div>}
-          </> : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-        </PageWrap>
-      );
-    }
     function SearchPage({ t, lang, query, setQuery, results, open }) {
       return (
         <PageWrap>
@@ -1333,7 +1325,7 @@ const {useState,useEffect,useMemo}=React;
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
-      if(seg.length===1 && ["trending","blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
       return {view:"home"};
     }
     function PakshApp() {
@@ -1341,7 +1333,7 @@ const {useState,useEffect,useMemo}=React;
       const [lang,setLang]=useState("en");
       const [dark,setDark]=useState(false);
       const [query,setQuery]=useState("");
-      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},trending:{national:{en:[],hi:[]},international:{en:[],hi:[]}}});
+      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}});
       const [detail,setDetail]=useState({});
       const [ready,setReady]=useState(false);
 
@@ -1404,7 +1396,6 @@ const {useState,useEffect,useMemo}=React;
           <div className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
-            : route.view==="trending" ? <TrendingPage terms={data.trending||{en:[],hi:[]}} events={data.events||[]} t={t} lang={lang} open={open} />
             : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
