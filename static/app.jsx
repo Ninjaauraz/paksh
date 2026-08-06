@@ -1346,12 +1346,18 @@ const {useState,useEffect,useMemo}=React;
       const [query,setQuery]=useState("");
       const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}});
       const [detail,setDetail]=useState({});
+      const [archive,setArchive]=useState(null);   // older events, lazy-loaded for search/topic browsing
       const [ready,setReady]=useState(false);
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
       useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
       useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#1A1917":"#EAE6DB"; },[dark]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
+      // events.json is capped to recent stories for a light first paint; the older tail lives in
+      // events-archive.json and is fetched ONCE, the first time the user browses beyond the feed
+      // (Search / a Topic / Sections). Home + story pages never need it. Set to [] up front so the
+      // fetch fires only once even if it fails (then search/topic just cover recent stories).
+      useEffect(()=>{ if(archive!==null) return; if(!["search","topic","topics"].includes(route.view)) return; setArchive([]); apiGet("events-archive").then(a=>setArchive(a.events||[])).catch(()=>{}); },[route.view,archive]);
 
       const t=dark?TOKENS.dark:TOKENS.light;
       const nav=(path)=>{ if(window.location.pathname!==path){ window.history.pushState(null,"",path); } setRoute(parsePath()); };
@@ -1359,7 +1365,11 @@ const {useState,useEffect,useMemo}=React;
       const open=(id)=> nav("/story/"+encodeURIComponent(id));
       const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
 
-      const baseCards=data.events.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      // Combine recent (always loaded) with the lazy archive once it arrives, so Search / Topic /
+      // Sections cover the FULL catalogue while the home feed's first paint stayed small. The two
+      // lists are disjoint (recent = events[:N], archive = events[N:]), so there are no duplicates.
+      const allEvents=(archive&&archive.length)?data.events.concat(archive):data.events;
+      const baseCards=allEvents.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const baseOne=data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const gapL=(data.gaps.left||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const gapR=(data.gaps.right||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);

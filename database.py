@@ -81,6 +81,22 @@ def init_db():
     if "image_url" not in art_cols:
         cur.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
 
+    # --- indexes (idempotent) ---------------------------------------------------
+    # The tables had only their auto UNIQUE indexes (articles.url, embeddings.key), so
+    # every pipeline query scanned all ~240k articles. These cover the hot paths:
+    #   * get_unclustered_articles: WHERE event_id IS NULL ORDER BY fetched_at DESC.
+    #     A PARTIAL index indexes ONLY the unclustered rows (a small, shrinking set) and
+    #     already carries them in fetched_at order -> the per-cycle clustering read stops
+    #     scanning the whole table. This is the single biggest speedup.
+    #   * per-event reads / recount / coverage: WHERE event_id = ?.
+    #   * event listing / windows: ORDER BY created_at.
+    #   * embedding-cache pruning: WHERE created_at < ? (see prune_cache.py).
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_articles_unclustered "
+                "ON articles(fetched_at) WHERE event_id IS NULL")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_articles_event_id ON articles(event_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_embeddings_created_at ON embeddings(created_at)")
+
     conn.commit()
     conn.close()
 
@@ -156,9 +172,15 @@ def get_unclustered_articles(limit=3000, per_source=60, rated_first=True):
     """
     from sources import LEAN_BY_SOURCE
     conn = get_connection()
+    # ~60% of articles sit unclustered, so ORDER BY fetched_at over that set is the pipeline's
+    # hottest read. INDEXED BY forces the PARTIAL index (fetched_at, WHERE event_id IS NULL),
+    # which is already in fetched_at order -> no temp-B-tree sort of 100k+ rows (measured
+    # 358ms -> ~1ms). We force it because the planner otherwise picks the plain event_id index
+    # and re-sorts. init_db() always creates this index, so INDEXED BY can't fail to find it.
     rows = conn.execute(
         """SELECT id, source, language, title, summary
-           FROM articles WHERE event_id IS NULL
+           FROM articles INDEXED BY idx_articles_unclustered
+           WHERE event_id IS NULL
            ORDER BY fetched_at DESC"""
     ).fetchall()
     conn.close()

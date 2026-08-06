@@ -99,6 +99,13 @@ def _lighten(e):
 
 IMPORTANCE_HALF_LIFE_H = 36.0   # home-feed score halves every 36h -> fresh leads, old fades
 
+# How many newest events ride in events.json (the payload EVERY visitor downloads on first
+# paint). The older tail goes to events-archive.json, fetched lazily only on Search / Topic.
+# Feed ranking decays with a 36h/8h half-life, so anything past a few weeks never surfaces on
+# the home feed anyway -- 1500 is comfortably more than the feed shows, keeping first paint
+# small (a few MB) while the full archive stays one lazy fetch away.
+RECENT_FEED_N = 1500
+
 
 def _importance(e, now):
     """Home-feed importance score. Purely arithmetic and explainable in one sentence:
@@ -616,7 +623,15 @@ def main():
         d["feed_rank"] = round(_feed_rank(e, _now) * _civic_mult(e), 4)
         return d
 
-    write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in events]})
+    # Split the feed payload so first paint isn't a 12+ MB download that grows forever.
+    # get_all_events() is newest-first, so events[:N] is the recent feed everyone loads up
+    # front; the older tail goes to events-archive.json, which the SPA fetches LAZILY only
+    # when someone opens Search / a Topic (see app.jsx). Same row shape in both, so search /
+    # topic cards render identically -- nothing is lost, it just arrives on demand. Every
+    # story also keeps its own /data/events/<id>.json + pre-rendered HTML (SEO untouched).
+    recent, archive = events[:RECENT_FEED_N], events[RECENT_FEED_N:]
+    write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in recent]})
+    write_json(OUT / "data" / "events-archive.json", {"events": [_row(e) for e in archive]})
 
     # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
     # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of
