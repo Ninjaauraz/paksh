@@ -2761,11 +2761,17 @@ function StoryPage({
       lineHeight: lang === "hi" ? 1.75 : 1.62
     }
   }, fr[k]) : (() => {
-    const hl = outlets.filter(o => o.lean === k && o.headline).slice(0, 2);
     // No AI framing for this covered side yet (usually an extractive-summary
-    // event). Instead of a dead "not enough coverage" panel, show what this
-    // side's outlets actually HEADLINED - real, honest, and never fabricated.
-    return hl.length ? /*#__PURE__*/React.createElement("div", {
+    // event). We MAY show what the side's outlets actually headlined - but only
+    // when the side is genuinely represented, so we never mislead:
+    //  * >= 2 DISTINCT mastheads (a lone outlet must not speak for a whole wing -
+    //    the same guard the "not enough coverage" message was protecting), and
+    //  * headlines in the CURRENT language only (no English headline on the Hindi
+    //    page). Real, never fabricated. Otherwise keep the honest message.
+    const langOk = o => lang === "hi" ? o.language === "hi" : o.language !== "hi";
+    const uniq = [...new Map(outlets.filter(o => o.lean === k && o.headline && langOk(o)).map(o => [o.source, o])).values()];
+    const hl = uniq.slice(0, 2);
+    return hl.length >= 2 ? /*#__PURE__*/React.createElement("div", {
       className: "mt-3.5"
     }, /*#__PURE__*/React.createElement("div", {
       className: `mono text-[9.5px] uppercase tracking-[0.14em] ${t.tf} ${lang === "hi" ? "deva" : ""}`

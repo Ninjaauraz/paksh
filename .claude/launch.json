@@ -4,8 +4,8 @@
     {
       "name": "paksh-static",
       "runtimeExecutable": "py",
-      "runtimeArgs": ["-m", "http.server", "8092", "--directory", "_site"],
-      "port": 8092
+      "runtimeArgs": ["-m", "http.server", "8093", "--directory", "_site"],
+      "port": 8093
     }
   ]
 }
