@@ -488,6 +488,11 @@ def postprocess(raw, articles) -> dict:
         "framing_hi": _clean_framing(raw.get("framing_hi"), coverage_out),
         "topic": topic,
         "region": region,
+        # Real-world publish time = the NEWEST member-article's publish date (RSS gives a
+        # true timestamp; GDELT only a date). This is what the feed shows as "x ago" so the
+        # label reflects when the NEWS happened, not when our pipeline last touched it. None
+        # when nothing parses; every consumer falls back to created_at. Never affects bias.
+        "published_at": _event_created_at(articles),
         "image_url": hero,
         "sources": sources_out,
         "coverage": coverage_out,

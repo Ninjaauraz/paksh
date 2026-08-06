@@ -745,12 +745,15 @@ const toCard = (e, lang) => {
     center: 0,
     right: 0
   };
+  // created_at on the CARD is the real article publish time (published_at) when we have
+  // it, so "x ago" reflects when the news happened, not when our pipeline touched it.
+  // Falls back to the pipeline created_at for events analysed before published_at existed.
   return {
     id: e.id,
     topic: e.topic,
     region: e.region || "India",
     srclang: e.lang || "en",
-    created_at: e.created_at,
+    created_at: e.published_at || e.created_at,
     headline: lang === "hi" && e.title_hi ? e.title_hi : e.title,
     lead: lang === "hi" && e.summary_hi ? e.summary_hi : e.summary,
     summary: lang === "hi" && e.summary_points_hi && e.summary_points_hi.length ? e.summary_points_hi : e.summary_points || [],
@@ -3694,7 +3697,7 @@ function PakshApp() {
   });
   const topicsOrdered = Object.keys(countsByTopic).sort((a, b) => countsByTopic[b] - countsByTopic[a]);
   const lastTs = (data.events || []).reduce((mx, e) => {
-    const ts = Date.parse(e.created_at || "");
+    const ts = Date.parse(e.published_at || e.created_at || "");
     return isNaN(ts) ? mx : Math.max(mx, ts);
   }, 0);
   const stats = {

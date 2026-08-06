@@ -24,6 +24,7 @@ locally:
 
 import html as _html
 import json
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -136,24 +137,63 @@ def _importance(e, now):
 FEED_HALF_LIFE_H = 8.0   # front-page feed halves every 8h so breaking news leads
 
 
+def _age_hours(e, now):
+    """Hours since the event's REAL publish time (newest member article), falling back to
+    created_at for events analysed before published_at existed. Used for feed recency so
+    'x ago' on the card and the story's rank decay from the SAME moment."""
+    stamp = e.get("published_at") or e.get("created_at") or ""
+    try:
+        t = datetime.fromisoformat(stamp.replace("Z", ""))
+    except ValueError:
+        return 1e9
+    return max((now - t).total_seconds() / 3600.0, 0.0)
+
+
+# --- Civic priority (FRONT-PAGE ordering weight only) -------------------------------
+# Indian readers lead with governance/politics/economy and the legal-constitutional beat
+# (amendments, court verdicts, major movements), not the sports/entertainment volume that
+# dominates a global feed. This is an EDITORIAL ordering weight Sameer chose (2026-08-06):
+# a FIXED lookup table + keyword list, never an AI decision. It multiplies feed_rank on the
+# home feed ONLY. It NEVER touches a bias-bar / coverage count, the importance score used
+# elsewhere, or Sections / Search / Topic pages (those stay newest-first).
+CIVIC_TOPIC_WEIGHT = {
+    "Politics": 1.6, "Economy": 1.3, "Crime & Law": 1.3, "Environment": 1.1,
+    "Science & Tech": 1.0, "Health": 1.0, "Society": 1.0, "International": 0.9,
+    "Entertainment": 0.7, "Sports": 0.6,
+}
+# A headline touching the constitutional / mass-movement beat gets an extra nudge so a big
+# amendment or verdict surfaces even against high-volume coverage. English + Hindi (Latin).
+CIVIC_KEYWORDS = re.compile(
+    r"amendment|ordinance|\bbill\b|parliament|sansad|lok sabha|rajya sabha|"
+    r"supreme court|high court|verdict|constitution|reservation|\bquota\b|"
+    r"protest|andolan|movement|morcha|bandh|\bcabinet\b|governor|election|"
+    r"\bpolicy\b|\bact\b", re.I)
+
+
+def _civic_mult(e):
+    """Front-page-only multiplier: fixed topic weight * a 1.25 nudge when the title hits the
+    constitutional / movement keyword list. Purely arithmetic and explainable in one line."""
+    w = CIVIC_TOPIC_WEIGHT.get(e.get("topic"), 1.0)
+    text = " ".join([e.get("title") or "", e.get("title_hi") or ""])
+    if CIVIC_KEYWORDS.search(text):
+        w *= 1.25
+    return round(w, 3)
+
+
 def _feed_rank(e, now):
     """FRONT-PAGE ordering only. The SAME breadth*lean signal as _importance, but with a
     much shorter 8h half-life so the feed always leads with what's current: breadth orders
     stories of similar age, while age actively decays rank so a day-old high-coverage story
-    no longer buries an hour-old breaking one. This is feed-ONLY - _importance (used
-    elsewhere) is untouched - and it only READS coverage counts, never changing any
-    bias-bar / coverage number."""
+    no longer buries an hour-old breaking one. Age is measured from the real publish time
+    (see _age_hours). This is feed-ONLY - _importance (used elsewhere) is untouched - and it
+    only READS coverage counts, never changing any bias-bar / coverage number. The civic
+    weight is applied separately in _row so this stays pure breadth*recency."""
     lc = e.get("lean_counts") or {}
     rated = sum(lc.get(s, 0) for s in ("left", "center", "right"))
     breadth = rated + (e.get("international", 0) or 0)
     leans = sum(1 for s in ("left", "center", "right") if lc.get(s, 0) > 0)
     lean_mult = (1 + 0.5 * (leans - 1)) if leans else 1.0
-    try:
-        t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
-        age_h = max((now - t).total_seconds() / 3600.0, 0.0)
-    except ValueError:
-        age_h = 1e9
-    decay = 0.5 ** (age_h / FEED_HALF_LIFE_H)
+    decay = 0.5 ** (_age_hours(e, now) / FEED_HALF_LIFE_H)
     return round(breadth * lean_mult * decay, 4)
 
 
@@ -240,7 +280,8 @@ def _story_html(shell, ev):
     ld = {"@context": "https://schema.org", "@type": "NewsArticle",
           "headline": headline[:110], "description": desc, "url": url,
           "mainEntityOfPage": url, "image": [img] if img else [],
-          "datePublished": ev.get("created_at"), "dateModified": ev.get("created_at"),
+          "datePublished": ev.get("published_at") or ev.get("created_at"),
+          "dateModified": ev.get("created_at"),
           "inLanguage": ev.get("lang", "en"),
           "publisher": {"@type": "Organization", "name": "Paksh",
                         "logo": {"@type": "ImageObject", "url": SITE_URL + "/static/apple-touch-icon.png"}},
@@ -569,7 +610,10 @@ def main():
     def _row(e):
         d = _lighten(e)
         d["importance"] = _importance(e, _now)   # existing field; untouched, used elsewhere
-        d["feed_rank"] = _feed_rank(e, _now)      # feed-only recency-gated ordering (8h)
+        # front-page order = pure breadth*recency, then the civic weight so India-first
+        # (politics / economy / courts / movements) leads. Both factors are explainable and
+        # never touch a bias count. Sections/Search/Topic ignore this and stay newest-first.
+        d["feed_rank"] = round(_feed_rank(e, _now) * _civic_mult(e), 4)
         return d
 
     write_json(OUT / "data" / "events.json", {"events": [_row(e) for e in events]})

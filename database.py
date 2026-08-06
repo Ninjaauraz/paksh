@@ -411,6 +411,10 @@ def _event_summary_row(r):
         "dominant": dominant_lean(counts),
         "blindspot": compute_blindspot(counts),
         "created_at": r["created_at"],
+        # Real article publish time (newest member article). The feed shows THIS as "x ago";
+        # created_at stays the pipeline touch-time used for internal recency math. None for
+        # events analysed before this field existed -> the UI falls back to created_at.
+        "published_at": data.get("published_at"),
     }
 
 
