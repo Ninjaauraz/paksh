@@ -336,9 +336,11 @@ const TOKENS = {
     surface: "bg-[#201F1C]",
     soft: "bg-[#262420]",
     border: "border-[#35322C]",
+    // tf was #847E72 = 4.36:1 on the dark surface, just under WCAG AA (4.5). #948E7E clears
+    // AA (~5:1 on bg, ~4.7:1 on the soft card) while staying visibly "faint".
     tp: "text-[#EDEAE2]",
     ts: "text-[#B7B1A4]",
-    tf: "text-[#847E72]",
+    tf: "text-[#948E7E]",
     brand: "text-[#EDEAE2]",
     brandBg: "bg-[#EDEAE2]",
     blind: "text-[#C89170]",
@@ -894,6 +896,23 @@ const timeAgo = (iso, lang) => {
   const d = Math.round(h / 24);
   return hi ? `${d} दिन पहले` : `${d}d ago`;
 };
+// Absolute publish date+time, e.g. "6 Aug 2026, 2:14 PM" (en) / Devanagari locale (hi).
+// Shown ALONGSIDE the relative "x ago" so the timestamp is unambiguous on a story page.
+const absDate = (iso, lang) => {
+  const ts = _ts(iso);
+  if (isNaN(ts)) return "";
+  try {
+    return new Date(ts).toLocaleString(lang === "hi" ? "hi-IN" : "en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  } catch (e) {
+    return "";
+  }
+};
 const domSide = bias => ["left", "center", "right"].reduce((a, b) => (bias[b] || 0) > (bias[a] || 0) ? b : a, "left");
 const tword = lang => n => n === 1 ? STR[lang].source : STR[lang].sources;
 const covLine = (story, lang) => {
@@ -934,6 +953,7 @@ function Thumb({
     alt: "",
     loading: "lazy",
     decoding: "async",
+    referrerPolicy: "no-referrer",
     onError: () => setErr(true),
     className: "absolute inset-0 h-full w-full object-cover"
   }) : /*#__PURE__*/React.createElement("div", {
@@ -976,6 +996,7 @@ function OutletAvatar({
     width: s * 0.62,
     height: s * 0.62,
     loading: "lazy",
+    referrerPolicy: "no-referrer",
     onError: () => setErr(true),
     className: "object-contain"
   }));
@@ -1263,7 +1284,8 @@ function DateStrip({
     className: `${eb} ${t.tf} shrink-0`,
     style: {
       letterSpacing: ls
-    }
+    },
+    title: stats.updated ? lang === "hi" ? `नवीनतम खबर का प्रकाशन: ${absDate(stats.updated, lang)}` : `Newest story published: ${absDate(stats.updated, lang)}` : ""
   }, upd ? lang === "hi" ? `अपडेट ${upd}` : `Updated ${upd}` : today));
 }
 // LEAD — the most-covered story of the moment, given the largest type + full bias
@@ -1302,9 +1324,8 @@ function LeadStory({
     },
     className: "block no-underline group cursor-pointer"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
+    className: `eyebrow accent-clay ${lang === "hi" ? "deva" : ""}`,
     style: {
-      color: BIAS.right.color,
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
   }, lang === "hi" ? "आज सबसे ज़्यादा कवरेज" : "Most covered today", tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h2", {
@@ -1758,7 +1779,7 @@ function Header({
   view
 }) {
   const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("header", {
     className: `sticky top-0 z-40 border-b ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1280px] px-4 sm:px-10"
@@ -2323,7 +2344,32 @@ function HomeView({
     stats: stats,
     regionFilter: stats.regionFilter,
     setRegionFilter: stats.setRegionFilter
-  })), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("h1", {
+    className: "sr-only"
+  }, lang === "hi" ? "पक्ष — भारत की खबरों का हर पक्ष" : "Paksh — every side of India's news"), /*#__PURE__*/React.createElement("div", {
+    className: `${pad}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b py-2 ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "बायस बार" : "The bias bar"), ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("span", {
+    key: k,
+    className: "inline-flex items-center gap-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `${BIAS[k].tex} inline-block`,
+    style: {
+      width: 14,
+      height: 10,
+      border: `1px solid ${t.ink}`
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `text-[11px] ${t.ts} ${lang === "hi" ? "deva" : ""}`
+  }, lbl(k, lang)))), /*#__PURE__*/React.createElement("span", {
+    className: `text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "— हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट" : "— distinct outlets on each side that covered the story · one publisher = one vote"))), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-[250px_1fr_280px]",
@@ -2437,7 +2483,9 @@ function StoryPage({
   t,
   lang,
   go,
-  openTopic
+  openTopic,
+  related = [],
+  open
 }) {
   const fr = story.framing || {};
   const outlets = story.outlets || [];
@@ -2565,7 +2613,10 @@ function StoryPage({
     className: `mt-4 mono text-[11.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, metaLine, story.auto && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 ", /*#__PURE__*/React.createElement("span", {
     className: "uppercase"
-  }, STR[lang].autoTag)))), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].autoTag))), absDate(story.created_at, lang) && /*#__PURE__*/React.createElement("div", {
+    className: `mt-1 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    title: lang === "hi" ? "नवीनतम स्रोत का प्रकाशन समय" : "Newest source's publish time"
+  }, absDate(story.created_at, lang))), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-8 max-w-[840px] py-6",
     style: {
       borderTop: `1px solid ${t.ink}`,
@@ -2691,7 +2742,7 @@ function StoryPage({
     className: `text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, lbl(k, lang)), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, counts[k], " ", lang === "hi" ? "स्रोत" : counts[k] === 1 ? "outlet" : "outlets")), Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("ul", {
+  }, counts[k], " ", lang === "hi" ? "मास्टहेड" : counts[k] === 1 ? "masthead" : "mastheads")), Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("ul", {
     className: "mt-3.5 space-y-2"
   }, fr[k].map((p, i) => /*#__PURE__*/React.createElement("li", {
     key: i,
@@ -2709,9 +2760,27 @@ function StoryPage({
     style: {
       lineHeight: lang === "hi" ? 1.75 : 1.62
     }
-  }, fr[k]) : /*#__PURE__*/React.createElement("p", {
-    className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
-  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
+  }, fr[k]) : (() => {
+    const hl = outlets.filter(o => o.lean === k && o.headline).slice(0, 2);
+    // No AI framing for this covered side yet (usually an extractive-summary
+    // event). Instead of a dead "not enough coverage" panel, show what this
+    // side's outlets actually HEADLINED - real, honest, and never fabricated.
+    return hl.length ? /*#__PURE__*/React.createElement("div", {
+      className: "mt-3.5"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `mono text-[9.5px] uppercase tracking-[0.14em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+    }, lang === "hi" ? "इस पक्ष के आउटलेट ने क्या चलाया" : "What this side's outlets ran"), /*#__PURE__*/React.createElement("ul", {
+      className: "mt-1.5 space-y-1.5"
+    }, hl.map((o, i) => /*#__PURE__*/React.createElement("li", {
+      key: i,
+      className: `text-[13px] ${t.ts} ${readCls(lang)}`,
+      style: {
+        lineHeight: lang === "hi" ? 1.7 : 1.45
+      }
+    }, o.headline)))) : /*#__PURE__*/React.createElement("p", {
+      className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
+    }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending);
+  })())))), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
   }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
@@ -2759,7 +2828,7 @@ function StoryPage({
       className: `mono text-[14px] font-semibold ${t.tp}`
     }, votes, oc > votes && /*#__PURE__*/React.createElement("span", {
       className: `ml-1 text-[11px] font-normal ${t.tf}`
-    }, lang === "hi" ? `(${oc} स्रोत)` : `(${oc} outlets)`))), coOwned && /*#__PURE__*/React.createElement("div", {
+    }, lang === "hi" ? `प्रकाशक · ${oc} मास्टहेड` : `${votes === 1 ? "publisher" : "publishers"} · ${oc} mastheads`))), coOwned && /*#__PURE__*/React.createElement("div", {
       className: "mt-1.5 space-y-0.5 pl-6"
     }, groups.filter(([o, ms]) => ms.length > 1).map(([o, ms], j) => /*#__PURE__*/React.createElement("div", {
       key: j,
@@ -2821,7 +2890,7 @@ function StoryPage({
     key: i,
     href: o.url || "#",
     target: "_blank",
-    rel: "noopener",
+    rel: "nofollow noopener noreferrer",
     className: `flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`
   }, /*#__PURE__*/React.createElement(OutletAvatar, {
     o: o,
@@ -2846,7 +2915,27 @@ function StoryPage({
     className: `mt-0.5 shrink-0 ${t.tf}`
   }))), arts.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: `py-10 text-center text-[13px] ${t.tf}`
-  }, "-"))));
+  }, "-"))), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-12 max-w-[1000px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-4 pb-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? `${tp} पर और खबरें` : `More on ${tp}`)), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-x-7 gap-y-6 sm:grid-cols-2 lg:grid-cols-3"
+  }, related.map(s => /*#__PURE__*/React.createElement(GridCard, {
+    key: s.id,
+    story: s,
+    t: t,
+    lang: lang,
+    onOpen: open
+  })))));
 }
 
 /* ---------------- other pages ---------------- */
@@ -3190,7 +3279,7 @@ function SourceCard({
   }, s.name), s.website && /*#__PURE__*/React.createElement("a", {
     href: s.website,
     target: "_blank",
-    rel: "noopener",
+    rel: "nofollow noopener noreferrer",
     className: `mono text-[11px] break-all ${t.tf} hover:${t.ts}`
   }, (s.website || "").replace(/^https?:\/\//, ""))), side ? /*#__PURE__*/React.createElement(LeanBadge, {
     side: side,
@@ -3599,7 +3688,18 @@ function parsePath() {
 function PakshApp() {
   const [route, setRoute] = useState(parsePath());
   const [lang, setLang] = useState("en");
-  const [dark, setDark] = useState(false);
+  // Honour a remembered choice first, else the OS preference (prefers-color-scheme),
+  // else light. Previously it always started light, ignoring a device set to dark.
+  const [dark, setDark] = useState(() => {
+    try {
+      const s = localStorage.getItem("paksh-theme");
+      if (s === "dark") return true;
+      if (s === "light") return false;
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    } catch (e) {
+      return false;
+    }
+  });
   const [query, setQuery] = useState("");
   const [data, setData] = useState({
     events: [],
@@ -3630,6 +3730,9 @@ function PakshApp() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     document.body.style.backgroundColor = dark ? "#1A1917" : "#EAE6DB";
+    try {
+      localStorage.setItem("paksh-theme", dark ? "dark" : "light");
+    } catch (e) {}
   }, [dark]);
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -3733,13 +3836,26 @@ function PakshApp() {
   (data.sources || []).forEach(s => {
     if (rosterByLean[s.lean] != null) rosterByLean[s.lean]++;
   });
-  const q = query.trim().toLowerCase();
-  const results = q ? baseCards.filter(c => (c.headline || "").toLowerCase().includes(q)) : [];
+  // Token-AND search: every word in the query must appear SOMEWHERE in the card's
+  // headline, summary snippet or topic. The old code required the whole query as one
+  // contiguous substring of the headline, so "supreme court neet" matched nothing even
+  // when all three words were present. Matches the localised (EN/HI) fields on the card.
+  const qTokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const _hay = c => `${c.headline || ""} ${c.lead || ""} ${(c.summary || []).join(" ")} ${c.topic || ""}`.toLowerCase();
+  const results = qTokens.length ? baseCards.filter(c => {
+    const h = _hay(c);
+    return qTokens.every(tok => h.includes(tok));
+  }) : [];
   const story = route.view === "story" ? detail[route.id] ? toDetail(detail[route.id], lang) : null : null;
+  // Same-topic stories to keep a reader moving instead of dead-ending at the article.
+  const related = story ? baseCards.filter(c => c.topic === story.topic && String(c.id) !== String(story.id)).slice(0, 6) : [];
   const headerView = route.view === "story" ? "" : route.view;
   return /*#__PURE__*/React.createElement("div", {
     className: `min-h-screen font-sans ${t.bg} ${t.tp}`
-  }, /*#__PURE__*/React.createElement(Header, {
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#main",
+    className: "sr-only-focusable"
+  }, lang === "hi" ? "मुख्य सामग्री पर जाएँ" : "Skip to content"), /*#__PURE__*/React.createElement(Header, {
     t: t,
     lang: lang,
     setLang: setLang,
@@ -3747,7 +3863,8 @@ function PakshApp() {
     setDark: setDark,
     go: go,
     view: headerView
-  }), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("main", {
+    id: "main",
     className: "pb-24 md:pb-10"
   }, !ready ? /*#__PURE__*/React.createElement(FeedSkeleton, {
     t: t
@@ -3756,7 +3873,9 @@ function PakshApp() {
     t: t,
     lang: lang,
     go: go,
-    openTopic: goTopic
+    openTopic: goTopic,
+    related: related,
+    open: open
   }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
     t: t
   }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {

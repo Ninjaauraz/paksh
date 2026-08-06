@@ -45,7 +45,9 @@ const {useState,useEffect,useMemo}=React;
         cta:"bg-[#15140F]", ctaT:"text-[#F4F1EA]", line:"#D8D3C6", ink:"#15140F", chip:"bg-[#EAE6DB]", centerSeg:"#8C8579",
         track:"#EAE6DB", gap:"#F4F1EA" },
       dark: { bg:"bg-[#1A1917]", surface:"bg-[#201F1C]", soft:"bg-[#262420]", border:"border-[#35322C]",
-        tp:"text-[#EDEAE2]", ts:"text-[#B7B1A4]", tf:"text-[#847E72]", brand:"text-[#EDEAE2]", brandBg:"bg-[#EDEAE2]",
+        // tf was #847E72 = 4.36:1 on the dark surface, just under WCAG AA (4.5). #948E7E clears
+        // AA (~5:1 on bg, ~4.7:1 on the soft card) while staying visibly "faint".
+        tp:"text-[#EDEAE2]", ts:"text-[#B7B1A4]", tf:"text-[#948E7E]", brand:"text-[#EDEAE2]", brandBg:"bg-[#EDEAE2]",
         blind:"text-[#C89170]", blindSoft:"bg-[#2E2019]", nav:"glass-nav-dark",
         cta:"bg-[#EDEAE2]", ctaT:"text-[#201F1C]", line:"#35322C", ink:"#EDEAE2", chip:"bg-[#2A2823]", centerSeg:"#8C8579",
         track:"#2A2823", gap:"#1A1917" },
@@ -246,6 +248,9 @@ const {useState,useEffect,useMemo}=React;
       if(m<60) return hi?`${Math.round(m)} मिनट पहले`:`${Math.round(m)}m ago`;
       const h=m/60; if(h<24) return hi?`${Math.round(h)} घंटे पहले`:`${Math.round(h)}h ago`;
       const d=Math.round(h/24); return hi?`${d} दिन पहले`:`${d}d ago`; };
+    // Absolute publish date+time, e.g. "6 Aug 2026, 2:14 PM" (en) / Devanagari locale (hi).
+    // Shown ALONGSIDE the relative "x ago" so the timestamp is unambiguous on a story page.
+    const absDate=(iso,lang)=>{ const ts=_ts(iso); if(isNaN(ts)) return ""; try{ return new Date(ts).toLocaleString(lang==="hi"?"hi-IN":"en-IN",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } };
     const domSide=(bias)=>["left","center","right"].reduce((a,b)=>(bias[b]||0)>(bias[a]||0)?b:a,"left");
     const tword=(lang)=> (n)=> n===1?STR[lang].source:STR[lang].sources;
     const covLine=(story,lang)=>{ const d=domSide(story.bias); const tot=story.sources+(story.unrated||0)+(story.international||0); return `${story.bias[d]}% ${lbl(d,lang)} · ${tot} ${tot===1?STR[lang].source:STR[lang].sources}`; };
@@ -260,7 +265,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`relative overflow-hidden ${t.soft} ${className||""}`} style={{aspectRatio:ratio||"16 / 9"}}>
           {real
-            ? <img src={src} alt="" loading="lazy" decoding="async" onError={()=>setErr(true)} className="absolute inset-0 h-full w-full object-cover" />
+            ? <img src={src} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setErr(true)} className="absolute inset-0 h-full w-full object-cover" />
             : <div className="absolute inset-0 flex items-center justify-center">
                 <span className={`mono text-[11px] font-semibold uppercase tracking-[0.16em] ${t.tf} ${lang==="hi"?"deva":""}`}>{tp}</span>
               </div>}
@@ -272,7 +277,7 @@ const {useState,useEffect,useMemo}=React;
       let host=""; try{ host=new URL(o.url).hostname.replace(/^www\./,""); }catch(e){}
       const s=size||26; const ring=side==="unrated"?"#B8B4AC":((BIAS[side]&&BIAS[side].color)||"#8A8F98");
       if(err||!host) return <span className="grid shrink-0 place-items-center rounded-md mono font-semibold text-white" style={{width:s,height:s,fontSize:s*0.42,backgroundColor:ring}}>{(o.source||"?")[0]}</span>;
-      return <span className="grid shrink-0 place-items-center rounded-md bg-white" style={{width:s,height:s,boxShadow:`0 0 0 1.5px ${ring}`}}><img src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`} alt="" width={s*0.62} height={s*0.62} loading="lazy" onError={()=>setErr(true)} className="object-contain"/></span>;
+      return <span className="grid shrink-0 place-items-center rounded-md bg-white" style={{width:s,height:s,boxShadow:`0 0 0 1.5px ${ring}`}}><img src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`} alt="" width={s*0.62} height={s*0.62} loading="lazy" referrerPolicy="no-referrer" onError={()=>setErr(true)} className="object-contain"/></span>;
     }
 
     /* ---------------- bias bars ---------------- */
@@ -395,7 +400,7 @@ const {useState,useEffect,useMemo}=React;
             <span className={`hidden md:inline ${eb} ${t.tf}`} style={{letterSpacing:ls}}>{today}</span>
           </div>
           <span className={`hidden sm:inline ${eb} ${t.tf} truncate`} style={{letterSpacing:ls}}>{tally}</span>
-          <span className={`${eb} ${t.tf} shrink-0`} style={{letterSpacing:ls}}>{upd?(lang==="hi"?`अपडेट ${upd}`:`Updated ${upd}`):today}</span>
+          <span className={`${eb} ${t.tf} shrink-0`} style={{letterSpacing:ls}} title={stats.updated?(lang==="hi"?`नवीनतम खबर का प्रकाशन: ${absDate(stats.updated,lang)}`:`Newest story published: ${absDate(stats.updated,lang)}`):""}>{upd?(lang==="hi"?`अपडेट ${upd}`:`Updated ${upd}`):today}</span>
         </div>
       );
     }
@@ -412,7 +417,7 @@ const {useState,useEffect,useMemo}=React;
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
-          <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:BIAS.right.color,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
+          <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
           <h2 className={`headline mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.14:1.06,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h2>
           {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
@@ -596,7 +601,7 @@ const {useState,useEffect,useMemo}=React;
     function Header({ t, lang, setLang, dark, setDark, go, view }) {
       const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
       return (
-        <div className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
+        <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
           <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
             <div className="flex h-[58px] items-center gap-6">
               <button onClick={()=>go("home")} className="flex shrink-0 items-baseline gap-2" aria-label="Paksh home">
@@ -617,7 +622,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
             </div>
           </div>
-        </div>
+        </header>
       );
     }
     function BottomNav({ t, lang, view, go }) {
@@ -806,6 +811,21 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className="mx-auto max-w-[1280px]">
           <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
+          {/* one h1 for the page + an always-on legend so a first-time visitor knows what the
+              "3 · 9 · 4" bias counts mean, right where they see them */}
+          <h1 className="sr-only">{lang==="hi"?"पक्ष — भारत की खबरों का हर पक्ष":"Paksh — every side of India's news"}</h1>
+          <div className={`${pad}`}>
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b py-2 ${t.border}`}>
+              <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"बायस बार":"The bias bar"}</span>
+              {["left","center","right"].map(k=>(
+                <span key={k} className="inline-flex items-center gap-1.5">
+                  <span className={`${BIAS[k].tex} inline-block`} style={{width:14,height:10,border:`1px solid ${t.ink}`}}/>
+                  <span className={`text-[11px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
+                </span>
+              ))}
+              <span className={`text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"— हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट":"— distinct outlets on each side that covered the story · one publisher = one vote"}</span>
+            </div>
+          </div>
 
           {/* HERO — 250 / 1fr / 280 with vertical hairlines on desktop; on mobile the lead
               leads, then the rail, then the spectrum (order utilities) */}
@@ -860,7 +880,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     /* ---------------- STORY (tabbed) ---------------- */
-    function StoryPage({ story, t, lang, go, openTopic }) {
+    function StoryPage({ story, t, lang, go, openTopic, related=[], open }) {
       const fr=story.framing||{};
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
@@ -906,6 +926,7 @@ const {useState,useEffect,useMemo}=React;
             <div className={`eyebrow sm:hidden ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}</div>
             <h1 className={`headline mt-3 sm:mt-0 text-[28px] sm:text-[42px] lg:text-[50px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.18:1.1,letterSpacing:lang==="hi"?0:"-0.02em",textWrap:"balance"}}>{story.headline}</h1>
             <div className={`mt-4 mono text-[11.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{metaLine}{story.auto && <> · <span className="uppercase">{STR[lang].autoTag}</span></>}</div>
+            {absDate(story.created_at,lang) && <div className={`mt-1 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`} title={lang==="hi"?"नवीनतम स्रोत का प्रकाशन समय":"Newest source's publish time"}>{absDate(story.created_at,lang)}</div>}
           </div>
 
           {/* the bias instrument — border-y ink, printed scale; segments filter the article list */}
@@ -950,7 +971,7 @@ const {useState,useEffect,useMemo}=React;
                   <div className="flex flex-1 flex-col p-5">
                     <div className="flex items-baseline justify-between">
                       <span className={`text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
-                      <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"स्रोत":(counts[k]===1?"outlet":"outlets")}</span>
+                      <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"मास्टहेड":(counts[k]===1?"masthead":"mastheads")}</span>
                     </div>
                     {Array.isArray(fr[k]) && fr[k].length
                       ? <ul className="mt-3.5 space-y-2">{fr[k].map((p,i)=>(
@@ -958,7 +979,17 @@ const {useState,useEffect,useMemo}=React;
                             <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full" style={{background:BIAS[k].color}}/>{p}</li>))}</ul>
                       : (typeof fr[k]==="string" && fr[k].trim())
                         ? <p className={`mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.62}}>{fr[k]}</p>
-                        : <p className={`mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{anyFraming?STR[lang].framingThin:STR[lang].framingPending}</p>}
+                        : (()=>{ const hl=outlets.filter(o=>o.lean===k && o.headline).slice(0,2);
+                            // No AI framing for this covered side yet (usually an extractive-summary
+                            // event). Instead of a dead "not enough coverage" panel, show what this
+                            // side's outlets actually HEADLINED - real, honest, and never fabricated.
+                            return hl.length
+                              ? <div className="mt-3.5">
+                                  <div className={`mono text-[9.5px] uppercase tracking-[0.14em] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"इस पक्ष के आउटलेट ने क्या चलाया":"What this side's outlets ran"}</div>
+                                  <ul className="mt-1.5 space-y-1.5">{hl.map((o,i)=><li key={i} className={`text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.45}}>{o.headline}</li>)}</ul>
+                                </div>
+                              : <p className={`mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`}>{anyFraming?STR[lang].framingThin:STR[lang].framingPending}</p>;
+                          })()}
                   </div>
                 </div>
               ))}
@@ -980,7 +1011,7 @@ const {useState,useEffect,useMemo}=React;
               <div key={k} className={`border-b py-3 ${t.border}`}>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2.5"><span className={`${BIAS[k].tex} shrink-0`} style={{width:14,height:14,border:`1px solid ${t.ink}`}}/><span className={`text-[13px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span></span>
-                  <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`(${oc} स्रोत)`:`(${oc} outlets)`}</span>}</span>
+                  <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`प्रकाशक · ${oc} मास्टहेड`:`${votes===1?"publisher":"publishers"} · ${oc} mastheads`}</span>}</span>
                 </div>
                 {coOwned && <div className="mt-1.5 space-y-0.5 pl-6">{groups.filter(([o,ms])=>ms.length>1).map(([o,ms],j)=>(
                   <div key={j} className={`text-[11px] leading-snug ${t.tf} ${isHi(lang)}`}>{ms.join(" · ")} <span className="italic">({o} — {lang==="hi"?"1 वोट":"1 vote"})</span></div>
@@ -1008,7 +1039,7 @@ const {useState,useEffect,useMemo}=React;
             </div>
             <div className="mt-4 space-y-2.5">
               {arts.map((o,i)=>(
-                <a key={i} href={o.url||"#"} target="_blank" rel="noopener" className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
+                <a key={i} href={o.url||"#"} target="_blank" rel="nofollow noopener noreferrer" className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
                   <OutletAvatar o={o} side={o.lean} size={30} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -1024,6 +1055,18 @@ const {useState,useEffect,useMemo}=React;
               {arts.length===0 && <div className={`py-10 text-center text-[13px] ${t.tf}`}>-</div>}
             </div>
           </div>
+
+          {/* More on this topic — keep the reader moving instead of dead-ending here */}
+          {related && related.length>0 && open && (
+            <div className="mx-auto mt-12 max-w-[1000px]">
+              <div className="mb-4 pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
+                <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?`${tp} पर और खबरें`:`More on ${tp}`}</h3>
+              </div>
+              <div className="grid gap-x-7 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+                {related.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -1179,7 +1222,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`rounded-lg border p-4 ${t.surface} ${t.border}`} style={side?{borderLeftWidth:3,borderLeftColor:BIAS[side].color}:{}}>
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0"><div className={`headline text-[15px] ${t.tp} ${readCls(lang)}`}>{s.name}</div>{s.website && <a href={s.website} target="_blank" rel="noopener" className={`mono text-[11px] break-all ${t.tf} hover:${t.ts}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>}</div>
+            <div className="min-w-0"><div className={`headline text-[15px] ${t.tp} ${readCls(lang)}`}>{s.name}</div>{s.website && <a href={s.website} target="_blank" rel="nofollow noopener noreferrer" className={`mono text-[11px] break-all ${t.tf} hover:${t.ts}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>}</div>
             {side?<LeanBadge side={side} lang={lang} t={t}/>:<span className={`shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip} ${t.tf}`}>{s.label||"-"}</span>}
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-2 mono text-[10px]">
@@ -1342,7 +1385,9 @@ const {useState,useEffect,useMemo}=React;
     function PakshApp() {
       const [route,setRoute]=useState(parsePath());
       const [lang,setLang]=useState("en");
-      const [dark,setDark]=useState(false);
+      // Honour a remembered choice first, else the OS preference (prefers-color-scheme),
+      // else light. Previously it always started light, ignoring a device set to dark.
+      const [dark,setDark]=useState(()=>{ try{ const s=localStorage.getItem("paksh-theme"); if(s==="dark")return true; if(s==="light")return false; return !!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches); }catch(e){ return false; } });
       const [query,setQuery]=useState("");
       const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}});
       const [detail,setDetail]=useState({});
@@ -1351,7 +1396,7 @@ const {useState,useEffect,useMemo}=React;
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
       useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
-      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#1A1917":"#EAE6DB"; },[dark]);
+      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#1A1917":"#EAE6DB"; try{ localStorage.setItem("paksh-theme",dark?"dark":"light"); }catch(e){} },[dark]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
       // events.json is capped to recent stories for a light first paint; the older tail lives in
       // events-archive.json and is fetched ONCE, the first time the user browses beyond the feed
@@ -1406,17 +1451,25 @@ const {useState,useEffect,useMemo}=React;
       // Roster size per lean (distinct outlets tracked), for the Coverage-Gaps rate columns.
       const rosterByLean={left:0,center:0,right:0};
       (data.sources||[]).forEach(s=>{ if(rosterByLean[s.lean]!=null) rosterByLean[s.lean]++; });
-      const q=query.trim().toLowerCase();
-      const results=q?baseCards.filter(c=>(c.headline||"").toLowerCase().includes(q)):[];
+      // Token-AND search: every word in the query must appear SOMEWHERE in the card's
+      // headline, summary snippet or topic. The old code required the whole query as one
+      // contiguous substring of the headline, so "supreme court neet" matched nothing even
+      // when all three words were present. Matches the localised (EN/HI) fields on the card.
+      const qTokens=query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const _hay=(c)=>`${c.headline||""} ${c.lead||""} ${(c.summary||[]).join(" ")} ${c.topic||""}`.toLowerCase();
+      const results=qTokens.length?baseCards.filter(c=>{ const h=_hay(c); return qTokens.every(tok=>h.includes(tok)); }):[];
       const story = route.view==="story" ? (detail[route.id]?toDetail(detail[route.id],lang):null) : null;
+      // Same-topic stories to keep a reader moving instead of dead-ending at the article.
+      const related = story ? baseCards.filter(c=>c.topic===story.topic && String(c.id)!==String(story.id)).slice(0,6) : [];
       const headerView = route.view==="story" ? "" : route.view;
 
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
+          <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
           <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={headerView} />
-          <div className="pb-24 md:pb-10">
+          <main id="main" className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} /> : <FeedSkeleton t={t} />)
+            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} /> : <FeedSkeleton t={t} />)
             : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
@@ -1427,7 +1480,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
                : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
-          </div>
+          </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} />
         </div>

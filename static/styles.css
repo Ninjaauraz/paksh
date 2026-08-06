@@ -5,6 +5,8 @@
   --hairline:#D8D3C6; --muted:#8A8371; --clay:#75442E;
 }
   body{font-family:'IBM Plex Sans',system-ui,sans-serif;background-color:#EAE6DB;color:#26241E;}
+  /* dark background applied pre-hydration (see index.html theme script) so there's no flash */
+  .dark body{background-color:#1A1917;color:#B7B1A4;}
   /* reading text is serif in BOTH scripts */
   .serif{font-family:'Source Serif 4',Georgia,serif;}
   .headline{font-family:'Source Serif 4',Georgia,serif;font-weight:600;letter-spacing:-0.014em;}
@@ -43,6 +45,10 @@
   .dark .seg-absent{background:repeating-linear-gradient(45deg,#262420 0 4px,#201F1C 4px 8px);}
   /* gap-accent on the ink Coverage Gaps band */
   .gap-accent{color:#C98A66;}
+  /* theme-aware clay accent for kickers ("Most covered today"): the Right-lean #96603F
+     is only 3.4:1 on the dark bg, so darken it on paper, lighten it in dark -> AA both ways */
+  .accent-clay{color:#8A4B2C;}
+  .dark .accent-clay{color:#C89170;}
 
   /* radius 0 everywhere — structure carried by hairlines + space, never by radii */
   #root [class*="rounded"]{border-radius:0 !important;}
@@ -58,6 +64,11 @@
   @keyframes shimmer{0%{background-position:-520px 0}100%{background-position:520px 0}}
   .skel{background-color:#e3ddd0;background-image:linear-gradient(90deg,rgba(0,0,0,0) 0,rgba(255,255,255,.55) 50%,rgba(0,0,0,0) 100%);background-size:520px 100%;background-repeat:no-repeat;animation:shimmer 1.5s infinite linear;}
   .dark .skel{background-color:#201f1c;background-image:linear-gradient(90deg,rgba(255,255,255,0) 0,rgba(255,255,255,.06) 50%,rgba(255,255,255,0) 100%);}
+  /* screen-reader-only text (accessible headings) + a skip-link that appears on focus */
+  .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  .sr-only-focusable{position:absolute;left:8px;top:-48px;z-index:100;background:#15140F;color:#F4F1EA;padding:8px 14px;font:500 13px/1 'IBM Plex Sans',sans-serif;transition:top .15s ease;}
+  .sr-only-focusable:focus{top:8px;}
+  .dark .sr-only-focusable{background:#EDEAE2;color:#1A1917;}
   .lc-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .lc-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
   .lc-4{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}

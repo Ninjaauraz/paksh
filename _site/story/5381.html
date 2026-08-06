@@ -8,6 +8,9 @@
 <link rel="canonical" href="https://paksh.vercel.app/story/5381"/>
 <meta name="theme-color" content="#F4F1EA"/>
 <meta name="robots" content="index, follow"/>
+<!-- Set the theme BEFORE first paint (remembered choice, else OS preference) so a
+     dark-mode visitor never gets a white flash before React hydrates. -->
+<script>(function(){try{var s=localStorage.getItem('paksh-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.style.background='#1A1917';var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content','#1A1917');}}catch(e){}})();</script>
 <link rel="icon" type="image/png" href="/static/favicon.png"/>
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
 <meta property="og:type" content="article"/>

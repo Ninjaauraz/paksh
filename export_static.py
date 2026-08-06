@@ -700,31 +700,54 @@ def main():
         sp.write_text(_story_html(shell, full), encoding="utf-8")
         story_urls.append((f"{SITE_URL}/story/{e['id']}", full.get("created_at")))
 
-    # 4) Vercel: clean URLs + SPA fallback. Real files (story/, data/, static/) always
-    #    win over the rewrite, so only unknown paths (/about, /topic/X) hit the SPA.
+    # 4) Vercel routing. IMPORTANT: we use the legacy `routes` array, NOT cleanUrls+rewrites.
+    #    The modern `{cleanUrls:true, rewrites:[/(.*)->/index.html]}` combo SILENTLY FAILS on
+    #    Vercel: cleanUrls shadows the catch-all rewrite, so every path without a real file
+    #    (/about, /sources, /search, /topic/X, /topics, /blindspot) returned a hard 404 on
+    #    refresh / shared link / crawler, while headers still applied (that's how we diagnosed
+    #    it). `routes` + an explicit `filesystem` handle is the battle-tested SPA fallback:
+    #    real files win first, then the shell renders every in-app route. `routes` is mutually
+    #    exclusive with cleanUrls/rewrites/headers/trailingSlash, so headers live here too.
+    #    Verify after deploy:  curl -I https://paksh.vercel.app/about   -> HTTP/2 200
+    _sec_headers = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    }
     write_json(OUT / "vercel.json", {
-        "cleanUrls": True, "trailingSlash": False,
-        "rewrites": [{"source": "/(.*)", "destination": "/index.html"}],
-        "headers": [{
-            "source": "/(.*)",
-            "headers": [
-                {"key": "X-Content-Type-Options", "value": "nosniff"},
-                {"key": "X-Frame-Options", "value": "SAMEORIGIN"},
-                {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
-                {"key": "Permissions-Policy",
-                 "value": "camera=(), microphone=(), geolocation=(), browsing-topics=()"},
-                {"key": "Strict-Transport-Security",
-                 "value": "max-age=63072000; includeSubDomains; preload"},
-                {"key": "Content-Security-Policy",
-                 "value": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"},
-            ],
-        }],
+        "routes": [
+            # 1) security headers on every response, then keep routing
+            {"src": "/(.*)", "headers": _sec_headers, "continue": True},
+            # 2) serve any real file: /index.html, /static/*, /data/*, /story/<id>.html,
+            #    robots.txt, sitemap.xml, favicons, og.png ...
+            {"handle": "filesystem"},
+            # 3) pretty story URLs -> the pre-rendered crawlable page
+            {"src": "/story/([^/]+)/?$", "dest": "/story/$1.html"},
+            # 4) keep the (absent) API 404 so the SPA's static-mode probe stays a fast 404
+            {"src": "/api/(.*)", "status": 404},
+            # 5) SPA fallback: every other in-app route renders the shell (History API + SEO)
+            {"src": "/(.*)", "dest": "/index.html"},
+        ],
     })
 
     # 5) robots + sitemap (homepage + every story)
     (OUT / "robots.txt").write_text(
         "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n" % SITE_URL, encoding="utf-8")
     rows = ['  <url><loc>%s/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>' % SITE_URL]
+    # section + info pages (now that routing serves them; previously they 404'd AND were
+    # missing here, so they were invisible to search). Topic pages are strong SEO surfaces
+    # ("Politics, every side") -> one entry per distinct topic present.
+    section_paths = ["/topics", "/blindspot", "/about", "/sources"]
+    topic_names = sorted({e.get("topic") for e in events if e.get("topic")})
+    from urllib.parse import quote
+    for p in section_paths:
+        rows.append('  <url><loc>%s%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>' % (SITE_URL, p))
+    for name in topic_names:
+        rows.append('  <url><loc>%s/topic/%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>'
+                    % (SITE_URL, quote(name, safe="")))
     for u, ts in story_urls:
         lm = "<lastmod>%s</lastmod>" % ts[:10] if ts else ""
         rows.append('  <url><loc>%s</loc>%s<changefreq>daily</changefreq><priority>0.7</priority></url>' % (u, lm))
