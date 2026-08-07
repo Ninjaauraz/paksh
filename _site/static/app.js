@@ -404,6 +404,30 @@ const FORMSPREE_ENDPOINT = "https://formspree.io/f/mkolqann";
 // render as clean labelled placeholders and NO ad script/cookie loads (privacy-safe).
 // To go live: set this, and uncomment the AdSense loader <script> in static/index.html.
 const ADSENSE_CLIENT = "";
+
+// --- Reader support (visible now; the CTA works the moment you fill these in) ----------
+// Paksh is reader-supported. Fill in whichever you use - leave the rest "". While ALL are
+// empty the Support page still shows the pitch but says "coming soon" instead of a dead
+// button. `upi` = your UPI id (e.g. "paksh@okhdfcbank"); `url` = a Razorpay/Buy-Me-a-Coffee
+// /donation page; `payeeName` labels the UPI intent. Nothing here loads a tracker or cookie.
+const SUPPORT = {
+  upi: "",
+  url: "",
+  payeeName: "Paksh"
+};
+const supportReady = () => !!(SUPPORT.upi || SUPPORT.url);
+// A UPI deep link that opens the user's UPI app pre-filled (no amount forced).
+const upiLink = () => SUPPORT.upi ? `upi://pay?pa=${encodeURIComponent(SUPPORT.upi)}&pn=${encodeURIComponent(SUPPORT.payeeName || "Paksh")}&cu=INR` : "";
+
+// --- Sponsorship (stays INVISIBLE until you actually have a sponsor) -------------------
+// Unlike reader support, an empty "Supported by ___" slot looks broken, so this renders
+// NOTHING until a sponsor is configured. Fill one in only when a deal is signed.
+const SPONSOR = {
+  name: "",
+  url: "",
+  line: ""
+}; // e.g. {name:"Acme", url:"https://…", line:"Media literacy for all"}
+
 const UI = {
   seeAll: {
     en: "See all",
