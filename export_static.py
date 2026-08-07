@@ -293,9 +293,16 @@ def _story_html(shell, ev):
           "publisher": {"@type": "Organization", "name": "Paksh",
                         "logo": {"@type": "ImageObject", "url": SITE_URL + "/static/apple-touch-icon.png"}},
           "isAccessibleForFree": True}
+    # SECURITY: json.dumps does NOT escape < > &, so a story title/summary containing the
+    # literal "</script>" (an adversarial or spoofed ingested source could craft one) would
+    # close this <script> block and inject arbitrary JS into every reader's page. Escape the
+    # HTML-significant characters as JSON \uXXXX (still valid JSON-LD) to make breakout
+    # impossible. \u2028/\u2029 are escaped too (defensive, harmless in JSON-LD).
+    _jsonld = (json.dumps(ld, ensure_ascii=False)
+               .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+               .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
     shell = shell.replace("</head>",
-                          '<script type="application/ld+json">%s</script>\n</head>'
-                          % json.dumps(ld, ensure_ascii=False), 1)
+                          '<script type="application/ld+json">%s</script>\n</head>' % _jsonld, 1)
 
     # crawlable body in place of the skeleton
     e2 = lambda x: _html.escape(str(x or ""))
@@ -709,13 +716,40 @@ def main():
     #    real files win first, then the shell renders every in-app route. `routes` is mutually
     #    exclusive with cleanUrls/rewrites/headers/trailingSlash, so headers live here too.
     #    Verify after deploy:  curl -I https://paksh.vercel.app/about   -> HTTP/2 200
+    # --- Content-Security-Policy ---------------------------------------------------------
+    # Rolled out SAFELY. `Content-Security-Policy` (ENFORCING) carries only the STRUCTURAL
+    # directives that cannot break resource loading: no clickjacking (frame-ancestors none +
+    # X-Frame-Options DENY), no plugins (object-src none), no <base> hijack (base-uri self),
+    # no form hijack (form-action). The full resource policy (script/style/img/font/connect)
+    # ships as `Content-Security-Policy-Report-Only` FIRST so we can watch the live console for
+    # violations and fix any missed source BEFORE it can white-screen the site. Once a clean
+    # deploy shows no report-only violations, copy _CSP_STRICT into the enforcing header.
+    # (Enabled by self-hosting React + moving the theme script to a file, so script-src='self'.)
+    _CSP_ENFORCE = ("default-src 'self'; frame-ancestors 'none'; object-src 'none'; "
+                    "base-uri 'self'; form-action 'self' https://formspree.io")
+    _CSP_STRICT = (
+        "default-src 'self'; "
+        "script-src 'self'; "                                    # self-hosted React + app.js + /_vercel/insights
+        "style-src 'self' 'unsafe-inline'; "                     # React inline styles + self-hosted fonts.css
+        "font-src 'self' data:; "                                # fonts are self-hosted (fetch_fonts.py)
+        "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
+        "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com; "
+        "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
+        "base-uri 'self'; form-action 'self' https://formspree.io; "
+        "manifest-src 'self'; worker-src 'self'"
+    )
     _sec_headers = {
         "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "SAMEORIGIN",
+        "X-Frame-Options": "DENY",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+        "Permissions-Policy": ("camera=(), microphone=(), geolocation=(), browsing-topics=(), "
+                               "payment=(), usb=(), magnetometer=(), gyroscope=(), interest-cohort=()"),
         "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
-        "Content-Security-Policy": "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "X-Permitted-Cross-Domain-Policies": "none",
+        "X-DNS-Prefetch-Control": "off",
+        "Content-Security-Policy": _CSP_ENFORCE,
+        "Content-Security-Policy-Report-Only": _CSP_STRICT,
     }
     write_json(OUT / "vercel.json", {
         "routes": [

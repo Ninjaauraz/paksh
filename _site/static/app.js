@@ -2850,33 +2850,9 @@ function StoryPage({
     style: {
       lineHeight: lang === "hi" ? 1.75 : 1.62
     }
-  }, fr[k]) : (() => {
-    // No AI framing for this covered side yet (usually an extractive-summary
-    // event). We MAY show what the side's outlets actually headlined - but only
-    // when the side is genuinely represented, so we never mislead:
-    //  * >= 2 DISTINCT mastheads (a lone outlet must not speak for a whole wing -
-    //    the same guard the "not enough coverage" message was protecting), and
-    //  * headlines in the CURRENT language only (no English headline on the Hindi
-    //    page). Real, never fabricated. Otherwise keep the honest message.
-    const langOk = o => lang === "hi" ? o.language === "hi" : o.language !== "hi";
-    const uniq = [...new Map(outlets.filter(o => o.lean === k && o.headline && langOk(o)).map(o => [o.source, o])).values()];
-    const hl = uniq.slice(0, 2);
-    return hl.length >= 2 ? /*#__PURE__*/React.createElement("div", {
-      className: "mt-3.5"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: `mono text-[9.5px] uppercase tracking-[0.14em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-    }, lang === "hi" ? "इस पक्ष के आउटलेट ने क्या चलाया" : "What this side's outlets ran"), /*#__PURE__*/React.createElement("ul", {
-      className: "mt-1.5 space-y-1.5"
-    }, hl.map((o, i) => /*#__PURE__*/React.createElement("li", {
-      key: i,
-      className: `text-[13px] ${t.ts} ${readCls(lang)}`,
-      style: {
-        lineHeight: lang === "hi" ? 1.7 : 1.45
-      }
-    }, o.headline)))) : /*#__PURE__*/React.createElement("p", {
-      className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
-    }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending);
-  })())))), /*#__PURE__*/React.createElement("p", {
+  }, fr[k]) : /*#__PURE__*/React.createElement("p", {
+    className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
+  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
   }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
