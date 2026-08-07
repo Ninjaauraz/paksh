@@ -740,7 +740,7 @@ def main():
     # section + info pages (now that routing serves them; previously they 404'd AND were
     # missing here, so they were invisible to search). Topic pages are strong SEO surfaces
     # ("Politics, every side") -> one entry per distinct topic present.
-    section_paths = ["/topics", "/blindspot", "/about", "/sources"]
+    section_paths = ["/topics", "/blindspot", "/about", "/sources", "/support"]
     topic_names = sorted({e.get("topic") for e in events if e.get("topic")})
     from urllib.parse import quote
     for p in section_paths:

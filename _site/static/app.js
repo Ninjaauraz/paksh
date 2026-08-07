@@ -1953,13 +1953,20 @@ function Footer({
     className: `text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`
   }, "Paksh")), /*#__PURE__*/React.createElement("p", {
     className: `mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].footIndependence)), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].footIndependence), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("support"),
+    className: `mt-3 inline-flex items-center rounded-full px-4 py-2 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
+  }, lang === "hi" ? "पक्ष का सहयोग करें" : "Support Paksh", " \u2192")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-x-6 gap-y-2"
-  }, [["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
     className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, l)))), /*#__PURE__*/React.createElement("div", {
+  }, l)))), /*#__PURE__*/React.createElement(SponsorSlot, {
+    t: t,
+    lang: lang,
+    className: "mt-7"
+  }), /*#__PURE__*/React.createElement("div", {
     className: `mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`
   }, "\xA9 2026 Paksh \xB7 A Redstocks Technology LLP product")));
 }
@@ -3625,6 +3632,128 @@ function ContactPage({
     className: `rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`
   }, status === "sending" ? L.sending : L.send))));
 }
+// Sponsor slot: renders NOTHING until SPONSOR.name is set (an empty "supported by" looks
+// broken). Drop <SponsorSlot .../> wherever you want the credit to appear once you sign one.
+function SponsorSlot({
+  t,
+  lang,
+  className
+}) {
+  if (!SPONSOR.name) return null;
+  const inner = /*#__PURE__*/React.createElement("span", {
+    className: `inline-flex flex-wrap items-center justify-center gap-x-2 ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] uppercase tracking-[0.16em] ${t.tf}`
+  }, lang === "hi" ? "सहयोग" : "Supported by"), /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-semibold ${t.tp}`
+  }, SPONSOR.name), SPONSOR.line && /*#__PURE__*/React.createElement("span", {
+    className: `text-[12px] ${t.tf}`
+  }, "\xB7 ", SPONSOR.line));
+  return /*#__PURE__*/React.createElement("div", {
+    className: `text-center ${className || ""}`
+  }, SPONSOR.url ? /*#__PURE__*/React.createElement("a", {
+    href: SPONSOR.url,
+    target: "_blank",
+    rel: "nofollow noopener noreferrer",
+    className: "inline-block hover:opacity-80"
+  }, inner) : inner);
+}
+function SupportPage({
+  t,
+  lang,
+  go
+}) {
+  const [copied, setCopied] = useState(false);
+  const copyUpi = () => {
+    try {
+      navigator.clipboard.writeText(SUPPORT.upi);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch (e) {}
+  };
+  const L = lang === "hi" ? {
+    title: "पक्ष का सहयोग करें",
+    lede: "पक्ष एक स्वतंत्र परियोजना है - कोई पेवॉल नहीं, कोई ट्रैकिंग-आधारित विज्ञापन नहीं। हर खबर को हर पक्ष से दिखाना संसाधन माँगता है। यदि पक्ष आपके काम आता है, तो आपका छोटा-सा सहयोग इसे सबके लिए मुफ़्त और स्वतंत्र रखता है।",
+    whyH: "आपका पैसा किसमें जाता है",
+    why: "आउटलेट्स की कवरेज इकट्ठा करने, उन्हें एक ही खबर में समूहित करने, और तटस्थ सारांश तैयार करने की कंप्यूटिंग लागत में - ताकि पक्ष बिना विज्ञापनदाताओं या किसी पक्ष के दबाव के चलता रहे।",
+    upiH: "UPI से सहयोग करें",
+    upiPay: "UPI ऐप में खोलें",
+    copy: "UPI ID कॉपी करें",
+    copied: "कॉपी हो गया",
+    linkBtn: "पक्ष का सहयोग करें",
+    soonH: "सहयोग विकल्प जल्द ही",
+    soon: "हम सुरक्षित भुगतान का तरीक़ा जोड़ रहे हैं। तब तक, हौसला-आफ़ज़ाई या साझेदारी के लिए हमें लिखें।",
+    contact: "संपर्क करें →",
+    noStrings: "कोई सदस्यता ज़रूरी नहीं · कोई कंटेंट पेवॉल के पीछे नहीं · जितना चाहें उतना दें।"
+  } : {
+    title: "Support Paksh",
+    lede: "Paksh is an independent project — no paywall, no tracking-based advertising. Showing every story from every side takes real resources. If Paksh is useful to you, a small contribution keeps it free and independent for everyone.",
+    whyH: "Where your money goes",
+    why: "Into the computing cost of gathering outlets' coverage, grouping it into one story, and generating the neutral summaries — so Paksh can run without advertisers or any side leaning on it.",
+    upiH: "Support via UPI",
+    upiPay: "Open in a UPI app",
+    copy: "Copy UPI ID",
+    copied: "Copied",
+    linkBtn: "Support Paksh",
+    soonH: "Support options coming soon",
+    soon: "We're setting up a secure way to contribute. Until then, please reach out to cheer us on or discuss a partnership.",
+    contact: "Contact us →",
+    noStrings: "No membership required · nothing hidden behind a paywall · give whatever you like."
+  };
+  const btn = `inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`;
+  const btn2 = `inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[14px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-2xl"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, L.title), /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`
+  }, L.lede), supportReady() ? /*#__PURE__*/React.createElement("div", {
+    className: `mt-8 border p-6 ${t.surface} ${t.border}`
+  }, SUPPORT.upi && /*#__PURE__*/React.createElement("div", {
+    className: "mb-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow mb-2 ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, L.upiH), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap items-center gap-3"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: upiLink(),
+    className: btn
+  }, L.upiPay), /*#__PURE__*/React.createElement("button", {
+    onClick: copyUpi,
+    className: btn2
+  }, copied ? L.copied : L.copy), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[13px] ${t.ts}`
+  }, SUPPORT.upi))), SUPPORT.url && /*#__PURE__*/React.createElement("a", {
+    href: SUPPORT.url,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    className: btn
+  }, L.linkBtn), /*#__PURE__*/React.createElement("p", {
+    className: `mt-5 text-[12.5px] ${t.tf} ${isHi(lang)}`
+  }, L.noStrings)) : /*#__PURE__*/React.createElement("div", {
+    className: `mt-8 border p-6 ${t.surface} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `headline text-[18px] ${t.tp} ${readCls(lang)}`
+  }, L.soonH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[14px] leading-[1.6] ${t.ts} ${readCls(lang)}`
+  }, L.soon), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("contact"),
+    className: `mt-4 ${btn2}`
+  }, L.contact)), /*#__PURE__*/React.createElement("div", {
+    className: `mt-8 border-t pt-6 ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `headline text-[18px] ${t.tp} ${readCls(lang)}`
+  }, L.whyH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`
+  }, L.why))));
+}
 function PrivacyPage({
   t,
   lang
@@ -3776,7 +3905,7 @@ function parsePath() {
     view: "topic",
     topic: decodeURIComponent(seg[1])
   };
-  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy"].includes(seg[0])) return {
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -4072,6 +4201,10 @@ function PakshApp() {
   }) : route.view === "privacy" ? /*#__PURE__*/React.createElement(PrivacyPage, {
     t: t,
     lang: lang
+  }) : route.view === "support" ? /*#__PURE__*/React.createElement(SupportPage, {
+    t: t,
+    lang: lang,
+    go: go
   }) : route.view === "search" ? /*#__PURE__*/React.createElement(SearchPage, {
     t: t,
     lang: lang,

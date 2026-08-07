@@ -75,6 +75,23 @@ const {useState,useEffect,useMemo}=React;
     // To go live: set this, and uncomment the AdSense loader <script> in static/index.html.
     const ADSENSE_CLIENT = "";
 
+    // --- Reader support (visible now; the CTA works the moment you fill these in) ----------
+    // Paksh is reader-supported. Fill in whichever you use - leave the rest "". While ALL are
+    // empty the Support page still shows the pitch but says "coming soon" instead of a dead
+    // button. `upi` = your UPI id (e.g. "paksh@okhdfcbank"); `url` = a Razorpay/Buy-Me-a-Coffee
+    // /donation page; `payeeName` labels the UPI intent. Nothing here loads a tracker or cookie.
+    const SUPPORT = { upi: "", url: "", payeeName: "Paksh" };
+    const supportReady = () => !!(SUPPORT.upi || SUPPORT.url);
+    // A UPI deep link that opens the user's UPI app pre-filled (no amount forced).
+    const upiLink = () => SUPPORT.upi
+      ? `upi://pay?pa=${encodeURIComponent(SUPPORT.upi)}&pn=${encodeURIComponent(SUPPORT.payeeName||"Paksh")}&cu=INR`
+      : "";
+
+    // --- Sponsorship (stays INVISIBLE until you actually have a sponsor) -------------------
+    // Unlike reader support, an empty "Supported by ___" slot looks broken, so this renders
+    // NOTHING until a sponsor is configured. Fill one in only when a deal is signed.
+    const SPONSOR = { name: "", url: "", line: "" };   // e.g. {name:"Acme", url:"https://…", line:"Media literacy for all"}
+
     const UI = {
       seeAll:{en:"See all", hi:"सभी देखें"}, top:{en:"Top", hi:"मुख्य"},
       sections:{en:"Sections", hi:"खंड"}, oneSided:{en:"One-Sided", hi:"एकतरफ़ा"},
@@ -679,13 +696,17 @@ const {useState,useEffect,useMemo}=React;
               <div className="max-w-md">
                 <div className="flex items-baseline gap-1.5"><span className={`brand-hi text-xl ${t.tp}`}>पक्ष</span><span className={`text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`}>Paksh</span></div>
                 <p className={`mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
+                {/* Reader-support CTA - visible now; the page tells readers how to chip in */}
+                <button onClick={()=>go("support")} className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{lang==="hi"?"पक्ष का सहयोग करें":"Support Paksh"} →</button>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"]].map(([k,l])=>(
+                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["support",lang==="hi"?"सहयोग":"Support"],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"]].map(([k,l])=>(
                   <button key={k} onClick={()=>go(k)} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</button>
                 ))}
               </div>
             </div>
+            {/* Sponsor credit - renders nothing until a sponsor is configured in SPONSOR */}
+            <SponsorSlot t={t} lang={lang} className="mt-7" />
             <div className={`mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`}>© 2026 Paksh · A Redstocks Technology LLP product</div>
           </div>
         </footer>
@@ -1370,6 +1391,84 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
+    // Sponsor slot: renders NOTHING until SPONSOR.name is set (an empty "supported by" looks
+    // broken). Drop <SponsorSlot .../> wherever you want the credit to appear once you sign one.
+    function SponsorSlot({ t, lang, className }) {
+      if (!SPONSOR.name) return null;
+      const inner = (
+        <span className={`inline-flex flex-wrap items-center justify-center gap-x-2 ${isHi(lang)}`}>
+          <span className={`mono text-[10px] uppercase tracking-[0.16em] ${t.tf}`}>{lang==="hi"?"सहयोग":"Supported by"}</span>
+          <span className={`text-[13px] font-semibold ${t.tp}`}>{SPONSOR.name}</span>
+          {SPONSOR.line && <span className={`text-[12px] ${t.tf}`}>· {SPONSOR.line}</span>}
+        </span>
+      );
+      return (
+        <div className={`text-center ${className||""}`}>
+          {SPONSOR.url
+            ? <a href={SPONSOR.url} target="_blank" rel="nofollow noopener noreferrer" className="inline-block hover:opacity-80">{inner}</a>
+            : inner}
+        </div>
+      );
+    }
+    function SupportPage({ t, lang, go }) {
+      const [copied,setCopied]=useState(false);
+      const copyUpi=()=>{ try{ navigator.clipboard.writeText(SUPPORT.upi); setCopied(true); setTimeout(()=>setCopied(false),1600); }catch(e){} };
+      const L = lang==="hi" ? {
+        title:"पक्ष का सहयोग करें",
+        lede:"पक्ष एक स्वतंत्र परियोजना है - कोई पेवॉल नहीं, कोई ट्रैकिंग-आधारित विज्ञापन नहीं। हर खबर को हर पक्ष से दिखाना संसाधन माँगता है। यदि पक्ष आपके काम आता है, तो आपका छोटा-सा सहयोग इसे सबके लिए मुफ़्त और स्वतंत्र रखता है।",
+        whyH:"आपका पैसा किसमें जाता है", why:"आउटलेट्स की कवरेज इकट्ठा करने, उन्हें एक ही खबर में समूहित करने, और तटस्थ सारांश तैयार करने की कंप्यूटिंग लागत में - ताकि पक्ष बिना विज्ञापनदाताओं या किसी पक्ष के दबाव के चलता रहे।",
+        upiH:"UPI से सहयोग करें", upiPay:"UPI ऐप में खोलें", copy:"UPI ID कॉपी करें", copied:"कॉपी हो गया",
+        linkBtn:"पक्ष का सहयोग करें", soonH:"सहयोग विकल्प जल्द ही",
+        soon:"हम सुरक्षित भुगतान का तरीक़ा जोड़ रहे हैं। तब तक, हौसला-आफ़ज़ाई या साझेदारी के लिए हमें लिखें।",
+        contact:"संपर्क करें →", noStrings:"कोई सदस्यता ज़रूरी नहीं · कोई कंटेंट पेवॉल के पीछे नहीं · जितना चाहें उतना दें।"
+      } : {
+        title:"Support Paksh",
+        lede:"Paksh is an independent project — no paywall, no tracking-based advertising. Showing every story from every side takes real resources. If Paksh is useful to you, a small contribution keeps it free and independent for everyone.",
+        whyH:"Where your money goes", why:"Into the computing cost of gathering outlets' coverage, grouping it into one story, and generating the neutral summaries — so Paksh can run without advertisers or any side leaning on it.",
+        upiH:"Support via UPI", upiPay:"Open in a UPI app", copy:"Copy UPI ID", copied:"Copied",
+        linkBtn:"Support Paksh", soonH:"Support options coming soon",
+        soon:"We're setting up a secure way to contribute. Until then, please reach out to cheer us on or discuss a partnership.",
+        contact:"Contact us →", noStrings:"No membership required · nothing hidden behind a paywall · give whatever you like."
+      };
+      const btn=`inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`;
+      const btn2=`inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[14px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
+      return (
+        <PageWrap>
+          <div className="max-w-2xl">
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+            <p className={`mt-4 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{L.lede}</p>
+
+            {supportReady() ? (
+              <div className={`mt-8 border p-6 ${t.surface} ${t.border}`}>
+                {SUPPORT.upi && (
+                  <div className="mb-5">
+                    <div className={`eyebrow mb-2 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.upiH}</div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <a href={upiLink()} className={btn}>{L.upiPay}</a>
+                      <button onClick={copyUpi} className={btn2}>{copied?L.copied:L.copy}</button>
+                      <span className={`mono text-[13px] ${t.ts}`}>{SUPPORT.upi}</span>
+                    </div>
+                  </div>
+                )}
+                {SUPPORT.url && <a href={SUPPORT.url} target="_blank" rel="noopener noreferrer" className={btn}>{L.linkBtn}</a>}
+                <p className={`mt-5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{L.noStrings}</p>
+              </div>
+            ) : (
+              <div className={`mt-8 border p-6 ${t.surface} ${t.border}`}>
+                <div className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{L.soonH}</div>
+                <p className={`mt-2 text-[14px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.soon}</p>
+                <button onClick={()=>go("contact")} className={`mt-4 ${btn2}`}>{L.contact}</button>
+              </div>
+            )}
+
+            <div className={`mt-8 border-t pt-6 ${t.border}`}>
+              <div className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{L.whyH}</div>
+              <p className={`mt-2 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{L.why}</p>
+            </div>
+          </div>
+        </PageWrap>
+      );
+    }
     function PrivacyPage({ t, lang }) {
       const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} serif mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] serif ${t.ts}`}>{children}</div></div>);
       return (
@@ -1425,7 +1524,7 @@ const {useState,useEffect,useMemo}=React;
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
-      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support"].includes(seg[0])) return {view:seg[0]};
       return {view:"home"};
     }
     // Consent gate. Nothing is tracked until the visitor accepts here; "Decline" is honoured
@@ -1550,6 +1649,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} />
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
             : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} />
+            : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
                : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
