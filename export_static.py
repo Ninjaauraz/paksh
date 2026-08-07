@@ -725,7 +725,12 @@ def main():
     # violations and fix any missed source BEFORE it can white-screen the site. Once a clean
     # deploy shows no report-only violations, copy _CSP_STRICT into the enforcing header.
     # (Enabled by self-hosting React + moving the theme script to a file, so script-src='self'.)
-    _CSP_ENFORCE = ("default-src 'self'; frame-ancestors 'none'; object-src 'none'; "
+    # ENFORCING: NO default-src here on purpose. default-src 'self' would fall through to
+    # style-src and block the app's (heavy) inline styles -> broken/blank page. Only the
+    # STRUCTURAL directives that don't govern resource loading are enforced; the full
+    # resource policy (which sets style-src 'unsafe-inline' etc.) rides in Report-Only until
+    # verified, then gets promoted.
+    _CSP_ENFORCE = ("frame-ancestors 'none'; object-src 'none'; "
                     "base-uri 'self'; form-action 'self' https://formspree.io")
     _CSP_STRICT = (
         "default-src 'self'; "

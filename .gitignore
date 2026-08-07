@@ -34,7 +34,10 @@ paksh.db*
 .pipeline.lock
 reframe_log.txt
 autopush_log.txt
-vendor/
+# root vendor/ is a LOCAL build tool (babel.min.js) - ignored. Anchored to root with a
+# leading slash so it does NOT also ignore static/vendor/ (self-hosted React, which MUST
+# ship). Without the slash, static/vendor/react*.js were dropped -> blank page on deploy.
+/vendor/
 
 # internal Redstocks market-signal exports - never publish/commit
 signals/
