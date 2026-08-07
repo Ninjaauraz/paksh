@@ -121,7 +121,13 @@ const {useState,useEffect,useMemo}=React;
         methodTitle:"How Paksh works", m_doesH:"What Paksh does",
         m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it - so you can see the whole picture and what your usual sources leave out.",
         m_ruleH:"The golden rule",
-        m_rule:"A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company - say The Times of India and Navbharat Times, both Times Group - they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote.",
+        m_rule:"A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company - say The Times of India and Navbharat Times, both Times Group - they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote - which is why a story can read “9 publishers · 13 mastheads” on a side.",
+        m_aiH:"What the software does — and never does",
+        m_ai:"Automation does exactly three things at Paksh, and no more: it groups articles about the same event into one story, writes the neutral summary, and drafts the per-side framing notes from the collected headlines. That is the entire role of the model. It never assigns an outlet's lean, never decides the bias bar, and never weighs one outlet more than another - those are fixed, editor-set labels and plain counts. If the summary engine is momentarily unavailable, a story still publishes with a headline taken straight from a covering outlet, clearly marked as automatic, rather than waiting.",
+        m_orderH:"How the home feed is ordered",
+        m_order:"The front page is India-first. Stories are ranked by how many distinct outlets across the spectrum are covering them, decayed by how recent they are, so a broadly-covered breaking story leads and yesterday's fades. On top of that arithmetic, the coverage that matters most to an Indian reader - politics and governance, the economy, the courts, big movements and amendments - is given priority over high-volume sport and entertainment, which sit in their own sections. No story is promoted or buried because of its politics; the weighting is a fixed, published rule, not an editorial thumb on the scale for any side.",
+        m_freshH:"How current a story is",
+        m_fresh:"The time on each story is the real publish time of its newest source article, not when our software last touched it - so “updated 2h ago” means the news itself is about two hours old. Paksh refreshes continuously as new coverage arrives; a story's bar and summary keep updating as more outlets pick it up.",
         m_rateH:"How we rate a publication",
         m_rateLede:"We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):",
         m_rateFoot:"Scores near zero are Centre; the further from zero, the stronger the lean.",
@@ -165,7 +171,13 @@ const {useState,useEffect,useMemo}=React;
         methodTitle:"पक्ष कैसे काम करता है", m_doesH:"पक्ष क्या करता है",
         m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं - ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
         m_ruleH:"मूल नियम",
-        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों - जैसे The Times of India और Navbharat Times, दोनों Times Group - तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है।",
+        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों - जैसे The Times of India और Navbharat Times, दोनों Times Group - तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है - इसीलिए किसी पक्ष पर खबर “9 प्रकाशक · 13 मास्टहेड” पढ़ सकती है।",
+        m_aiH:"सॉफ़्टवेयर क्या करता है — और क्या कभी नहीं करता",
+        m_ai:"पक्ष पर स्वचालन ठीक तीन काम करता है, इससे ज़्यादा नहीं: एक ही घटना के लेखों को एक खबर में समूहित करना, तटस्थ सारांश लिखना, और एकत्र हेडलाइनों से हर पक्ष के फ़्रेमिंग नोट तैयार करना। मॉडल की भूमिका बस इतनी है। यह किसी आउटलेट का झुकाव तय नहीं करता, बायस बार तय नहीं करता, और किसी आउटलेट को दूसरे से ज़्यादा भार नहीं देता - वे निश्चित, संपादक-निर्धारित लेबल और सीधी गिनती हैं। यदि सारांश इंजन कुछ देर के लिए उपलब्ध न हो, तो खबर फिर भी एक कवर करने वाले आउटलेट से लिया गया शीर्षक (स्पष्ट रूप से स्वतः चिह्नित) के साथ प्रकाशित होती है, प्रतीक्षा नहीं करती।",
+        m_orderH:"मुख्य फ़ीड किस क्रम में सजती है",
+        m_order:"मुख्य पृष्ठ भारत-पहले है। खबरों को इस आधार पर क्रम दिया जाता है कि स्पेक्ट्रम भर के कितने अलग-अलग आउटलेट उन्हें कवर कर रहे हैं, और वे कितनी हाल की हैं - ताकि व्यापक रूप से कवर की गई ताज़ा खबर आगे रहे और पुरानी पीछे चली जाए। इस अंकगणित के ऊपर, भारतीय पाठक के लिए सबसे मायने रखने वाली कवरेज - राजनीति और शासन, अर्थव्यवस्था, अदालतें, बड़े आंदोलन और संशोधन - को उच्च-आयतन खेल और मनोरंजन से पहले प्राथमिकता दी जाती है, जो अपने अलग सेक्शन में रहते हैं। किसी खबर को उसकी राजनीति के कारण न आगे बढ़ाया जाता है न दबाया जाता है; यह भार एक निश्चित, प्रकाशित नियम है, किसी पक्ष के लिए संपादकीय पक्षपात नहीं।",
+        m_freshH:"कोई खबर कितनी ताज़ा है",
+        m_fresh:"हर खबर पर दिखने वाला समय उसमें शामिल सबसे नए स्रोत-लेख का वास्तविक प्रकाशन समय है, न कि जब हमारे सॉफ़्टवेयर ने उसे आख़िरी बार छुआ - इसलिए “2 घंटे पहले अपडेट” का अर्थ है कि खबर स्वयं लगभग दो घंटे पुरानी है। जैसे-जैसे नई कवरेज आती है पक्ष लगातार ताज़ा होता रहता है; जैसे-जैसे और आउटलेट इसे उठाते हैं, खबर का बार और सारांश अपडेट होते रहते हैं।",
         m_rateH:"हम किसी प्रकाशन को कैसे आँकते हैं",
         m_rateLede:"हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):",
         m_rateFoot:"शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत।",
@@ -180,6 +192,30 @@ const {useState,useEffect,useMemo}=React;
         footIndependence:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है। झुकाव के लेबल अस्थायी हैं और अपील के लिए खुले हैं।",
       }
     };
+
+    /* ---------------- analytics (consent-gated, cookieless) ---------------- */
+    // Vercel Web Analytics via its SCRIPT-TAG integration (not the npm/@vercel/analytics
+    // package, which needs a bundler Paksh deliberately doesn't have). It's cookieless, does
+    // no cross-site fingerprinting, and is aggregate - the privacy-first posture we chose.
+    // NOTHING loads or fires until the visitor accepts in the consent banner.
+    const consentState = () => { try { return localStorage.getItem("paksh-consent") || ""; } catch(e){ return ""; } };  // "" | "granted" | "denied"
+    const loadVercelAnalytics = () => {
+      if (window.__pakshVA || consentState()!=="granted") return;
+      window.__pakshVA = true;
+      window.va = window.va || function(){ (window.vaq = window.vaq || []).push(arguments); };
+      const s = document.createElement("script"); s.defer = true; s.src = "/_vercel/insights/script.js";
+      document.head.appendChild(s);
+    };
+    // track(name, props) - a no-op unless the user consented. Send only low-cardinality,
+    // non-identifying props (topic, side, device class) - NEVER the search query text, a URL,
+    // or anything that could single out a person. This is the one place events are emitted.
+    const track = (name, props) => {
+      try {
+        if (consentState()!=="granted" || typeof window.va!=="function") return;
+        window.va("event", { name, ...(props||{}) });
+      } catch(e){}
+    };
+    const deviceClass = () => { try { const w=window.innerWidth||0; return w<768?"mobile":(w<1024?"tablet":"desktop"); } catch(e){ return "unknown"; } };
 
     /* ---------------- helpers ---------------- */
     const imgFor = (hue) => {
@@ -937,7 +973,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
               <span className={`mono text-[11px] shrink-0 ${t.tf}`}>n = {nVotes} · {bpct.left}/{bpct.center}/{bpct.right}%</span>
             </div>
-            <BiasSegments bias={bpct} t={t} h={28} lang={lang} onPick={(k)=>{ setAtab(k); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} active={atab!=="all"?atab:null} />
+            <BiasSegments bias={bpct} t={t} h={28} lang={lang} onPick={(k)=>{ track("bias_segment",{side:k}); setAtab(k); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} active={atab!=="all"?atab:null} />
             <div className="relative" style={{height:15,marginTop:3}}>
               {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,width:1,height:p===50?7:4,background:p===50?t.ink:t.line}}/>)}
               <span className={`mono text-[10px] ${t.tf}`} style={{position:"absolute",left:"50%",top:7,transform:"translateX(-50%)",whiteSpace:"nowrap"}}>{lang==="hi"?"कवरेज का 50%":"50% of coverage"}</span>
@@ -1046,7 +1082,7 @@ const {useState,useEffect,useMemo}=React;
             </div>
             <div className="mt-4 space-y-2.5">
               {arts.map((o,i)=>(
-                <a key={i} href={o.url||"#"} target="_blank" rel="nofollow noopener noreferrer" className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
+                <a key={i} href={o.url||"#"} target="_blank" rel="nofollow noopener noreferrer" onClick={()=>track("source_open",{side:o.lean})} className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
                   <OutletAvatar o={o} side={o.lean} size={30} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -1267,6 +1303,9 @@ const {useState,useEffect,useMemo}=React;
             <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].methodTitle}</h1>
             <p className={`mb-2 mt-3 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{STR[lang].m_does}</p>
             <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
+            <Row h={STR[lang].m_aiH}>{STR[lang].m_ai}</Row>
+            <Row h={STR[lang].m_orderH}>{STR[lang].m_order}</Row>
+            <Row h={STR[lang].m_freshH}>{STR[lang].m_fresh}</Row>
             {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
             <Row h={STR[lang].m_rateH}><p className="mb-2">{STR[lang].m_rateLede}</p><p className={`text-[12px] ${t.tf}`}>{STR[lang].m_rateFoot}</p></Row>
             <Row h={STR[lang].m_axisH}>{STR[lang].m_axis}</Row>
@@ -1337,13 +1376,13 @@ const {useState,useEffect,useMemo}=React;
         <PageWrap>
           <div className="max-w-3xl">
             <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} serif`} style={{letterSpacing:"-0.018em"}}>Privacy Policy</h1>
-            <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 2 July 2026 · Operated by Redstocks Technology LLP</p>
+            <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 6 August 2026 · Operated by Redstocks Technology LLP</p>
             {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
             <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
-            <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. We do not run analytics, and we do not build a profile of you.</Row>
-            <Row h="Cookies and tracking">Paksh does not set advertising or analytics cookies, and does not track you across other websites. The site works without storing tracking cookies on your device, so there is nothing here to switch off. If we introduce advertising (through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
-            <Row h="How we use information">To respond to your messages, and to keep the site secure and reliable. If we add advertising in future, it would help support the site. We do not sell your personal information, and we do not profile you.</Row>
-            <Row h="Third parties">We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
+            <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel’s privacy-first, cookieless Web Analytics to understand — only in aggregate — how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected.</Row>
+            <Row h="Cookies and tracking">Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
+            <Row h="How we use information">To respond to your messages, to keep the site secure and reliable, and — from consented, aggregate, non-identifying usage — to understand how readers engage with coverage, improve Paksh, and inform Redstocks Technology’s research. We do not sell your personal information, and we do not build a profile of you or track you across your devices.</Row>
+            <Row h="Third parties">We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site and provides its cookieless Web Analytics). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
             <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
             <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
             <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
@@ -1389,6 +1428,28 @@ const {useState,useEffect,useMemo}=React;
       if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy"].includes(seg[0])) return {view:seg[0]};
       return {view:"home"};
     }
+    // Consent gate. Nothing is tracked until the visitor accepts here; "Decline" is honoured
+    // for the whole session and remembered. Copy is deliberately plain about what's collected.
+    function ConsentBanner({ t, lang, onChoose, go }) {
+      const L = lang==="hi" ? {
+        text:"पक्ष यह समझने के लिए कि लोग खबरें कैसे पढ़ते हैं, गोपनीयता-सम्मानित, कुकी-रहित एनालिटिक्स इस्तेमाल करना चाहता है। कोई व्यक्तिगत पहचान नहीं, कोई विज्ञापन-ट्रैकिंग नहीं।",
+        accept:"स्वीकार करें", decline:"मना करें", more:"गोपनीयता"
+      } : {
+        text:"Paksh uses privacy-respecting, cookieless analytics to understand how people read the news. No personal identity, no ad-tracking.",
+        accept:"Accept", decline:"Decline", more:"Privacy"
+      };
+      return (
+        <div className="fixed inset-x-0 bottom-16 z-50 px-4 md:bottom-4">
+          <div className={`mx-auto flex max-w-2xl flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:gap-4 ${t.surface} ${t.border}`} style={{boxShadow:"0 6px 24px rgba(0,0,0,0.18)"}}>
+            <p className={`text-[12.5px] leading-[1.55] ${t.ts} ${isHi(lang)}`}>{L.text} <button onClick={()=>go("privacy")} className={`underline underline-offset-2 ${t.tf} hover:${t.tp}`}>{L.more}</button></p>
+            <div className="flex shrink-0 gap-2">
+              <button onClick={()=>onChoose("denied")} className={`border px-3.5 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.decline}</button>
+              <button onClick={()=>onChoose("granted")} className={`px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.accept}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     function PakshApp() {
       const [route,setRoute]=useState(parsePath());
       const [lang,setLang]=useState("en");
@@ -1400,8 +1461,12 @@ const {useState,useEffect,useMemo}=React;
       const [detail,setDetail]=useState({});
       const [archive,setArchive]=useState(null);   // older events, lazy-loaded for search/topic browsing
       const [ready,setReady]=useState(false);
+      const [consent,setConsent]=useState(consentState);   // "" undecided | "granted" | "denied"
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
+      // Load cookieless Vercel Web Analytics ONLY after the visitor accepts. Denied/undecided
+      // visitors get zero analytics script and zero beacons.
+      useEffect(()=>{ if(consent==="granted") loadVercelAnalytics(); },[consent]);
       useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
       useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#1A1917":"#EAE6DB"; try{ localStorage.setItem("paksh-theme",dark?"dark":"light"); }catch(e){} },[dark]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
@@ -1414,8 +1479,9 @@ const {useState,useEffect,useMemo}=React;
       const t=dark?TOKENS.dark:TOKENS.light;
       const nav=(path)=>{ if(window.location.pathname!==path){ window.history.pushState(null,"",path); } setRoute(parsePath()); };
       const go=(v)=> nav(v==="home"?"/":"/"+v);
-      const open=(id)=> nav("/story/"+encodeURIComponent(id));
+      const open=(id)=>{ track("story_open",{device:deviceClass()}); nav("/story/"+encodeURIComponent(id)); };
       const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
+      const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); };   // wrap so the toggle is measured
 
       // Combine recent (always loaded) with the lazy archive once it arrives, so Search / Topic /
       // Sections cover the FULL catalogue while the home feed's first paint stayed small. The two
@@ -1473,7 +1539,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
-          <Header t={t} lang={lang} setLang={setLang} dark={dark} setDark={setDark} go={go} view={headerView} />
+          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} />
           <main id="main" className="pb-24 md:pb-10">
             {!ready ? <FeedSkeleton t={t} />
             : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} /> : <FeedSkeleton t={t} />)
@@ -1490,6 +1556,8 @@ const {useState,useEffect,useMemo}=React;
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} />
+          {consent==="" && <ConsentBanner t={t} lang={lang} go={go}
+            onChoose={(v)=>{ try{ localStorage.setItem("paksh-consent",v); }catch(e){} setConsent(v); }} />}
         </div>
       );
     }

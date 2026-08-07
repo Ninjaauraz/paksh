@@ -35,3 +35,6 @@ paksh.db*
 reframe_log.txt
 autopush_log.txt
 vendor/
+
+# internal Redstocks market-signal exports - never publish/commit
+signals/
