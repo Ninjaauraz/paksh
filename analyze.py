@@ -81,13 +81,13 @@ LEAN_ORDER = ["left", "center", "right"]
 # call). This decouples "events published" from "slow LLM calls", so a run can
 # publish hundreds while only making a few dozen model calls.
 LLM_EVENT_BUDGET = int(os.environ.get(
-    "PAKSH_LLM_BUDGET", "30" if LLM_BACKEND == "ollama" else "120"))
+    "PAKSH_LLM_BUDGET", "30" if LLM_BACKEND == "ollama" else "300"))
 # How many summaries to run AT ONCE. The summary call is the slow step and (for a
 # network backend) is I/O-bound, so a small thread pool cuts wall-clock ~N-fold and
 # lets the budget go up cheaply. Local Ollama on CPU is compute-bound -> default 1
 # (a GPU user can raise it); Gemini -> 6. Override with PAKSH_LLM_CONCURRENCY.
 LLM_CONCURRENCY = int(os.environ.get(
-    "PAKSH_LLM_CONCURRENCY", "1" if LLM_BACKEND == "ollama" else "6"))
+    "PAKSH_LLM_CONCURRENCY", "1" if LLM_BACKEND == "ollama" else "8"))
 #   ^ top events that get a full LLM brief + framing. Cheap/fast on Gemini, so we
 #     default much higher there; slow on local Ollama, so stay at 30. Override
 #     with PAKSH_LLM_BUDGET.
