@@ -10,8 +10,10 @@ Approach (the robust, standard one):
   4. keep only clusters covered by 2+ distinct outlets - those become events.
 
 The embedding backend is pluggable (set PAKSH_BACKEND):
-  * "ollama"  - LOCAL multilingual bge-m3 via Ollama (default; free, no API key)
-  * "gemini"  - Google Gemini embeddings (multilingual, needs API key + billing)
+  * "ollama"     - LOCAL multilingual bge-m3 via Ollama (default; free, no API key)
+  * "cloudflare" - the SAME bge-m3 on Cloudflare Workers AI (GPU-hosted, free tier);
+                   opt-in faster embeddings. Verify first: `py cluster.py --verify-cf`
+  * "gemini"     - Google Gemini embeddings (multilingual, needs API key + billing)
   * lexical_embedder - offline hashing fallback (WITHIN one language only; dev use)
   * or inject your own (the tests pass a deterministic stub)
 
@@ -21,11 +23,21 @@ Run `python cluster.py` to preview grouping locally without spending a cent.
 
 import os
 import re
+import sys
 import json
 import hashlib
 import urllib.request
 import urllib.error
 import numpy as np
+
+# Windows consoles default stdout to cp1252, which cannot encode Devanagari (Hindi)
+# titles - printing one raises UnicodeEncodeError and kills the run. Force UTF-8 so
+# bilingual titles print safely whether output goes to a console or a captured file.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 # Load GEMINI_API_KEY from a local .env so `python cluster.py` works on its own
 # (ingest.py / analyze.py already do this; without it the preview can't embed).
@@ -36,8 +48,13 @@ except Exception:
     pass
 
 # ---- embedding backend ------------------------------------------------------
-# "ollama" = LOCAL, multilingual bge-m3, no API key, no bill (default).
-# "gemini" = Google Gemini embeddings (needs API key + billing).
+# "ollama"     = LOCAL, multilingual bge-m3, no API key, no bill (default).
+# "cloudflare" = the SAME bge-m3 on Cloudflare Workers AI (GPU-hosted, free tier).
+#                Shares the bge-m3 cache namespace + thresholds below (same model =
+#                same vector geometry), so it's a drop-in. VERIFY compatibility on
+#                your data FIRST with `py cluster.py --verify-cf` before switching a
+#                live corpus. Creds go in ai_keys.env (CLOUDFLARE_ACCOUNT_ID / _API_TOKEN).
+# "gemini"     = Google Gemini embeddings (needs API key + billing).
 # Flip with the PAKSH_BACKEND env var, or just edit the default below.
 BACKEND = os.environ.get("PAKSH_BACKEND", "ollama").lower()
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
@@ -52,7 +69,7 @@ if BACKEND == "gemini":
     HIGH_SIM       = 0.90    # at/above this, trust the embedding alone (cross-lingual same-event pairs)
     STRONG_SIM     = 0.88    # at/above this, ONE shared keyword is enough (recall for reworded headlines)
     DUP_THRESHOLD  = 0.93    # at/above this, two same-outlet items are duplicates
-else:  # ollama (local bge-m3) - the default
+else:  # ollama OR cloudflare - same bge-m3 model, so same cache namespace + thresholds
     EMBED_MODEL    = os.environ.get("PAKSH_EMBED_MODEL", "bge-m3")
     # Calibrated for bge-m3 on real Paksh data via `py calibrate.py` (2026-06).
     JOIN_THRESHOLD = 0.61
@@ -156,42 +173,217 @@ def _embed_via_api(texts):
     return vectors
 
 
+# How many embed batches to send Ollama at once. Batches are independent, so
+# running several concurrently overlaps their compute/IO and cuts wall-clock time
+# on a backlog - WITHOUT changing a single vector (identical bge-m3 output, just
+# computed in parallel, so it's safe to enable mid-run). For a real speed-up let
+# Ollama serve them in parallel too: set OLLAMA_NUM_PARALLEL (e.g. 4) and restart
+# Ollama. On a single CPU core, keep this low; a GPU / many cores can go higher.
+EMBED_CONCURRENCY = max(1, int(os.environ.get("PAKSH_EMBED_CONCURRENCY", "4")))
+EMBED_BATCH = max(1, int(os.environ.get("PAKSH_EMBED_BATCH", "64")))
+
+
+def _ollama_embed_batch(batch):
+    """Embed ONE batch of texts via Ollama. Returns a list of float32 vectors."""
+    payload = json.dumps({"model": EMBED_MODEL, "input": batch}).encode("utf-8")
+    req = urllib.request.Request(OLLAMA_URL + "/api/embed", data=payload,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=900) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except urllib.error.URLError as e:
+        raise RuntimeError(
+            "Could not reach Ollama at " + OLLAMA_URL + ". Is it running?\n"
+            "  1. Install/open Ollama (https://ollama.com/download)\n"
+            "  2. Run once:  ollama pull " + EMBED_MODEL + "\n"
+            "Original error: " + str(e)) from None
+    vecs = data.get("embeddings") or []
+    if len(vecs) != len(batch):
+        raise RuntimeError(
+            "Ollama returned %d vectors for %d inputs. Did you run "
+            "`ollama pull %s`?  Server said: %s"
+            % (len(vecs), len(batch), EMBED_MODEL, str(data)[:200]))
+    return [np.asarray(v, dtype=np.float32) for v in vecs]
+
+
 def _embed_via_ollama(texts):
     """LOCAL multilingual embeddings from Ollama (bge-m3 by default). No API key,
     no per-call cost. Needs the Ollama app running and `ollama pull bge-m3` once.
-    Batched, with progress, since the first run embeds the whole backlog on CPU."""
+    Batches are sent CONCURRENTLY (PAKSH_EMBED_CONCURRENCY) to cut wall-clock time
+    on a backlog; results are re-assembled IN ORDER so vectors still line up 1:1
+    with `texts`."""
     texts = list(texts)
-    out, B = [], 64
-    for k in range(0, len(texts), B):
-        batch = texts[k:k + B]
-        payload = json.dumps({"model": EMBED_MODEL, "input": batch}).encode("utf-8")
-        req = urllib.request.Request(OLLAMA_URL + "/api/embed", data=payload,
-                                     headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=900) as r:
-                data = json.loads(r.read().decode("utf-8"))
-        except urllib.error.URLError as e:
-            raise RuntimeError(
-                "Could not reach Ollama at " + OLLAMA_URL + ". Is it running?\n"
-                "  1. Install/open Ollama (https://ollama.com/download)\n"
-                "  2. Run once:  ollama pull " + EMBED_MODEL + "\n"
-                "Original error: " + str(e)) from None
-        vecs = data.get("embeddings") or []
-        if len(vecs) != len(batch):
-            raise RuntimeError(
-                "Ollama returned %d vectors for %d inputs. Did you run "
-                "`ollama pull %s`?  Server said: %s"
-                % (len(vecs), len(batch), EMBED_MODEL, str(data)[:200]))
-        out.extend(np.asarray(v, dtype=np.float32) for v in vecs)
-        if len(texts) > B:
-            print("    embedded %d/%d  (Ollama %s)"
-                  % (min(k + B, len(texts)), len(texts), EMBED_MODEL), flush=True)
+    if not texts:
+        return []
+    B = EMBED_BATCH
+    batches = [texts[k:k + B] for k in range(0, len(texts), B)]
+    out = []
+    if EMBED_CONCURRENCY > 1 and len(batches) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=EMBED_CONCURRENCY) as ex:
+            results = list(ex.map(_ollama_embed_batch, batches))  # order preserved
+        done = 0
+        for res in results:
+            out.extend(res)
+            done += len(res)
+            if len(texts) > B:
+                print("    embedded %d/%d  (Ollama %s x%d)"
+                      % (done, len(texts), EMBED_MODEL, EMBED_CONCURRENCY), flush=True)
+    else:
+        for k, batch in enumerate(batches):
+            out.extend(_ollama_embed_batch(batch))
+            if len(texts) > B:
+                print("    embedded %d/%d  (Ollama %s)"
+                      % (min((k + 1) * B, len(texts)), len(texts), EMBED_MODEL), flush=True)
     return out
+
+
+# ---- Cloudflare Workers AI (opt-in: same bge-m3, GPU-hosted) -----------------
+CF_EMBED_MODEL = os.environ.get("PAKSH_CF_EMBED_MODEL", "@cf/baai/bge-m3")
+EMBED_CF_BATCH = max(1, int(os.environ.get("PAKSH_CF_EMBED_BATCH", "100")))
+_UA_CF = "paksh/1.0 (+https://paksh.news)"
+
+
+def _cf_creds():
+    """Cloudflare account id + API token from env / ai_keys.env. Loads ai_keys.env
+    lazily (via ai_providers) so cluster.py never depends on it unless CF is used."""
+    if not os.environ.get("CLOUDFLARE_ACCOUNT_ID") or not os.environ.get("CLOUDFLARE_API_TOKEN"):
+        try:
+            import ai_providers  # noqa: F401  (importing it loads ai_keys.env into os.environ)
+        except Exception:
+            pass
+    return os.environ.get("CLOUDFLARE_ACCOUNT_ID"), os.environ.get("CLOUDFLARE_API_TOKEN")
+
+
+def _cf_embed_batch(batch):
+    """Embed ONE batch via Cloudflare Workers AI @cf/baai/bge-m3. float32 vectors."""
+    acct, token = _cf_creds()
+    if not acct or not token:
+        raise RuntimeError(
+            "Cloudflare embeddings need CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN "
+            "in ai_keys.env (see ai_keys.example.env).")
+    url = "https://api.cloudflare.com/client/v4/accounts/%s/ai/run/%s" % (acct, CF_EMBED_MODEL)
+    payload = json.dumps({"text": list(batch)}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "User-Agent": _UA_CF})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace")[:200]
+        except Exception:
+            pass
+        raise RuntimeError("Cloudflare AI HTTP %s: %s" % (e.code, detail)) from None
+    if not data.get("success", True):
+        raise RuntimeError("Cloudflare AI error: " + str(data.get("errors") or data)[:200])
+    res = data.get("result", {}) or {}
+    vecs = res.get("data") or res.get("response") or res.get("embeddings") or []
+    if len(vecs) != len(batch):
+        raise RuntimeError("Cloudflare returned %d vectors for %d inputs: %s"
+                           % (len(vecs), len(batch), str(data)[:200]))
+    return [np.asarray(v, dtype=np.float32) for v in vecs]
+
+
+_cf_fell_back = False  # so we only warn once per run
+
+
+def _cf_or_ollama_batch(batch):
+    """Try Cloudflare; on ANY failure (quota/402, rate-limit/429, network) fall back
+    to LOCAL Ollama for this batch. Safe because both are bge-m3 and produce the same
+    vectors (verified cross-backend cosine ~1.0), so a mixed run stays consistent."""
+    global _cf_fell_back
+    try:
+        return _cf_embed_batch(batch)
+    except Exception as e:
+        if not _cf_fell_back:
+            print("    (Cloudflare unavailable: %s -> falling back to local Ollama)"
+                  % str(e)[:90], flush=True)
+            _cf_fell_back = True
+        return _ollama_embed_batch(batch)
+
+
+def _embed_via_cloudflare(texts):
+    """OPT-IN: embeddings from Cloudflare Workers AI - the SAME bge-m3 model as local
+    Ollama, GPU-hosted (free tier). Network-bound, so batches are sent concurrently.
+    Falls back to Ollama per-batch if CF errors or hits its daily quota, so a run
+    never breaks. Confirm CF matches Ollama with `py cluster.py --verify-cf` first."""
+    texts = list(texts)
+    if not texts:
+        return []
+    B = EMBED_CF_BATCH
+    batches = [texts[k:k + B] for k in range(0, len(texts), B)]
+    out = []
+    if EMBED_CONCURRENCY > 1 and len(batches) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=EMBED_CONCURRENCY) as ex:
+            for res in ex.map(_cf_or_ollama_batch, batches):     # order preserved
+                out.extend(res)
+                if len(texts) > B:
+                    print("    embedded %d/%d  (Cloudflare bge-m3 x%d)"
+                          % (len(out), len(texts), EMBED_CONCURRENCY), flush=True)
+    else:
+        for k, batch in enumerate(batches):
+            out.extend(_cf_or_ollama_batch(batch))
+            if len(texts) > B:
+                print("    embedded %d/%d  (Cloudflare bge-m3)"
+                      % (min((k + 1) * B, len(texts)), len(texts)), flush=True)
+    return out
+
+
+def verify_cf(n=12):
+    """Confirm Cloudflare bge-m3 vectors match local Ollama bge-m3 closely enough to
+    share ONE clustering space. Embeds the same English+Hindi samples via both and
+    reports (a) cross-backend self-cosine (want ~1.0) and (b) how well the pairwise
+    geometry agrees (want |Δcos| small). Run this BEFORE switching a live corpus."""
+    samples = [
+        "India's central bank holds interest rates steady amid inflation concerns.",
+        "The Supreme Court issued a landmark ruling on privacy rights.",
+        "Monsoon rains flood several districts in Kerala.",
+        "Parliament passed the new data protection bill after a long debate.",
+        "भारत ने अंतरराष्ट्रीय व्यापार समझौते पर हस्ताक्षर किए।",
+        "दिल्ली में वायु प्रदूषण गंभीर स्तर पर पहुंच गया।",
+        "A major cricket tournament final drew record television viewership.",
+        "A technology company unveiled a new artificial intelligence model.",
+        "Farmers protested over crop prices in several northern states.",
+        "Global oil prices rose after major producers announced supply cuts.",
+        "शेयर बाज़ार में तेज़ गिरावट दर्ज की गई।",
+        "Heavy snowfall disrupted flights across the capital region.",
+    ][:n]
+
+    def cos(a, b):
+        d = (np.linalg.norm(a) * np.linalg.norm(b)) or 1.0
+        return float(np.dot(a, b) / d)
+
+    print("Verifying Cloudflare bge-m3 against local Ollama bge-m3 (%d samples)...\n" % len(samples))
+    ol = _embed_via_ollama(samples)
+    cf = _cf_embed_batch(samples)   # PURE Cloudflare (no fallback), so the check is honest
+    self_cos = [cos(ol[i], cf[i]) for i in range(len(samples))]
+    diffs = [abs(cos(ol[i], ol[j]) - cos(cf[i], cf[j]))
+             for i in range(len(samples)) for j in range(i + 1, len(samples))]
+    mn, avg = min(self_cos), sum(self_cos) / len(self_cos)
+    mx_pair, avg_pair = max(diffs), sum(diffs) / len(diffs)
+    print("  dims: Ollama=%d  Cloudflare=%d" % (len(ol[0]), len(cf[0])))
+    print("  cross-backend self-cosine : min=%.4f  avg=%.4f   (want ~1.0)" % (mn, avg))
+    print("  pairwise geometry |Δcos|  : max=%.4f  avg=%.4f   (want < ~0.03)" % (mx_pair, avg_pair))
+    ok = (mn >= 0.98 and mx_pair <= 0.05)
+    print("\n  VERDICT: " + (
+        "SAFE - Cloudflare shares Ollama's bge-m3 space. You can set PAKSH_BACKEND=cloudflare."
+        if ok else
+        "MISMATCH - do NOT switch on the existing corpus; the vectors differ enough to hurt clustering."))
+    return ok
 
 
 def _raw_embedder():
     """The active backend's raw (uncached) embedder."""
-    return _embed_via_ollama if BACKEND == "ollama" else _embed_via_api
+    if BACKEND == "ollama":
+        return _embed_via_ollama
+    if BACKEND == "cloudflare":
+        return _embed_via_cloudflare
+    return _embed_via_api
 
 
 def cached_embedder(texts, raw_embedder=_embed_via_api):
@@ -538,6 +730,9 @@ def match_clusters_to_events(clusters, events, sim=None, min_shared=None, hi_sim
 
 def main():
     import sys
+    if "--verify-cf" in sys.argv:
+        verify_cf()
+        return
     from database import init_db, get_unclustered_articles
     from ingest import is_junk
     init_db()

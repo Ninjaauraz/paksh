@@ -26,9 +26,18 @@ The hero image is taken from the source articles (RSS), never invented.
 import json
 import re
 import os
+import sys
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
+
+# Windows stdout defaults to cp1252 and can't encode Devanagari (Hindi) titles;
+# printing one raises UnicodeEncodeError and kills the run. Force UTF-8 output.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 try:
     from dotenv import load_dotenv
@@ -369,16 +378,20 @@ FRAMING - a per-side BULLET SUMMARY (like Ground News), concrete and specific:
   manufacture a difference that is not in the text.
 - If a lean has no outlet in the coverage, set its framing to an empty array [].
 
-Write ENGLISH first, then a faithful, natural HINDI translation of every field.
+BILINGUAL OUTPUT IS MANDATORY. Write ENGLISH first, then a faithful, natural HINDI
+(Devanagari) translation of EVERY field. The Hindi fields (title_hi, summary_hi,
+summary_points_hi, and each side of framing_hi) are REQUIRED and must NEVER be empty,
+omitted or left in English - always provide the Hindi translation. A response missing
+any Hindi field, or with an English value in a _hi field, is INVALID.
 
 Return ONLY a JSON object with these keys:
 {{
   "title": "neutral English headline IN ENGLISH ONLY (never Hindi/Devanagari), max ~12 words, no loaded words, no publication named",
   "summary": "a direct neutral account IN ENGLISH ONLY, in 4-6 sentences: exactly what happened, the specific facts and figures, the key attributed claims, and the concrete context - no filler, no hedging, no publication named",
   "summary_points": ["4-6 short, specific neutral points IN ENGLISH ONLY, each a concrete fact"],
-  "title_hi": "Hindi (Devanagari) translation of the title - Hindi script only",
-  "summary_hi": "Hindi (Devanagari) translation of the summary - Hindi script only",
-  "summary_points_hi": ["Hindi (Devanagari) translations of the points, same order - Hindi script only"],
+  "title_hi": "REQUIRED - Hindi (Devanagari) translation of the title, never empty, Hindi script only",
+  "summary_hi": "REQUIRED - Hindi (Devanagari) translation of the summary, never empty, Hindi script only",
+  "summary_points_hi": ["REQUIRED - Hindi (Devanagari) translations of the points, same order, never empty, Hindi script only"],
   "framing": {{
     "left": ["IN ENGLISH ONLY (never Hindi/Devanagari) - 3-5 short bullet points on how left-leaning outlets collectively cover it; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
     "center": ["IN ENGLISH ONLY - 3-5 short bullets on how centrist coverage collectively frames it, same rules; [] if none"],

@@ -78,9 +78,12 @@ PROVIDERS = [
         "get_key": "https://console.groq.com/keys",   # key -> GROQ_API_KEY in ai_keys.env
     },
     {
-        "name": "cerebras", "enabled": True,
+        # DISABLED 2026-08-08: this Cerebras account returns HTTP 402 "payment required"
+        # for every model (gpt-oss-120b, zai-glm-4.7, gemma-4-31b) - no free-tier access.
+        # Flip back to True after enabling billing / free access in the Cerebras dashboard.
+        "name": "cerebras", "enabled": False,
         "base_url": "https://api.cerebras.ai/v1",
-        "model": "llama-3.3-70b",
+        "model": "gpt-oss-120b",   # this account's available models: gpt-oss-120b, zai-glm-4.7, gemma-4-31b
         "get_key": "https://cloud.cerebras.ai",        # key -> CEREBRAS_API_KEY in ai_keys.env
     },
     {
@@ -125,6 +128,14 @@ def _next_start():
         return i
 
 
+# Groq and Cerebras sit behind Cloudflare, which blocks the default
+# "Python-urllib/x.y" User-Agent with error 1010 ("browser signature banned").
+# Send a normal browser UA so the API calls get through (same fix gdelt_source.py
+# and cluster.py use). DO NOT REMOVE - without it Groq/Cerebras return HTTP 403 1010.
+_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+
 def _chat_once(provider, prompt, as_json, timeout=120):
     """One OpenAI-compatible /chat/completions call. If the provider rejects
     JSON mode (HTTP 400), retry the same call once WITHOUT it (the caller's
@@ -144,7 +155,9 @@ def _chat_once(provider, prompt, as_json, timeout=120):
         req = urllib.request.Request(
             url, data=json.dumps(body).encode("utf-8"),
             headers={"Authorization": "Bearer " + key,
-                     "Content-Type": "application/json"})
+                     "Content-Type": "application/json",
+                     "Accept": "application/json",
+                     "User-Agent": _UA})
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 obj = json.loads(r.read().decode("utf-8", "replace"))

@@ -46,18 +46,41 @@ def _git_exe():
     return hits[0] if hits else None
 
 
+def _clear_stale_lock():
+    """A crashed git op - or GitHub Desktop stuck 'refreshing' - can leave
+    .git/index.lock behind, which silently blocks every commit (this has hung the
+    repo before). live.py is the PRIMARY deployer here (GitHub Desktop is the manual
+    backup), so clear a leftover lock before committing."""
+    lock = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".git", "index.lock")
+    if os.path.exists(lock):
+        try:
+            os.remove(lock)
+            print("  (cleared stale .git/index.lock)")
+        except OSError as e:
+            print(f"  ! could not remove .git/index.lock ({e}); close GitHub Desktop and retry")
+
+
 def _deploy():
+    """Commit everything and push straight to the GitHub repo so Vercel redeploys.
+    This is the primary deploy path; GitHub Desktop is just a manual backup."""
     git = _git_exe()
     if not git:
         print("  ! git not found (PATH or GitHub Desktop). Skipping push; "
               "deploy manually via GitHub Desktop.")
         return
+    _clear_stale_lock()
     msg = "live refresh " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     subprocess.run([git, "add", "-A"])
-    subprocess.run([git, "commit", "-m", msg])          # no-op if nothing changed
+    commit = subprocess.run([git, "commit", "-m", msg], capture_output=True, text=True)
+    if "nothing to commit" in (commit.stdout or "") + (commit.stderr or ""):
+        print("  nothing new to deploy this cycle.")
+        return
+    # fold in anything pushed elsewhere (e.g. a manual GitHub Desktop push) so our
+    # push isn't rejected as non-fast-forward; --autostash keeps it safe.
+    subprocess.run([git, "pull", "--rebase", "--autostash"])
     rc = subprocess.run([git, "push"]).returncode
-    print("  push ok" if rc == 0 else
-          "  ! push failed - check GitHub Desktop sign-in / remote")
+    print("  deployed -> GitHub (Vercel will redeploy)" if rc == 0 else
+          "  ! push failed - check GitHub Desktop sign-in / network")
 
 
 def cycle(deploy, backfill_n):
