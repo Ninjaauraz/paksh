@@ -852,11 +852,27 @@ const toCard = (e, lang) => {
     image: e.image_url || imgFor(hueOf(e.topic || e.title))
   };
 };
+// Keep each language view free of the OTHER language's script. The summary
+// engine occasionally writes a framing note in the wrong language; this drops
+// any bullet whose script doesn't match the active language, so the English
+// view never shows Devanagari (and vice-versa). A side left empty just shows
+// the usual "not enough unique coverage" note.
+const _DEV = /[ऀ-ॿ]/;
+const framingFor = (e, lang) => {
+  const src = lang === "hi" && e.framing_hi && Object.keys(e.framing_hi).length ? e.framing_hi : e.framing || {};
+  const wantHi = lang === "hi";
+  const out = {};
+  Object.keys(src || {}).forEach(k => {
+    const arr = Array.isArray(src[k]) ? src[k] : src[k] ? [src[k]] : [];
+    out[k] = arr.filter(s => typeof s === "string" && s.trim() && (wantHi ? _DEV.test(s) : !_DEV.test(s)));
+  });
+  return out;
+};
 const toDetail = (e, lang) => {
   const c = toCard(e, lang);
   c.coverage = e.coverage || {};
   c.outlets = e.sources || [];
-  c.framing = lang === "hi" && e.framing_hi && Object.keys(e.framing_hi).length ? e.framing_hi : e.framing || {};
+  c.framing = framingFor(e, lang);
   return c;
 };
 const isHi = lang => lang === "hi" ? "deva" : "";
@@ -1331,7 +1347,6 @@ function DateStrip({
     month: "long",
     day: "numeric"
   });
-  const upd = stats.updated ? timeAgo(stats.updated, lang) : "";
   const ls = lang === "hi" ? 0 : ".14em";
   const eb = `eyebrow ${lang === "hi" ? "deva" : ""}`;
   const region = (k, label) => /*#__PURE__*/React.createElement("button", {
@@ -1360,13 +1375,7 @@ function DateStrip({
     style: {
       letterSpacing: ls
     }
-  }, tally), /*#__PURE__*/React.createElement("span", {
-    className: `${eb} ${t.tf} shrink-0`,
-    style: {
-      letterSpacing: ls
-    },
-    title: stats.updated ? lang === "hi" ? `नवीनतम खबर का प्रकाशन: ${absDate(stats.updated, lang)}` : `Newest story published: ${absDate(stats.updated, lang)}` : ""
-  }, upd ? lang === "hi" ? `अपडेट ${upd}` : `Updated ${upd}` : today));
+  }, tally));
 }
 // LEAD — the most-covered story of the moment, given the largest type + full bias
 // instrument with the printed scale. Text-forward; a single 2:1 image if one exists.

@@ -373,18 +373,18 @@ Write ENGLISH first, then a faithful, natural HINDI translation of every field.
 
 Return ONLY a JSON object with these keys:
 {{
-  "title": "neutral English headline, max ~12 words, no loaded words, no publication named",
-  "summary": "a direct neutral account in 4-6 sentences: exactly what happened, the specific facts and figures, the key attributed claims, and the concrete context - no filler, no hedging, no publication named",
-  "summary_points": ["4-6 short, specific neutral English points, each a concrete fact"],
-  "title_hi": "Hindi translation of the title",
-  "summary_hi": "Hindi translation of the summary",
-  "summary_points_hi": ["Hindi translations of the points, same order"],
+  "title": "neutral English headline IN ENGLISH ONLY (never Hindi/Devanagari), max ~12 words, no loaded words, no publication named",
+  "summary": "a direct neutral account IN ENGLISH ONLY, in 4-6 sentences: exactly what happened, the specific facts and figures, the key attributed claims, and the concrete context - no filler, no hedging, no publication named",
+  "summary_points": ["4-6 short, specific neutral points IN ENGLISH ONLY, each a concrete fact"],
+  "title_hi": "Hindi (Devanagari) translation of the title - Hindi script only",
+  "summary_hi": "Hindi (Devanagari) translation of the summary - Hindi script only",
+  "summary_points_hi": ["Hindi (Devanagari) translations of the points, same order - Hindi script only"],
   "framing": {{
-    "left": ["3-5 short bullet points on how left-leaning outlets collectively cover it; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
-    "center": ["3-5 short bullets on how centrist coverage collectively frames it, same rules; [] if none"],
-    "right": ["3-5 short bullets on how right-leaning outlets collectively frame it, same rules; [] if none"]
+    "left": ["IN ENGLISH ONLY (never Hindi/Devanagari) - 3-5 short bullet points on how left-leaning outlets collectively cover it; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
+    "center": ["IN ENGLISH ONLY - 3-5 short bullets on how centrist coverage collectively frames it, same rules; [] if none"],
+    "right": ["IN ENGLISH ONLY - 3-5 short bullets on how right-leaning outlets collectively frame it, same rules; [] if none"]
   }},
-  "framing_hi": {{ "left": ["Hindi bullets, same order"], "center": ["Hindi bullets"], "right": ["Hindi bullets"] }},
+  "framing_hi": {{ "left": ["IN HINDI/DEVANAGARI ONLY (never English) - same points as framing.left, same order"], "center": ["Hindi/Devanagari only, same as framing.center"], "right": ["Hindi/Devanagari only, same as framing.right"] }},
   "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention.",
   "region": "India or World - 'India' if the story is primarily about India or has a direct India angle (Indian people, government, economy, society, courts, prices, sport teams); 'World' if it is mainly about events in other countries"
 }}

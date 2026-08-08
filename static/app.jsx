@@ -273,9 +273,24 @@ const {useState,useEffect,useMemo}=React;
         img:e.image_url||"",
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
+    // Keep each language view free of the OTHER language's script. The summary
+    // engine occasionally writes a framing note in the wrong language; this drops
+    // any bullet whose script doesn't match the active language, so the English
+    // view never shows Devanagari (and vice-versa). A side left empty just shows
+    // the usual "not enough unique coverage" note.
+    const _DEV=/[ऀ-ॿ]/;
+    const framingFor=(e,lang)=>{
+      const src=(lang==="hi"&&e.framing_hi&&Object.keys(e.framing_hi).length)?e.framing_hi:(e.framing||{});
+      const wantHi=lang==="hi"; const out={};
+      Object.keys(src||{}).forEach(k=>{
+        const arr=Array.isArray(src[k])?src[k]:(src[k]?[src[k]]:[]);
+        out[k]=arr.filter(s=>typeof s==="string"&&s.trim()&&(wantHi?_DEV.test(s):!_DEV.test(s)));
+      });
+      return out;
+    };
     const toDetail = (e, lang) => { const c=toCard(e,lang);
       c.coverage=e.coverage||{}; c.outlets=e.sources||[];
-      c.framing=(lang==="hi"&&e.framing_hi&&Object.keys(e.framing_hi).length)?e.framing_hi:(e.framing||{});
+      c.framing=framingFor(e,lang);
       return c; };
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
@@ -436,7 +451,6 @@ const {useState,useEffect,useMemo}=React;
     // freshness on the right. Every number is real (homeCards / sources / gaps / newest event).
     function DateStrip({ t, lang, stats, regionFilter, setRegionFilter }) {
       const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-      const upd=stats.updated?timeAgo(stats.updated,lang):"";
       const ls=lang==="hi"?0:".14em";
       const eb=`eyebrow ${lang==="hi"?"deva":""}`;
       const region=(k,label)=>(
@@ -453,7 +467,6 @@ const {useState,useEffect,useMemo}=React;
             <span className={`hidden md:inline ${eb} ${t.tf}`} style={{letterSpacing:ls}}>{today}</span>
           </div>
           <span className={`hidden sm:inline ${eb} ${t.tf} truncate`} style={{letterSpacing:ls}}>{tally}</span>
-          <span className={`${eb} ${t.tf} shrink-0`} style={{letterSpacing:ls}} title={stats.updated?(lang==="hi"?`नवीनतम खबर का प्रकाशन: ${absDate(stats.updated,lang)}`:`Newest story published: ${absDate(stats.updated,lang)}`):""}>{upd?(lang==="hi"?`अपडेट ${upd}`:`Updated ${upd}`):today}</span>
         </div>
       );
     }
