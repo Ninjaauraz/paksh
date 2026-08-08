@@ -107,12 +107,22 @@ def main():
     if "--backfill" in args:
         backfill_n = int(args[args.index("--backfill") + 1])
 
+    # Use the fast backends by DEFAULT even when this terminal didn't inherit the
+    # setx'd env vars - setx never reaches already-open terminals or apps that cache
+    # their environment (VS Code, GitHub Desktop), which is the #1 reason a plain
+    # `py live.py` shows backend=ollama. Children (refresh -> cluster/analyze) inherit
+    # these via the environment. An explicitly-set env var still overrides (setdefault).
+    os.environ.setdefault("PAKSH_LLM_BACKEND", "pool")      # Groq/Gemini summary pool
+    os.environ.setdefault("PAKSH_BACKEND", "cloudflare")    # Cloudflare bge-m3 embeddings
+    os.environ.setdefault("PYTHONUTF8", "1")                # UTF-8 for child processes
+
     backend = os.environ.get("PAKSH_LLM_BACKEND", "ollama")
+    emb = os.environ.get("PAKSH_BACKEND", "ollama")
     print(f"Paksh live: every {every} min | backfill {backfill_n}/cycle | "
-          f"deploy={deploy} | backend={backend}")
+          f"deploy={deploy} | summaries={backend} | embeddings={emb}")
     if backend == "ollama":
-        print("NOTE: backend is OLLAMA (slow, ~80 min/cycle). For a live cadence "
-              "set PAKSH_LLM_BACKEND=gemini before running this.")
+        print("NOTE: summary backend is OLLAMA (slow, ~80 min/cycle). "
+              "Set PAKSH_LLM_BACKEND=pool (Groq/Gemini) for a fast cadence.")
     if deploy and not _git_exe():
         print("NOTE: --deploy set but git not found; pushes will be skipped.")
     print("Ctrl-C to stop.\n")
