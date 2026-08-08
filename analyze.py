@@ -47,9 +47,11 @@ import cluster
 # ---- LLM backend for the bilingual summary --------------------------------
 # "ollama" = LOCAL text model (default; free, no API key, no bill)
 # "gemini" = Google Gemini (needs API key + billing)
+# "hybrid" = top LLM_LOCAL_BUDGET events local (free), the rest via Gemini.
+# "pool"   = round-robin + fallback across the FREE provider pool (Groq, Cerebras,
+#            Gemini, ...) in ai_providers.py. Fastest option; keys go in
+#            ai_keys.env. Add providers/keys yourself - no code changes needed.
 # Flip with PAKSH_LLM_BACKEND; pick the local model with PAKSH_LLM_MODEL.
-# "ollama" = local model (free) | "gemini" = Google API (paid) | "hybrid" = the
-# top LLM_LOCAL_BUDGET events summarised locally for free, the rest via Gemini.
 LLM_BACKEND = os.environ.get("PAKSH_LLM_BACKEND", "ollama").lower()
 OLLAMA_URL  = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 # Per-backend models, so hybrid can drive BOTH at once. On a CPU-only / integrated-
@@ -173,6 +175,11 @@ def _generate(prompt: str, as_json: bool, backend=None) -> str:
     backend = backend or LLM_BACKEND
     if backend == "ollama":
         return _ollama_generate(prompt, as_json)
+    if backend == "pool":
+        # Round-robin + fallback across the free provider pool (Groq, Cerebras,
+        # Gemini, ...). See ai_providers.py; keys live in ai_keys.env.
+        from ai_providers import pool_generate
+        return pool_generate(prompt, as_json)
     return _gemini_generate(prompt, as_json)
 
 
@@ -777,6 +784,13 @@ def _event_created_at(rows):
 def main():
     if LLM_BACKEND == "ollama":
         print("\n=== Paksh analysis (LOCAL via Ollama: %s) ===" % MODEL)
+    elif LLM_BACKEND == "pool":
+        try:
+            from ai_providers import active_providers
+            names = ", ".join(p["name"] for p in active_providers()) or "NONE - add a key to ai_keys.env"
+        except Exception as e:
+            names = f"(pool error: {e})"
+        print("\n=== Paksh analysis (provider POOL: %s) ===" % names)
     else:
         print("\n=== Paksh analysis (Gemini: %s) ===" % MODEL)
     init_db()

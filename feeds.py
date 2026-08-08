@@ -149,6 +149,290 @@ FEEDS = {
     "nai_dunia":          ["https://news.google.com/rss/search?q=site:naidunia.com+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
     "punjab_kesari":      ["https://news.google.com/rss/search?q=site:punjabkesari.in+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi"],
     "haribhoomi":         ["https://news.google.com/rss/search?q=site:haribhoomi.com+when:3d&hl=hi-IN&gl=IN&ceid=IN:hi"],
+
+    # ===== v1.6 auto-added feeds (build_missing_feeds.py) =====
+    # Google News bridges (reliable) + native RSS where known. All
+    # CANDIDATE - verify/replace natives with `py ingest.py --discover URL`.
+    # The Economic Times (en) [+native]
+    "economic_times": [
+        "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
+        "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+        "https://news.google.com/rss/search?q=site:economictimes.indiatimes.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # The Financial Express (en) [+native]
+    "financial_express": [
+        "https://www.financialexpress.com/feed/",
+        "https://news.google.com/rss/search?q=site:financialexpress.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # The Hindu BusinessLine (en) [+native]
+    "hindu_business_line": [
+        "https://www.thehindubusinessline.com/feeder/default.rss",
+        "https://news.google.com/rss/search?q=site:thehindubusinessline.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Business Today (en)
+    "business_today": [
+        "https://news.google.com/rss/search?q=site:businesstoday.in+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Outlook India (en)
+    "outlook_india": [
+        "https://news.google.com/rss/search?q=site:outlookindia.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # DNA (Daily News & Analysis) (en)
+    "dna_india": [
+        "https://news.google.com/rss/search?q=site:dnaindia.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # The Statesman (en) [+native]
+    "the_statesman": [
+        "https://www.thestatesman.com/feed",
+        "https://news.google.com/rss/search?q=site:thestatesman.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Malayala Manorama (en)
+    "malayala_manorama": [
+        "https://news.google.com/rss/search?q=site:manoramaonline.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Mathrubhumi (en)
+    "mathrubhumi": [
+        "https://news.google.com/rss/search?q=site:mathrubhumi.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Anandabazar Patrika (en)
+    "anandabazar_patrika": [
+        "https://news.google.com/rss/search?q=site:anandabazar.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Lokmat (en)
+    "lokmat": [
+        "https://news.google.com/rss/search?q=site:lokmat.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Sakal (en)
+    "sakal": [
+        "https://news.google.com/rss/search?q=site:esakal.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Eenadu (en)
+    "eenadu": [
+        "https://news.google.com/rss/search?q=site:eenadu.net+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Daily Thanthi (en)
+    "daily_thanthi": [
+        "https://news.google.com/rss/search?q=site:dailythanthi.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # Divya Bhaskar (hi)
+    "divya_bhaskar": [
+        "https://news.google.com/rss/search?q=site:divyabhaskar.co.in+when:2d&hl=hi-IN&gl=IN&ceid=IN:hi",
+    ],
+    # Times Now (en)
+    "times_now": [
+        "https://news.google.com/rss/search?q=site:timesnownews.com+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+    ],
+    # The New York Times (intl) [+native]
+    "nyt": [
+        "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+        "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+        "https://news.google.com/rss/search?q=site:nytimes.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Washington Post (intl) [+native]
+    "washington_post": [
+        "https://feeds.washingtonpost.com/rss/world",
+        "https://news.google.com/rss/search?q=site:washingtonpost.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # CNN (intl)
+    "cnn": [
+        "https://news.google.com/rss/search?q=site:edition.cnn.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Fox News (intl)
+    "fox_news": [
+        "https://news.google.com/rss/search?q=site:foxnews.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # NPR (intl) [+native]
+    "npr": [
+        "https://feeds.npr.org/1001/rss.xml",
+        "https://news.google.com/rss/search?q=site:npr.org+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # TIME (intl) [+native]
+    "time_magazine": [
+        "https://time.com/feed/",
+        "https://news.google.com/rss/search?q=site:time.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Sky News (intl) [+native]
+    "sky_news": [
+        "https://feeds.skynews.com/feeds/rss/world.xml",
+        "https://news.google.com/rss/search?q=site:news.sky.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Independent (intl) [+native]
+    "the_independent": [
+        "https://www.independent.co.uk/news/world/rss",
+        "https://news.google.com/rss/search?q=site:independent.co.uk+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Daily Mail (intl)
+    "daily_mail": [
+        "https://news.google.com/rss/search?q=site:dailymail.co.uk+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Le Monde (intl) [+native]
+    "le_monde": [
+        "https://www.lemonde.fr/en/rss/une.xml",
+        "https://news.google.com/rss/search?q=site:lemonde.fr+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # ABC Australia (intl) [+native]
+    "abc_australia": [
+        "https://www.abc.net.au/news/feed/51120/rss.xml",
+        "https://news.google.com/rss/search?q=site:abc.net.au+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # CBC News (intl) [+native]
+    "cbc_news": [
+        "https://www.cbc.ca/webfeed/rss/rss-world",
+        "https://news.google.com/rss/search?q=site:cbc.ca+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # NBC News (intl) [+native]
+    "nbc_news": [
+        "https://feeds.nbcnews.com/nbcnews/public/world",
+        "https://news.google.com/rss/search?q=site:nbcnews.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # CBS News (intl) [+native]
+    "cbs_news": [
+        "https://www.cbsnews.com/latest/rss/world",
+        "https://news.google.com/rss/search?q=site:cbsnews.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # USA Today (intl)
+    "usa_today": [
+        "https://news.google.com/rss/search?q=site:usatoday.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # ABC News (US) (intl)
+    "abc_news_us": [
+        "https://news.google.com/rss/search?q=site:abcnews.go.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Politico (intl)
+    "politico": [
+        "https://news.google.com/rss/search?q=site:politico.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Wall Street Journal (intl)
+    "wsj": [
+        "https://news.google.com/rss/search?q=site:wsj.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Atlantic (intl) [+native]
+    "the_atlantic": [
+        "https://www.theatlantic.com/feed/all/",
+        "https://news.google.com/rss/search?q=site:theatlantic.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The New Yorker (intl)
+    "new_yorker": [
+        "https://news.google.com/rss/search?q=site:newyorker.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Business Insider (intl)
+    "business_insider": [
+        "https://news.google.com/rss/search?q=site:businessinsider.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # CNBC (intl)
+    "cnbc": [
+        "https://news.google.com/rss/search?q=site:cnbc.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Forbes (intl) [+native]
+    "forbes": [
+        "https://www.forbes.com/business/feed/",
+        "https://news.google.com/rss/search?q=site:forbes.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Fortune (intl) [+native]
+    "fortune": [
+        "https://fortune.com/feed/",
+        "https://news.google.com/rss/search?q=site:fortune.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Los Angeles Times (intl)
+    "la_times": [
+        "https://news.google.com/rss/search?q=site:latimes.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Chicago Tribune (intl)
+    "chicago_tribune": [
+        "https://news.google.com/rss/search?q=site:chicagotribune.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Voice of America (intl)
+    "voa": [
+        "https://news.google.com/rss/search?q=site:voanews.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Economist (intl) [+native]
+    "the_economist": [
+        "https://www.economist.com/international/rss.xml",
+        "https://news.google.com/rss/search?q=site:economist.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Financial Times (intl) [+native]
+    "financial_times": [
+        "https://www.ft.com/rss/home",
+        "https://news.google.com/rss/search?q=site:ft.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Daily Telegraph (intl)
+    "daily_telegraph": [
+        "https://news.google.com/rss/search?q=site:telegraph.co.uk+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Evening Standard (intl)
+    "evening_standard": [
+        "https://news.google.com/rss/search?q=site:standard.co.uk+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Daily Mirror (intl)
+    "daily_mirror": [
+        "https://news.google.com/rss/search?q=site:mirror.co.uk+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Metro (UK) (intl) [+native]
+    "metro_uk": [
+        "https://metro.co.uk/feed/",
+        "https://news.google.com/rss/search?q=site:metro.co.uk+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Globe and Mail (intl)
+    "globe_and_mail": [
+        "https://news.google.com/rss/search?q=site:theglobeandmail.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Toronto Star (intl)
+    "toronto_star": [
+        "https://news.google.com/rss/search?q=site:thestar.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Global News (Canada) (intl) [+native]
+    "global_news_ca": [
+        "https://globalnews.ca/feed/",
+        "https://news.google.com/rss/search?q=site:globalnews.ca+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # CTV News (intl)
+    "ctv_news": [
+        "https://news.google.com/rss/search?q=site:ctvnews.ca+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Sydney Morning Herald (intl)
+    "smh": [
+        "https://news.google.com/rss/search?q=site:smh.com.au+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Age (intl)
+    "the_age": [
+        "https://news.google.com/rss/search?q=site:theage.com.au+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Australian Financial Review (intl)
+    "afr": [
+        "https://news.google.com/rss/search?q=site:afr.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # South China Morning Post (intl) [+native]
+    "scmp": [
+        "https://www.scmp.com/rss/91/feed",
+        "https://news.google.com/rss/search?q=site:scmp.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Channel News Asia (intl) [+native]
+    "cna": [
+        "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml",
+        "https://news.google.com/rss/search?q=site:channelnewsasia.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Japan Times (intl) [+native]
+    "japan_times": [
+        "https://www.japantimes.co.jp/feed/",
+        "https://news.google.com/rss/search?q=site:japantimes.co.jp+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # The Jerusalem Post (intl)
+    "jerusalem_post": [
+        "https://news.google.com/rss/search?q=site:jpost.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Gulf News (intl)
+    "gulf_news": [
+        "https://news.google.com/rss/search?q=site:gulfnews.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Euronews (intl) [+native]
+    "euronews": [
+        "https://www.euronews.com/rss",
+        "https://news.google.com/rss/search?q=site:euronews.com+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
+    # Irish Independent (intl)
+    "irish_independent": [
+        "https://news.google.com/rss/search?q=site:independent.ie+when:2d&hl=en-US&gl=US&ceid=US:en",
+    ],
 }
 
 # Confirmed against public RSS directories (others are candidates to verify).

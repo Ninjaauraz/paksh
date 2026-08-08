@@ -2,6 +2,10 @@
 .env
 *.key
 secrets.*
+# AI provider keys - paste real keys ONLY in ai_keys.env (local, never committed).
+# ai_keys.example.env is the safe, keyless template that IS committed.
+ai_keys.env
+*.keys.env
 
 # --- local database + caches (regenerated; never publish) ---
 paksh.db
