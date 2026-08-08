@@ -1,12 +1,8 @@
-﻿{
+{
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "paksh-static",
-      "runtimeExecutable": "py",
-      "runtimeArgs": ["-m", "http.server", "8096", "--directory", "_site"],
-      "port": 8096
-    }
+    { "name": "paksh-static", "runtimeExecutable": "py",
+      "runtimeArgs": ["-m", "http.server", "8091", "--directory", "_site"],
+      "port": 8091 }
   ]
 }
-

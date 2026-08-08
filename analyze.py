@@ -475,10 +475,19 @@ def postprocess(raw, articles) -> dict:
         topic = "Society"
 
     region = raw.get("region")
+    blob = " ".join([raw.get("title", ""), raw.get("summary", "")]
+                    + [a.get("title", "") for a in articles])
     if region not in ("India", "World"):
-        blob = " ".join([raw.get("title", ""), raw.get("summary", "")]
-                        + [a.get("title", "") for a in articles])
         region = _guess_region(blob)
+    # Outlet-composition guard - stops WORLD news leaking into the National feed.
+    # A story carried ONLY by foreign (international-tier) outlets, with NO Indian
+    # voting outlet (left/centre/right) and no clear India angle in the text, is a
+    # World story. This catches world-news clusters from the international feeds
+    # that the text-only guesser (or the LLM) would otherwise default to "India".
+    india_votes = sum(coverage_out[s]["count"] for s in LEAN_ORDER)
+    if (india_votes == 0 and coverage_out["international"]["count"] > 0
+            and not _INDIA_RE.search(blob)):
+        region = "World"
 
     points = raw.get("summary_points") or []
     degraded = not (raw.get("title") or raw.get("summary") or points)

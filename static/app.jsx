@@ -962,8 +962,9 @@ const {useState,useEffect,useMemo}=React;
       const metaLine=lang==="hi"
         ? `${total} स्रोत · वाम ${vc.left} · केंद्र ${vc.center} · दक्षिण ${vc.right} · ${timeAgo(story.created_at,lang)}`
         : `${total} outlets · ${vc.left} left · ${vc.center} centre · ${vc.right} right · ${timeAgo(story.created_at,lang)}`;
-      const ATab=({k,n})=>{ const on=atab===k; const lab=k==="all"?(lang==="hi"?"सभी":"All"):lbl(k,lang);
-        return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"?t.ink:(k==="center"?t.ink:BIAS[k]&&BIAS[k].color)):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
+      const ATab=({k,n})=>{ const on=atab===k;
+        const lab=k==="all"?(lang==="hi"?"सभी":"All"):(k==="unrated"?(lang==="hi"?"बिना रेटिंग":"Unrated"):lbl(k,lang));
+        return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"||k==="center"?t.ink:((BIAS[k]&&BIAS[k].color)||"#B8B4AC")):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
       const frLen=(v)=>Array.isArray(v)?v.length:(typeof v==="string"&&v.trim()?1:0);
       const sides=["left","center","right"].filter(k=> frLen(fr[k])>0 || counts[k]>0);
       // Distinguish "this story isn't analysed yet" (all sides blank -> pending) from a side
@@ -1083,6 +1084,8 @@ const {useState,useEffect,useMemo}=React;
               {counts.left>0 && <ATab k="left" n={counts.left} />}
               {counts.center>0 && <ATab k="center" n={counts.center} />}
               {counts.right>0 && <ATab k="right" n={counts.right} />}
+              {counts.international>0 && <ATab k="international" n={counts.international} />}
+              {counts.unrated>0 && <ATab k="unrated" n={counts.unrated} />}
             </div>
             <div className="mt-4 space-y-2.5">
               {arts.map((o,i)=>(

@@ -2635,12 +2635,12 @@ function StoryPage({
     n
   }) => {
     const on = atab === k;
-    const lab = k === "all" ? lang === "hi" ? "सभी" : "All" : lbl(k, lang);
+    const lab = k === "all" ? lang === "hi" ? "सभी" : "All" : k === "unrated" ? lang === "hi" ? "बिना रेटिंग" : "Unrated" : lbl(k, lang);
     return /*#__PURE__*/React.createElement("button", {
       onClick: () => setAtab(k),
       className: `flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on ? t.tp : `${t.tf} hover:${t.ts}`}`,
       style: {
-        borderColor: on ? k === "all" ? t.ink : k === "center" ? t.ink : BIAS[k] && BIAS[k].color : "transparent"
+        borderColor: on ? k === "all" || k === "center" ? t.ink : BIAS[k] && BIAS[k].color || "#B8B4AC" : "transparent"
       }
     }, lab, /*#__PURE__*/React.createElement("span", {
       className: `mono text-[11px] ${on ? t.ts : t.tf}`
@@ -2956,6 +2956,12 @@ function StoryPage({
   }), counts.right > 0 && /*#__PURE__*/React.createElement(ATab, {
     k: "right",
     n: counts.right
+  }), counts.international > 0 && /*#__PURE__*/React.createElement(ATab, {
+    k: "international",
+    n: counts.international
+  }), counts.unrated > 0 && /*#__PURE__*/React.createElement(ATab, {
+    k: "unrated",
+    n: counts.unrated
   })), /*#__PURE__*/React.createElement("div", {
     className: "mt-4 space-y-2.5"
   }, arts.map((o, i) => /*#__PURE__*/React.createElement("a", {
