@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://paksh.vercel.app/sitemap.xml
+Sitemap: https://paksh.news/sitemap.xml

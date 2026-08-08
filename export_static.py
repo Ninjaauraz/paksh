@@ -36,7 +36,7 @@ from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
-SITE_URL = "https://paksh.vercel.app"
+SITE_URL = "https://paksh.news"
 SRC_FIELDS = ("id", "name", "language", "region", "website", "ownership", "owner", "lean", "label",
               "confidence", "contested", "review_status", "last_reviewed",
               "rationale", "subscores", "axes")
