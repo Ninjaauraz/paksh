@@ -34,6 +34,7 @@ SOURCES = [
         "id": "the_hindu", "name": "The Hindu", "language": "en",
         "website": "https://www.thehindu.com",
         "ownership": "The Hindu Group (Kasturi & Sons Ltd)",
+        "owner": "The Hindu Group",
         "lean": "left", "label": "Lean Left", "confidence": "medium", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Legacy national daily; editorial page commonly described as "
@@ -155,6 +156,7 @@ SOURCES = [
         "id": "dainik_bhaskar", "name": "Dainik Bhaskar", "language": "hi",
         "website": "https://www.bhaskar.com",
         "ownership": "DB Corp Ltd",
+        "owner": "DB Corp",
         "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Among the largest-circulation Hindi dailies; broad mass readership.",
@@ -396,6 +398,7 @@ SOURCES = [
         "id": "telegraph_india", "name": "The Telegraph (India)", "language": "en",
         "website": "https://www.telegraphindia.com",
         "ownership": "ABP Group",
+        "owner": "ABP Group",
         "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
         "review_status": "reviewed", "last_reviewed": "2026-06-25",
         "rationale": "Kolkata daily whose front pages and editorials are commonly "
@@ -721,6 +724,359 @@ SOURCES = [
         "subscores": None,
         "axes": {"secular_authoritative": 50, "market_orientation": 50, "incumbent_stance": 50},
     },
+
+    # ================= v1.4 expansion (2026-08-08) =================
+    # Top outlets promoted from the SCImago reference registry into the CURATED
+    # roster. EVERY lean here is review_status="provisional" - a documented
+    # first-draft pending Sameer's editorial sign-off, NOT a final verdict. The
+    # site already shows these as provisional (confidence + Contested badges).
+    # Anything genuinely debatable is contested + low confidence; genuine
+    # toss-ups (e.g. Doordarshan/DD News, a state broadcaster) were left UNRATED
+    # in the reference registry rather than guessed.
+    # ---------------- Indian: business/markets (vote; owner-grouped) ----------
+    {
+        "id": "economic_times", "name": "The Economic Times", "language": "en",
+        "website": "https://economictimes.indiatimes.com",
+        "ownership": "Bennett, Coleman & Co. Ltd (Times Group)",
+        "owner": "Times Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "India's largest business daily; market-oriented framing. Shares "
+                     "the Times Group owner with ToI/Navbharat Times (one vote per side).",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 95, "incumbent_stance": 55},
+    },
+    {
+        "id": "financial_express", "name": "The Financial Express", "language": "en",
+        "website": "https://www.financialexpress.com",
+        "ownership": "Indian Express Group",
+        "owner": "Indian Express Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Business daily of the Indian Express Group; markets-focused framing.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 95, "incumbent_stance": 55},
+    },
+    {
+        "id": "hindu_business_line", "name": "The Hindu BusinessLine", "language": "en",
+        "website": "https://www.thehindubusinessline.com",
+        "ownership": "The Hindu Group (Kasturi & Sons Ltd)",
+        "owner": "The Hindu Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Business daily of The Hindu Group; markets/economy focus, more "
+                     "neutral than its parent's opinion pages.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 90, "incumbent_stance": 50},
+    },
+    {
+        "id": "business_today", "name": "Business Today", "language": "en",
+        "website": "https://www.businesstoday.in",
+        "ownership": "Living Media India Ltd (India Today Group)",
+        "owner": "India Today Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Business magazine/site of the India Today Group; markets framing.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 90, "incumbent_stance": 55},
+    },
+    # ---------------- Indian: general & large regional dailies (vote) --------
+    {
+        "id": "outlook_india", "name": "Outlook India", "language": "en",
+        "website": "https://www.outlookindia.com",
+        "ownership": "Outlook Publishing (India) Pvt Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "English newsmagazine; commonly described as centrist/liberal and "
+                     "often government-critical. Provisional, contested - needs review.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 45, "incumbent_stance": 35},
+    },
+    {
+        "id": "dna_india", "name": "DNA (Daily News & Analysis)", "language": "en",
+        "website": "https://www.dnaindia.com",
+        "ownership": "Diligent Media Corporation",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "English news portal; broad mainstream framing. Provisional, contested.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 60, "incumbent_stance": 55},
+    },
+    {
+        "id": "the_statesman", "name": "The Statesman", "language": "en", "region": "Regional",
+        "website": "https://www.thestatesman.com",
+        "ownership": "The Statesman Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Legacy Kolkata/Delhi English daily; conventional reportage. "
+                     "Provisional, contested.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 45, "incumbent_stance": 45},
+    },
+    {
+        "id": "malayala_manorama", "name": "Malayala Manorama", "language": "en", "region": "Regional",
+        "website": "https://www.manoramaonline.com",
+        "ownership": "Malayala Manorama Co. Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Kerala's largest-circulation daily; mass-market. Regional lean is "
+                     "genuinely contested - provisional, low confidence, needs review.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "mathrubhumi", "name": "Mathrubhumi", "language": "en", "region": "Regional",
+        "website": "https://www.mathrubhumi.com",
+        "ownership": "The Mathrubhumi Printing & Publishing Co. Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Major Kerala daily; sometimes described as left-of-centre in the "
+                     "Kerala frame. Provisional, contested - needs review.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 45, "incumbent_stance": 40},
+    },
+    {
+        "id": "anandabazar_patrika", "name": "Anandabazar Patrika", "language": "en", "region": "Regional",
+        "website": "https://www.anandabazar.com",
+        "ownership": "ABP Group",
+        "owner": "ABP Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "West Bengal's largest Bengali daily; ABP Group (also The Telegraph). "
+                     "Regional lean contested - provisional, low confidence.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 50, "incumbent_stance": 45},
+    },
+    {
+        "id": "lokmat", "name": "Lokmat", "language": "en", "region": "Regional",
+        "website": "https://www.lokmat.com",
+        "ownership": "Lokmat Media Pvt Ltd",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Leading Marathi daily; mass-market. Regional lean contested - "
+                     "provisional, low confidence.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "sakal", "name": "Sakal", "language": "en", "region": "Regional",
+        "website": "https://www.esakal.com",
+        "ownership": "Sakal Media Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Major Marathi daily; mass-market. Regional lean contested - "
+                     "provisional, low confidence.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "eenadu", "name": "Eenadu", "language": "en", "region": "Regional",
+        "website": "https://www.eenadu.net",
+        "ownership": "Ramoji Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Largest Telugu daily; state politics make its lean genuinely "
+                     "contested in the AP/Telangana frame. Provisional, low confidence.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "daily_thanthi", "name": "Daily Thanthi", "language": "en", "region": "Regional",
+        "website": "https://www.dailythanthi.com",
+        "ownership": "Sivanthi Adityan group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Largest-circulation Tamil daily; mass-market. Regional lean "
+                     "contested - provisional, low confidence.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 55, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "divya_bhaskar", "name": "Divya Bhaskar", "language": "hi", "region": "Regional",
+        "website": "https://www.divyabhaskar.co.in",
+        "ownership": "DB Corp Ltd",
+        "owner": "DB Corp",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Gujarati daily of DB Corp (Dainik Bhaskar); mass readership. Shares "
+                     "the DB Corp owner with Dainik Bhaskar (one vote per side).",
+        "subscores": None,
+        "axes": {"secular_authoritative": 50, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "times_now", "name": "Times Now", "language": "en",
+        "website": "https://www.timesnownews.com",
+        "ownership": "The Times Group (Times Now)",
+        "owner": "Times Now",
+        "lean": "right", "label": "Lean Right", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "English news channel widely documented for strongly nationalist, "
+                     "pro-government primetime framing (comparable to Republic). "
+                     "Provisional, contested - needs review. Owner kept distinct from "
+                     "the Times Group print mastheads so it votes on its own side.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 20, "market_orientation": 60, "incumbent_stance": 90},
+    },
+
+    # ---------------- International wires/outlets (region=International, NON-VOTING) --
+    # These sit in the non-voting international tier: they add coverage + framing
+    # but NEVER move the India Left/Centre/Right bias bar (their lean is calibrated
+    # to their home market, not India's). Leans are documented home-market
+    # positioning, provisional.
+    {
+        "id": "nyt", "name": "The New York Times", "language": "en", "region": "International",
+        "website": "https://www.nytimes.com",
+        "ownership": "The New York Times Company",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US daily of record; editorial page centre-left in its home market. "
+                     "Non-voting international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 80, "market_orientation": 50, "incumbent_stance": 40},
+    },
+    {
+        "id": "washington_post", "name": "The Washington Post", "language": "en", "region": "International",
+        "website": "https://www.washingtonpost.com",
+        "ownership": "Nash Holdings (Jeff Bezos)",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Major US daily; centre-left in its home market. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 80, "market_orientation": 50, "incumbent_stance": 40},
+    },
+    {
+        "id": "cnn", "name": "CNN", "language": "en", "region": "International",
+        "website": "https://edition.cnn.com",
+        "ownership": "Warner Bros. Discovery",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US cable/digital network; centre-left in its home market. "
+                     "Non-voting international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 75, "market_orientation": 55, "incumbent_stance": 45},
+    },
+    {
+        "id": "fox_news", "name": "Fox News", "language": "en", "region": "International",
+        "website": "https://www.foxnews.com",
+        "ownership": "Fox Corporation",
+        "lean": "right", "label": "Lean Right", "confidence": "medium", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US cable network; clearly documented right-of-centre in its home "
+                     "market. Non-voting international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 25, "market_orientation": 60, "incumbent_stance": 60},
+    },
+    {
+        "id": "npr", "name": "NPR", "language": "en", "region": "International",
+        "website": "https://www.npr.org",
+        "ownership": "National Public Radio (US non-profit)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US public broadcaster; some rate it centre-left. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 45, "incumbent_stance": 45},
+    },
+    {
+        "id": "time_magazine", "name": "TIME", "language": "en", "region": "International",
+        "website": "https://time.com",
+        "ownership": "TIME (Marc Benioff)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US newsmagazine; broad international coverage. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 55, "incumbent_stance": 45},
+    },
+    {
+        "id": "sky_news", "name": "Sky News", "language": "en", "region": "International",
+        "website": "https://news.sky.com",
+        "ownership": "Sky Group (Comcast)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "UK broadcaster; broad international coverage. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 60, "market_orientation": 55, "incumbent_stance": 50},
+    },
+    {
+        "id": "the_independent", "name": "The Independent", "language": "en", "region": "International",
+        "website": "https://www.independent.co.uk",
+        "ownership": "Independent Digital News & Media",
+        "lean": "left", "label": "Lean Left", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "UK digital outlet; centre-left in its home market. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 75, "market_orientation": 50, "incumbent_stance": 40},
+    },
+    {
+        "id": "daily_mail", "name": "Daily Mail", "language": "en", "region": "International",
+        "website": "https://www.dailymail.co.uk",
+        "ownership": "DMG Media (Daily Mail and General Trust)",
+        "lean": "right", "label": "Lean Right", "confidence": "medium", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "UK tabloid; clearly documented right-of-centre in its home market. "
+                     "Non-voting international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 30, "market_orientation": 55, "incumbent_stance": 55},
+    },
+    {
+        "id": "le_monde", "name": "Le Monde", "language": "en", "region": "International",
+        "website": "https://www.lemonde.fr",
+        "ownership": "Le Monde Group",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "French daily of record; centre-left in its home market. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 50, "incumbent_stance": 45},
+    },
+    {
+        "id": "abc_australia", "name": "ABC Australia", "language": "en", "region": "International",
+        "website": "https://www.abc.net.au",
+        "ownership": "Australian Broadcasting Corporation (public broadcaster)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Australian public broadcaster; broad world coverage. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 45, "incumbent_stance": 45},
+    },
+    {
+        "id": "cbc_news", "name": "CBC News", "language": "en", "region": "International",
+        "website": "https://www.cbc.ca",
+        "ownership": "Canadian Broadcasting Corporation (public broadcaster)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": False,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "Canadian public broadcaster; broad world coverage. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 65, "market_orientation": 45, "incumbent_stance": 45},
+    },
+    {
+        "id": "nbc_news", "name": "NBC News", "language": "en", "region": "International",
+        "website": "https://www.nbcnews.com",
+        "ownership": "NBCUniversal (Comcast)",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US network; centre-left in its home market. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 55, "incumbent_stance": 45},
+    },
+    {
+        "id": "cbs_news", "name": "CBS News", "language": "en", "region": "International",
+        "website": "https://www.cbsnews.com",
+        "ownership": "Paramount Global",
+        "lean": "center", "label": "Centre", "confidence": "low", "contested": True,
+        "review_status": "provisional", "last_reviewed": "2026-08-08",
+        "rationale": "US network; centre-left in its home market. Non-voting "
+                     "international tier.",
+        "subscores": None,
+        "axes": {"secular_authoritative": 70, "market_orientation": 55, "incumbent_stance": 45},
+    },
 ]
 
 # ---- helpers used by the rest of the app -------------------------------------
@@ -781,6 +1137,27 @@ def _registrable(domain: str) -> str:
 # {bare domain -> rated outlet name}, built from each source's website
 DOMAIN_TO_SOURCE = {_host(s["website"]): s["name"] for s in SOURCES if s.get("website")}
 
+# ---- reference registry: SCImago global media ranking -------------------------
+# Thousands of additional outlets (name + domain, from a public global ranking),
+# imported ONLY to attribute GDELT-ingested articles to a named outlet - i.e. to
+# extend domain resolution and clustering breadth. EVERY reference outlet is
+# lean-UNRATED and therefore NON-VOTING: a popularity ranking is NOT a political-
+# lean judgement, and lean labels are editorial (see the invariants in CLAUDE.md).
+# analyze.lean_of() defaults unknown names to "unrated", and analyze.py drops
+# all-unrated clusters as junk - so these can only ADD breadth, never move the
+# Left/Centre/Right bias bar. Curated SOURCES above ALWAYS win (setdefault, and
+# the generator already skips any domain a curated outlet owns).
+# Provenance / regeneration: build_scimago_registry.py.
+try:
+    from scimago_registry import SCIMAGO_SOURCES
+except ImportError:                                    # generator not yet run
+    SCIMAGO_SOURCES = []
+
+for _ref in SCIMAGO_SOURCES:
+    DOMAIN_TO_SOURCE.setdefault(_ref["domain"], _ref["name"])
+
+REFERENCE_SOURCE_COUNT = len(SCIMAGO_SOURCES)
+
 def resolve_source(domain: str):
     """Map an article's domain to a RATED registry outlet, or mark it UNRATED.
 
@@ -813,7 +1190,11 @@ def get_source(name: str):
 def coverage_summary() -> dict:
     """Quick registry stats - handy for a methodology/transparency page."""
     out = {"total": len(SOURCES), "by_language": {}, "by_lean": {},
-           "contested": sum(1 for s in SOURCES if s.get("contested"))}
+           "contested": sum(1 for s in SOURCES if s.get("contested")),
+           # curated editorial roster vs. the non-voting SCImago reference registry
+           # (extra outlets used only for GDELT domain attribution, all unrated).
+           "reference_outlets": REFERENCE_SOURCE_COUNT,
+           "resolvable_domains": len(DOMAIN_TO_SOURCE)}
     for s in SOURCES:
         out["by_language"][s["language"]] = out["by_language"].get(s["language"], 0) + 1
         out["by_lean"][s["lean"]] = out["by_lean"].get(s["lean"], 0) + 1
