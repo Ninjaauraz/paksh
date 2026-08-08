@@ -47,6 +47,30 @@ QUERIES = [
     'india sourcelang:english',
 ]
 
+# International / world-news queries. These feed Paksh's (already-live) World
+# section: each pulls a major global English wire's latest, and clustering plus
+# the >=2-rated-outlet gate in analyze.py surface the big shared world stories
+# (covered by two or more of these) as events with balanced framing. Anchored on
+# the reputable global wires we curate as the non-voting "international" tier, so
+# world events are built from credible sources. English-only by design - GDELT
+# items GDELT tags non-en/hi are dropped at ingest and would never display.
+# Bounded on purpose (cost); tune freely, or disable with `--no-intl`.
+INTL_QUERIES = [
+    'domain:reuters.com',
+    'domain:apnews.com',
+    'domain:bbc.com',
+    'domain:theguardian.com',
+    'domain:aljazeera.com',
+    'domain:cnn.com',
+    'domain:nytimes.com',
+    'domain:washingtonpost.com',
+    'domain:bloomberg.com',
+    'domain:dw.com',
+    'domain:france24.com',
+    'domain:scmp.com',
+    'domain:channelnewsasia.com',
+]
+
 LANG_MAP = {"english": "en", "eng": "en", "en": "en", "hindi": "hi", "hin": "hi", "hi": "hi"}
 
 # Syndication networks / content farms that republish one wire story across many
@@ -194,4 +218,13 @@ if __name__ == "__main__":
         i = sys.argv.index("--timespan")
         if i + 1 < len(sys.argv):
             span = sys.argv[i + 1]
-    run(timespan=span)
+    # Default: India queries + international world-news queries (strengthens the
+    # World section). `--no-intl` restricts to India-only; `--intl-only` pulls
+    # just world news (handy for a one-off international backfill).
+    if "--no-intl" in sys.argv:
+        queries = QUERIES
+    elif "--intl-only" in sys.argv:
+        queries = INTL_QUERIES
+    else:
+        queries = QUERIES + INTL_QUERIES
+    run(queries=queries, timespan=span)
