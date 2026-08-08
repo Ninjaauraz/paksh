@@ -479,14 +479,19 @@ def postprocess(raw, articles) -> dict:
                     + [a.get("title", "") for a in articles])
     if region not in ("India", "World"):
         region = _guess_region(blob)
-    # Outlet-composition guard - stops WORLD news leaking into the National feed.
-    # A story carried ONLY by foreign (international-tier) outlets, with NO Indian
-    # voting outlet (left/centre/right) and no clear India angle in the text, is a
-    # World story. This catches world-news clusters from the international feeds
-    # that the text-only guesser (or the LLM) would otherwise default to "India".
+    # Keep WORLD news out of the National feed, WITHOUT yanking real India stories
+    # out of it. India-first rule: any clear India angle in the text -> stays
+    # "India" (this protects India-Pakistan/China stories, Bollywood, cricket,
+    # Indian people/places abroad). Otherwise flip to "World" only when foreign
+    # coverage actually DOMINATES - i.e. international-tier outlets are at least as
+    # many as the Indian voting outlets (or it is foreign-outlet-only). Gating the
+    # text signal by composition is what gives high precision: a story Indian media
+    # covers heavily stays National even if it mentions a foreign country.
+    has_india = bool(_INDIA_RE.search(blob))
     india_votes = sum(coverage_out[s]["count"] for s in LEAN_ORDER)
-    if (india_votes == 0 and coverage_out["international"]["count"] > 0
-            and not _INDIA_RE.search(blob)):
+    intl_n = coverage_out["international"]["count"]
+    foreign_dominant = (india_votes == 0 and intl_n > 0) or (intl_n >= max(1, india_votes))
+    if not has_india and foreign_dominant and (_FOREIGN_RE.search(blob) or india_votes == 0):
         region = "World"
 
     points = raw.get("summary_points") or []
@@ -608,7 +613,13 @@ _INDIA_RE = re.compile(
     r"\brbi\b|sensex|nifty|rupee|\bgst\b|aadhaar|\bupi\b|isro|\bcbi\b|"
     r"uttar pradesh|maharashtra|\bbihar\b|west bengal|tamil nadu|karnataka|kerala|"
     r"gujarat|rajasthan|punjab|haryana|telangana|odisha|assam|jharkhand|chhattisgarh|"
-    r"uttarakhand|himachal|kashmir|ayodhya|amarnath)\b"
+    r"uttarakhand|himachal|kashmir|ayodhya|amarnath|"
+    r"andhra|arunachal|manipur|meghalaya|mizoram|nagaland|sikkim|tripura|\bgoa\b|"
+    r"ladakh|puducherry|new delhi|enforcement directorate|\bdri\b|\bnia\b|\bsebi\b|"
+    r"adani|ambani|reliance|tata|infosys|\biit\b|\baiims\b|"
+    r"visakhapatnam|vizag|vijayawada|agra|varanasi|amritsar|chandigarh|kochi|"
+    r"coimbatore|madurai|guwahati|bhubaneswar|ranchi|raipur|dehradun|srinagar|"
+    r"thiruvananthapuram|taj mahal|\bganga\b|himalaya)\b"
     r"|भारत|दिल्ली|मुंबई|मोदी|संसद|कांग्रेस|भाजपा|रुपय|उत्तर प्रदेश|बिहार|कश्मीर",
     re.IGNORECASE)
 _FOREIGN_RE = re.compile(
@@ -617,7 +628,10 @@ _FOREIGN_RE = re.compile(
     r"islamabad|afghanistan|taliban|syria|lebanon|yemen|turkey|türkiye|saudi|qatar|"
     r"dubai|\buae\b|egypt|venezuela|brazil|mexico|canada|australia|japan|tokyo|korea|"
     r"france|paris|germany|berlin|italy|spain|britain|\buk\b|london|europe|"
-    r"european union|\beu\b|nato|united nations)\b",
+    r"european union|\beu\b|nato|united nations|"
+    r"thailand|vietnam|indonesia|malaysia|philippines|singapore|greenland|denmark|"
+    r"sweden|norway|finland|poland|greece|netherlands|belgium|switzerland|argentina|"
+    r"nigeria|kenya|ethiopia|south africa|kyiv|moscow|\bgaza\b|west bank)\b",
     re.IGNORECASE)
 
 
