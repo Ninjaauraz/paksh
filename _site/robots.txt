@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://paksh.news/sitemap.xml
-RSS: https://paksh.news/rss.xml

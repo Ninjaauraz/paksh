@@ -993,15 +993,28 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go }) {
+      // Personalized "For You": when the reader follows topics they can flip the feed to put
+      // those sections first. The DEFAULT stays "Top Stories" — the neutral, published order
+      // identical for everyone — so personalization is always an explicit reader choice, never
+      // the default. It only REORDERS (never hides) stories, so the whole picture stays intact
+      // and the bias arithmetic is untouched.
+      const P=usePaksh(); const follows=P.follow();
+      const [mode,setMode]=useState(()=>{ try{ return localStorage.getItem("paksh-feedmode")||"top"; }catch(e){ return "top"; } });
+      const chooseMode=(m)=>{ setMode(m); try{ localStorage.setItem("paksh-feedmode",m); }catch(e){} };
+      const canPersonalize=follows.length>0;
+      // stable sort: followed-topic stories move ahead, each group still in its ranked order.
+      const feed=(mode==="foryou"&&canPersonalize)
+        ? [...cards].sort((a,b)=>(follows.indexOf(a.topic)>=0?0:1)-(follows.indexOf(b.topic)>=0?0:1))
+        : cards;
       // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
       // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
       // top-ranked story leads, the rest fall into the tier ladder in ranked order.
       const used=new Set();
       const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
-      const lead=cards[0]; if(lead) used.add(lead.id);
-      const alsoLeading=take(cards,2);      // "Also leading" rail (2)
-      const section=take(cards,4);          // 4-up Section band
-      const brief=take(cards,15);           // "In brief" tier
+      const lead=feed[0]; if(lead) used.add(lead.id);
+      const alsoLeading=take(feed,2);      // "Also leading" rail (2)
+      const section=take(feed,4);          // 4-up Section band
+      const brief=take(feed,15);           // "In brief" tier
       const notUsed=arr=>(arr||[]).filter(c=>!used.has(c.id));
       // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
       // are "Missing: Right". Labels read the real per-lean counts (N of total).
@@ -1021,6 +1034,18 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className="mx-auto max-w-[1280px]">
           <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
+          {/* For You toggle — only when the reader follows topics; Top Stories stays the default */}
+          {canPersonalize && (
+            <div className={pad}>
+              <div className="flex items-center gap-2 py-2.5">
+                {[["top", lang==="hi"?"मुख्य खबरें":"Top Stories"],["foryou", lang==="hi"?"आपके लिए":"For You"]].map(([k,l])=>(
+                  <button key={k} onClick={()=>chooseMode(k)} aria-pressed={mode===k}
+                    className={`rounded-full px-4 py-1.5 text-[12.5px] font-semibold ${mode===k?`${t.cta} ${t.ctaT}`:`border ${t.border} ${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{l}</button>
+                ))}
+                {mode==="foryou" && <button onClick={()=>go("you")} className={`ml-1 eyebrow ${t.tf} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{lang==="hi"?"विषय संपादित करें":"Edit topics"}</button>}
+              </div>
+            </div>
+          )}
           {/* one h1 for the page + an always-on legend so a first-time visitor knows what the
               "3 · 9 · 4" bias counts mean, right where they see them */}
           <h1 className="sr-only">{lang==="hi"?"पक्ष, भारत की खबरों का हर पक्ष":"Paksh, every side of India's news"}</h1>
@@ -1620,15 +1645,17 @@ const {useState,useEffect,useMemo}=React;
         <PageWrap>
           <div className="max-w-3xl">
             <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} serif`} style={{letterSpacing:"-0.018em"}}>Privacy Policy</h1>
-            <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 6 August 2026 · Operated by Redstocks Technology LLP</p>
+            <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 9 August 2026 · Operated by Redstocks Technology LLP</p>
             {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
             <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
             <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel’s privacy-first, cookieless Web Analytics to understand — only in aggregate — how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected.</Row>
+            <Row h="Accounts and sync (optional)">Creating an account is optional; you can read all of Paksh without one. If you choose to sign in, we collect your email address and the reading preferences you set — the topics you follow, the stories you save, and a short history of stories you opened — so we can sync them across your devices. Sign-in is passwordless (a one-time email link, or Google), so we never see or store a password. Your account data is held on our behalf by Supabase and protected so that only your signed-in session can read or change it. We do not use your account or reading history to build an advertising profile, and we do not sell it. You can sign out, or permanently delete your synced data, at any time from the “Your Paksh” page. Until you sign in, these preferences stay only in your own browser.</Row>
             <Row h="Cookies and tracking">Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
             <Row h="How we use information">To respond to your messages, to keep the site secure and reliable, and — from consented, aggregate, non-identifying usage — to understand how readers engage with coverage, improve Paksh, and inform Redstocks Technology’s research. We do not sell your personal information, and we do not build a profile of you or track you across your devices.</Row>
-            <Row h="Third parties">We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site and provides its cookieless Web Analytics). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
-            <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
-            <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
+            <Row h="Third parties">We rely on Formspree (which processes contact-form messages), Vercel (which hosts the site and provides its cookieless Web Analytics), and Supabase (which provides account sign-in and stores your synced preferences if you create an account). If you sign in with Google, Google processes your sign-in under its own policy. If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
+            <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. If you have an account, you can delete your synced data yourself at any time from the “Your Paksh” page, or ask us to delete your account entirely — reach us via the Contact page. We honour access and deletion requests, including from a parent or guardian on behalf of a minor.</Row>
+            <Row h="Children">Paksh is a general news service and is not directed at children under 18. We do not knowingly collect data from children, and we do no behavioural tracking or targeted advertising of anyone. By creating an account you confirm you are signing up for yourself; a minor should only do so with a parent or guardian’s permission. A parent or guardian who believes a child has created an account may contact us to have it removed.</Row>
+            <Row h="Terms of use">By using Paksh you agree to use it lawfully and not to disrupt, scrape at scale, or misuse the service or other people’s accounts. Paksh groups and summarises third-party news coverage and assigns provisional, editor-set lean labels to publications (not to individual articles); these are descriptive and open to appeal, and the service is provided “as is”, without warranty, for general information. We may suspend or remove accounts that are abused. If you delete your account, your synced preferences are removed. These terms and our handling of your data are governed by the laws of India. This is a plain-language summary pending final legal review; we will post the formal Terms before public launch.</Row>
             <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
           </div>
         </PageWrap>
