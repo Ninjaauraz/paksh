@@ -985,6 +985,29 @@ const Auth = function () {
       }
       return true;
     },
+    // Verify the 6-digit code from the email - lets you sign in on a DIFFERENT device
+    // than the one the email is on (get the code on your phone, type it on your laptop).
+    async verifyCode(email, token) {
+      const r = await fetch(SUPABASE_URL + "/auth/v1/verify", {
+        method: "POST",
+        headers: hdr(),
+        body: JSON.stringify({
+          type: "email",
+          email,
+          token: String(token).trim()
+        })
+      });
+      if (!r.ok) {
+        let m = "That code didn't work - check it or request a new one.";
+        try {
+          const j = await r.json();
+          m = j.msg || j.error_description || j.error || m;
+        } catch (e) {}
+        throw new Error(m);
+      }
+      store(await r.json());
+      return true;
+    },
     google() {
       window.location.href = SUPABASE_URL + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(_redirectTo());
     },
@@ -4482,6 +4505,7 @@ function LoginPage({
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [code, setCode] = useState("");
   useEffect(() => {
     if (A.isLoggedIn()) go("you");
   }, [A.isLoggedIn()]);
@@ -4499,24 +4523,72 @@ function LoginPage({
     }
     setBusy(false);
   };
+  const submitCode = async e => {
+    e.preventDefault();
+    if (code.length < 6 || busy) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await Auth.verifyCode(email.trim(), code);
+      go("you");
+    } catch (ex) {
+      setErr(ex.message || tt("Invalid code.", "ग़लत कोड।"));
+    }
+    setBusy(false);
+  };
   const line = `border ${t.border} ${t.surface}`;
   if (sent) return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-md py-16 text-center"
+    className: "mx-auto max-w-md py-14"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
   }, /*#__PURE__*/React.createElement("div", {
     className: `mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full ${t.chip}`
   }, /*#__PURE__*/React.createElement(Check, {
     size: 22
   })), /*#__PURE__*/React.createElement("h1", {
     className: `headline text-[26px] ${t.tp} ${readCls(lang)}`
-  }, tt("Check your inbox", "अपना इनबॉक्स देखें")), /*#__PURE__*/React.createElement("p", {
+  }, tt("Check your email", "अपना ईमेल देखें")), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`
-  }, tt("We emailed a one-tap sign-in link to", "हमने एक-टैप साइन-इन लिंक भेजा है"), " ", /*#__PURE__*/React.createElement("span", {
+  }, tt("We sent a sign-in link and a 6-digit code to", "हमने साइन-इन लिंक और 6-अंकों का कोड भेजा है"), " ", /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
-  }, email.trim()), ". ", tt("Open it on any device to sign in.", "किसी भी डिवाइस पर इसे खोलकर साइन इन करें।")), /*#__PURE__*/React.createElement("button", {
+  }, email.trim()), ".")), /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 rounded-lg border ${t.border} ${t.surface} p-4`
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, tt("Same device?", "इसी डिवाइस पर?")), " ", tt("Just tap the link in the email.", "बस ईमेल का लिंक टैप करें।")), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, tt("Different device?", "अलग डिवाइस पर?")), " ", tt("Email on your phone but signing in on a laptop? Enter the 6-digit code:", "ईमेल फ़ोन पर पर साइन इन लैपटॉप पर? 6-अंकों का कोड डालें:")), /*#__PURE__*/React.createElement("form", {
+    onSubmit: submitCode,
+    className: "mt-3 flex gap-2"
+  }, /*#__PURE__*/React.createElement("input", {
+    inputMode: "numeric",
+    pattern: "[0-9]*",
+    maxLength: 6,
+    value: code,
+    onChange: e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6)),
+    placeholder: "123456",
+    autoComplete: "one-time-code",
+    className: `w-full rounded-lg px-4 py-2.5 text-center text-[17px] tracking-[0.35em] outline-none border ${t.border} ${t.tp}`,
+    style: {
+      background: t.gap
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    type: "submit",
+    disabled: code.length < 6 || busy,
+    className: `shrink-0 rounded-lg px-5 py-2.5 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${code.length < 6 || busy ? "opacity-40" : ""} ${isHi(lang)}`
+  }, busy ? "…" : tt("Sign in", "साइन इन"))), err && /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[13px] ${t.blind} ${isHi(lang)}`
+  }, err)), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       setSent(false);
+      setCode("");
+      setErr("");
     },
-    className: `mt-6 eyebrow ${t.tf} hover:${t.tp}`,
+    className: `mt-6 mx-auto block eyebrow ${t.tf} hover:${t.tp}`,
     style: {
       letterSpacing: HI ? 0 : ".1em"
     }

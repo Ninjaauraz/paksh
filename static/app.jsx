@@ -311,6 +311,14 @@ const {useState,useEffect,useMemo}=React;
           if(!r.ok){ let m="Could not send the sign-in link."; try{ const j=await r.json(); m=j.msg||j.error_description||j.error||m; }catch(e){} throw new Error(m); }
           return true;
         },
+        // Verify the 6-digit code from the email - lets you sign in on a DIFFERENT device
+        // than the one the email is on (get the code on your phone, type it on your laptop).
+        async verifyCode(email, token){
+          const r=await fetch(SUPABASE_URL+"/auth/v1/verify",
+            {method:"POST",headers:hdr(),body:JSON.stringify({ type:"email", email, token:String(token).trim() })});
+          if(!r.ok){ let m="That code didn't work - check it or request a new one."; try{ const j=await r.json(); m=j.msg||j.error_description||j.error||m; }catch(e){} throw new Error(m); }
+          store(await r.json()); return true;
+        },
         google(){ window.location.href=SUPABASE_URL+"/auth/v1/authorize?provider=google&redirect_to="+encodeURIComponent(_redirectTo()); },
         async signOut(){ try{ const t=sess&&sess.access_token; if(t) fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:hdr(t)}); }catch(e){} save(null); },
         async getPrefs(){ const t=await token(); if(!t||!sess.user) return null; try{ const r=await fetch(SUPABASE_URL+"/rest/v1/profiles?select=prefs&id=eq."+sess.user.id,{headers:hdr(t)}); if(r.ok){ const a=await r.json(); return (a[0]&&a[0].prefs)||{}; } }catch(e){} return null; },
@@ -1726,18 +1734,33 @@ const {useState,useEffect,useMemo}=React;
       const A=useAuth(); const HI=lang==="hi"; const tt=(e,h)=>HI?h:e;
       const [email,setEmail]=useState(""); const [agree,setAgree]=useState(false);
       const [sent,setSent]=useState(false); const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
+      const [code,setCode]=useState("");
       useEffect(()=>{ if(A.isLoggedIn()) go("you"); },[A.isLoggedIn()]);
       const emailOk=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
       const sendLink=async(e)=>{ e.preventDefault(); if(!agree||!emailOk||busy) return; setErr(""); setBusy(true);
         try{ await Auth.sendMagicLink(email.trim()); setSent(true); }catch(ex){ setErr(ex.message||tt("Something went wrong.","कुछ गड़बड़ हुई।")); } setBusy(false); };
+      const submitCode=async(e)=>{ e.preventDefault(); if(code.length<6||busy) return; setErr(""); setBusy(true);
+        try{ await Auth.verifyCode(email.trim(), code); go("you"); }catch(ex){ setErr(ex.message||tt("Invalid code.","ग़लत कोड।")); } setBusy(false); };
       const line=`border ${t.border} ${t.surface}`;
       if(sent) return (
         <PageWrap>
-          <div className="mx-auto max-w-md py-16 text-center">
-            <div className={`mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full ${t.chip}`}><Check size={22}/></div>
-            <h1 className={`headline text-[26px] ${t.tp} ${readCls(lang)}`}>{tt("Check your inbox","अपना इनबॉक्स देखें")}</h1>
-            <p className={`mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{tt("We emailed a one-tap sign-in link to","हमने एक-टैप साइन-इन लिंक भेजा है")} <span className="font-semibold">{email.trim()}</span>. {tt("Open it on any device to sign in.","किसी भी डिवाइस पर इसे खोलकर साइन इन करें।")}</p>
-            <button onClick={()=>{setSent(false);}} className={`mt-6 eyebrow ${t.tf} hover:${t.tp}`} style={{letterSpacing:HI?0:".1em"}}>{tt("Use a different email","दूसरा ईमेल इस्तेमाल करें")}</button>
+          <div className="mx-auto max-w-md py-14">
+            <div className="text-center">
+              <div className={`mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full ${t.chip}`}><Check size={22}/></div>
+              <h1 className={`headline text-[26px] ${t.tp} ${readCls(lang)}`}>{tt("Check your email","अपना ईमेल देखें")}</h1>
+              <p className={`mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{tt("We sent a sign-in link and a 6-digit code to","हमने साइन-इन लिंक और 6-अंकों का कोड भेजा है")} <span className="font-semibold">{email.trim()}</span>.</p>
+            </div>
+            <div className={`mt-6 rounded-lg border ${t.border} ${t.surface} p-4`}>
+              <p className={`text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className="font-semibold">{tt("Same device?","इसी डिवाइस पर?")}</span> {tt("Just tap the link in the email.","बस ईमेल का लिंक टैप करें।")}</p>
+              <p className={`mt-3 text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className="font-semibold">{tt("Different device?","अलग डिवाइस पर?")}</span> {tt("Email on your phone but signing in on a laptop? Enter the 6-digit code:","ईमेल फ़ोन पर पर साइन इन लैपटॉप पर? 6-अंकों का कोड डालें:")}</p>
+              <form onSubmit={submitCode} className="mt-3 flex gap-2">
+                <input inputMode="numeric" pattern="[0-9]*" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="123456" autoComplete="one-time-code"
+                  className={`w-full rounded-lg px-4 py-2.5 text-center text-[17px] tracking-[0.35em] outline-none border ${t.border} ${t.tp}`} style={{background:t.gap}} />
+                <button type="submit" disabled={code.length<6||busy} className={`shrink-0 rounded-lg px-5 py-2.5 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${(code.length<6||busy)?"opacity-40":""} ${isHi(lang)}`}>{busy?"…":tt("Sign in","साइन इन")}</button>
+              </form>
+              {err && <p className={`mt-3 text-[13px] ${t.blind} ${isHi(lang)}`}>{err}</p>}
+            </div>
+            <button onClick={()=>{setSent(false);setCode("");setErr("");}} className={`mt-6 mx-auto block eyebrow ${t.tf} hover:${t.tp}`} style={{letterSpacing:HI?0:".1em"}}>{tt("Use a different email","दूसरा ईमेल इस्तेमाल करें")}</button>
           </div>
         </PageWrap>
       );
