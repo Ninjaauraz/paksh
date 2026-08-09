@@ -62,10 +62,10 @@ const {useState,useEffect,useMemo}=React;
     ];
     const M_READ = {
       en:["The coloured bar shows how many of the covering outlets lean Left, Centre or Right.",
-          "“Coverage Gaps” marks a story that outlets on one side of the spectrum covered while few or none on the other did - shown with the full Left · Centre · Right count.",
+          "“Coverage Gaps” marks a story that outlets on one side of the spectrum covered while few or none on the other did, shown with the full Left · Centre · Right count.",
           "The neutral summary is generated automatically from the outlets' own coverage; the outlet labels and the counts come from editors and the registry, not the summary engine."],
       hi:["रंगीन बार दिखाता है कि कवर करने वाले कितने आउटलेट वाम, केंद्र या दक्षिण की ओर हैं।",
-          "“कवरेज गैप” उस खबर को चिह्नित करता है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं - पूरे वाम · केंद्र · दक्षिण आँकड़े के साथ।",
+          "“कवरेज गैप” उस खबर को चिह्नित करता है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं, पूरे वाम · केंद्र · दक्षिण आँकड़े के साथ।",
           "तटस्थ सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होता है; आउटलेट के लेबल और गिनती संपादकों और रजिस्ट्री से आती है, सारांश इंजन से नहीं।"],
     };
     const CONTACT = "corrections@paksh.example"; // <-- change to your real address
@@ -110,102 +110,102 @@ const {useState,useEffect,useMemo}=React;
     const STR = {
       en: {
         navTop:"Top Stories", navOS:"Coverage Gaps", navSrc:"Sources", navMethod:"Method",
-        search:"Search coverage…", tagline:"Compare how India's media covers each story - every side, side by side.",
+        search:"Search coverage…", tagline:"Compare how India's media covers each story, every side, side by side.",
         topNews:"Top Stories", osTitle:"Coverage Gaps",
-        osSub:"A coverage gap is a story that outlets on one side of the spectrum covered while few or none on the other did. Paksh flags these by counting distinct outlets per lean - the same counts as the bias bar - and shows the full Left · Centre · Right tally on each. It's arithmetic, not a judgment about any outlet or about why a story was or wasn't covered. Outlets also differ in how much they publish, so an absence of coverage on one side may reflect an outlet's publishing volume rather than a deliberate omission.",
+        osSub:"A coverage gap is a story that outlets on one side of the spectrum covered while few or none on the other did. Paksh flags these by counting distinct outlets per lean, the same counts as the bias bar, and shows the full Left · Centre · Right tally on each. It's arithmetic, not a judgment about any outlet or about why a story was or wasn't covered. Outlets also differ in how much they publish, so an absence of coverage on one side may reflect an outlet's publishing volume rather than a deliberate omission.",
         gapLeftHead:"Covered more by Left-leaning outlets", gapRightHead:"Covered more by Right-leaning outlets",
         gapShowing:"Showing the {n} most lopsided of {total}", gapCovered:"Covered by",
         m_gapH:"How coverage gaps break down",
-        m_gap:"Of the {total} stories Paksh flags as one-sided, {rh} are covered mainly by right-leaning outlets and {lh} mainly by left-leaning. This is not a measure of which side ignores more news. Paksh counts {lo} left-leaning and {ro} right-leaning outlets on India's spectrum, but they publish at very different volumes - the right-leaning set includes several high-volume TV and mass-market outlets, so right-leaning outlets appear about twice as often across all stories. Most of this imbalance reflects that volume difference, not editorial choice.",
+        m_gap:"Of the {total} stories Paksh flags as one-sided, {rh} are covered mainly by right-leaning outlets and {lh} mainly by left-leaning. This is not a measure of which side ignores more news. Paksh counts {lo} left-leaning and {ro} right-leaning outlets on India's spectrum, but they publish at very different volumes, the right-leaning set includes several high-volume TV and mass-market outlets, so right-leaning outlets appear about twice as often across all stories. Most of this imbalance reflects that volume difference, not editorial choice.",
         more:"More Top Stories", resultsFor:"Results for", noResults:"No stories match your search.",
         noResultsSub:"Try different keywords or browse top news.", noStories:"No stories to show right now. Please check back soon.",
         seeCoverage:"See coverage", most:"Most coverage", even:"Fairly even coverage", sources:"sources", source:"source",
         onlyLabel:"Only", back:"Back to feed", aiSummary:"Paksh neutral summary", aiSub:"neutral synthesis",
         autoTag:"Auto-summary", autoFrom:"from coverage",
-        autoNote:"This headline comes straight from a covering outlet - a neutral Paksh summary is being prepared.",
-        unratedTitle:"Unrated outlets", unratedNote:"Outlets we found covering this story but don't rate yet - they add coverage but don't affect the bias bar.",
-        intlTitle:"International coverage", intlNote:"Foreign wire services (Reuters, AP, BBC…) covering this story - they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
-        framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises - based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.", framingThin:"Not enough unique coverage to create a summary.",
+        autoNote:"This headline comes straight from a covering outlet, a neutral Paksh summary is being prepared.",
+        unratedTitle:"Unrated outlets", unratedNote:"Outlets we found covering this story but don't rate yet, they add coverage but don't affect the bias bar.",
+        intlTitle:"International coverage", intlNote:"Foreign wire services (Reuters, AP, BBC…) covering this story, they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
+        framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises, based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.", framingThin:"Not enough unique coverage to create a summary.",
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
-        osCalloutBody1:"Only", osCalloutBody2:"of the covering outlets lean this way - a count of outlets, not a judgment about why a side did or didn't cover it.",
+        osCalloutBody1:"Only", osCalloutBody2:"of the covering outlets lean this way, a count of outlets, not a judgment about why a side did or didn't cover it.",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
-        srcDisclaimer:"All ratings are provisional - a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
+        srcDisclaimer:"All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
         filterLean:"Lean", filterLang:"Language", langEN:"English", langHI:"Hindi", all:"All",
         ownership:"Ownership", whyRated:"Why this rating", signals:"Signals", confidence:"confidence",
         contested:"Contested", provisional:"Provisional", suggestFix:"Suggest a correction",
         methodTitle:"How Paksh works", m_doesH:"What Paksh does",
-        m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it - so you can see the whole picture and what your usual sources leave out.",
+        m_does:"Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it, so you can see the whole picture and what your usual sources leave out.",
         m_ruleH:"The golden rule",
-        m_rule:"A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company - say The Times of India and Navbharat Times, both Times Group - they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote - which is why a story can read “9 publishers · 13 mastheads” on a side.",
-        m_aiH:"What the software does — and never does",
-        m_ai:"Automation does exactly three things at Paksh, and no more: it groups articles about the same event into one story, writes the neutral summary, and drafts the per-side framing notes from the collected headlines. That is the entire role of the model. It never assigns an outlet's lean, never decides the bias bar, and never weighs one outlet more than another - those are fixed, editor-set labels and plain counts. If the summary engine is momentarily unavailable, a story still publishes with a headline taken straight from a covering outlet, clearly marked as automatic, rather than waiting.",
+        m_rule:"A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company, say The Times of India and Navbharat Times, both Times Group, they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote, which is why a story can read “9 publishers · 13 mastheads” on a side.",
+        m_aiH:"What the software does, and never does",
+        m_ai:"Automation does exactly three things at Paksh, and no more: it groups articles about the same event into one story, writes the neutral summary, and drafts the per-side framing notes from the collected headlines. That is the entire role of the model. It never assigns an outlet's lean, never decides the bias bar, and never weighs one outlet more than another, those are fixed, editor-set labels and plain counts. If the summary engine is momentarily unavailable, a story still publishes with a headline taken straight from a covering outlet, clearly marked as automatic, rather than waiting.",
         m_orderH:"How the home feed is ordered",
-        m_order:"The front page is India-first. Stories are ranked by how many distinct outlets across the spectrum are covering them, decayed by how recent they are, so a broadly-covered breaking story leads and yesterday's fades. On top of that arithmetic, the coverage that matters most to an Indian reader - politics and governance, the economy, the courts, big movements and amendments - is given priority over high-volume sport and entertainment, which sit in their own sections. No story is promoted or buried because of its politics; the weighting is a fixed, published rule, not an editorial thumb on the scale for any side.",
+        m_order:"The front page is India-first. Stories are ranked by how many distinct outlets across the spectrum are covering them, decayed by how recent they are, so a broadly-covered breaking story leads and yesterday's fades. On top of that arithmetic, the coverage that matters most to an Indian reader, politics and governance, the economy, the courts, big movements and amendments, is given priority over high-volume sport and entertainment, which sit in their own sections. No story is promoted or buried because of its politics; the weighting is a fixed, published rule, not an editorial thumb on the scale for any side.",
         m_freshH:"How current a story is",
-        m_fresh:"The time on each story is the real publish time of its newest source article, not when our software last touched it - so “updated 2h ago” means the news itself is about two hours old. Paksh refreshes continuously as new coverage arrives; a story's bar and summary keep updating as more outlets pick it up.",
+        m_fresh:"The time on each story is the real publish time of its newest source article, not when our software last touched it, so “updated 2h ago” means the news itself is about two hours old. Paksh refreshes continuously as new coverage arrives; a story's bar and summary keep updating as more outlets pick it up.",
         m_rateH:"How we rate a publication",
         m_rateLede:"We rate each publication on six signals, each scored from −2 to +2 and combined into one score from −10 (left) to +10 (right):",
         m_rateFoot:"Scores near zero are Centre; the further from zero, the stronger the lean.",
         m_axisH:"What “Left” and “Right” mean in India",
-        m_axis:"In India, Left and Right aren't only about economics. Paksh blends a social-and-ideological axis (secular ↔ Hindutva) with an institutional one (critical of ↔ aligned with the incumbent), and tracks economic stance separately. “Left” and “Right” are descriptive, not insults - and the same scrutiny is applied across the spectrum.",
+        m_axis:"In India, Left and Right aren't only about economics. Paksh blends a social-and-ideological axis (secular ↔ Hindutva) with an institutional one (critical of ↔ aligned with the incumbent), and tracks economic stance separately. “Left” and “Right” are descriptive, not insults, and the same scrutiny is applied across the spectrum.",
         m_partiesH:"Where India's parties roughly sit",
-        m_parties:"These labels describe ideas, not teams - and they're rough, because parties shift over time and many regional parties don't fit neatly on one line. As a common-usage guide: the Left includes communist and socialist parties such as CPI(M) and CPI, and is associated with secular, pro-welfare, labour-first positions; the Right - most prominently the BJP - is associated with Hindutva-influenced cultural nationalism and a more market-friendly economic stance; the Centre spans the middle, where the Congress is often described as centre-left and many regional parties mix positions by issue. Remember: Paksh rates news outlets, not parties - an outlet's lean is about how it covers the news, not who it votes for.",
+        m_parties:"These labels describe ideas, not teams, and they're rough, because parties shift over time and many regional parties don't fit neatly on one line. As a common-usage guide: the Left includes communist and socialist parties such as CPI(M) and CPI, and is associated with secular, pro-welfare, labour-first positions; the Right, most prominently the BJP, is associated with Hindutva-influenced cultural nationalism and a more market-friendly economic stance; the Centre spans the middle, where the Congress is often described as centre-left and many regional parties mix positions by issue. Remember: Paksh rates news outlets, not parties, an outlet's lean is about how it covers the news, not who it votes for.",
         m_provH:"Confidence, contested & provisional",
-        m_prov:"Every rating today is provisional: a documented starting point based on ownership, self-described stance and well-established reputation, reviewed against the rubric - not a final verdict. Each shows a confidence level, and some are flagged Contested where lean is genuinely debated or ownership recently changed.",
+        m_prov:"Every rating today is provisional: a documented starting point based on ownership, self-described stance and well-established reputation, reviewed against the rubric, not a final verdict. Each shows a confidence level, and some are flagged Contested where lean is genuinely debated or ownership recently changed.",
         m_readH:"How to read a Paksh story", m_appealH:"Corrections & appeals",
-        m_appeal:"Think a rating is wrong? Tell us the outlet, the rating you dispute, and a few specific examples - headlines or articles - and we'll re-review it against the rubric. Ratings are meant to be challenged.",
+        m_appeal:"Think a rating is wrong? Tell us the outlet, the rating you dispute, and a few specific examples, headlines or articles, and we'll re-review it against the rubric. Ratings are meant to be challenged.",
         footIndependence:"Paksh is an independent project and is not affiliated with any outlet shown. Lean labels are provisional and open to appeal.",
       },
       hi: {
         navTop:"मुख्य खबरें", navOS:"कवरेज गैप", navSrc:"स्रोत", navMethod:"कार्यप्रणाली",
-        search:"कवरेज खोजें…", tagline:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है - हर पक्ष, आमने-सामने।",
+        search:"कवरेज खोजें…", tagline:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है, हर पक्ष, आमने-सामने।",
         topNews:"मुख्य खबरें", osTitle:"कवरेज गैप",
-        osSub:"कवरेज गैप वह ख़बर है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं। पक्ष हर झुकाव के अलग-अलग आउटलेट्स गिनकर इन्हें चिह्नित करता है - वही गिनती जो बायस बार में है - और हर एक पर पूरा वाम · केंद्र · दक्षिण आँकड़ा दिखाता है। यह अंकगणित है, किसी आउटलेट या कवरेज के कारण पर निर्णय नहीं। आउटलेट अलग-अलग मात्रा में प्रकाशित करते हैं, इसलिए एक तरफ़ कवरेज की अनुपस्थिति जानबूझकर की गई चूक के बजाय उस आउटलेट के प्रकाशन-आयतन को दर्शा सकती है।",
+        osSub:"कवरेज गैप वह ख़बर है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं। पक्ष हर झुकाव के अलग-अलग आउटलेट्स गिनकर इन्हें चिह्नित करता है, वही गिनती जो बायस बार में है, और हर एक पर पूरा वाम · केंद्र · दक्षिण आँकड़ा दिखाता है। यह अंकगणित है, किसी आउटलेट या कवरेज के कारण पर निर्णय नहीं। आउटलेट अलग-अलग मात्रा में प्रकाशित करते हैं, इसलिए एक तरफ़ कवरेज की अनुपस्थिति जानबूझकर की गई चूक के बजाय उस आउटलेट के प्रकाशन-आयतन को दर्शा सकती है।",
         gapLeftHead:"ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर", gapRightHead:"ज़्यादातर दक्षिण-झुकाव आउटलेट्स द्वारा कवर",
         gapShowing:"{total} में से {n} सबसे असंतुलित दिखाई जा रही हैं", gapCovered:"कवर किया गया:",
         m_gapH:"कवरेज गैप का ब्यौरा",
-        m_gap:"पक्ष जिन {total} ख़बरों को एकतरफ़ा चिह्नित करता है, उनमें से {rh} ज़्यादातर दक्षिण-झुकाव आउटलेट्स ने और {lh} ज़्यादातर वाम-झुकाव आउटलेट्स ने कवर कीं। यह इस बात का माप नहीं है कि कौन-सा पक्ष ज़्यादा ख़बरें अनदेखा करता है। पक्ष भारत के स्पेक्ट्रम पर {lo} वाम-झुकाव और {ro} दक्षिण-झुकाव आउटलेट गिनता है, पर वे बहुत अलग मात्रा में प्रकाशित करते हैं - दक्षिण-झुकाव समूह में कई उच्च-आयतन टीवी और मास-मार्केट आउटलेट हैं, इसलिए दक्षिण-झुकाव आउटलेट सभी ख़बरों में लगभग दोगुनी बार दिखते हैं। इस असंतुलन का ज़्यादातर हिस्सा उस आयतन-अंतर को दर्शाता है, संपादकीय चयन को नहीं।",
+        m_gap:"पक्ष जिन {total} ख़बरों को एकतरफ़ा चिह्नित करता है, उनमें से {rh} ज़्यादातर दक्षिण-झुकाव आउटलेट्स ने और {lh} ज़्यादातर वाम-झुकाव आउटलेट्स ने कवर कीं। यह इस बात का माप नहीं है कि कौन-सा पक्ष ज़्यादा ख़बरें अनदेखा करता है। पक्ष भारत के स्पेक्ट्रम पर {lo} वाम-झुकाव और {ro} दक्षिण-झुकाव आउटलेट गिनता है, पर वे बहुत अलग मात्रा में प्रकाशित करते हैं, दक्षिण-झुकाव समूह में कई उच्च-आयतन टीवी और मास-मार्केट आउटलेट हैं, इसलिए दक्षिण-झुकाव आउटलेट सभी ख़बरों में लगभग दोगुनी बार दिखते हैं। इस असंतुलन का ज़्यादातर हिस्सा उस आयतन-अंतर को दर्शाता है, संपादकीय चयन को नहीं।",
         more:"और मुख्य खबरें", resultsFor:"खोज परिणाम:", noResults:"आपकी खोज से मेल खाती कोई खबर नहीं।",
         noResultsSub:"अलग शब्द आज़माएँ या मुख्य खबरें देखें।", noStories:"अभी दिखाने के लिए कोई खबर नहीं है। कृपया थोड़ी देर बाद देखें।",
         seeCoverage:"कवरेज देखें", most:"सबसे ज़्यादा कवरेज", even:"लगभग बराबर कवरेज", sources:"स्रोत", source:"स्रोत",
         onlyLabel:"केवल", back:"फ़ीड पर वापस", aiSummary:"पक्ष तटस्थ सारांश", aiSub:"तटस्थ संश्लेषण",
         autoTag:"स्वतः सारांश", autoFrom:"कवरेज से",
-        autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है - पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
-        unratedTitle:"बिना रेटिंग वाले आउटलेट", unratedNote:"ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं - ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
-        intlTitle:"अंतरराष्ट्रीय कवरेज", intlNote:"इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…) - ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
-        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण - एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।", framingThin:"सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
+        autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है, पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
+        unratedTitle:"बिना रेटिंग वाले आउटलेट", unratedNote:"ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं, ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
+        intlTitle:"अंतरराष्ट्रीय कवरेज", intlNote:"इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…), ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
+        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।", framingThin:"सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
-        osCalloutBody1:"केवल", osCalloutBody2:"कवर करने वाले आउटलेट इस ओर झुके हैं - यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
+        osCalloutBody1:"केवल", osCalloutBody2:"कवर करने वाले आउटलेट इस ओर झुके हैं, यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
-        srcDisclaimer:"सभी रेटिंग अस्थायी हैं - रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
+        srcDisclaimer:"सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
         filterLean:"झुकाव", filterLang:"भाषा", langEN:"अंग्रेज़ी", langHI:"हिंदी", all:"सभी",
         ownership:"स्वामित्व", whyRated:"यह रेटिंग क्यों", signals:"संकेत", confidence:"विश्वास",
         contested:"विवादित", provisional:"अस्थायी", suggestFix:"सुधार सुझाएँ",
         methodTitle:"पक्ष कैसे काम करता है", m_doesH:"पक्ष क्या करता है",
-        m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं - ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
+        m_does:"पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं, ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
         m_ruleH:"मूल नियम",
-        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों - जैसे The Times of India और Navbharat Times, दोनों Times Group - तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है - इसीलिए किसी पक्ष पर खबर “9 प्रकाशक · 13 मास्टहेड” पढ़ सकती है।",
-        m_aiH:"सॉफ़्टवेयर क्या करता है — और क्या कभी नहीं करता",
-        m_ai:"पक्ष पर स्वचालन ठीक तीन काम करता है, इससे ज़्यादा नहीं: एक ही घटना के लेखों को एक खबर में समूहित करना, तटस्थ सारांश लिखना, और एकत्र हेडलाइनों से हर पक्ष के फ़्रेमिंग नोट तैयार करना। मॉडल की भूमिका बस इतनी है। यह किसी आउटलेट का झुकाव तय नहीं करता, बायस बार तय नहीं करता, और किसी आउटलेट को दूसरे से ज़्यादा भार नहीं देता - वे निश्चित, संपादक-निर्धारित लेबल और सीधी गिनती हैं। यदि सारांश इंजन कुछ देर के लिए उपलब्ध न हो, तो खबर फिर भी एक कवर करने वाले आउटलेट से लिया गया शीर्षक (स्पष्ट रूप से स्वतः चिह्नित) के साथ प्रकाशित होती है, प्रतीक्षा नहीं करती।",
+        m_rule:"झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों, जैसे The Times of India और Navbharat Times, दोनों Times Group, तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है, इसीलिए किसी पक्ष पर खबर “9 प्रकाशक · 13 मास्टहेड” पढ़ सकती है।",
+        m_aiH:"सॉफ़्टवेयर क्या करता है, और क्या कभी नहीं करता",
+        m_ai:"पक्ष पर स्वचालन ठीक तीन काम करता है, इससे ज़्यादा नहीं: एक ही घटना के लेखों को एक खबर में समूहित करना, तटस्थ सारांश लिखना, और एकत्र हेडलाइनों से हर पक्ष के फ़्रेमिंग नोट तैयार करना। मॉडल की भूमिका बस इतनी है। यह किसी आउटलेट का झुकाव तय नहीं करता, बायस बार तय नहीं करता, और किसी आउटलेट को दूसरे से ज़्यादा भार नहीं देता, वे निश्चित, संपादक-निर्धारित लेबल और सीधी गिनती हैं। यदि सारांश इंजन कुछ देर के लिए उपलब्ध न हो, तो खबर फिर भी एक कवर करने वाले आउटलेट से लिया गया शीर्षक (स्पष्ट रूप से स्वतः चिह्नित) के साथ प्रकाशित होती है, प्रतीक्षा नहीं करती।",
         m_orderH:"मुख्य फ़ीड किस क्रम में सजती है",
-        m_order:"मुख्य पृष्ठ भारत-पहले है। खबरों को इस आधार पर क्रम दिया जाता है कि स्पेक्ट्रम भर के कितने अलग-अलग आउटलेट उन्हें कवर कर रहे हैं, और वे कितनी हाल की हैं - ताकि व्यापक रूप से कवर की गई ताज़ा खबर आगे रहे और पुरानी पीछे चली जाए। इस अंकगणित के ऊपर, भारतीय पाठक के लिए सबसे मायने रखने वाली कवरेज - राजनीति और शासन, अर्थव्यवस्था, अदालतें, बड़े आंदोलन और संशोधन - को उच्च-आयतन खेल और मनोरंजन से पहले प्राथमिकता दी जाती है, जो अपने अलग सेक्शन में रहते हैं। किसी खबर को उसकी राजनीति के कारण न आगे बढ़ाया जाता है न दबाया जाता है; यह भार एक निश्चित, प्रकाशित नियम है, किसी पक्ष के लिए संपादकीय पक्षपात नहीं।",
+        m_order:"मुख्य पृष्ठ भारत-पहले है। खबरों को इस आधार पर क्रम दिया जाता है कि स्पेक्ट्रम भर के कितने अलग-अलग आउटलेट उन्हें कवर कर रहे हैं, और वे कितनी हाल की हैं, ताकि व्यापक रूप से कवर की गई ताज़ा खबर आगे रहे और पुरानी पीछे चली जाए। इस अंकगणित के ऊपर, भारतीय पाठक के लिए सबसे मायने रखने वाली कवरेज, राजनीति और शासन, अर्थव्यवस्था, अदालतें, बड़े आंदोलन और संशोधन, को उच्च-आयतन खेल और मनोरंजन से पहले प्राथमिकता दी जाती है, जो अपने अलग सेक्शन में रहते हैं। किसी खबर को उसकी राजनीति के कारण न आगे बढ़ाया जाता है न दबाया जाता है; यह भार एक निश्चित, प्रकाशित नियम है, किसी पक्ष के लिए संपादकीय पक्षपात नहीं।",
         m_freshH:"कोई खबर कितनी ताज़ा है",
-        m_fresh:"हर खबर पर दिखने वाला समय उसमें शामिल सबसे नए स्रोत-लेख का वास्तविक प्रकाशन समय है, न कि जब हमारे सॉफ़्टवेयर ने उसे आख़िरी बार छुआ - इसलिए “2 घंटे पहले अपडेट” का अर्थ है कि खबर स्वयं लगभग दो घंटे पुरानी है। जैसे-जैसे नई कवरेज आती है पक्ष लगातार ताज़ा होता रहता है; जैसे-जैसे और आउटलेट इसे उठाते हैं, खबर का बार और सारांश अपडेट होते रहते हैं।",
+        m_fresh:"हर खबर पर दिखने वाला समय उसमें शामिल सबसे नए स्रोत-लेख का वास्तविक प्रकाशन समय है, न कि जब हमारे सॉफ़्टवेयर ने उसे आख़िरी बार छुआ, इसलिए “2 घंटे पहले अपडेट” का अर्थ है कि खबर स्वयं लगभग दो घंटे पुरानी है। जैसे-जैसे नई कवरेज आती है पक्ष लगातार ताज़ा होता रहता है; जैसे-जैसे और आउटलेट इसे उठाते हैं, खबर का बार और सारांश अपडेट होते रहते हैं।",
         m_rateH:"हम किसी प्रकाशन को कैसे आँकते हैं",
         m_rateLede:"हम हर प्रकाशन को छह संकेतों पर आँकते हैं, हर एक को −2 से +2 तक अंक देकर एक स्कोर में जोड़ा जाता है, −10 (वाम) से +10 (दक्षिण):",
         m_rateFoot:"शून्य के पास के स्कोर केंद्र हैं; शून्य से जितना दूर, झुकाव उतना मज़बूत।",
         m_axisH:"भारत में “वाम” और “दक्षिण” का अर्थ",
-        m_axis:"भारत में वाम और दक्षिण केवल अर्थशास्त्र के बारे में नहीं हैं। पक्ष एक सामाजिक-वैचारिक अक्ष (धर्मनिरपेक्ष ↔ हिंदुत्व) को एक संस्थागत अक्ष (सत्ता के आलोचक ↔ सत्ता के साथ) के साथ जोड़ता है, और आर्थिक रुख को अलग से देखता है। “वाम” और “दक्षिण” वर्णनात्मक हैं, अपमान नहीं - और एक ही कसौटी पूरे स्पेक्ट्रम पर लागू होती है।",
+        m_axis:"भारत में वाम और दक्षिण केवल अर्थशास्त्र के बारे में नहीं हैं। पक्ष एक सामाजिक-वैचारिक अक्ष (धर्मनिरपेक्ष ↔ हिंदुत्व) को एक संस्थागत अक्ष (सत्ता के आलोचक ↔ सत्ता के साथ) के साथ जोड़ता है, और आर्थिक रुख को अलग से देखता है। “वाम” और “दक्षिण” वर्णनात्मक हैं, अपमान नहीं, और एक ही कसौटी पूरे स्पेक्ट्रम पर लागू होती है।",
         m_partiesH:"भारत की पार्टियाँ मोटे तौर पर कहाँ हैं",
-        m_parties:"ये लेबल विचारों का वर्णन करते हैं, टीमों का नहीं - और ये मोटे अनुमान हैं, क्योंकि पार्टियाँ समय के साथ बदलती हैं और कई क्षेत्रीय पार्टियाँ किसी एक रेखा पर ठीक से नहीं बैठतीं। आम समझ के अनुसार: वाम में CPI(M) और CPI जैसी कम्युनिस्ट और समाजवादी पार्टियाँ आती हैं, जो धर्मनिरपेक्ष और कल्याण-समर्थक, श्रमिक-पहले रुख से जुड़ी हैं; दक्षिण - सबसे प्रमुख रूप से भाजपा - हिंदुत्व-प्रभावित सांस्कृतिक राष्ट्रवाद और अधिक बाज़ार-समर्थक आर्थिक रुख से जुड़ी है; केंद्र बीच में फैला है, जहाँ कांग्रेस को अक्सर केंद्र-वाम कहा जाता है और कई क्षेत्रीय पार्टियाँ मुद्दे के हिसाब से रुख मिलाती हैं। याद रखें: पक्ष समाचार आउटलेट्स को आँकता है, पार्टियों को नहीं - किसी आउटलेट का झुकाव इस बारे में है कि वह खबरों को कैसे कवर करता है, इस बारे में नहीं कि वह किसे वोट देता है।",
+        m_parties:"ये लेबल विचारों का वर्णन करते हैं, टीमों का नहीं, और ये मोटे अनुमान हैं, क्योंकि पार्टियाँ समय के साथ बदलती हैं और कई क्षेत्रीय पार्टियाँ किसी एक रेखा पर ठीक से नहीं बैठतीं। आम समझ के अनुसार: वाम में CPI(M) और CPI जैसी कम्युनिस्ट और समाजवादी पार्टियाँ आती हैं, जो धर्मनिरपेक्ष और कल्याण-समर्थक, श्रमिक-पहले रुख से जुड़ी हैं; दक्षिण, सबसे प्रमुख रूप से भाजपा, हिंदुत्व-प्रभावित सांस्कृतिक राष्ट्रवाद और अधिक बाज़ार-समर्थक आर्थिक रुख से जुड़ी है; केंद्र बीच में फैला है, जहाँ कांग्रेस को अक्सर केंद्र-वाम कहा जाता है और कई क्षेत्रीय पार्टियाँ मुद्दे के हिसाब से रुख मिलाती हैं। याद रखें: पक्ष समाचार आउटलेट्स को आँकता है, पार्टियों को नहीं, किसी आउटलेट का झुकाव इस बारे में है कि वह खबरों को कैसे कवर करता है, इस बारे में नहीं कि वह किसे वोट देता है।",
         m_provH:"विश्वास, विवादित और अस्थायी",
-        m_prov:"आज हर रेटिंग अस्थायी है: स्वामित्व, स्व-घोषित रुख और स्थापित प्रतिष्ठा पर आधारित एक प्रलेखित शुरुआती बिंदु, रूब्रिक के विरुद्ध समीक्षित - अंतिम फ़ैसला नहीं। हर एक के साथ एक विश्वास-स्तर दिखता है, और कुछ को ‘विवादित’ चिह्नित किया गया है जहाँ झुकाव सचमुच बहस में है या स्वामित्व हाल में बदला है।",
+        m_prov:"आज हर रेटिंग अस्थायी है: स्वामित्व, स्व-घोषित रुख और स्थापित प्रतिष्ठा पर आधारित एक प्रलेखित शुरुआती बिंदु, रूब्रिक के विरुद्ध समीक्षित, अंतिम फ़ैसला नहीं। हर एक के साथ एक विश्वास-स्तर दिखता है, और कुछ को ‘विवादित’ चिह्नित किया गया है जहाँ झुकाव सचमुच बहस में है या स्वामित्व हाल में बदला है।",
         m_readH:"पक्ष की खबर कैसे पढ़ें", m_appealH:"सुधार और अपील",
-        m_appeal:"लगता है कोई रेटिंग ग़लत है? हमें आउटलेट, जिस रेटिंग से असहमत हैं, और कुछ ठोस उदाहरण - हेडलाइन या लेख - बताएँ, और हम उसे रूब्रिक के विरुद्ध फिर से देखेंगे। रेटिंग्स को चुनौती देने के लिए ही हैं।",
+        m_appeal:"लगता है कोई रेटिंग ग़लत है? हमें आउटलेट, जिस रेटिंग से असहमत हैं, और कुछ ठोस उदाहरण, हेडलाइन या लेख, बताएँ, और हम उसे रूब्रिक के विरुद्ध फिर से देखेंगे। रेटिंग्स को चुनौती देने के लिए ही हैं।",
         footIndependence:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है। झुकाव के लेबल अस्थायी हैं और अपील के लिए खुले हैं।",
       }
     };
@@ -935,7 +935,7 @@ const {useState,useEffect,useMemo}=React;
           <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
           {/* one h1 for the page + an always-on legend so a first-time visitor knows what the
               "3 · 9 · 4" bias counts mean, right where they see them */}
-          <h1 className="sr-only">{lang==="hi"?"पक्ष — भारत की खबरों का हर पक्ष":"Paksh — every side of India's news"}</h1>
+          <h1 className="sr-only">{lang==="hi"?"पक्ष, भारत की खबरों का हर पक्ष":"Paksh, every side of India's news"}</h1>
           <div className={`${pad}`}>
             <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b py-2 ${t.border}`}>
               <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"बायस बार":"The bias bar"}</span>
@@ -945,7 +945,7 @@ const {useState,useEffect,useMemo}=React;
                   <span className={`text-[11px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
                 </span>
               ))}
-              <span className={`text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"— हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट":"— distinct outlets on each side that covered the story · one publisher = one vote"}</span>
+              <span className={`text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट":"distinct outlets on each side that covered the story · one publisher = one vote"}</span>
             </div>
           </div>
 
@@ -1280,8 +1280,8 @@ const {useState,useEffect,useMemo}=React;
           {/* explainer */}
           <div className={pad}>
             <div className={`my-8 grid gap-8 p-6 sm:p-8 md:grid-cols-2 ${t.soft}`}>
-              {explain(lang==="hi"?"गैप कैसे तय होता है":"How a gap is declared", lang==="hi"?"पक्ष किसी ख़बर को गैप तब चिह्नित करता है जब स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने उसे कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं — वही अलग-अलग आउटलेट गिनती जो बायस बार में है। यह अंकगणित है, इस पर निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।":"Paksh flags a story as a gap when outlets on one side of the spectrum covered it while few or none on the other did — the same distinct-outlet-per-lean counting as the bias bar. It's arithmetic, not a judgment about why a side did or didn't cover it.")}
-              {explain(lang==="hi"?"स्लॉट बराबर चौड़े क्यों":"Why the slots are equal width", lang==="hi"?"यह चार्ट बायस बार नहीं है। बायस बार जो मौजूद है उसे बाँटता है; गैप चार्ट हर पक्ष को बराबर स्लॉट देता है, ताकि ग़ैरमौजूद पक्ष ग़ायब होने के बजाय — हैच और शून्य के साथ — दिखे। अनुपस्थिति को दिखने के लिए जगह घेरनी पड़ती है।":"This chart is not the bias bar. The bias bar divides what exists; the gap chart reserves an equal slot per side, so the empty one is drawn — hatched and labelled zero — instead of vanishing. Absence has to occupy space to be seen.")}
+              {explain(lang==="hi"?"गैप कैसे तय होता है":"How a gap is declared", lang==="hi"?"पक्ष किसी ख़बर को गैप तब चिह्नित करता है जब स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने उसे कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं, वही अलग-अलग आउटलेट गिनती जो बायस बार में है। यह अंकगणित है, इस पर निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।":"Paksh flags a story as a gap when outlets on one side of the spectrum covered it while few or none on the other did, the same distinct-outlet-per-lean counting as the bias bar. It's arithmetic, not a judgment about why a side did or didn't cover it.")}
+              {explain(lang==="hi"?"स्लॉट बराबर चौड़े क्यों":"Why the slots are equal width", lang==="hi"?"यह चार्ट बायस बार नहीं है। बायस बार जो मौजूद है उसे बाँटता है; गैप चार्ट हर पक्ष को बराबर स्लॉट देता है, ताकि ग़ैरमौजूद पक्ष ग़ायब होने के बजाय, हैच और शून्य के साथ, दिखे। अनुपस्थिति को दिखने के लिए जगह घेरनी पड़ती है।":"This chart is not the bias bar. The bias bar divides what exists; the gap chart reserves an equal slot per side, so the empty one is drawn, hatched and labelled zero, instead of vanishing. Absence has to occupy space to be seen.")}
             </div>
           </div>
         </div>
@@ -1398,18 +1398,18 @@ const {useState,useEffect,useMemo}=React;
       const [status,setStatus]=useState("idle");
       const [err,setErr]=useState("");
       const L = lang==="hi" ? {
-        title:"संपर्क करें", lede:"सवाल, सुधार या शिकायत? हमें लिखें - हम हर संदेश पढ़ते हैं।",
+        title:"संपर्क करें", lede:"सवाल, सुधार या शिकायत? हमें लिखें, हम हर संदेश पढ़ते हैं।",
         name:"आपका नाम (वैकल्पिक)", email:"ईमेल", topic:"विषय",
         tQ:"सामान्य सवाल", tC:"सुधार / तथ्य-जाँच", tX:"शिकायत", tO:"अन्य",
         msg:"आपका संदेश", send:"भेजें", sending:"भेजा जा रहा है…",
-        ok:"धन्यवाद - आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
+        ok:"धन्यवाद, आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
         err:"संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।"
       } : {
-        title:"Contact", lede:"A question, a correction, or a complaint? Write to us - we read every message.",
+        title:"Contact", lede:"A question, a correction, or a complaint? Write to us, we read every message.",
         name:"Your name (optional)", email:"Email", topic:"Topic",
         tQ:"General question", tC:"Correction / fact-check", tX:"Complaint", tO:"Other",
         msg:"Your message", send:"Send", sending:"Sending…",
-        ok:"Thank you - your message reached us. We'll reply soon.",
+        ok:"Thank you, your message reached us. We'll reply soon.",
         err:"Could not send your message. Please try again."
       };
       async function submit(e){
@@ -1472,16 +1472,16 @@ const {useState,useEffect,useMemo}=React;
       const copyUpi=()=>{ try{ navigator.clipboard.writeText(SUPPORT.upi); setCopied(true); setTimeout(()=>setCopied(false),1600); }catch(e){} };
       const L = lang==="hi" ? {
         title:"पक्ष का सहयोग करें",
-        lede:"पक्ष एक स्वतंत्र परियोजना है - कोई पेवॉल नहीं, कोई ट्रैकिंग-आधारित विज्ञापन नहीं। हर खबर को हर पक्ष से दिखाना संसाधन माँगता है। यदि पक्ष आपके काम आता है, तो आपका छोटा-सा सहयोग इसे सबके लिए मुफ़्त और स्वतंत्र रखता है।",
-        whyH:"आपका पैसा किसमें जाता है", why:"आउटलेट्स की कवरेज इकट्ठा करने, उन्हें एक ही खबर में समूहित करने, और तटस्थ सारांश तैयार करने की कंप्यूटिंग लागत में - ताकि पक्ष बिना विज्ञापनदाताओं या किसी पक्ष के दबाव के चलता रहे।",
+        lede:"पक्ष एक स्वतंत्र परियोजना है, कोई पेवॉल नहीं, कोई ट्रैकिंग-आधारित विज्ञापन नहीं। हर खबर को हर पक्ष से दिखाना संसाधन माँगता है। यदि पक्ष आपके काम आता है, तो आपका छोटा-सा सहयोग इसे सबके लिए मुफ़्त और स्वतंत्र रखता है।",
+        whyH:"आपका पैसा किसमें जाता है", why:"आउटलेट्स की कवरेज इकट्ठा करने, उन्हें एक ही खबर में समूहित करने, और तटस्थ सारांश तैयार करने की कंप्यूटिंग लागत में, ताकि पक्ष बिना विज्ञापनदाताओं या किसी पक्ष के दबाव के चलता रहे।",
         upiH:"UPI से सहयोग करें", upiPay:"UPI ऐप में खोलें", copy:"UPI ID कॉपी करें", copied:"कॉपी हो गया",
         linkBtn:"पक्ष का सहयोग करें", soonH:"सहयोग विकल्प जल्द ही",
         soon:"हम सुरक्षित भुगतान का तरीक़ा जोड़ रहे हैं। तब तक, हौसला-आफ़ज़ाई या साझेदारी के लिए हमें लिखें।",
         contact:"संपर्क करें →", noStrings:"कोई सदस्यता ज़रूरी नहीं · कोई कंटेंट पेवॉल के पीछे नहीं · जितना चाहें उतना दें।"
       } : {
         title:"Support Paksh",
-        lede:"Paksh is an independent project — no paywall, no tracking-based advertising. Showing every story from every side takes real resources. If Paksh is useful to you, a small contribution keeps it free and independent for everyone.",
-        whyH:"Where your money goes", why:"Into the computing cost of gathering outlets' coverage, grouping it into one story, and generating the neutral summaries — so Paksh can run without advertisers or any side leaning on it.",
+        lede:"Paksh is an independent project, no paywall, no tracking-based advertising. Showing every story from every side takes real resources. If Paksh is useful to you, a small contribution keeps it free and independent for everyone.",
+        whyH:"Where your money goes", why:"Into the computing cost of gathering outlets' coverage, grouping it into one story, and generating the neutral summaries, so Paksh can run without advertisers or any side leaning on it.",
         upiH:"Support via UPI", upiPay:"Open in a UPI app", copy:"Copy UPI ID", copied:"Copied",
         linkBtn:"Support Paksh", soonH:"Support options coming soon",
         soon:"We're setting up a secure way to contribute. Until then, please reach out to cheer us on or discuss a partnership.",
@@ -1653,7 +1653,7 @@ const {useState,useEffect,useMemo}=React;
           </div>
 
           <section className="mt-9">
-            <Head title={tt("Your reading balance","आपका पढ़ने का संतुलन")} sub={tt("Which way the stories you open tend to lean — your own spread, not a score. Private to you.","आप जो खबरें खोलते हैं वे किस ओर झुकी होती हैं — आपका अपना फैलाव, कोई स्कोर नहीं। सिर्फ़ आपके लिए।")}/>
+            <Head title={tt("Your reading balance","आपका पढ़ने का संतुलन")} sub={tt("Which way the stories you open tend to lean, your own spread, not a score. Private to you.","आप जो खबरें खोलते हैं वे किस ओर झुकी होती हैं, आपका अपना फैलाव, कोई स्कोर नहीं। सिर्फ़ आपके लिए।")}/>
             {totalRead<3 ? <Empty>{tt("Open a few stories and your reading balance appears here.","कुछ खबरें खोलें और आपका पढ़ने का संतुलन यहाँ दिखेगा।")}</Empty> : (
               <div className="mt-4">
                 <div className="mb-2 flex items-baseline justify-between">
@@ -1666,7 +1666,7 @@ const {useState,useEffect,useMemo}=React;
                 {underCards.length>0 && (
                   <div className="mt-6">
                     <div className={`eyebrow ${t.blind} ${HI?"deva":""}`} style={{letterSpacing:HI?0:".14em"}}>{tt("Widen your view","अपना नज़रिया बढ़ाएँ")}</div>
-                    <p className={`mt-1 text-[13px] ${t.tf} ${isHi(lang)}`}>{tt("Recent stories led by "+lbl(underSide,"en")+"-leaning outlets — the side you open least.",(BIAS[underSide].hi)+"-झुकाव आउटलेट्स की हाल की खबरें — जिन्हें आप सबसे कम खोलते हैं।")}</p>
+                    <p className={`mt-1 text-[13px] ${t.tf} ${isHi(lang)}`}>{tt("Recent stories led by "+lbl(underSide,"en")+"-leaning outlets, the side you open least.",(BIAS[underSide].hi)+"-झुकाव आउटलेट्स की हाल की खबरें, जिन्हें आप सबसे कम खोलते हैं।")}</p>
                     <List items={underCards}/>
                   </div>
                 )}
