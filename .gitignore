@@ -45,3 +45,6 @@ autopush_log.txt
 
 # internal Redstocks market-signal exports - never publish/commit
 signals/
+
+# OG share-card local preview scratch
+_og_preview/
