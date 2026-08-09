@@ -1748,14 +1748,14 @@ const {useState,useEffect,useMemo}=React;
             <div className="text-center">
               <div className={`mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full ${t.chip}`}><Check size={22}/></div>
               <h1 className={`headline text-[26px] ${t.tp} ${readCls(lang)}`}>{tt("Check your email","अपना ईमेल देखें")}</h1>
-              <p className={`mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{tt("We sent a sign-in link and a 6-digit code to","हमने साइन-इन लिंक और 6-अंकों का कोड भेजा है")} <span className="font-semibold">{email.trim()}</span>.</p>
+              <p className={`mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{tt("We sent a sign-in link and a code to","हमने साइन-इन लिंक और एक कोड भेजा है")} <span className="font-semibold">{email.trim()}</span>.</p>
             </div>
             <div className={`mt-6 rounded-lg border ${t.border} ${t.surface} p-4`}>
               <p className={`text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className="font-semibold">{tt("Same device?","इसी डिवाइस पर?")}</span> {tt("Just tap the link in the email.","बस ईमेल का लिंक टैप करें।")}</p>
-              <p className={`mt-3 text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className="font-semibold">{tt("Different device?","अलग डिवाइस पर?")}</span> {tt("Email on your phone but signing in on a laptop? Enter the 6-digit code:","ईमेल फ़ोन पर पर साइन इन लैपटॉप पर? 6-अंकों का कोड डालें:")}</p>
+              <p className={`mt-3 text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`}><span className="font-semibold">{tt("Different device?","अलग डिवाइस पर?")}</span> {tt("Email on your phone but signing in on a laptop? Enter the code from the email:","ईमेल फ़ोन पर पर साइन इन लैपटॉप पर? ईमेल में आया कोड डालें:")}</p>
               <form onSubmit={submitCode} className="mt-3 flex gap-2">
-                <input inputMode="numeric" pattern="[0-9]*" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="123456" autoComplete="one-time-code"
-                  className={`w-full rounded-lg px-4 py-2.5 text-center text-[17px] tracking-[0.35em] outline-none border ${t.border} ${t.tp}`} style={{background:t.gap}} />
+                <input inputMode="numeric" pattern="[0-9]*" maxLength={8} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,8))} placeholder="12345678" autoComplete="one-time-code"
+                  className={`w-full rounded-lg px-4 py-2.5 text-center text-[17px] tracking-[0.3em] outline-none border ${t.border} ${t.tp}`} style={{background:t.gap}} />
                 <button type="submit" disabled={code.length<6||busy} className={`shrink-0 rounded-lg px-5 py-2.5 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${(code.length<6||busy)?"opacity-40":""} ${isHi(lang)}`}>{busy?"…":tt("Sign in","साइन इन")}</button>
               </form>
               {err && <p className={`mt-3 text-[13px] ${t.blind} ${isHi(lang)}`}>{err}</p>}
@@ -1804,70 +1804,54 @@ const {useState,useEffect,useMemo}=React;
     /* ---------------- YOUR PAKSH (private, on-device) ---------------- */
     function YouPage({ cards, topics, t, lang, open, go }){
       const P=usePaksh(); const A=useAuth();
-      const saved=P.saved(), follow=P.follow(), hist=P.hist();
+      const follow=P.follow(), hist=P.hist();
       const HI=lang==="hi"; const tt=(en,hi)=>HI?hi:en;
       const authed=authEnabled()&&A.isLoggedIn();
       const email=((A.user()||{}).email)||"";
-      const byId=useMemo(()=>{ const m={}; (cards||[]).forEach(c=>{ m[String(c.id)]=c; }); return m; },[cards]);
 
-      // Reading balance: tally opens by the dominant lean of each opened story.
-      const tally={left:0,center:0,right:0};
-      hist.forEach(h=>{ if(tally[h.side]!=null) tally[h.side]++; });
-      const totalRead=tally.left+tally.center+tally.right;
-      const pct=biasPct(tally);
-      // the side you open LEAST (prefer flagging Left/Right over Centre on a tie).
-      const underSide=["left","right","center"].slice().sort((a,b)=>tally[a]-tally[b])[0];
-      const underCards=(cards||[]).filter(c=>domSide(c.bias)===underSide).slice(0,4);
-      const savedCards=saved.map(id=>byId[String(id)]).filter(Boolean);
-      const forYou=follow.length?(cards||[]).filter(c=>follow.indexOf(c.topic)>=0).slice(0,12):[];
-      const suggest=(topics||[]).filter(tp=>follow.indexOf(tp)<0).slice(0,8);
+      // A single suggested feed: rank stories by topic affinity - the topics you FOLLOW plus
+      // the topics you READ most - keeping recency within. No follows and no history yet =>
+      // just the latest news, and it personalises as you read.
+      const affinity={};
+      hist.forEach(h=>{ if(h.topic) affinity[h.topic]=(affinity[h.topic]||0)+1; });
+      follow.forEach(tp=>{ affinity[tp]=(affinity[tp]||0)+6; });
+      const suggested=[...(cards||[])].sort((a,b)=>(affinity[b.topic]||0)-(affinity[a.topic]||0)).slice(0,24);
 
       const Row=({s,last})=>(
         <div className={`flex items-start gap-3 py-4 ${last?"":"border-b"} ${t.border}`}>
           <a href={"/story/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(s.id); }} className="block no-underline group min-w-0 flex-1 cursor-pointer">
-            <h3 className={`headline text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:HI?1.34:1.24,textWrap:"pretty"}}>{s.headline}</h3>
+            <div className={`eyebrow ${t.tf} ${HI?"deva":""}`} style={{letterSpacing:HI?0:".14em"}}>{HI?(TOPIC_HI[s.topic]||s.topic):s.topic}</div>
+            <h3 className={`headline mt-1 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:HI?1.34:1.24,textWrap:"pretty"}}>{s.headline}</h3>
             <div className="mt-2 max-w-[280px]"><BiasSegments bias={s.bias} t={t} h={10} lang={lang}/></div>
             <div className={`mt-1.5 mono text-[10.5px] ${t.tf}`}>{(s.counts.left||0)} · {(s.counts.center||0)} · {(s.counts.right||0)} · n = {(s.counts.left||0)+(s.counts.center||0)+(s.counts.right||0)}{timeAgo(s.created_at,lang)?" · "+timeAgo(s.created_at,lang):""}</div>
           </a>
           <div className="pt-1"><SaveButton id={s.id} t={t} lang={lang} compact/></div>
         </div>
       );
-      const List=({items})=><div className="mt-3">{items.map((s,i)=><Row key={s.id} s={s} last={i===items.length-1}/>)}</div>;
-      const Empty=({children})=><div className={`mt-4 border ${t.border} ${t.soft} p-5 text-[13.5px] ${t.ts} ${isHi(lang)}`}>{children}</div>;
-      const Head=({title,sub})=>(<><h2 className={`headline text-[22px] sm:text-[26px] ${t.tp} ${readCls(lang)}`}>{title}</h2>{sub&&<p className={`mt-1.5 text-[13px] ${t.tf} ${isHi(lang)}`}>{sub}</p>}</>);
 
       return (
         <PageWrap>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:HI?0:"-0.018em"}}>{tt("Your Paksh","आपका पक्ष")}</h1>
-              <p className={`mt-2 text-[13px] ${t.tf} ${isHi(lang)}`}>{authed?tt("Synced to your account, on every device you sign in on.","आपके खाते से जुड़ा, हर डिवाइस पर जहाँ आप साइन इन करें।"):authEnabled()?tt("Saved on this device. Sign in to sync everywhere.","इस डिवाइस पर सहेजा। हर जगह सिंक के लिए साइन इन करें।"):tt("Private to this browser. No account, nothing leaves your device.","सिर्फ़ इस ब्राउज़र में। कोई खाता नहीं, कुछ भी आपके डिवाइस से बाहर नहीं जाता।")}</p>
+              <p className={`mt-2 text-[13px] ${t.tf} ${isHi(lang)}`}>{tt("A feed that learns from what you read and the topics you follow.","एक फ़ीड जो आपके पढ़ने और फ़ॉलो किए विषयों से सीखती है।")}</p>
             </div>
-            {(saved.length||follow.length||hist.length)?
-              <button onClick={()=>{ if(window.confirm(tt("Clear your saved stories, followed topics and reading history on this device?","इस डिवाइस पर सहेजी खबरें, फ़ॉलो किए विषय और पढ़ने का इतिहास साफ़ करें?"))) P.clearAll(); }}
-                className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.tf} hover:${t.tp}`} style={{letterSpacing:HI?0:".1em"}}><Trash size={13}/> {tt("Clear","साफ़ करें")}</button>
-            :null}
+            {authEnabled() && (authed ? (
+              <div className={`shrink-0 text-right text-[12px] ${t.tf} ${isHi(lang)}`}>
+                <div className="truncate max-w-[190px]">{email}</div>
+                <div className="mt-1 flex justify-end gap-3">
+                  <button onClick={()=>Auth.signOut()} className={`eyebrow hover:${t.tp}`} style={{letterSpacing:HI?0:".08em"}}>{tt("Sign out","साइन आउट")}</button>
+                  <button onClick={()=>{ if(window.confirm(tt("Delete your synced data? This can't be undone.","आपका सिंक किया डेटा हटाएँ? यह वापस नहीं होगा।"))) Auth.deleteData(); }} className={`eyebrow ${t.blind} hover:opacity-80`} style={{letterSpacing:HI?0:".08em"}}>{tt("Delete data","डेटा हटाएँ")}</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={()=>go("login")} className={`shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{tt("Sign in to sync","सिंक के लिए साइन इन")}</button>
+            ))}
           </div>
 
-          {/* account: sign-in prompt, or the signed-in controls */}
-          {authEnabled() && (authed ? (
-            <div className={`mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border ${t.border} ${t.soft} px-4 py-3`}>
-              <div className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{tt("Signed in as","साइन इन:")} <span className="font-semibold">{email}</span></div>
-              <div className="flex items-center gap-5">
-                <button onClick={()=>Auth.signOut()} className={`eyebrow ${t.tf} hover:${t.tp}`} style={{letterSpacing:HI?0:".1em"}}>{tt("Sign out","साइन आउट")}</button>
-                <button onClick={()=>{ if(window.confirm(tt("Delete your synced account data (topics, saved stories, reading history)? This can't be undone.","आपका सिंक किया डेटा (विषय, सहेजी खबरें, इतिहास) हटाएँ? यह वापस नहीं होगा।"))) Auth.deleteData(); }} className={`eyebrow ${t.blind} hover:opacity-80`} style={{letterSpacing:HI?0:".1em"}}>{tt("Delete data","डेटा हटाएँ")}</button>
-              </div>
-            </div>
-          ) : (
-            <div className={`mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border ${t.border} ${t.soft} px-4 py-3`}>
-              <div className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{tt("Sign in to sync your feed across phone, laptop and tablet.","फ़ोन, लैपटॉप और टैबलेट में अपनी फ़ीड सिंक करने के लिए साइन इन करें।")}</div>
-              <button onClick={()=>go("login")} className={`shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{tt("Sign in","साइन इन")}</button>
-            </div>
-          ))}
-
-          {/* topic chooser (onboarding): pick the sections you want in your feed */}
-          <section className="mt-9">
-            <Head title={tt("Your topics","आपके विषय")} sub={tt("Tap the sections you want to follow, they shape your For You feed.","जिन खंडों को फ़ॉलो करना है उन्हें चुनें, ये आपकी 'आपके लिए' फ़ीड बनाते हैं।")}/>
+          {/* topics you follow - remembered on this device, and synced when signed in */}
+          <section className="mt-8">
+            <div className={`eyebrow ${t.tf} ${HI?"deva":""}`} style={{letterSpacing:HI?0:".14em"}}>{tt("Topics you follow","आपके फ़ॉलो किए विषय")}</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {(topics||[]).map(tp=>{ const on=follow.indexOf(tp)>=0; return (
                 <button key={tp} onClick={()=>P.toggleFollow(tp)} aria-pressed={on}
@@ -1878,56 +1862,12 @@ const {useState,useEffect,useMemo}=React;
             </div>
           </section>
 
+          {/* the single suggested feed */}
           <section className="mt-9">
-            <Head title={tt("Your reading balance","आपका पढ़ने का संतुलन")} sub={tt("Which way the stories you open tend to lean, your own spread, not a score. Private to you.","आप जो खबरें खोलते हैं वे किस ओर झुकी होती हैं, आपका अपना फैलाव, कोई स्कोर नहीं। सिर्फ़ आपके लिए।")}/>
-            {totalRead<3 ? <Empty>{tt("Open a few stories and your reading balance appears here.","कुछ खबरें खोलें और आपका पढ़ने का संतुलन यहाँ दिखेगा।")}</Empty> : (
-              <div className="mt-4">
-                <div className="mb-2 flex items-baseline justify-between">
-                  <div className={`flex gap-5 text-[11px] font-medium uppercase tracking-[0.12em] ${t.tp} ${HI?"deva":""}`}>
-                    {["left","center","right"].map(k=>tally[k]>0?<span key={k}>{lbl(k,lang)} <span className="mono" style={{letterSpacing:0}}>{pct[k]}%</span></span>:null)}
-                  </div>
-                  <span className={`mono text-[11px] ${t.tf}`}>n = {totalRead}</span>
-                </div>
-                <BiasSegments bias={pct} t={t} h={22} lang={lang}/>
-                {underCards.length>0 && (
-                  <div className="mt-6">
-                    <div className={`eyebrow ${t.blind} ${HI?"deva":""}`} style={{letterSpacing:HI?0:".14em"}}>{tt("Widen your view","अपना नज़रिया बढ़ाएँ")}</div>
-                    <p className={`mt-1 text-[13px] ${t.tf} ${isHi(lang)}`}>{tt("Recent stories led by "+lbl(underSide,"en")+"-leaning outlets, the side you open least.",(BIAS[underSide].hi)+"-झुकाव आउटलेट्स की हाल की खबरें, जिन्हें आप सबसे कम खोलते हैं।")}</p>
-                    <List items={underCards}/>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="mt-11">
-            <Head title={tt("Saved","सहेजी गई")}/>
-            {savedCards.length? <List items={savedCards}/> : <Empty>{tt("Tap “Save” on any story to keep it here for later.","किसी भी खबर पर “सहेजें” दबाएँ ताकि वह यहाँ बाद के लिए रहे।")}</Empty>}
-          </section>
-
-          <section className="mt-11">
-            <Head title={tt("For you","आपके लिए")} sub={tt("Latest in the topics you follow.","आपके फ़ॉलो किए विषयों की ताज़ा खबरें।")}/>
-            {follow.length>0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {follow.map(tp=>(
-                  <button key={tp} onClick={()=>P.toggleFollow(tp)} title={tt("Unfollow","अनफ़ॉलो")} className={`inline-flex items-center gap-1.5 rounded-full ${t.cta} ${t.ctaT} px-3 py-1 text-[12px] font-semibold ${HI?"deva":""}`}>
-                    {HI?(TOPIC_HI[tp]||tp):tp} <X size={11}/>
-                  </button>
-                ))}
-              </div>
-            )}
-            {forYou.length? <List items={forYou}/> : (
-              <Empty>
-                <p className={isHi(lang)}>{tt("Follow a topic to build your feed:","अपनी फ़ीड बनाने के लिए कोई विषय फ़ॉलो करें:")}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {suggest.map(tp=>(
-                    <button key={tp} onClick={()=>P.toggleFollow(tp)} className={`inline-flex items-center gap-1.5 rounded-full border ${t.border} ${t.ts} hover:${t.tp} px-3 py-1 text-[12px] font-semibold ${HI?"deva":""}`}>
-                      <span aria-hidden="true">+</span> {HI?(TOPIC_HI[tp]||tp):tp}
-                    </button>
-                  ))}
-                </div>
-              </Empty>
-            )}
+            <div className={`eyebrow ${t.tf} ${HI?"deva":""}`} style={{letterSpacing:HI?0:".14em"}}>{tt("Suggested for you","आपके लिए सुझाव")}</div>
+            {suggested.length
+              ? <div className="mt-2">{suggested.map((s,i)=><Row key={s.id} s={s} last={i===suggested.length-1}/>)}</div>
+              : <div className={`mt-4 border ${t.border} ${t.soft} p-5 text-[13.5px] ${t.ts} ${isHi(lang)}`}>{tt("Read a few stories and follow some topics, and your feed builds itself.","कुछ खबरें पढ़ें और कुछ विषय फ़ॉलो करें, आपकी फ़ीड खुद बन जाएगी।")}</div>}
           </section>
         </PageWrap>
       );
