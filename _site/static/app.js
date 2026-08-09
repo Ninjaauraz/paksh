@@ -823,6 +823,18 @@ const PStore = function () {
       };
       Object.keys(PS_KEYS).forEach(k => write(PS_KEYS[k], []));
       emit();
+    },
+    // Replace all state at once (used when merging cloud <-> local on login).
+    hydrate: o => {
+      st = {
+        saved: o && o.saved || [],
+        follow: o && o.follow || [],
+        hist: o && o.hist || []
+      };
+      write(PS_KEYS.saved, st.saved);
+      write(PS_KEYS.follow, st.follow);
+      write(PS_KEYS.hist, st.hist);
+      emit();
     }
   };
 }();
@@ -832,6 +844,260 @@ function usePaksh() {
   useEffect(() => PStore.subscribe(() => bump(x => x + 1)), []);
   return PStore;
 }
+
+/* ---------------- Accounts (Supabase) — cross-device sync for Your Paksh ----------------
+   Uses Supabase's REST auth + PostgREST DIRECTLY via fetch (no SDK), so the bundler-free
+   build and strict CSP stay intact. The values below are the PUBLIC project url + publishable
+   key (safe in the browser; Row-Level Security is what actually protects each user's row).
+   Empty url/key => accounts OFF and the site is exactly the anonymous localStorage app.
+   Sign-in is passwordless (magic-link email + Google), so Paksh never handles a password. */
+const SUPABASE_URL = "https://zzjsjqqcpyyodatlmcux.supabase.co";
+const SUPABASE_ANON = "sb_publishable_iPHpfSVKORMqq3JHjgKTfA_NeXPEgQw";
+// Flip to true AFTER enabling the Google provider in the Supabase dashboard
+// (Authentication -> Providers -> Google, with a Google OAuth client id/secret).
+// Until then the Google button is hidden; magic-link email works regardless.
+const GOOGLE_AUTH = false;
+const authEnabled = () => !!(SUPABASE_URL && SUPABASE_ANON);
+const _redirectTo = () => {
+  try {
+    return window.location.origin + "/you";
+  } catch (e) {
+    return "";
+  }
+};
+const Auth = function () {
+  const KEY = "paksh-auth";
+  let sess = null;
+  try {
+    sess = JSON.parse(localStorage.getItem(KEY) || "null");
+  } catch (e) {}
+  const subs = new Set();
+  const emit = () => subs.forEach(f => {
+    try {
+      f();
+    } catch (e) {}
+  });
+  const save = s => {
+    sess = s;
+    try {
+      s ? localStorage.setItem(KEY, JSON.stringify(s)) : localStorage.removeItem(KEY);
+    } catch (e) {}
+    emit();
+  };
+  const hdr = tok => ({
+    "apikey": SUPABASE_ANON,
+    "Authorization": "Bearer " + (tok || SUPABASE_ANON),
+    "Content-Type": "application/json"
+  });
+  const store = tk => {
+    if (!tk || !tk.access_token) return null;
+    save({
+      access_token: tk.access_token,
+      refresh_token: tk.refresh_token,
+      expires_at: Date.now() + (tk.expires_in || 3600) * 1000,
+      user: tk.user || sess && sess.user || null
+    });
+    return sess;
+  };
+  async function fetchUser(tok) {
+    try {
+      const r = await fetch(SUPABASE_URL + "/auth/v1/user", {
+        headers: hdr(tok)
+      });
+      if (r.ok) {
+        const u = await r.json();
+        if (sess) {
+          sess.user = u;
+          save(sess);
+        }
+        return u;
+      }
+    } catch (e) {}
+    return null;
+  }
+  async function refresh() {
+    if (!sess || !sess.refresh_token) return null;
+    try {
+      const r = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+        method: "POST",
+        headers: hdr(),
+        body: JSON.stringify({
+          refresh_token: sess.refresh_token
+        })
+      });
+      if (r.ok) return store(await r.json());
+      save(null);
+    } catch (e) {}
+    return null;
+  }
+  async function token() {
+    if (!sess) return null;
+    if (Date.now() > sess.expires_at - 60000) {
+      await refresh();
+    }
+    return sess ? sess.access_token : null;
+  }
+  return {
+    subscribe: f => {
+      subs.add(f);
+      return () => subs.delete(f);
+    },
+    user: () => sess && sess.user,
+    isLoggedIn: () => !!(sess && sess.access_token),
+    token,
+    // Process the token/error the provider (magic-link or Google) appends to the URL hash.
+    async handleRedirect() {
+      try {
+        const h = window.location.hash || "";
+        if (h.indexOf("access_token=") >= 0) {
+          const p = new URLSearchParams(h.replace(/^#/, ""));
+          store({
+            access_token: p.get("access_token"),
+            refresh_token: p.get("refresh_token"),
+            expires_in: parseInt(p.get("expires_in") || "3600", 10)
+          });
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+          await fetchUser(p.get("access_token"));
+          return true;
+        }
+        if (h.indexOf("error") >= 0) {
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+      } catch (e) {}
+      return false;
+    },
+    async sendMagicLink(email) {
+      const r = await fetch(SUPABASE_URL + "/auth/v1/otp?redirect_to=" + encodeURIComponent(_redirectTo()), {
+        method: "POST",
+        headers: hdr(),
+        body: JSON.stringify({
+          email,
+          create_user: true
+        })
+      });
+      if (!r.ok) {
+        let m = "Could not send the sign-in link.";
+        try {
+          const j = await r.json();
+          m = j.msg || j.error_description || j.error || m;
+        } catch (e) {}
+        throw new Error(m);
+      }
+      return true;
+    },
+    google() {
+      window.location.href = SUPABASE_URL + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(_redirectTo());
+    },
+    async signOut() {
+      try {
+        const t = sess && sess.access_token;
+        if (t) fetch(SUPABASE_URL + "/auth/v1/logout", {
+          method: "POST",
+          headers: hdr(t)
+        });
+      } catch (e) {}
+      save(null);
+    },
+    async getPrefs() {
+      const t = await token();
+      if (!t || !sess.user) return null;
+      try {
+        const r = await fetch(SUPABASE_URL + "/rest/v1/profiles?select=prefs&id=eq." + sess.user.id, {
+          headers: hdr(t)
+        });
+        if (r.ok) {
+          const a = await r.json();
+          return a[0] && a[0].prefs || {};
+        }
+      } catch (e) {}
+      return null;
+    },
+    async putPrefs(prefs) {
+      const t = await token();
+      if (!t || !sess.user) return false;
+      try {
+        const r = await fetch(SUPABASE_URL + "/rest/v1/profiles?id=eq." + sess.user.id, {
+          method: "PATCH",
+          headers: {
+            ...hdr(t),
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify({
+            prefs
+          })
+        });
+        return r.ok;
+      } catch (e) {
+        return false;
+      }
+    },
+    async deleteData() {
+      const t = await token();
+      if (t && sess.user) {
+        try {
+          await fetch(SUPABASE_URL + "/rest/v1/profiles?id=eq." + sess.user.id, {
+            method: "DELETE",
+            headers: hdr(t)
+          });
+        } catch (e) {}
+      }
+      await this.signOut();
+    }
+  };
+}();
+function useAuth() {
+  const [, b] = useState(0);
+  useEffect(() => Auth.subscribe(() => b(x => x + 1)), []);
+  return Auth;
+}
+
+// Bridge the on-device PStore to the cloud profile when logged in: merge both ways on
+// login, then write-through (debounced) on every later change. Logged out => local only.
+const PSync = function () {
+  let pushT = null,
+    active = false;
+  const uniq = (a, b) => Array.from(new Set([...(a || []), ...(b || [])]));
+  const mergeHist = (a, b) => {
+    const seen = {},
+      out = [];
+    [...(a || []), ...(b || [])].forEach(h => {
+      if (h && h.id && !seen[h.id]) {
+        seen[h.id] = 1;
+        out.push(h);
+      }
+    });
+    return out.slice(0, 200);
+  };
+  async function onLogin() {
+    const cloud = (await Auth.getPrefs()) || {};
+    const merged = {
+      saved: uniq(cloud.saved, PStore.saved()),
+      follow: uniq(cloud.follow, PStore.follow()),
+      hist: mergeHist(cloud.hist, PStore.hist())
+    };
+    PStore.hydrate(merged);
+    active = true;
+    await Auth.putPrefs(merged);
+  }
+  function push() {
+    if (!active || !Auth.isLoggedIn()) return;
+    clearTimeout(pushT);
+    pushT = setTimeout(() => {
+      Auth.putPrefs({
+        saved: PStore.saved(),
+        follow: PStore.follow(),
+        hist: PStore.hist()
+      });
+    }, 900);
+  }
+  Auth.subscribe(() => {
+    if (!Auth.isLoggedIn()) active = false;
+  });
+  PStore.subscribe(push);
+  return {
+    onLogin
+  };
+}();
 
 /* ---------------- helpers ---------------- */
 const imgFor = hue => {
@@ -2034,6 +2300,30 @@ function FollowButton({
     "aria-hidden": "true"
   }, "+"), " ", lang === "hi" ? "फ़ॉलो करें" : "Follow topic"));
 }
+// Header account control: an initial-avatar when signed in, "Sign in" otherwise.
+// Renders nothing when accounts are disabled, so the anonymous site is unchanged.
+function HeaderAuth({
+  t,
+  lang,
+  go
+}) {
+  const A = useAuth();
+  if (!authEnabled()) return null;
+  if (A.isLoggedIn()) {
+    const em = (A.user() || {}).email || "";
+    const initial = (em[0] || "?").toUpperCase();
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: () => go("you"),
+      title: em,
+      "aria-label": "Your account",
+      className: `grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold ${t.cta} ${t.ctaT}`
+    }, initial);
+  }
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("login"),
+    className: `text-[13px] font-semibold ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "साइन इन" : "Sign in");
+}
 function Header({
   t,
   lang,
@@ -2094,7 +2384,11 @@ function Header({
     size: 16
   }) : /*#__PURE__*/React.createElement(Moon, {
     size: 16
-  }))))));
+  })), /*#__PURE__*/React.createElement(HeaderAuth, {
+    t: t,
+    lang: lang,
+    go: go
+  })))));
 }
 function BottomNav({
   t,
@@ -4084,7 +4378,7 @@ function parsePath() {
     view: "topic",
     topic: decodeURIComponent(seg[1])
   };
-  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support", "you"].includes(seg[0])) return {
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support", "you", "login"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -4132,20 +4426,157 @@ function ConsentBanner({
     className: `px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
   }, L.accept))));
 }
+/* ---------------- SIGN IN ---------------- */
+function LoginPage({
+  t,
+  lang,
+  go
+}) {
+  const A = useAuth();
+  const HI = lang === "hi";
+  const tt = (e, h) => HI ? h : e;
+  const [email, setEmail] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (A.isLoggedIn()) go("you");
+  }, [A.isLoggedIn()]);
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const sendLink = async e => {
+    e.preventDefault();
+    if (!agree || !emailOk || busy) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await Auth.sendMagicLink(email.trim());
+      setSent(true);
+    } catch (ex) {
+      setErr(ex.message || tt("Something went wrong.", "कुछ गड़बड़ हुई।"));
+    }
+    setBusy(false);
+  };
+  const line = `border ${t.border} ${t.surface}`;
+  if (sent) return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-md py-16 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full ${t.chip}`
+  }, /*#__PURE__*/React.createElement(Check, {
+    size: 22
+  })), /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[26px] ${t.tp} ${readCls(lang)}`
+  }, tt("Check your inbox", "अपना इनबॉक्स देखें")), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`
+  }, tt("We emailed a one-tap sign-in link to", "हमने एक-टैप साइन-इन लिंक भेजा है"), " ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, email.trim()), ". ", tt("Open it on any device to sign in.", "किसी भी डिवाइस पर इसे खोलकर साइन इन करें।")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setSent(false);
+    },
+    className: `mt-6 eyebrow ${t.tf} hover:${t.tp}`,
+    style: {
+      letterSpacing: HI ? 0 : ".1em"
+    }
+  }, tt("Use a different email", "दूसरा ईमेल इस्तेमाल करें"))));
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-md py-10"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: HI ? 0 : "-0.018em"
+    }
+  }, tt("Sign in to Paksh", "पक्ष में साइन इन करें")), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`
+  }, tt("Save stories and follow the topics you care about, then get the same feed on every device. Free, and no password.", "खबरें सहेजें और अपने पसंद के विषय फ़ॉलो करें, फिर हर डिवाइस पर वही फ़ीड पाएँ। मुफ़्त, और कोई पासवर्ड नहीं।")), /*#__PURE__*/React.createElement("form", {
+    onSubmit: sendLink,
+    className: "mt-7 space-y-3"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    value: email,
+    onChange: e => setEmail(e.target.value),
+    placeholder: tt("you@email.com", "you@email.com"),
+    autoComplete: "email",
+    className: `w-full rounded-lg px-4 py-3 text-[15px] outline-none ${line} ${t.tp}`,
+    style: {
+      colorScheme: "light"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    type: "submit",
+    disabled: !agree || !emailOk || busy,
+    className: `w-full rounded-lg px-4 py-3 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${!agree || !emailOk || busy ? "opacity-40" : ""} ${isHi(lang)}`
+  }, busy ? tt("Sending…", "भेजा जा रहा…") : tt("Email me a sign-in link", "मुझे साइन-इन लिंक ईमेल करें"))), GOOGLE_AUTH && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "my-4 flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-px flex-1",
+    style: {
+      background: t.line
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] uppercase ${t.tf}`
+  }, tt("or", "या")), /*#__PURE__*/React.createElement("div", {
+    className: "h-px flex-1",
+    style: {
+      background: t.line
+    }
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (agree) Auth.google();
+    },
+    disabled: !agree,
+    className: `flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3 text-[14px] font-semibold ${line} ${t.tp} ${!agree ? "opacity-40" : `hover:${t.soft}`} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "17",
+    height: "17",
+    viewBox: "0 0 24 24"
+  }, /*#__PURE__*/React.createElement("path", {
+    fill: "#4285F4",
+    d: "M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"
+  }), /*#__PURE__*/React.createElement("path", {
+    fill: "#34A853",
+    d: "M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+  }), /*#__PURE__*/React.createElement("path", {
+    fill: "#FBBC05",
+    d: "M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"
+  }), /*#__PURE__*/React.createElement("path", {
+    fill: "#EA4335",
+    d: "M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"
+  })), tt("Continue with Google", "Google से जारी रखें"))), err && /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[13px] ${t.blind} ${isHi(lang)}`
+  }, err), /*#__PURE__*/React.createElement("label", {
+    className: "mt-6 flex cursor-pointer items-start gap-2.5"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: agree,
+    onChange: e => setAgree(e.target.checked),
+    className: "mt-0.5 h-4 w-4 shrink-0"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, tt("I'm signing up for myself and agree to the ", "मैं स्वयं के लिए साइन अप कर रहा/रही हूँ और सहमत हूँ "), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => go("privacy"),
+    className: `underline ${t.ts} hover:${t.tp}`
+  }, tt("Privacy Policy", "गोपनीयता नीति")), tt(". Paksh isn't directed at children under 18; a minor should have a parent's permission.", ". पक्ष 18 वर्ष से कम बच्चों के लिए नहीं है; नाबालिग को अभिभावक की अनुमति लेनी चाहिए।")))));
+}
+
 /* ---------------- YOUR PAKSH (private, on-device) ---------------- */
 function YouPage({
   cards,
   topics,
   t,
   lang,
-  open
+  open,
+  go
 }) {
   const P = usePaksh();
+  const A = useAuth();
   const saved = P.saved(),
     follow = P.follow(),
     hist = P.hist();
   const HI = lang === "hi";
   const tt = (en, hi) => HI ? hi : en;
+  const authed = authEnabled() && A.isLoggedIn();
+  const email = (A.user() || {}).email || "";
   const byId = useMemo(() => {
     const m = {};
     (cards || []).forEach(c => {
@@ -4238,7 +4669,7 @@ function YouPage({
     }
   }, tt("Your Paksh", "आपका पक्ष")), /*#__PURE__*/React.createElement("p", {
     className: `mt-2 text-[13px] ${t.tf} ${isHi(lang)}`
-  }, tt("Private to this browser. No account, nothing leaves your device.", "सिर्फ़ इस ब्राउज़र में। कोई खाता नहीं, कुछ भी आपके डिवाइस से बाहर नहीं जाता।"))), saved.length || follow.length || hist.length ? /*#__PURE__*/React.createElement("button", {
+  }, authed ? tt("Synced to your account, on every device you sign in on.", "आपके खाते से जुड़ा, हर डिवाइस पर जहाँ आप साइन इन करें।") : authEnabled() ? tt("Saved on this device. Sign in to sync everywhere.", "इस डिवाइस पर सहेजा। हर जगह सिंक के लिए साइन इन करें।") : tt("Private to this browser. No account, nothing leaves your device.", "सिर्फ़ इस ब्राउज़र में। कोई खाता नहीं, कुछ भी आपके डिवाइस से बाहर नहीं जाता।"))), saved.length || follow.length || hist.length ? /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       if (window.confirm(tt("Clear your saved stories, followed topics and reading history on this device?", "इस डिवाइस पर सहेजी खबरें, फ़ॉलो किए विषय और पढ़ने का इतिहास साफ़ करें?"))) P.clearAll();
     },
@@ -4248,7 +4679,53 @@ function YouPage({
     }
   }, /*#__PURE__*/React.createElement(Trash, {
     size: 13
-  }), " ", tt("Clear", "साफ़ करें")) : null), /*#__PURE__*/React.createElement("section", {
+  }), " ", tt("Clear", "साफ़ करें")) : null), authEnabled() && (authed ? /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border ${t.border} ${t.soft} px-4 py-3`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[13px] ${t.ts} ${isHi(lang)}`
+  }, tt("Signed in as", "साइन इन:"), " ", /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, email)), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-5"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => Auth.signOut(),
+    className: `eyebrow ${t.tf} hover:${t.tp}`,
+    style: {
+      letterSpacing: HI ? 0 : ".1em"
+    }
+  }, tt("Sign out", "साइन आउट")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm(tt("Delete your synced account data (topics, saved stories, reading history)? This can't be undone.", "आपका सिंक किया डेटा (विषय, सहेजी खबरें, इतिहास) हटाएँ? यह वापस नहीं होगा।"))) Auth.deleteData();
+    },
+    className: `eyebrow ${t.blind} hover:opacity-80`,
+    style: {
+      letterSpacing: HI ? 0 : ".1em"
+    }
+  }, tt("Delete data", "डेटा हटाएँ")))) : /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border ${t.border} ${t.soft} px-4 py-3`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[13px] ${t.ts} ${isHi(lang)}`
+  }, tt("Sign in to sync your feed across phone, laptop and tablet.", "फ़ोन, लैपटॉप और टैबलेट में अपनी फ़ीड सिंक करने के लिए साइन इन करें।")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("login"),
+    className: `shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
+  }, tt("Sign in", "साइन इन")))), /*#__PURE__*/React.createElement("section", {
+    className: "mt-9"
+  }, /*#__PURE__*/React.createElement(Head, {
+    title: tt("Your topics", "आपके विषय"),
+    sub: tt("Tap the sections you want to follow, they shape your For You feed.", "जिन खंडों को फ़ॉलो करना है उन्हें चुनें, ये आपकी 'आपके लिए' फ़ीड बनाते हैं।")
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 flex flex-wrap gap-2"
+  }, (topics || []).map(tp => {
+    const on = follow.indexOf(tp) >= 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: tp,
+      onClick: () => P.toggleFollow(tp),
+      "aria-pressed": on,
+      className: `inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold ${on ? `${t.cta} ${t.ctaT} border border-transparent` : `border ${t.border} ${t.ts} hover:${t.tp}`} ${HI ? "deva" : ""}`
+    }, on && /*#__PURE__*/React.createElement(Check, {
+      size: 12
+    }), HI ? TOPIC_HI[tp] || tp : tp);
+  }))), /*#__PURE__*/React.createElement("section", {
     className: "mt-9"
   }, /*#__PURE__*/React.createElement(Head, {
     title: tt("Your reading balance", "आपका पढ़ने का संतुलन"),
@@ -4355,6 +4832,14 @@ function PakshApp() {
     loadAll().then(d => {
       setData(d);
       setReady(true);
+    });
+  }, []);
+  // Accounts: process a magic-link/Google redirect landing in the URL hash, then, if a
+  // session exists (fresh or restored), merge cloud <-> on-device prefs. No-op if OFF.
+  useEffect(() => {
+    if (!authEnabled()) return;
+    Auth.handleRedirect().then(() => {
+      if (Auth.isLoggedIn()) PSync.onLogin();
     });
   }, []);
   // Load cookieless Vercel Web Analytics ONLY after the visitor accepts. Denied/undecided
@@ -4594,7 +5079,12 @@ function PakshApp() {
     topics: topicsOrdered,
     t: t,
     lang: lang,
-    open: open
+    open: open,
+    go: go
+  }) : route.view === "login" ? /*#__PURE__*/React.createElement(LoginPage, {
+    t: t,
+    lang: lang,
+    go: go
   }) : route.view === "search" ? /*#__PURE__*/React.createElement(SearchPage, {
     t: t,
     lang: lang,
