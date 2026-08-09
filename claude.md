@@ -47,8 +47,11 @@ strings:
 
 
 <div id="root">
-<script type="text/babel" src="/static/app.jsx"></script>
+<script src="/static/app.js"></script>
 
+
+(export_static.py precompiles static/app.jsx -> _site/static/app.js at build time; the
+shipped page loads the compiled app.js, NOT the JSX source, and NOT Babel.)
 
 If you change the structure of static/index.html (move the mount div, rename app.jsx,
 inline the script, add a bundler), you MUST update the split markers in
@@ -58,9 +61,11 @@ the export. Always re-run py export_static.py after touching either file.
 Tech stack (all currently in use - keep using these)
 
 
-Frontend: React 18 + Babel, both loaded from CDN in the browser. Tailwind via CDN.
-No bundler, no npm build step. Files: static/index.html (shell + SEO head),
-static/app.jsx (the whole app), static/styles.css.
+Frontend: React 18, SELF-HOSTED (pinned, in static/vendor/) - not from a CDN. app.jsx
+is precompiled to plain JS (_site/static/app.js) at build time by export_static.py;
+no Babel and no JSX ships to the browser. Tailwind is built to static/tailwind.css by
+the vendored standalone CLI (no CDN). No npm build step. Files: static/index.html
+(shell + SEO head), static/app.jsx (the whole app), static/styles.css.
 Database: SQLite, paksh.db (~48k articles, ~2385 events). Accessed via
 database.py.
 Embeddings/clustering: Ollama running locally, model bge-m3. Must be running

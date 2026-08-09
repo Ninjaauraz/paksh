@@ -61,8 +61,13 @@ def _clear_stale_lock():
 
 
 def _deploy():
-    """Commit everything and push straight to the GitHub repo so Vercel redeploys.
-    This is the primary deploy path; GitHub Desktop is just a manual backup."""
+    """Commit and push the BUILT SITE so Vercel redeploys.
+
+    Stages and commits ONLY _site/ - never source (app.jsx, *.py), CLAUDE.md, or
+    hand edits. So a content cycle can NEVER accidentally ship a code/structural
+    change: deliberate code changes go out on purpose via GitHub Desktop (or a
+    manual `git add` + commit). This mirrors safe_autopush.py's guarantee.
+    This is the primary CONTENT deploy path; GitHub Desktop is the manual backup."""
     git = _git_exe()
     if not git:
         print("  ! git not found (PATH or GitHub Desktop). Skipping push; "
@@ -70,8 +75,11 @@ def _deploy():
         return
     _clear_stale_lock()
     msg = "live refresh " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    subprocess.run([git, "add", "-A"])
-    commit = subprocess.run([git, "commit", "-m", msg], capture_output=True, text=True)
+    # Stage only the built site. The '-- _site' pathspec on BOTH add and commit
+    # means that even if a source file was already staged by hand, it cannot ride
+    # along in this automated commit - only _site/ is ever committed here.
+    subprocess.run([git, "add", "--", "_site"])
+    commit = subprocess.run([git, "commit", "-m", msg, "--", "_site"], capture_output=True, text=True)
     if "nothing to commit" in (commit.stdout or "") + (commit.stderr or ""):
         print("  nothing new to deploy this cycle.")
         return
