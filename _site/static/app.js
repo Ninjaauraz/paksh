@@ -730,398 +730,6 @@ const deviceClass = () => {
   }
 };
 
-/* ---------------- "Your Paksh" — private, on-device personalization ----------------
-   No account, no server, no network. Saved stories, followed topics and a private
-   reading history live ONLY in this browser's localStorage; nothing ever leaves the
-   device and nothing is tracked. Crucially, none of this touches the arithmetic bias
-   bar - that stays a pure distinct-outlet count. The reading history is the reader's
-   OWN consumption (which side each opened story leaned toward), shown back to them so
-   they can SEE their spread and widen it. This is the mission made personal. */
-const PS_KEYS = {
-  saved: "paksh-saved",
-  follow: "paksh-follow",
-  hist: "paksh-hist"
-};
-const PStore = function () {
-  const read = (k, def) => {
-    try {
-      const v = localStorage.getItem(k);
-      return v ? JSON.parse(v) : def;
-    } catch (e) {
-      return def;
-    }
-  };
-  const write = (k, v) => {
-    try {
-      localStorage.setItem(k, JSON.stringify(v));
-    } catch (e) {}
-  };
-  let st = {
-    saved: read(PS_KEYS.saved, []),
-    follow: read(PS_KEYS.follow, []),
-    hist: read(PS_KEYS.hist, [])
-  };
-  const subs = new Set();
-  const emit = () => subs.forEach(fn => {
-    try {
-      fn();
-    } catch (e) {}
-  });
-  return {
-    subscribe: fn => {
-      subs.add(fn);
-      return () => subs.delete(fn);
-    },
-    saved: () => st.saved,
-    follow: () => st.follow,
-    hist: () => st.hist,
-    isSaved: id => st.saved.indexOf(String(id)) >= 0,
-    toggleSave: id => {
-      id = String(id);
-      const has = st.saved.indexOf(id) >= 0;
-      const arr = has ? st.saved.filter(x => x !== id) : [id, ...st.saved];
-      st = {
-        ...st,
-        saved: arr
-      };
-      write(PS_KEYS.saved, arr);
-      emit();
-    },
-    isFollowing: tp => st.follow.indexOf(tp) >= 0,
-    toggleFollow: tp => {
-      const has = st.follow.indexOf(tp) >= 0;
-      const arr = has ? st.follow.filter(x => x !== tp) : [tp, ...st.follow];
-      st = {
-        ...st,
-        follow: arr
-      };
-      write(PS_KEYS.follow, arr);
-      emit();
-    },
-    // record which side an opened story leaned toward (dominant lean of its coverage),
-    // de-duped to newest, capped at 200 so localStorage never grows without bound.
-    recordOpen: e => {
-      const id = String(e.id);
-      const arr = [{
-        id,
-        side: e.side || "",
-        topic: e.topic || "",
-        t: e.t || Date.now()
-      }, ...st.hist.filter(h => h.id !== id)].slice(0, 200);
-      st = {
-        ...st,
-        hist: arr
-      };
-      write(PS_KEYS.hist, arr);
-      emit();
-    },
-    clearAll: () => {
-      st = {
-        saved: [],
-        follow: [],
-        hist: []
-      };
-      Object.keys(PS_KEYS).forEach(k => write(PS_KEYS[k], []));
-      emit();
-    },
-    // Replace all state at once (used when merging cloud <-> local on login).
-    hydrate: o => {
-      st = {
-        saved: o && o.saved || [],
-        follow: o && o.follow || [],
-        hist: o && o.hist || []
-      };
-      write(PS_KEYS.saved, st.saved);
-      write(PS_KEYS.follow, st.follow);
-      write(PS_KEYS.hist, st.hist);
-      emit();
-    }
-  };
-}();
-// Subscribe a component to the store so it re-renders when saved/followed/history change.
-function usePaksh() {
-  const [, bump] = useState(0);
-  useEffect(() => PStore.subscribe(() => bump(x => x + 1)), []);
-  return PStore;
-}
-
-/* ---------------- Accounts (Supabase) — cross-device sync for Your Paksh ----------------
-   Uses Supabase's REST auth + PostgREST DIRECTLY via fetch (no SDK), so the bundler-free
-   build and strict CSP stay intact. The values below are the PUBLIC project url + publishable
-   key (safe in the browser; Row-Level Security is what actually protects each user's row).
-   Empty url/key => accounts OFF and the site is exactly the anonymous localStorage app.
-   Sign-in is passwordless (magic-link email + Google), so Paksh never handles a password. */
-const SUPABASE_URL = "https://zzjsjqqcpyyodatlmcux.supabase.co";
-const SUPABASE_ANON = "sb_publishable_iPHpfSVKORMqq3JHjgKTfA_NeXPEgQw";
-// Flip to true AFTER enabling the Google provider in the Supabase dashboard
-// (Authentication -> Providers -> Google, with a Google OAuth client id/secret).
-// Until then the Google button is hidden; magic-link email works regardless.
-const GOOGLE_AUTH = false;
-const authEnabled = () => !!(SUPABASE_URL && SUPABASE_ANON);
-const _redirectTo = () => {
-  try {
-    return window.location.origin + "/you";
-  } catch (e) {
-    return "";
-  }
-};
-const Auth = function () {
-  const KEY = "paksh-auth";
-  let sess = null;
-  try {
-    sess = JSON.parse(localStorage.getItem(KEY) || "null");
-  } catch (e) {}
-  const subs = new Set();
-  const emit = () => subs.forEach(f => {
-    try {
-      f();
-    } catch (e) {}
-  });
-  const save = s => {
-    sess = s;
-    try {
-      s ? localStorage.setItem(KEY, JSON.stringify(s)) : localStorage.removeItem(KEY);
-    } catch (e) {}
-    emit();
-  };
-  const hdr = tok => ({
-    "apikey": SUPABASE_ANON,
-    "Authorization": "Bearer " + (tok || SUPABASE_ANON),
-    "Content-Type": "application/json"
-  });
-  const store = tk => {
-    if (!tk || !tk.access_token) return null;
-    save({
-      access_token: tk.access_token,
-      refresh_token: tk.refresh_token,
-      expires_at: Date.now() + (tk.expires_in || 3600) * 1000,
-      user: tk.user || sess && sess.user || null
-    });
-    return sess;
-  };
-  async function fetchUser(tok) {
-    try {
-      const r = await fetch(SUPABASE_URL + "/auth/v1/user", {
-        headers: hdr(tok)
-      });
-      if (r.ok) {
-        const u = await r.json();
-        if (sess) {
-          sess.user = u;
-          save(sess);
-        }
-        return u;
-      }
-    } catch (e) {}
-    return null;
-  }
-  async function refresh() {
-    if (!sess || !sess.refresh_token) return null;
-    try {
-      const r = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
-        method: "POST",
-        headers: hdr(),
-        body: JSON.stringify({
-          refresh_token: sess.refresh_token
-        })
-      });
-      if (r.ok) return store(await r.json());
-      save(null);
-    } catch (e) {}
-    return null;
-  }
-  async function token() {
-    if (!sess) return null;
-    if (Date.now() > sess.expires_at - 60000) {
-      await refresh();
-    }
-    return sess ? sess.access_token : null;
-  }
-  return {
-    subscribe: f => {
-      subs.add(f);
-      return () => subs.delete(f);
-    },
-    user: () => sess && sess.user,
-    isLoggedIn: () => !!(sess && sess.access_token),
-    token,
-    // Process the token/error the provider (magic-link or Google) appends to the URL hash.
-    async handleRedirect() {
-      try {
-        const h = window.location.hash || "";
-        if (h.indexOf("access_token=") >= 0) {
-          const p = new URLSearchParams(h.replace(/^#/, ""));
-          store({
-            access_token: p.get("access_token"),
-            refresh_token: p.get("refresh_token"),
-            expires_in: parseInt(p.get("expires_in") || "3600", 10)
-          });
-          history.replaceState(null, "", window.location.pathname + window.location.search);
-          await fetchUser(p.get("access_token"));
-          return true;
-        }
-        if (h.indexOf("error") >= 0) {
-          history.replaceState(null, "", window.location.pathname + window.location.search);
-        }
-      } catch (e) {}
-      return false;
-    },
-    async sendMagicLink(email) {
-      const r = await fetch(SUPABASE_URL + "/auth/v1/otp?redirect_to=" + encodeURIComponent(_redirectTo()), {
-        method: "POST",
-        headers: hdr(),
-        body: JSON.stringify({
-          email,
-          create_user: true
-        })
-      });
-      if (!r.ok) {
-        let m = "Could not send the sign-in link.";
-        try {
-          const j = await r.json();
-          m = j.msg || j.error_description || j.error || m;
-        } catch (e) {}
-        throw new Error(m);
-      }
-      return true;
-    },
-    // Verify the 6-digit code from the email - lets you sign in on a DIFFERENT device
-    // than the one the email is on (get the code on your phone, type it on your laptop).
-    async verifyCode(email, token) {
-      const r = await fetch(SUPABASE_URL + "/auth/v1/verify", {
-        method: "POST",
-        headers: hdr(),
-        body: JSON.stringify({
-          type: "email",
-          email,
-          token: String(token).trim()
-        })
-      });
-      if (!r.ok) {
-        let m = "That code didn't work - check it or request a new one.";
-        try {
-          const j = await r.json();
-          m = j.msg || j.error_description || j.error || m;
-        } catch (e) {}
-        throw new Error(m);
-      }
-      store(await r.json());
-      return true;
-    },
-    google() {
-      window.location.href = SUPABASE_URL + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(_redirectTo());
-    },
-    async signOut() {
-      try {
-        const t = sess && sess.access_token;
-        if (t) fetch(SUPABASE_URL + "/auth/v1/logout", {
-          method: "POST",
-          headers: hdr(t)
-        });
-      } catch (e) {}
-      save(null);
-    },
-    async getPrefs() {
-      const t = await token();
-      if (!t || !sess.user) return null;
-      try {
-        const r = await fetch(SUPABASE_URL + "/rest/v1/profiles?select=prefs&id=eq." + sess.user.id, {
-          headers: hdr(t)
-        });
-        if (r.ok) {
-          const a = await r.json();
-          return a[0] && a[0].prefs || {};
-        }
-      } catch (e) {}
-      return null;
-    },
-    async putPrefs(prefs) {
-      const t = await token();
-      if (!t || !sess.user) return false;
-      try {
-        const r = await fetch(SUPABASE_URL + "/rest/v1/profiles?id=eq." + sess.user.id, {
-          method: "PATCH",
-          headers: {
-            ...hdr(t),
-            "Prefer": "return=minimal"
-          },
-          body: JSON.stringify({
-            prefs
-          })
-        });
-        return r.ok;
-      } catch (e) {
-        return false;
-      }
-    },
-    async deleteData() {
-      const t = await token();
-      if (t && sess.user) {
-        try {
-          await fetch(SUPABASE_URL + "/rest/v1/profiles?id=eq." + sess.user.id, {
-            method: "DELETE",
-            headers: hdr(t)
-          });
-        } catch (e) {}
-      }
-      await this.signOut();
-    }
-  };
-}();
-function useAuth() {
-  const [, b] = useState(0);
-  useEffect(() => Auth.subscribe(() => b(x => x + 1)), []);
-  return Auth;
-}
-
-// Bridge the on-device PStore to the cloud profile when logged in: merge both ways on
-// login, then write-through (debounced) on every later change. Logged out => local only.
-const PSync = function () {
-  let pushT = null,
-    active = false;
-  const uniq = (a, b) => Array.from(new Set([...(a || []), ...(b || [])]));
-  const mergeHist = (a, b) => {
-    const seen = {},
-      out = [];
-    [...(a || []), ...(b || [])].forEach(h => {
-      if (h && h.id && !seen[h.id]) {
-        seen[h.id] = 1;
-        out.push(h);
-      }
-    });
-    return out.slice(0, 200);
-  };
-  async function onLogin() {
-    const cloud = (await Auth.getPrefs()) || {};
-    const merged = {
-      saved: uniq(cloud.saved, PStore.saved()),
-      follow: uniq(cloud.follow, PStore.follow()),
-      hist: mergeHist(cloud.hist, PStore.hist())
-    };
-    PStore.hydrate(merged);
-    active = true;
-    await Auth.putPrefs(merged);
-  }
-  function push() {
-    if (!active || !Auth.isLoggedIn()) return;
-    clearTimeout(pushT);
-    pushT = setTimeout(() => {
-      Auth.putPrefs({
-        saved: PStore.saved(),
-        follow: PStore.follow(),
-        hist: PStore.hist()
-      });
-    }, 900);
-  }
-  Auth.subscribe(() => {
-    if (!Auth.isLoggedIn()) active = false;
-  });
-  PStore.subscribe(push);
-  return {
-    onLogin
-  };
-}();
-
 /* ---------------- helpers ---------------- */
 const imgFor = hue => {
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='480' height='300'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='hsl(${hue} 36% 44%)'/><stop offset='1' stop-color='hsl(${(hue + 38) % 360} 42% 19%)'/></linearGradient><radialGradient id='b' cx='28%' cy='22%' r='65%'><stop offset='0' stop-color='rgba(255,255,255,0.30)'/><stop offset='1' stop-color='rgba(255,255,255,0)'/></radialGradient></defs><rect width='480' height='300' fill='url(%23a)'/><rect width='480' height='300' fill='url(%23b)'/></svg>`;
@@ -1364,32 +972,6 @@ const Check = p => /*#__PURE__*/React.createElement("svg", {
   strokeLinejoin: "round"
 }, /*#__PURE__*/React.createElement("path", {
   d: "M20 6 9 17l-5-5"
-}));
-const Bookmark = p => /*#__PURE__*/React.createElement("svg", {
-  width: p.size || 24,
-  height: p.size || 24,
-  className: p.className || "",
-  viewBox: "0 0 24 24",
-  fill: p.fill || "none",
-  stroke: "currentColor",
-  strokeWidth: "2",
-  strokeLinecap: "round",
-  strokeLinejoin: "round"
-}, /*#__PURE__*/React.createElement("path", {
-  d: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"
-}));
-const Trash = p => /*#__PURE__*/React.createElement("svg", {
-  width: p.size || 24,
-  height: p.size || 24,
-  className: p.className || "",
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: "2",
-  strokeLinecap: "round",
-  strokeLinejoin: "round"
-}, /*#__PURE__*/React.createElement("path", {
-  d: "M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"
 }));
 
 /* ---------------- helpers ---------------- */
@@ -2276,77 +1858,6 @@ function LangToggle({
 // Masthead — brand, inline nav with a 2px active underline, search as an icon, the
 // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
 // utility strip, no topic-chip rail (design spec 2a).
-// Save/unsave a story (bookmark). Stops the click from also opening the card.
-function SaveButton({
-  id,
-  t,
-  lang,
-  compact
-}) {
-  const P = usePaksh();
-  const on = P.isSaved(id);
-  const label = on ? lang === "hi" ? "सहेजा" : "Saved" : lang === "hi" ? "सहेजें" : "Save";
-  return /*#__PURE__*/React.createElement("button", {
-    onClick: e => {
-      e.stopPropagation();
-      e.preventDefault();
-      P.toggleSave(id);
-    },
-    "aria-pressed": on,
-    title: label,
-    className: `inline-flex shrink-0 items-center gap-1.5 eyebrow ${on ? t.tp : t.ts} hover:${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".1em"
-    }
-  }, /*#__PURE__*/React.createElement(Bookmark, {
-    size: 13,
-    fill: on ? "currentColor" : "none"
-  }), !compact && /*#__PURE__*/React.createElement("span", {
-    className: lang === "hi" ? "deva" : ""
-  }, label));
-}
-// Follow/unfollow a topic - drives the "For You" feed in Your Paksh.
-function FollowButton({
-  topic,
-  t,
-  lang
-}) {
-  const P = usePaksh();
-  const on = P.isFollowing(topic);
-  return /*#__PURE__*/React.createElement("button", {
-    onClick: () => P.toggleFollow(topic),
-    "aria-pressed": on,
-    className: `inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold ${on ? `${t.cta} ${t.ctaT} border-transparent` : `${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`
-  }, on ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Check, {
-    size: 13
-  }), " ", lang === "hi" ? "फ़ॉलो किया" : "Following") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    "aria-hidden": "true"
-  }, "+"), " ", lang === "hi" ? "फ़ॉलो करें" : "Follow topic"));
-}
-// Header account control: an initial-avatar when signed in, "Sign in" otherwise.
-// Renders nothing when accounts are disabled, so the anonymous site is unchanged.
-function HeaderAuth({
-  t,
-  lang,
-  go
-}) {
-  const A = useAuth();
-  if (!authEnabled()) return null;
-  if (A.isLoggedIn()) {
-    const em = (A.user() || {}).email || "";
-    const initial = (em[0] || "?").toUpperCase();
-    return /*#__PURE__*/React.createElement("button", {
-      onClick: () => go("you"),
-      title: em,
-      "aria-label": "Your account",
-      className: `grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold ${t.cta} ${t.ctaT}`
-    }, initial);
-  }
-  return /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("login"),
-    className: `text-[13px] font-semibold ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? "साइन इन" : "Sign in");
-}
 function Header({
   t,
   lang,
@@ -2356,10 +1867,7 @@ function Header({
   go,
   view
 }) {
-  const A = useAuth();
-  const loggedIn = authEnabled() && A.isLoggedIn();
   const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
-  if (loggedIn) NAV.push(["you", lang === "hi" ? "आपका पक्ष" : "Your Paksh"]);
   return /*#__PURE__*/React.createElement("header", {
     className: `sticky top-0 z-40 border-b ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2410,11 +1918,7 @@ function Header({
     size: 16
   }) : /*#__PURE__*/React.createElement(Moon, {
     size: 16
-  })), /*#__PURE__*/React.createElement(HeaderAuth, {
-    t: t,
-    lang: lang,
-    go: go
-  })))));
+  }))))));
 }
 function BottomNav({
   t,
@@ -2422,9 +1926,7 @@ function BottomNav({
   view,
   go
 }) {
-  const A = useAuth();
-  const loggedIn = authEnabled() && A.isLoggedIn();
-  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], loggedIn ? ["you", lang === "hi" ? "आपका" : "You", Bookmark] : ["about", STR[lang].navMethod, Scale]];
+  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["about", STR[lang].navMethod, Scale]];
   return /*#__PURE__*/React.createElement("nav", {
     className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2444,8 +1946,6 @@ function Footer({
   lang,
   go
 }) {
-  const A = useAuth();
-  const loggedIn = authEnabled() && A.isLoggedIn();
   return /*#__PURE__*/React.createElement("footer", {
     className: `mt-12 border-t ${t.border} ${t.surface}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2467,7 +1967,7 @@ function Footer({
     className: `mt-3 inline-flex items-center rounded-full px-4 py-2 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
   }, lang === "hi" ? "पक्ष का सहयोग करें" : "Support Paksh", " \u2192")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-x-6 gap-y-2"
-  }, [...(loggedIn ? [["you", lang === "hi" ? "आपका पक्ष" : "Your Paksh"]] : []), ["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
     className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
@@ -2877,29 +2377,6 @@ function HomeView({
   goTopic,
   go
 }) {
-  // Personalized "For You": when the reader follows topics they can flip the feed to put
-  // those sections first. The DEFAULT stays "Top Stories" — the neutral, published order
-  // identical for everyone — so personalization is always an explicit reader choice, never
-  // the default. It only REORDERS (never hides) stories, so the whole picture stays intact
-  // and the bias arithmetic is untouched.
-  const P = usePaksh();
-  const follows = P.follow();
-  const [mode, setMode] = useState(() => {
-    try {
-      return localStorage.getItem("paksh-feedmode") || "top";
-    } catch (e) {
-      return "top";
-    }
-  });
-  const chooseMode = m => {
-    setMode(m);
-    try {
-      localStorage.setItem("paksh-feedmode", m);
-    } catch (e) {}
-  };
-  const canPersonalize = follows.length > 0;
-  // stable sort: followed-topic stories move ahead, each group still in its ranked order.
-  const feed = mode === "foryou" && canPersonalize ? [...cards].sort((a, b) => (follows.indexOf(a.topic) >= 0 ? 0 : 1) - (follows.indexOf(b.topic) >= 0 ? 0 : 1)) : cards;
   // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
   // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
   // top-ranked story leads, the rest fall into the tier ladder in ranked order.
@@ -2915,11 +2392,11 @@ function HomeView({
     }
     return out;
   };
-  const lead = feed[0];
+  const lead = cards[0];
   if (lead) used.add(lead.id);
-  const alsoLeading = take(feed, 2); // "Also leading" rail (2)
-  const section = take(feed, 4); // 4-up Section band
-  const brief = take(feed, 15); // "In brief" tier
+  const alsoLeading = take(cards, 2); // "Also leading" rail (2)
+  const section = take(cards, 4); // 4-up Section band
+  const brief = take(cards, 15); // "In brief" tier
   const notUsed = arr => (arr || []).filter(c => !used.has(c.id));
   // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
   // are "Missing: Right". Labels read the real per-lean counts (N of total).
@@ -2963,22 +2440,7 @@ function HomeView({
     stats: stats,
     regionFilter: stats.regionFilter,
     setRegionFilter: stats.setRegionFilter
-  })), canPersonalize && /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 py-2.5"
-  }, [["top", lang === "hi" ? "मुख्य खबरें" : "Top Stories"], ["foryou", lang === "hi" ? "आपके लिए" : "For You"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    onClick: () => chooseMode(k),
-    "aria-pressed": mode === k,
-    className: `rounded-full px-4 py-1.5 text-[12.5px] font-semibold ${mode === k ? `${t.cta} ${t.ctaT}` : `border ${t.border} ${t.tf} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`
-  }, l)), mode === "foryou" && /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("you"),
-    className: `ml-1 eyebrow ${t.tf} hover:${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".1em"
-    }
-  }, lang === "hi" ? "विषय संपादित करें" : "Edit topics"))), /*#__PURE__*/React.createElement("h1", {
+  })), /*#__PURE__*/React.createElement("h1", {
     className: "sr-only"
   }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh, every side of India's news"), /*#__PURE__*/React.createElement("div", {
     className: `${pad}`
@@ -3219,13 +2681,7 @@ function StoryPage({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, tp, " \xB7 ", region), /*#__PURE__*/React.createElement("div", {
-    className: "flex shrink-0 items-center gap-4"
-  }, /*#__PURE__*/React.createElement(SaveButton, {
-    id: story.id,
-    t: t,
-    lang: lang
-  }), /*#__PURE__*/React.createElement("button", {
+  }, tp, " \xB7 ", region), /*#__PURE__*/React.createElement("button", {
     onClick: copy,
     className: `inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
     style: {
@@ -3235,7 +2691,7 @@ function StoryPage({
     size: 13
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
-  }), " ", lang === "hi" ? "शेयर" : "Share")))), /*#__PURE__*/React.createElement("div", {
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[840px] text-left sm:text-center"
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow sm:hidden ${t.tf} ${lang === "hi" ? "deva" : ""}`,
@@ -3820,18 +3276,12 @@ function TopicPage({
     }
   }, /*#__PURE__*/React.createElement(ArrowLeft, {
     size: 14
-  }), " ", ui("sections", lang)), /*#__PURE__*/React.createElement("div", {
-    className: "mb-7 flex flex-wrap items-center justify-between gap-4"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+  }), " ", ui("sections", lang)), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, lang === "hi" ? TOPIC_HI[topic] || topic : topic), /*#__PURE__*/React.createElement(FollowButton, {
-    topic: topic,
-    t: t,
-    lang: lang
-  })), items.length ? /*#__PURE__*/React.createElement(GridGrid, {
+  }, lang === "hi" ? TOPIC_HI[topic] || topic : topic), items.length ? /*#__PURE__*/React.createElement(GridGrid, {
     items: items,
     t: t,
     lang: lang,
@@ -4325,20 +3775,16 @@ function PrivacyPage({
   }, "Paksh (\u092A\u0915\u094D\u0937) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum."), /*#__PURE__*/React.createElement(Row, {
     h: "What we collect"
   }, "When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel\u2019s privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected."), /*#__PURE__*/React.createElement(Row, {
-    h: "Accounts and sync (optional)"
-  }, "Creating an account is optional; you can read all of Paksh without one. If you choose to sign in, we collect your email address and the reading preferences you set: the topics you follow, the stories you save, and a short history of stories you opened, so we can sync them across your devices. Sign-in is passwordless (a one-time email link, or Google), so we never see or store a password. Your account data is held on our behalf by Supabase and protected so that only your signed-in session can read or change it. We do not use your account or reading history to build an advertising profile, and we do not sell it. You can sign out, or permanently delete your synced data, at any time from the \u201CYour Paksh\u201D page. Until you sign in, these preferences stay only in your own browser."), /*#__PURE__*/React.createElement(Row, {
     h: "Cookies and tracking"
   }, "Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set."), /*#__PURE__*/React.createElement(Row, {
     h: "How we use information"
   }, "To respond to your messages, to keep the site secure and reliable, and, from consented, aggregate, non-identifying usage, to understand how readers engage with coverage, improve Paksh, and inform Redstocks Technology\u2019s research. We do not sell your personal information, and we do not build a profile of you or track you across your devices."), /*#__PURE__*/React.createElement(Row, {
     h: "Third parties"
-  }, "We rely on Formspree (which processes contact-form messages), Vercel (which hosts the site and provides its cookieless Web Analytics), and Supabase (which provides account sign-in and stores your synced preferences if you create an account). If you sign in with Google, Google processes your sign-in under its own policy. If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens."), /*#__PURE__*/React.createElement(Row, {
+  }, "We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site and provides its cookieless Web Analytics). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens."), /*#__PURE__*/React.createElement(Row, {
     h: "Your choices"
-  }, "You may ask us to access or delete the information you sent through the contact form. If you have an account, you can delete your synced data yourself at any time from the \u201CYour Paksh\u201D page, or ask us to delete your account entirely; reach us via the Contact page. We honour access and deletion requests, including from a parent or guardian on behalf of a minor."), /*#__PURE__*/React.createElement(Row, {
+  }, "You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page."), /*#__PURE__*/React.createElement(Row, {
     h: "Children"
-  }, "Paksh is a general news service and is not directed at children under 18. We do not knowingly collect data from children, and we do no behavioural tracking or targeted advertising of anyone. By creating an account you confirm you are signing up for yourself; a minor should only do so with a parent or guardian\u2019s permission. A parent or guardian who believes a child has created an account may contact us to have it removed."), /*#__PURE__*/React.createElement(Row, {
-    h: "Terms of use"
-  }, "By using Paksh you agree to use it lawfully and not to disrupt, scrape at scale, or misuse the service or other people\u2019s accounts. Paksh groups and summarises third-party news coverage and assigns provisional, editor-set lean labels to publications (not to individual articles); these are descriptive and open to appeal, and the service is provided \u201Cas is\u201D, without warranty, for general information. We may suspend or remove accounts that are abused. If you delete your account, your synced preferences are removed. These terms and our handling of your data are governed by the laws of India. This is a plain-language summary pending final legal review; we will post the formal Terms before public launch."), /*#__PURE__*/React.createElement(Row, {
+  }, "Paksh is a general news service and is not directed at children."), /*#__PURE__*/React.createElement(Row, {
     h: "Changes"
   }, "We may update this policy from time to time; material changes will be reflected by the date shown above.")));
 }
@@ -4450,7 +3896,7 @@ function parsePath() {
     view: "topic",
     topic: decodeURIComponent(seg[1])
   };
-  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support", "you", "login"].includes(seg[0])) return {
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -4498,326 +3944,6 @@ function ConsentBanner({
     className: `px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
   }, L.accept))));
 }
-/* ---------------- SIGN IN ---------------- */
-function LoginPage({
-  t,
-  lang,
-  go
-}) {
-  const A = useAuth();
-  const HI = lang === "hi";
-  const tt = (e, h) => HI ? h : e;
-  const [email, setEmail] = useState("");
-  const [agree, setAgree] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [code, setCode] = useState("");
-  useEffect(() => {
-    if (A.isLoggedIn()) go("you");
-  }, [A.isLoggedIn()]);
-  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const sendLink = async e => {
-    e.preventDefault();
-    if (!agree || !emailOk || busy) return;
-    setErr("");
-    setBusy(true);
-    try {
-      await Auth.sendMagicLink(email.trim());
-      setSent(true);
-    } catch (ex) {
-      setErr(ex.message || tt("Something went wrong.", "कुछ गड़बड़ हुई।"));
-    }
-    setBusy(false);
-  };
-  const submitCode = async e => {
-    e.preventDefault();
-    if (code.length < 6 || busy) return;
-    setErr("");
-    setBusy(true);
-    try {
-      await Auth.verifyCode(email.trim(), code);
-      go("you");
-    } catch (ex) {
-      setErr(ex.message || tt("Invalid code.", "ग़लत कोड।"));
-    }
-    setBusy(false);
-  };
-  const line = `border ${t.border} ${t.surface}`;
-  if (sent) return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-md py-14"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "text-center"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full ${t.chip}`
-  }, /*#__PURE__*/React.createElement(Check, {
-    size: 22
-  })), /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[26px] ${t.tp} ${readCls(lang)}`
-  }, tt("Check your email", "अपना ईमेल देखें")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`
-  }, tt("We sent a sign-in link and a code to", "हमने साइन-इन लिंक और एक कोड भेजा है"), " ", /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, email.trim()), ".")), /*#__PURE__*/React.createElement("div", {
-    className: `mt-6 rounded-lg border ${t.border} ${t.surface} p-4`
-  }, /*#__PURE__*/React.createElement("p", {
-    className: `text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, tt("Same device?", "इसी डिवाइस पर?")), " ", tt("Just tap the link in the email.", "बस ईमेल का लिंक टैप करें।")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[13px] leading-relaxed ${t.ts} ${isHi(lang)}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, tt("Different device?", "अलग डिवाइस पर?")), " ", tt("Email on your phone but signing in on a laptop? Enter the code from the email:", "ईमेल फ़ोन पर पर साइन इन लैपटॉप पर? ईमेल में आया कोड डालें:")), /*#__PURE__*/React.createElement("form", {
-    onSubmit: submitCode,
-    className: "mt-3 flex gap-2"
-  }, /*#__PURE__*/React.createElement("input", {
-    inputMode: "numeric",
-    pattern: "[0-9]*",
-    maxLength: 8,
-    value: code,
-    onChange: e => setCode(e.target.value.replace(/\D/g, "").slice(0, 8)),
-    placeholder: "12345678",
-    autoComplete: "one-time-code",
-    className: `w-full rounded-lg px-4 py-2.5 text-center text-[17px] tracking-[0.3em] outline-none border ${t.border} ${t.tp}`,
-    style: {
-      background: t.gap
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    type: "submit",
-    disabled: code.length < 6 || busy,
-    className: `shrink-0 rounded-lg px-5 py-2.5 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${code.length < 6 || busy ? "opacity-40" : ""} ${isHi(lang)}`
-  }, busy ? "…" : tt("Sign in", "साइन इन"))), err && /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[13px] ${t.blind} ${isHi(lang)}`
-  }, err)), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setSent(false);
-      setCode("");
-      setErr("");
-    },
-    className: `mt-6 mx-auto block eyebrow ${t.tf} hover:${t.tp}`,
-    style: {
-      letterSpacing: HI ? 0 : ".1em"
-    }
-  }, tt("Use a different email", "दूसरा ईमेल इस्तेमाल करें"))));
-  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-md py-10"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
-    style: {
-      letterSpacing: HI ? 0 : "-0.018em"
-    }
-  }, tt("Sign in to Paksh", "पक्ष में साइन इन करें")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[14px] leading-relaxed ${t.ts} ${isHi(lang)}`
-  }, tt("Save stories and follow the topics you care about, then get the same feed on every device. Free, and no password.", "खबरें सहेजें और अपने पसंद के विषय फ़ॉलो करें, फिर हर डिवाइस पर वही फ़ीड पाएँ। मुफ़्त, और कोई पासवर्ड नहीं।")), /*#__PURE__*/React.createElement("form", {
-    onSubmit: sendLink,
-    className: "mt-7 space-y-3"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "email",
-    value: email,
-    onChange: e => setEmail(e.target.value),
-    placeholder: tt("you@email.com", "you@email.com"),
-    autoComplete: "email",
-    className: `w-full rounded-lg px-4 py-3 text-[15px] outline-none ${line} ${t.tp}`,
-    style: {
-      colorScheme: "light"
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    type: "submit",
-    disabled: !agree || !emailOk || busy,
-    className: `w-full rounded-lg px-4 py-3 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${!agree || !emailOk || busy ? "opacity-40" : ""} ${isHi(lang)}`
-  }, busy ? tt("Sending…", "भेजा जा रहा…") : tt("Email me a sign-in link", "मुझे साइन-इन लिंक ईमेल करें"))), GOOGLE_AUTH && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "my-4 flex items-center gap-3"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "h-px flex-1",
-    style: {
-      background: t.line
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10px] uppercase ${t.tf}`
-  }, tt("or", "या")), /*#__PURE__*/React.createElement("div", {
-    className: "h-px flex-1",
-    style: {
-      background: t.line
-    }
-  })), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (agree) Auth.google();
-    },
-    disabled: !agree,
-    className: `flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3 text-[14px] font-semibold ${line} ${t.tp} ${!agree ? "opacity-40" : `hover:${t.soft}`} ${isHi(lang)}`
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "17",
-    height: "17",
-    viewBox: "0 0 24 24"
-  }, /*#__PURE__*/React.createElement("path", {
-    fill: "#4285F4",
-    d: "M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"
-  }), /*#__PURE__*/React.createElement("path", {
-    fill: "#34A853",
-    d: "M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
-  }), /*#__PURE__*/React.createElement("path", {
-    fill: "#FBBC05",
-    d: "M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"
-  }), /*#__PURE__*/React.createElement("path", {
-    fill: "#EA4335",
-    d: "M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"
-  })), tt("Continue with Google", "Google से जारी रखें"))), err && /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 text-[13px] ${t.blind} ${isHi(lang)}`
-  }, err), /*#__PURE__*/React.createElement("label", {
-    className: "mt-6 flex cursor-pointer items-start gap-2.5"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: agree,
-    onChange: e => setAgree(e.target.checked),
-    className: "mt-0.5 h-4 w-4 shrink-0"
-  }), /*#__PURE__*/React.createElement("span", {
-    className: `text-[12px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, tt("I'm signing up for myself and agree to the ", "मैं स्वयं के लिए साइन अप कर रहा/रही हूँ और सहमत हूँ "), /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    onClick: () => go("privacy"),
-    className: `underline ${t.ts} hover:${t.tp}`
-  }, tt("Privacy Policy", "गोपनीयता नीति")), tt(". Paksh isn't directed at children under 18; a minor should have a parent's permission.", ". पक्ष 18 वर्ष से कम बच्चों के लिए नहीं है; नाबालिग को अभिभावक की अनुमति लेनी चाहिए।")))));
-}
-
-/* ---------------- YOUR PAKSH (private, on-device) ---------------- */
-function YouPage({
-  cards,
-  topics,
-  t,
-  lang,
-  open,
-  go
-}) {
-  const P = usePaksh();
-  const A = useAuth();
-  const follow = P.follow(),
-    hist = P.hist();
-  const HI = lang === "hi";
-  const tt = (en, hi) => HI ? hi : en;
-  const authed = authEnabled() && A.isLoggedIn();
-  const email = (A.user() || {}).email || "";
-
-  // A single suggested feed. If the reader has PREFERRED topics - the ones they follow,
-  // plus any they read repeatedly - the feed is FILTERED to those topics (so your picks
-  // actually show), ranked follows-first then most-read, newest within. With no picks yet
-  // it's just the latest news, and starts personalising as you read.
-  const readCount = {};
-  hist.forEach(h => {
-    if (h.topic) readCount[h.topic] = (readCount[h.topic] || 0) + 1;
-  });
-  const preferred = new Set([...follow, ...Object.keys(readCount).filter(tp => readCount[tp] >= 2)]);
-  const wt = tp => (follow.indexOf(tp) >= 0 ? 1000 : 0) + (readCount[tp] || 0);
-  const suggested = preferred.size ? [...(cards || [])].filter(c => preferred.has(c.topic)).sort((a, b) => wt(b.topic) - wt(a.topic)).slice(0, 40) : [...(cards || [])].slice(0, 24);
-  const Row = ({
-    s,
-    last
-  }) => /*#__PURE__*/React.createElement("div", {
-    className: `flex items-start gap-3 py-4 ${last ? "" : "border-b"} ${t.border}`
-  }, /*#__PURE__*/React.createElement("a", {
-    href: "/story/" + encodeURIComponent(s.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      open(s.id);
-    },
-    className: "block no-underline group min-w-0 flex-1 cursor-pointer"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tf} ${HI ? "deva" : ""}`,
-    style: {
-      letterSpacing: HI ? 0 : ".14em"
-    }
-  }, HI ? TOPIC_HI[s.topic] || s.topic : s.topic), /*#__PURE__*/React.createElement("h3", {
-    className: `headline mt-1 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-    style: {
-      lineHeight: HI ? 1.34 : 1.24,
-      textWrap: "pretty"
-    }
-  }, s.headline), /*#__PURE__*/React.createElement("div", {
-    className: "mt-2 max-w-[280px]"
-  }, /*#__PURE__*/React.createElement(BiasSegments, {
-    bias: s.bias,
-    t: t,
-    h: 10,
-    lang: lang
-  })), /*#__PURE__*/React.createElement("div", {
-    className: `mt-1.5 mono text-[10.5px] ${t.tf}`
-  }, s.counts.left || 0, " \xB7 ", s.counts.center || 0, " \xB7 ", s.counts.right || 0, " \xB7 n = ", (s.counts.left || 0) + (s.counts.center || 0) + (s.counts.right || 0), timeAgo(s.created_at, lang) ? " · " + timeAgo(s.created_at, lang) : "")), /*#__PURE__*/React.createElement("div", {
-    className: "pt-1"
-  }, /*#__PURE__*/React.createElement(SaveButton, {
-    id: s.id,
-    t: t,
-    lang: lang,
-    compact: true
-  })));
-  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-start justify-between gap-3"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
-    style: {
-      letterSpacing: HI ? 0 : "-0.018em"
-    }
-  }, tt("Your Paksh", "आपका पक्ष")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2 text-[13px] ${t.tf} ${isHi(lang)}`
-  }, tt("A feed that learns from what you read and the topics you follow.", "एक फ़ीड जो आपके पढ़ने और फ़ॉलो किए विषयों से सीखती है।"))), authEnabled() && (authed ? /*#__PURE__*/React.createElement("div", {
-    className: `shrink-0 text-right text-[12px] ${t.tf} ${isHi(lang)}`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "truncate max-w-[190px]"
-  }, email), /*#__PURE__*/React.createElement("div", {
-    className: "mt-1 flex justify-end gap-3"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => Auth.signOut(),
-    className: `eyebrow hover:${t.tp}`,
-    style: {
-      letterSpacing: HI ? 0 : ".08em"
-    }
-  }, tt("Sign out", "साइन आउट")), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (window.confirm(tt("Delete your synced data? This can't be undone.", "आपका सिंक किया डेटा हटाएँ? यह वापस नहीं होगा।"))) Auth.deleteData();
-    },
-    className: `eyebrow ${t.blind} hover:opacity-80`,
-    style: {
-      letterSpacing: HI ? 0 : ".08em"
-    }
-  }, tt("Delete data", "डेटा हटाएँ")))) : /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("login"),
-    className: `shrink-0 rounded-full px-4 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
-  }, tt("Sign in to sync", "सिंक के लिए साइन इन")))), /*#__PURE__*/React.createElement("section", {
-    className: "mt-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tf} ${HI ? "deva" : ""}`,
-    style: {
-      letterSpacing: HI ? 0 : ".14em"
-    }
-  }, tt("Topics you follow", "आपके फ़ॉलो किए विषय")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3 flex flex-wrap gap-2"
-  }, (topics || []).map(tp => {
-    const on = follow.indexOf(tp) >= 0;
-    return /*#__PURE__*/React.createElement("button", {
-      key: tp,
-      onClick: () => P.toggleFollow(tp),
-      "aria-pressed": on,
-      className: `inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold ${on ? `${t.cta} ${t.ctaT} border border-transparent` : `border ${t.border} ${t.ts} hover:${t.tp}`} ${HI ? "deva" : ""}`
-    }, on && /*#__PURE__*/React.createElement(Check, {
-      size: 12
-    }), HI ? TOPIC_HI[tp] || tp : tp);
-  }))), /*#__PURE__*/React.createElement("section", {
-    className: "mt-9"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tf} ${HI ? "deva" : ""}`,
-    style: {
-      letterSpacing: HI ? 0 : ".14em"
-    }
-  }, tt("Suggested for you", "आपके लिए सुझाव")), suggested.length ? /*#__PURE__*/React.createElement("div", {
-    className: "mt-2"
-  }, suggested.map((s, i) => /*#__PURE__*/React.createElement(Row, {
-    key: s.id,
-    s: s,
-    last: i === suggested.length - 1
-  }))) : /*#__PURE__*/React.createElement("div", {
-    className: `mt-4 border ${t.border} ${t.soft} p-5 text-[13.5px] ${t.ts} ${isHi(lang)}`
-  }, preferred.size ? tt("No recent stories in your topics right now, check back soon.", "आपके विषयों में अभी कोई ताज़ा खबर नहीं, थोड़ी देर में देखें।") : tt("Follow some topics above, and your feed builds itself.", "ऊपर कुछ विषय फ़ॉलो करें, आपकी फ़ीड खुद बन जाएगी।"))));
-}
 function PakshApp() {
   const [route, setRoute] = useState(parsePath());
   const [lang, setLang] = useState("en");
@@ -4850,20 +3976,11 @@ function PakshApp() {
   const [archive, setArchive] = useState(null); // older events, lazy-loaded for search/topic browsing
   const [ready, setReady] = useState(false);
   const [consent, setConsent] = useState(consentState); // "" undecided | "granted" | "denied"
-  useAuth(); // re-render the app (nav + gated routes) when sign-in state changes
 
   useEffect(() => {
     loadAll().then(d => {
       setData(d);
       setReady(true);
-    });
-  }, []);
-  // Accounts: process a magic-link/Google redirect landing in the URL hash, then, if a
-  // session exists (fresh or restored), merge cloud <-> on-device prefs. No-op if OFF.
-  useEffect(() => {
-    if (!authEnabled()) return;
-    Auth.handleRedirect().then(() => {
-      if (Auth.isLoggedIn()) PSync.onLogin();
     });
   }, []);
   // Load cookieless Vercel Web Analytics ONLY after the visitor accepts. Denied/undecided
@@ -4904,7 +4021,7 @@ function PakshApp() {
   // fetch fires only once even if it fails (then search/topic just cover recent stories).
   useEffect(() => {
     if (archive !== null) return;
-    if (!["search", "topic", "topics", "you"].includes(route.view)) return;
+    if (!["search", "topic", "topics"].includes(route.view)) return;
     setArchive([]);
     apiGet("events-archive").then(a => setArchive(a.events || [])).catch(() => {});
   }, [route.view, archive]);
@@ -4920,25 +4037,6 @@ function PakshApp() {
     track("story_open", {
       device: deviceClass()
     });
-    // record the open for the private on-device reading balance (which side the
-    // story's coverage leaned toward). Never networked; localStorage only.
-    try {
-      const ev = (allEvents || []).find(e => String(e.id) === String(id)) || (data.blindspots || []).find(e => String(e.id) === String(id));
-      if (ev) {
-        const c = ev.lean_counts || {};
-        const side = domSide({
-          left: c.left || 0,
-          center: c.center || 0,
-          right: c.right || 0
-        });
-        PStore.recordOpen({
-          id,
-          side,
-          topic: ev.topic || "",
-          t: Date.now()
-        });
-      }
-    } catch (e) {}
     nav("/story/" + encodeURIComponent(id));
   };
   const goTopic = tp => nav("/topic/" + encodeURIComponent(tp));
@@ -5095,21 +4193,6 @@ function PakshApp() {
     t: t,
     lang: lang
   }) : route.view === "support" ? /*#__PURE__*/React.createElement(SupportPage, {
-    t: t,
-    lang: lang,
-    go: go
-  }) : route.view === "you" ? authEnabled() && !Auth.isLoggedIn() ? /*#__PURE__*/React.createElement(LoginPage, {
-    t: t,
-    lang: lang,
-    go: go
-  }) : /*#__PURE__*/React.createElement(YouPage, {
-    cards: baseCards,
-    topics: topicsOrdered,
-    t: t,
-    lang: lang,
-    open: open,
-    go: go
-  }) : route.view === "login" ? /*#__PURE__*/React.createElement(LoginPage, {
     t: t,
     lang: lang,
     go: go
