@@ -2356,7 +2356,10 @@ function Header({
   go,
   view
 }) {
-  const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod], ["you", lang === "hi" ? "आपका पक्ष" : "Your Paksh"]];
+  const A = useAuth();
+  const loggedIn = authEnabled() && A.isLoggedIn();
+  const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
+  if (loggedIn) NAV.push(["you", lang === "hi" ? "आपका पक्ष" : "Your Paksh"]);
   return /*#__PURE__*/React.createElement("header", {
     className: `sticky top-0 z-40 border-b ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2419,7 +2422,9 @@ function BottomNav({
   view,
   go
 }) {
-  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["you", lang === "hi" ? "आपका" : "You", Bookmark]];
+  const A = useAuth();
+  const loggedIn = authEnabled() && A.isLoggedIn();
+  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], loggedIn ? ["you", lang === "hi" ? "आपका" : "You", Bookmark] : ["about", STR[lang].navMethod, Scale]];
   return /*#__PURE__*/React.createElement("nav", {
     className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2439,6 +2444,8 @@ function Footer({
   lang,
   go
 }) {
+  const A = useAuth();
+  const loggedIn = authEnabled() && A.isLoggedIn();
   return /*#__PURE__*/React.createElement("footer", {
     className: `mt-12 border-t ${t.border} ${t.surface}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2460,7 +2467,7 @@ function Footer({
     className: `mt-3 inline-flex items-center rounded-full px-4 py-2 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
   }, lang === "hi" ? "पक्ष का सहयोग करें" : "Support Paksh", " \u2192")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-x-6 gap-y-2"
-  }, [["you", lang === "hi" ? "आपका पक्ष" : "Your Paksh"], ["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [...(loggedIn ? [["you", lang === "hi" ? "आपका पक्ष" : "Your Paksh"]] : []), ["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
     className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
@@ -4691,17 +4698,17 @@ function YouPage({
   const authed = authEnabled() && A.isLoggedIn();
   const email = (A.user() || {}).email || "";
 
-  // A single suggested feed: rank stories by topic affinity - the topics you FOLLOW plus
-  // the topics you READ most - keeping recency within. No follows and no history yet =>
-  // just the latest news, and it personalises as you read.
-  const affinity = {};
+  // A single suggested feed. If the reader has PREFERRED topics - the ones they follow,
+  // plus any they read repeatedly - the feed is FILTERED to those topics (so your picks
+  // actually show), ranked follows-first then most-read, newest within. With no picks yet
+  // it's just the latest news, and starts personalising as you read.
+  const readCount = {};
   hist.forEach(h => {
-    if (h.topic) affinity[h.topic] = (affinity[h.topic] || 0) + 1;
+    if (h.topic) readCount[h.topic] = (readCount[h.topic] || 0) + 1;
   });
-  follow.forEach(tp => {
-    affinity[tp] = (affinity[tp] || 0) + 6;
-  });
-  const suggested = [...(cards || [])].sort((a, b) => (affinity[b.topic] || 0) - (affinity[a.topic] || 0)).slice(0, 24);
+  const preferred = new Set([...follow, ...Object.keys(readCount).filter(tp => readCount[tp] >= 2)]);
+  const wt = tp => (follow.indexOf(tp) >= 0 ? 1000 : 0) + (readCount[tp] || 0);
+  const suggested = preferred.size ? [...(cards || [])].filter(c => preferred.has(c.topic)).sort((a, b) => wt(b.topic) - wt(a.topic)).slice(0, 40) : [...(cards || [])].slice(0, 24);
   const Row = ({
     s,
     last
@@ -4809,7 +4816,7 @@ function YouPage({
     last: i === suggested.length - 1
   }))) : /*#__PURE__*/React.createElement("div", {
     className: `mt-4 border ${t.border} ${t.soft} p-5 text-[13.5px] ${t.ts} ${isHi(lang)}`
-  }, tt("Read a few stories and follow some topics, and your feed builds itself.", "कुछ खबरें पढ़ें और कुछ विषय फ़ॉलो करें, आपकी फ़ीड खुद बन जाएगी।"))));
+  }, preferred.size ? tt("No recent stories in your topics right now, check back soon.", "आपके विषयों में अभी कोई ताज़ा खबर नहीं, थोड़ी देर में देखें।") : tt("Follow some topics above, and your feed builds itself.", "ऊपर कुछ विषय फ़ॉलो करें, आपकी फ़ीड खुद बन जाएगी।"))));
 }
 function PakshApp() {
   const [route, setRoute] = useState(parsePath());
@@ -4843,6 +4850,7 @@ function PakshApp() {
   const [archive, setArchive] = useState(null); // older events, lazy-loaded for search/topic browsing
   const [ready, setReady] = useState(false);
   const [consent, setConsent] = useState(consentState); // "" undecided | "granted" | "denied"
+  useAuth(); // re-render the app (nav + gated routes) when sign-in state changes
 
   useEffect(() => {
     loadAll().then(d => {
@@ -5090,7 +5098,11 @@ function PakshApp() {
     t: t,
     lang: lang,
     go: go
-  }) : route.view === "you" ? /*#__PURE__*/React.createElement(YouPage, {
+  }) : route.view === "you" ? authEnabled() && !Auth.isLoggedIn() ? /*#__PURE__*/React.createElement(LoginPage, {
+    t: t,
+    lang: lang,
+    go: go
+  }) : /*#__PURE__*/React.createElement(YouPage, {
     cards: baseCards,
     topics: topicsOrdered,
     t: t,
