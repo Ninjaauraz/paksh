@@ -2442,7 +2442,7 @@ function HomeView({
     setRegionFilter: stats.setRegionFilter
   })), /*#__PURE__*/React.createElement("h1", {
     className: "sr-only"
-  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh, every side of India's news"), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), /*#__PURE__*/React.createElement("div", {
     className: `${pad}`
   }, /*#__PURE__*/React.createElement("div", {
     className: `flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b py-2 ${t.border}`

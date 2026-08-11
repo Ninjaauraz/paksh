@@ -301,7 +301,7 @@ def _story_html(shell, ev, og_ids=None):
     esc = lambda x: _html.escape(str(x or ""), quote=True)
 
     rep = [
-        ("<title>Paksh, Every side of India's news</title>",
+        ("<title>Paksh: Every side of India's news</title>",
          "<title>%s, Paksh</title>" % esc(headline)),
         ('<meta name="description" content="Paksh compares how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
          '<meta name="description" content="%s"/>' % esc(desc)),
@@ -309,7 +309,7 @@ def _story_html(shell, ev, og_ids=None):
          '<link rel="canonical" href="%s"/>' % url),
         ('<meta property="og:type" content="website"/>',
          '<meta property="og:type" content="article"/>'),
-        ('<meta property="og:title" content="Paksh, Every side of India\'s news"/>',
+        ('<meta property="og:title" content="Paksh: Every side of India\'s news"/>',
          '<meta property="og:title" content="%s"/>' % esc(headline)),
         ('<meta property="og:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(desc)),
@@ -317,7 +317,7 @@ def _story_html(shell, ev, og_ids=None):
          '<meta property="og:url" content="%s"/>' % url),
         ('<meta property="og:image" content="%s/static/og.png"/>' % SITE_URL,
          '<meta property="og:image" content="%s"/>' % esc(img)),
-        ('<meta name="twitter:title" content="Paksh, Every side of India\'s news"/>',
+        ('<meta name="twitter:title" content="Paksh: Every side of India\'s news"/>',
          '<meta name="twitter:title" content="%s"/>' % esc(headline)),
         ('<meta name="twitter:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(desc)),
@@ -913,7 +913,7 @@ def main():
     # item shows the bias line and the share card, so even a feed reader sees the split.
     from urllib.parse import quote as _q
     (OUT / "rss.xml").write_text(
-        _rss_xml("Paksh, Every side of India's news",
+        _rss_xml("Paksh: Every side of India's news",
                  SITE_URL + "/", SITE_URL + "/rss.xml", recent_rows, 60),
         encoding="utf-8")
     rss_dir = OUT / "rss"
@@ -925,7 +925,7 @@ def main():
             by_topic.setdefault(tp, []).append(r)
     for tp, trows in by_topic.items():
         (rss_dir / ("%s.xml" % _rss_slug(tp))).write_text(
-            _rss_xml("Paksh, %s" % tp, "%s/topic/%s" % (SITE_URL, _q(tp, safe="")),
+            _rss_xml("Paksh: %s" % tp, "%s/topic/%s" % (SITE_URL, _q(tp, safe="")),
                      "%s/rss/%s.xml" % (SITE_URL, _rss_slug(tp)), trows, 40),
             encoding="utf-8")
     print("  rss: /rss.xml + %d topic feeds" % len(by_topic))

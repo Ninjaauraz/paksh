@@ -26,7 +26,7 @@ import sys
 import time
 
 PY = sys.executable
-CYCLE_MIN = 20
+CYCLE_MIN = 10
 BACKFILL_N = 25
 
 
