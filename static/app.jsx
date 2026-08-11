@@ -883,7 +883,7 @@ const {useState,useEffect,useMemo}=React;
           <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
           {/* one h1 for the page + an always-on legend so a first-time visitor knows what the
               "3 · 9 · 4" bias counts mean, right where they see them */}
-          <h1 className="sr-only">{lang==="hi"?"पक्ष, भारत की खबरों का हर पक्ष":"Paksh, every side of India's news"}</h1>
+          <h1 className="sr-only">{lang==="hi"?"पक्ष, भारत की खबरों का हर पक्ष":"Paksh: every side of India's news"}</h1>
           <div className={`${pad}`}>
             <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b py-2 ${t.border}`}>
               <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"बायस बार":"The bias bar"}</span>
