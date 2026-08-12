@@ -6,7 +6,7 @@ commits and pushes so Vercel redeploys. Leave it running in a terminal window;
 press Ctrl-C to stop.
 
     set PAKSH_LLM_BACKEND=gemini
-    py live.py                 # refresh every 20 min (no auto-deploy)
+    py live.py                 # refresh every 1 min (no auto-deploy)
     py live.py --deploy        # also git commit+push each cycle (Vercel redeploys)
     py live.py --every 15      # change cadence (minutes)
     py live.py --backfill 10   # upgrade up to N extractive events each cycle
@@ -26,8 +26,8 @@ import sys
 import time
 
 PY = sys.executable
-CYCLE_MIN = 10
-BACKFILL_N = 25
+CYCLE_MIN = 1
+BACKFILL_N = 50
 
 
 def _run(args):
