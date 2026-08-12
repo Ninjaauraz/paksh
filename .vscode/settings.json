@@ -1,0 +1,17 @@
+{
+  "// Paksh": "File nesting only changes how VS Code's Explorer GROUPS files. It never moves or renames anything on disk, and does not affect Python imports, commands, or scheduled tasks. Click the arrow on a parent to expand its nested helpers.",
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "refresh.py": "refresh.bat, refresh_scheduled.bat, refresh_log.txt",
+    "reframe.py": "reframe.bat, reframe_scheduled.bat, reframe_log.txt",
+    "live.py": "runlocked.py, safe_autopush.py, verify_fresh.py, autopush_log.txt",
+    "build_scimago_registry.py": "scimago_registry.py",
+    "MAINTENANCE.md": "consolidate.py, cleanup.py, prune_cache.py, recount_migrate.py, audit.py, audit.html, calibrate.py, stats.py",
+    "tailwind.config.js": "tailwind.input.css",
+    "ai_keys.example.env": "ai_keys.env",
+    "paksh.db": "paksh.db-journal, paksh.db-wal, paksh.db-shm, paksh.db.bak*, *.bak",
+    "CLAUDE.md": "README.md, METHODOLOGY.md, DEPLOY.md",
+    "requirements.txt": ".gitignore, .gitattributes, .pipeline_baseline.json, .pipeline.lock"
+  }
+}

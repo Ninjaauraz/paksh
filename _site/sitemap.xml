@@ -16,71 +16,237 @@
   <url><loc>https://paksh.news/topic/Science%20%26%20Tech</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
   <url><loc>https://paksh.news/topic/Society</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
   <url><loc>https://paksh.news/topic/Sports</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://paksh.news/story/13679</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13678</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13677</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13676</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13675</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13674</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13673</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13672</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13670</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13669</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13667</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13666</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13665</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13664</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13663</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13662</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13661</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13660</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13653</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13652</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13651</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13650</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13649</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13648</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13560</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13593</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13643</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13590</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13580</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13134</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13602</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13587</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13265</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13219</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13417</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13406</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13645</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13104</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13216</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13250</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13125</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13390</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13308</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13501</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13513</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13559</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13586</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13121</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13137</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13238</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13181</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13494</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13496</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13396</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13563</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13165</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13545</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13465</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13510</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13554</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13483</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13508</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13516</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13221</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13047</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13598</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13268</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13603</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13367</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13500</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13585</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13617</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13488</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13188</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13493</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13198</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13122</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13473</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13290</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13369</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13498</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12973</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13511</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13110</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13353</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12975</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13457</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13462</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13159</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13606</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13388</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13594</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13445</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13484</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13187</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13547</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13434</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13497</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13495</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13614</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13280</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13596</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13209</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13591</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12749</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13420</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13329</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13492</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13525</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13584</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13582</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13647</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13646</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13642</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13640</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13636</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13634</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13633</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13632</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13631</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13630</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13629</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13628</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13627</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13626</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13625</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13624</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13623</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13622</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13620</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13619</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13618</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13613</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13612</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13611</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13610</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13609</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13608</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13607</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13605</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13597</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13595</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13588</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13583</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13581</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13183</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13573</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13161</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13203</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13548</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13524</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13407</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13027</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13298</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13499</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13275</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13252</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13531</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13421</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13549</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13093</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13514</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13114</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12964</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13475</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13330</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13446</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13571</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13543</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13502</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13313</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13526</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13186</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13212</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13427</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13579</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13437</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13546</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13519</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13318</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13274</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13428</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13392</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12961</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12996</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13350</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12979</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13470</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13175</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13394</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12561</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13051</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13300</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13046</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13529</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/12762</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13512</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13430</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13206</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13436</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://paksh.news/story/13133</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13576</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13575</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13574</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13573</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13571</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13570</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13569</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13568</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13567</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13566</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13564</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13563</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13562</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13561</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13559</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13555</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13554</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13553</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13552</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13551</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13550</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13549</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13548</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13547</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13546</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13545</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13544</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13543</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13534</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13533</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13532</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13531</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13530</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13529</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13528</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13527</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13526</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13525</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13524</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13519</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13518</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13517</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13515</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13514</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13513</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13512</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13511</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13510</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13504</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13503</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13502</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13501</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13500</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13499</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13498</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13497</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13496</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13495</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13494</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13493</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13492</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12871</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13117</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13462</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13401</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13314</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13271</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
@@ -90,122 +256,54 @@
   <url><loc>https://paksh.news/story/13325</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13302</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13439</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13436</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13216</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13238</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13195</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12961</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13183</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13165</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13360</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13358</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13419</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13221</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13350</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13465</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12986</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13186</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13396</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13452</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13406</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12807</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12749</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13240</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13367</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12964</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13434</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13407</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12988</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13421</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13220</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13161</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13485</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13137</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13353</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13188</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13134</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13118</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13326</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13392</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12996</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13286</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13349</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13119</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13330</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12561</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13046</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13149</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13201</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13281</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13274</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13479</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13309</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13196</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13110</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13121</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13212</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13446</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13394</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13300</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13017</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13002</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13210</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13475</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13096</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13206</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12737</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12975</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13420</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13283</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13318</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13484</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13458</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13290</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13203</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13122</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13200</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13459</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12762</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13268</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13187</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13308</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13181</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13175</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13259</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13198</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12973</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13219</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13390</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12978</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13027</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13265</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13093</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13369</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12734</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13480</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13488</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12544</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13427</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13329</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13430</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13047</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13229</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13252</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12895</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13246</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13133</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13470</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13444</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13491</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13490</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13489</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13487</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13486</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13483</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13481</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13478</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13474</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13473</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13464</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13267</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13126</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
@@ -214,40 +312,29 @@
   <url><loc>https://paksh.news/story/13317</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13173</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13032</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13313</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13104</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13347</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13172</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13361</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13159</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13209</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13437</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13364</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13278</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13269</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13457</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13456</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13455</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13454</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13451</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13448</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13447</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13445</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13438</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13433</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13132</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13199</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13316</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13125</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13250</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13393</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/12979</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13284</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13197</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13432</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13431</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13429</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13428</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13422</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13426</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13424</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
@@ -264,12 +351,10 @@
   <url><loc>https://paksh.news/story/13024</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13189</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13129</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13275</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12833</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12885</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/12565</loc><lastmod>2026-08-12</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13391</loc><lastmod>2026-08-11</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-  <url><loc>https://paksh.news/story/13388</loc><lastmod>2026-08-11</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13387</loc><lastmod>2026-08-11</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13384</loc><lastmod>2026-08-11</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://paksh.news/story/13383</loc><lastmod>2026-08-11</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>

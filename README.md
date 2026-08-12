@@ -9,6 +9,18 @@ is barely covering, so you never miss what the other side is (or isn't) saying.
 
 Free to run. Powered by Google Gemini's free tier.
 
+## Where things live (for developers)
+
+The Python files in the project **root** are the pipeline: data flows
+`ingest.py` → `cluster.py` → `analyze.py` → `export_static.py` (which builds the static
+site into `_site/`). Shared modules that everything imports — `database.py`, `sources.py`
+(the editorial outlet + lean roster), `feeds.py`, `lean_scoring.py` — also live in root and
+must stay there. The always-on loop is `live.py`; nightly jobs run via the `*_scheduled.bat`
+files. **Read `CLAUDE.md` first** — it holds the architecture, the hard invariants, and a
+fragile coupling between `static/index.html` and `export_static.py`. Run-by-hand tools are
+documented in **`MAINTENANCE.md`**. The front-end lives in `static/` (self-hosted React in
+`static/vendor/`, no CDN). Obsolete one-off scripts sit in **`archive/`** and are not used.
+
 ## What's inside (V2)
 
 - **Top Stories feed** — image cards with a dominant-lean callout ("67% Centre · 9 sources") and a bias bar.
