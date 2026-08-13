@@ -417,7 +417,7 @@ const SUPPORT = {
 };
 const supportReady = () => !!(SUPPORT.upi || SUPPORT.url);
 // A UPI deep link that opens the user's UPI app pre-filled (no amount forced).
-const upiLink = () => SUPPORT.upi ? `upi://pay?pa=${encodeURIComponent(SUPPORT.upi)}&pn=${encodeURIComponent(SUPPORT.payeeName || "Paksh")}&cu=INR` : "";
+const upiLink = amt => SUPPORT.upi ? `upi://pay?pa=${encodeURIComponent(SUPPORT.upi)}&pn=${encodeURIComponent(SUPPORT.payeeName || "Paksh")}&cu=INR${amt ? `&am=${amt}` : ""}` : "";
 
 // --- Sponsorship (stays INVISIBLE until you actually have a sponsor) -------------------
 // Unlike reader support, an empty "Supported by ___" slot looks broken, so this renders
@@ -1262,6 +1262,42 @@ const Bookmark = p => /*#__PURE__*/React.createElement("svg", {
   strokeLinejoin: "round"
 }, /*#__PURE__*/React.createElement("path", {
   d: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"
+}));
+const User = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M20 21a8 8 0 0 0-16 0"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "7",
+  r: "4"
+}));
+const Help = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M12 17h.01"
 }));
 
 /* ---------------- helpers ---------------- */
@@ -2156,7 +2192,8 @@ function Header({
   setDark,
   go,
   view,
-  auth
+  auth,
+  openHelp
 }) {
   const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
   const initials = email => {
@@ -2212,6 +2249,13 @@ function Header({
     className: `${t.tf} hover:${t.tp}`
   }, /*#__PURE__*/React.createElement(Search, {
     size: 17
+  })), openHelp && /*#__PURE__*/React.createElement("button", {
+    onClick: openHelp,
+    "aria-label": lang === "hi" ? "पक्ष कैसे पढ़ें" : "How Paksh works",
+    title: lang === "hi" ? "पक्ष कैसे पढ़ें" : "How Paksh works",
+    className: `hidden sm:inline ${t.tf} hover:${t.tp}`
+  }, /*#__PURE__*/React.createElement(Help, {
+    size: 17
   })), /*#__PURE__*/React.createElement(LangToggle, {
     t: t,
     lang: lang,
@@ -2248,9 +2292,12 @@ function BottomNav({
   t,
   lang,
   view,
-  go
+  go,
+  auth
 }) {
-  const items = [["home", STR[lang].navTop, Layers], ["blindspot", STR[lang].navOS, Eye], ["topics", ui("sections", lang), Compass], ["about", STR[lang].navMethod, Scale]];
+  // Front · Gaps · Search · Saved · You (per the mobile handoff). "You" = account (or sign in).
+  const items = [["home", lang === "hi" ? "मुख" : "Front", Home], ["blindspot", STR[lang].navOS, Eye], ["search", ui("searchTab", lang), Search], ["saved", lang === "hi" ? "सहेजा" : "Saved", Bookmark], [authOn() && auth ? "account" : authOn() ? "login" : "about", lang === "hi" ? auth ? "आप" : "साइन इन" : authOn() && auth ? "You" : authOn() ? "Sign in" : "Method", authOn() ? User : Scale]];
+  const active = k => view === k || k === "account" && view === "account" || k === "login" && view === "login";
   return /*#__PURE__*/React.createElement("nav", {
     className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -2258,7 +2305,7 @@ function BottomNav({
   }, items.map(([k, label, Ic]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
-    className: `flex flex-1 flex-col items-center gap-0.5 py-2 ${view === k ? t.tp : t.tf}`
+    className: `flex flex-1 flex-col items-center gap-0.5 py-2 ${active(k) ? t.tp : t.tf}`
   }, /*#__PURE__*/React.createElement(Ic, {
     size: 19
   }), /*#__PURE__*/React.createElement("span", {
@@ -2719,6 +2766,86 @@ function WidestAgreement({
     }, L, " \xB7 ", C, " \xB7 ", R, " \xB7 n = ", n));
   }));
 }
+// Right-rail auth-aware card (Direction B, transparent personalization). Member: a "Because
+// you read {topic}" pointer to a story on the topic they read most. Guest: a "New to Paksh?"
+// explainer with a How-it-works link. Never reorders the feed; ranking stays arithmetic.
+function RailPersonalize({
+  auth,
+  lens,
+  cards,
+  t,
+  lang,
+  go,
+  open,
+  openHelp
+}) {
+  if (auth && lens && lens.total > 0 && lens.topics.length) {
+    const topic = lens.topics[0];
+    const pick = (cards || []).find(c => c.topic === topic) || (cards || [])[0];
+    const tp = lang === "hi" ? TOPIC_HI[topic] || topic : topic;
+    return /*#__PURE__*/React.createElement("div", {
+      className: `border p-4 ${t.surface} ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".14em"
+      }
+    }, lang === "hi" ? `क्योंकि आपने ${tp} पढ़ा` : `Because you read ${tp}`), pick && /*#__PURE__*/React.createElement("a", {
+      href: "/story/" + encodeURIComponent(pick.id),
+      onClick: e => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        open(pick.id);
+      },
+      className: "block no-underline group cursor-pointer mt-2"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      style: {
+        lineHeight: 1.3
+      }
+    }, pick.headline), /*#__PURE__*/React.createElement("div", {
+      className: "mt-2"
+    }, /*#__PURE__*/React.createElement(BiasSegments, {
+      bias: pick.bias,
+      t: t,
+      h: 8,
+      lang: lang
+    }))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => go("lens"),
+      className: `mt-3 eyebrow ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".08em"
+      }
+    }, lang === "hi" ? "मेरा रीडिंग लेंस →" : "My Reading Lens →"));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: `border p-4 ${t.surface} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "पक्ष में नए?" : "New to Paksh?"), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.7 : 1.55
+    }
+  }, lang === "hi" ? "पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।" : "Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 flex flex-wrap gap-2"
+  }, openHelp && /*#__PURE__*/React.createElement("button", {
+    onClick: openHelp,
+    className: `border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lang === "hi" ? "यह कैसे काम करता है" : "How it works"), authOn() && !auth && /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("login"),
+    className: `px-3 py-1.5 eyebrow ${t.cta} ${t.ctaT} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lang === "hi" ? "साइन इन" : "Sign in")));
+}
 function HomeView({
   cards,
   gapLeft,
@@ -2730,7 +2857,10 @@ function HomeView({
   lang,
   open,
   goTopic,
-  go
+  go,
+  auth,
+  lens,
+  openHelp
 }) {
   // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
   // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
@@ -2856,7 +2986,16 @@ function HomeView({
     onOpen: open
   })), /*#__PURE__*/React.createElement("div", {
     className: "order-3 py-4 lg:py-6 lg:pl-7 space-y-6"
-  }, /*#__PURE__*/React.createElement(SpectrumRail, {
+  }, /*#__PURE__*/React.createElement(RailPersonalize, {
+    auth: auth,
+    lens: lens,
+    cards: cards,
+    t: t,
+    lang: lang,
+    go: go,
+    open: open,
+    openHelp: openHelp
+  }), /*#__PURE__*/React.createElement(SpectrumRail, {
     cards: cards,
     t: t,
     lang: lang
@@ -2865,6 +3004,9 @@ function HomeView({
     t: t,
     lang: lang,
     onOpen: open
+  }), /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang
   })))), /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: `2px solid ${t.ink}`
@@ -3139,7 +3281,16 @@ function StoryPage({
       transform: "translateX(-50%)",
       whiteSpace: "nowrap"
     }
-  }, lang === "hi" ? "कवरेज का 50%" : "50% of coverage"))), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "कवरेज का 50%" : "50% of coverage"))), authOn() && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-3 max-w-[840px]"
+  }, auth ? /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center gap-1.5 mono text-[10.5px] ${t.tf} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement(Check, {
+    size: 12
+  }), " ", lang === "hi" ? "आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है" : "Recorded to your Reading Lens · visible only to you") : /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("login"),
+    className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`
+  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें →" : "Sign in to build your Reading Lens →")), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-9 max-w-[840px] grid gap-5 md:grid-cols-[200px_1fr] md:gap-11"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
@@ -3519,7 +3670,9 @@ function BlindspotPage({
   t,
   lang,
   open,
-  go
+  go,
+  auth,
+  lens
 }) {
   // left = left_heavier (RIGHT is the under-covered side); right = right_heavier (LEFT is).
   const cards = [];
@@ -3536,6 +3689,15 @@ function BlindspotPage({
   const shown = cards.slice(0, 15);
   const gapsToday = agg.total != null ? agg.total : cards.length;
   const pad = "px-4 sm:px-10";
+  // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
+  // surface up to 3 gaps where that side is the under-covered one, preferring topics you read.
+  const sides = lens && lens.sides || {};
+  const leastSide = ["left", "center", "right"].reduce((a, b) => (sides[b] || 0) < (sides[a] || 0) ? b : a, "left");
+  const tuned = auth && lens && lens.total > 0 ? cards.filter(c => c.gapSide === leastSide).sort((a, b) => {
+    const at = lens.topics.indexOf(a.story.topic),
+      bt = lens.topics.indexOf(b.story.topic);
+    return (at < 0 ? 99 : at) - (bt < 0 ? 99 : bt);
+  }).slice(0, 3) : [];
   const explain = (head, body) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
@@ -3570,7 +3732,45 @@ function BlindspotPage({
     }
   }, STR[lang].osSub)), /*#__PURE__*/React.createElement("div", {
     className: `mono text-[11px] leading-[1.7] text-right shrink-0 ${t.tf}`
-  }, gapsToday, " ", lang === "hi" ? "गैप आज" : "gaps today", /*#__PURE__*/React.createElement("br", null), stats.stories, " ", lang === "hi" ? "ख़बरें ट्रैक" : "stories tracked"))), /*#__PURE__*/React.createElement("div", {
+  }, gapsToday, " ", lang === "hi" ? "गैप आज" : "gaps today", /*#__PURE__*/React.createElement("br", null), stats.stories, " ", lang === "hi" ? "ख़बरें ट्रैक" : "stories tracked"))), tuned.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 p-5 ${t.soft}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "आपके पढ़ने के हिसाब से" : "Tuned to your reading"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("lens"),
+    className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "मेरा लेंस →" : "My lens →")), /*#__PURE__*/React.createElement("p", {
+    className: `mt-1.5 text-[12.5px] ${t.tf} ${isHi(lang)}`
+  }, lang === "hi" ? `आप ${lbl(leastSide, lang)} की कवरेज सबसे कम पढ़ते हैं, ये वही खबरें हैं जो उस पक्ष पर कम कवर हुईं।` : `You read ${lbl(leastSide, lang)} coverage the least, here are gaps where that side is under-covered.`), /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-3"
+  }, tuned.map((g, i) => /*#__PURE__*/React.createElement("a", {
+    key: g.story.id,
+    href: "/story/" + encodeURIComponent(g.story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open(g.story.id);
+    },
+    className: `block no-underline group cursor-pointer ${i > 0 ? "sm:border-l sm:pl-6" : ""} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: 1.3
+    }
+  }, g.story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2"
+  }, /*#__PURE__*/React.createElement(GapColumns, {
+    counts: g.story.counts || {},
+    t: t,
+    lang: lang
+  }))))))), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, shown.length ? /*#__PURE__*/React.createElement("div", {
     className: "grid gap-x-6 gap-y-9 py-8 sm:grid-cols-2 lg:grid-cols-3",
@@ -3763,10 +3963,67 @@ function SourceCard({
     className: `font-semibold ${t.tp}`
   }, STR[lang].ownership, ":"), " ", s.ownership), s.rationale && /*#__PURE__*/React.createElement("p", {
     className: `mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
-  }, s.rationale), /*#__PURE__*/React.createElement(AxisBars, {
+  }, s.rationale), /*#__PURE__*/React.createElement(SignalChips, {
+    subscores: s.subscores,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement(AxisBars, {
     axes: s.axes,
     t: t,
     lang: lang
+  }));
+}
+// The six-signal rubric scores per outlet (-2..+2), shown as small chips. Only non-zero
+// signals are chipped (they're what pushed the lean); sign colours by side, magnitude by number.
+const SIG_LABELS = {
+  editorial: {
+    en: "Stance",
+    hi: "रुख"
+  },
+  framing: {
+    en: "Framing",
+    hi: "फ़्रेमिंग"
+  },
+  selection: {
+    en: "Selection",
+    hi: "चयन"
+  },
+  sourcing: {
+    en: "Sourcing",
+    hi: "स्रोत"
+  },
+  ownership: {
+    en: "Ownership",
+    hi: "स्वामित्व"
+  },
+  panel: {
+    en: "Panel",
+    hi: "पैनल"
+  }
+};
+function SignalChips({
+  subscores,
+  t,
+  lang
+}) {
+  if (!subscores) return null;
+  const order = ["editorial", "framing", "selection", "sourcing", "ownership", "panel"];
+  const items = order.filter(k => typeof subscores[k] === "number" && subscores[k] !== 0);
+  if (!items.length) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5 flex flex-wrap gap-1.5"
+  }, items.map(k => {
+    const v = subscores[k];
+    const col = v < 0 ? BIAS.left.color : BIAS.right.color;
+    const lab = (SIG_LABELS[k] || {})[lang] || (SIG_LABELS[k] || {}).en || k;
+    return /*#__PURE__*/React.createElement("span", {
+      key: k,
+      className: `inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[9.5px] font-semibold ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        backgroundColor: col,
+        color: "#fff"
+      }
+    }, lab, " ", v > 0 ? `+${v}` : v);
   }));
 }
 function SourcesPage({
@@ -3852,9 +4109,38 @@ function AboutPage({
   }, gapText), /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_rateH
   }, /*#__PURE__*/React.createElement("p", {
-    className: "mb-2"
-  }, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("p", {
-    className: `text-[12px] ${t.tf}`
+    className: "mb-3"
+  }, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("div", {
+    className: `border ${t.border}`
+  }, SIGNALS.map((sig, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: `flex items-center justify-between gap-3 px-3.5 py-2.5 ${i > 0 ? "border-t" : ""} ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13.5px] ${t.tp} ${isHi(lang)}`
+  }, sig[lang] || sig.en), /*#__PURE__*/React.createElement("span", {
+    className: "flex items-center gap-2.5 shrink-0"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 56,
+      height: 6,
+      background: t.track || "#EAE6DB",
+      border: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "seg-center",
+    style: {
+      display: "block",
+      height: "100%",
+      width: `${sig.w / 30 * 100}%`
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[12px] font-semibold ${t.tp}`,
+    style: {
+      width: 34,
+      textAlign: "right"
+    }
+  }, sig.w, "%"))))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[12px] ${t.tf} ${isHi(lang)}`
   }, STR[lang].m_rateFoot)), /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_axisH
   }, STR[lang].m_axis), /*#__PURE__*/React.createElement(Row, {
@@ -3871,36 +4157,57 @@ function ContactPage({
 }) {
   const [status, setStatus] = useState("idle");
   const [err, setErr] = useState("");
+  const [topic, setTopic] = useState("rating");
   const L = lang === "hi" ? {
     title: "संपर्क करें",
     lede: "सवाल, सुधार या शिकायत? हमें लिखें, हम हर संदेश पढ़ते हैं।",
     name: "आपका नाम (वैकल्पिक)",
     email: "ईमेल",
-    topic: "विषय",
-    tQ: "सामान्य सवाल",
-    tC: "सुधार / तथ्य-जाँच",
-    tX: "शिकायत",
-    tO: "अन्य",
+    topicL: "विषय",
     msg: "आपका संदेश",
-    send: "भेजें",
+    send: "डेस्क को भेजें",
     sending: "भेजा जा रहा है…",
     ok: "धन्यवाद, आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
-    err: "संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।"
+    err: "संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।",
+    chips: {
+      rating: "रेटिंग सुधार",
+      outlet: "नया आउटलेट सुझाएँ",
+      general: "सामान्य"
+    },
+    ph: {
+      rating: "आउटलेट, जिस रेटिंग से असहमत हैं, और 2-3 उदाहरण हेडलाइन बताएँ…",
+      outlet: "आउटलेट का नाम, वेबसाइट, भाषा और वह किस ओर झुका लगता है…",
+      general: "आपका संदेश…"
+    },
+    railH: "रेटिंग पर असहमति?",
+    rail: "हमें आउटलेट, जिस रेटिंग से आप असहमत हैं, और 2-3 उदाहरण हेडलाइन/लेख बताएँ। हम उसे छह-संकेत रूब्रिक के विरुद्ध फिर से देखेंगे।",
+    emailH: "सीधा ईमेल",
+    indep: "पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।"
   } : {
     title: "Contact",
     lede: "A question, a correction, or a complaint? Write to us, we read every message.",
     name: "Your name (optional)",
     email: "Email",
-    topic: "Topic",
-    tQ: "General question",
-    tC: "Correction / fact-check",
-    tX: "Complaint",
-    tO: "Other",
+    topicL: "Topic",
     msg: "Your message",
-    send: "Send",
+    send: "Send to the desk",
     sending: "Sending…",
     ok: "Thank you, your message reached us. We'll reply soon.",
-    err: "Could not send your message. Please try again."
+    err: "Could not send your message. Please try again.",
+    chips: {
+      rating: "Rating correction",
+      outlet: "Suggest an outlet",
+      general: "General"
+    },
+    ph: {
+      rating: "Name the outlet, the rating you dispute, and 2-3 example headlines…",
+      outlet: "Outlet name, website, language, and where it seems to lean…",
+      general: "Your message…"
+    },
+    railH: "Disputing a rating?",
+    rail: "Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
+    emailH: "Direct email",
+    indep: "Paksh is an independent project and is not affiliated with any outlet shown."
   };
   async function submit(e) {
     e.preventDefault();
@@ -3932,6 +4239,8 @@ function ContactPage({
   const inp = `w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
   const lbl = `mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-10 lg:grid-cols-[1fr_320px]"
+  }, /*#__PURE__*/React.createElement("div", {
     className: "max-w-xl"
   }, /*#__PURE__*/React.createElement("h1", {
     className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
@@ -3959,7 +4268,23 @@ function ContactPage({
     type: "hidden",
     name: "_subject",
     value: "New Paksh contact message"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "topic",
+    value: L.chips[topic]
   }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.topicL), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2"
+  }, ["rating", "outlet", "general"].map(k => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    type: "button",
+    onClick: () => setTopic(k),
+    className: `border px-3.5 py-1.5 eyebrow ${topic === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, L.chips[k])))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: lbl
   }, L.name), /*#__PURE__*/React.createElement("input", {
     name: "name",
@@ -3974,15 +4299,11 @@ function ContactPage({
     className: inp
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: lbl
-  }, L.topic), /*#__PURE__*/React.createElement("select", {
-    name: "topic",
-    className: inp
-  }, /*#__PURE__*/React.createElement("option", null, L.tQ), /*#__PURE__*/React.createElement("option", null, L.tC), /*#__PURE__*/React.createElement("option", null, L.tX), /*#__PURE__*/React.createElement("option", null, L.tO))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: lbl
   }, L.msg), /*#__PURE__*/React.createElement("textarea", {
     name: "message",
     required: true,
     rows: "6",
+    placeholder: L.ph[topic],
     className: inp
   })), status === "error" && /*#__PURE__*/React.createElement("p", {
     className: "text-[13px] font-medium",
@@ -3993,7 +4314,33 @@ function ContactPage({
     type: "submit",
     disabled: status === "sending",
     className: `rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`
-  }, status === "sending" ? L.sending : L.send))));
+  }, status === "sending" ? L.sending : L.send))), /*#__PURE__*/React.createElement("aside", {
+    className: "space-y-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `border p-5 ${t.surface} ${t.border}`,
+    style: {
+      borderLeft: `3px solid #75442E`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, L.railH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`
+  }, L.rail)), /*#__PURE__*/React.createElement("div", {
+    className: `border p-5 ${t.surface} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, L.emailH), /*#__PURE__*/React.createElement("a", {
+    href: "mailto:hello@paksh.news",
+    className: `mt-2 block mono text-[13px] ${t.ts} hover:${t.tp}`
+  }, "hello@paksh.news")), /*#__PURE__*/React.createElement("p", {
+    className: `text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, L.indep))));
 }
 // Sponsor slot: renders NOTHING until SPONSOR.name is set (an empty "supported by" looks
 // broken). Drop <SponsorSlot .../> wherever you want the credit to appear once you sign one.
@@ -4084,6 +4431,12 @@ function SupportPage({
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
   }, L.upiH), /*#__PURE__*/React.createElement("div", {
+    className: "mb-3 flex flex-wrap gap-2"
+  }, [99, 299, 999].map(a => /*#__PURE__*/React.createElement("a", {
+    key: a,
+    href: upiLink(a),
+    className: `inline-flex items-center justify-center border px-4 py-2 text-[15px] font-semibold ${t.border} ${t.ts} hover:${t.cta} hover:${t.ctaT}`
+  }, "\u20B9", a))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center gap-3"
   }, /*#__PURE__*/React.createElement("a", {
     href: upiLink(),
@@ -4093,7 +4446,9 @@ function SupportPage({
     className: btn2
   }, copied ? L.copied : L.copy), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[13px] ${t.ts}`
-  }, SUPPORT.upi))), SUPPORT.url && /*#__PURE__*/React.createElement("a", {
+  }, SUPPORT.upi)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[12px] ${t.tf} ${isHi(lang)}`
+  }, lang === "hi" ? "एक-बार UPI · कोई खाता या आवर्ती शुल्क नहीं · भुगतान आपके बैंक से होता है, पक्ष इसे संग्रहीत नहीं करता।" : "One-time UPI · no account or recurring charge · handled by your bank, never stored by Paksh.")), SUPPORT.url && /*#__PURE__*/React.createElement("a", {
     href: SUPPORT.url,
     target: "_blank",
     rel: "noopener noreferrer",
@@ -4119,7 +4474,9 @@ function SupportPage({
 }
 function PrivacyPage({
   t,
-  lang
+  lang,
+  consent,
+  setConsent
 }) {
   const Row = ({
     h,
@@ -4142,7 +4499,20 @@ function PrivacyPage({
     className: `mb-1 mt-3 text-[13px] ${t.tf}`
   }, "Last updated: 9 August 2026 \xB7 Operated by Redstocks Technology LLP"), lang === "hi" && /*#__PURE__*/React.createElement("p", {
     className: `mb-2 text-[12.5px] deva ${t.tf}`
-  }, "\u092F\u0939 \u0917\u094B\u092A\u0928\u0940\u092F\u0924\u093E \u0928\u0940\u0924\u093F \u0905\u0902\u0917\u094D\u0930\u0947\u091C\u093C\u0940 \u092E\u0947\u0902 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u0948\u0964"), /*#__PURE__*/React.createElement(Row, {
+  }, "\u092F\u0939 \u0917\u094B\u092A\u0928\u0940\u092F\u0924\u093E \u0928\u0940\u0924\u093F \u0905\u0902\u0917\u094D\u0930\u0947\u091C\u093C\u0940 \u092E\u0947\u0902 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u0948\u0964"), setConsent && /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 mb-2 flex items-center justify-between gap-4 border p-4 ${t.surface} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[14px] font-semibold ${t.tp} ${isHi(lang)}`
+  }, lang === "hi" ? "गुमनाम एनालिटिक्स" : "Anonymous analytics"), /*#__PURE__*/React.createElement("div", {
+    className: `mt-0.5 text-[12.5px] ${t.tf} ${isHi(lang)}`
+  }, lang === "hi" ? "गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।" : "Privacy-respecting, cookieless. Everything works with it off.")), /*#__PURE__*/React.createElement(Toggle, {
+    on: consent === "granted",
+    onChange: v => setConsent(v ? "granted" : "denied"),
+    label: lang === "hi" ? "गुमनाम एनालिटिक्स" : "Anonymous analytics",
+    t: t
+  })), /*#__PURE__*/React.createElement(Row, {
     h: "Who we are"
   }, "Paksh (\u092A\u0915\u094D\u0937) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum."), /*#__PURE__*/React.createElement(Row, {
     h: "What we collect"
@@ -5406,6 +5776,15 @@ function PakshApp() {
   const [a11y, setA11yState] = useState(readA11y);
   const [savedIds, setSavedIds] = useState(() => new Set()); // story_ids the user has clipped
   const [savedRows, setSavedRows] = useState(null); // full saved list for the Saved page
+  const [lensStats, setLensStats] = useState({
+    topics: [],
+    sides: {
+      left: 0,
+      center: 0,
+      right: 0
+    },
+    total: 0
+  }); // reading summary → feed/gaps personalization
   const [onboard, setOnboard] = useState(() => {
     try {
       return !localStorage.getItem("paksh-onboarded");
@@ -5516,6 +5895,7 @@ function PakshApp() {
         if (p.lang === "en" || p.lang === "hi") setLang(p.lang);
       });
       refreshSaved();
+      refreshLens();
     }).catch(() => setAuth(null));
   }, []);
   // Pull the saved list (ids for button state + rows for the Saved page).
@@ -5527,6 +5907,40 @@ function PakshApp() {
     }).catch(() => {
       setSavedRows([]);
     });
+  };
+  // Summarise the reader's last-30-day history (top topics + lean split) for the transparent
+  // personalization rails on the feed and Coverage Gaps. Never changes ranking or the bias bar.
+  const refreshLens = () => {
+    if (!authOn() || !_uid()) {
+      setLensStats({
+        topics: [],
+        sides: {
+          left: 0,
+          center: 0,
+          right: 0
+        },
+        total: 0
+      });
+      return;
+    }
+    listReading(30).then(rows => {
+      rows = rows || [];
+      const sides = {
+        left: 0,
+        center: 0,
+        right: 0
+      };
+      const tc = {};
+      rows.forEach(r => {
+        if (sides[r.side] != null) sides[r.side]++;
+        if (r.topic) tc[r.topic] = (tc[r.topic] || 0) + 1;
+      });
+      setLensStats({
+        topics: Object.keys(tc).sort((a, b) => tc[b] - tc[a]),
+        sides,
+        total: rows.length
+      });
+    }).catch(() => {});
   };
   // Record every opened story into the Reading Lens (signed-in only; best-effort).
   useEffect(() => {
@@ -5581,6 +5995,7 @@ function PakshApp() {
       if (p && (p.lang === "en" || p.lang === "hi")) setLang(p.lang);
     });
     refreshSaved();
+    refreshLens();
     go("home");
   };
   const onSignOut = () => {
@@ -5588,6 +6003,15 @@ function PakshApp() {
       setAuth(null);
       setSavedIds(new Set());
       setSavedRows(null);
+      setLensStats({
+        topics: [],
+        sides: {
+          left: 0,
+          center: 0,
+          right: 0
+        },
+        total: 0
+      });
       go("home");
     });
   };
@@ -5718,7 +6142,8 @@ function PakshApp() {
     setDark: setDark,
     go: go,
     view: headerView,
-    auth: auth
+    auth: auth,
+    openHelp: () => setOnboard(true)
   }), /*#__PURE__*/React.createElement("main", {
     id: "main",
     className: "pb-24 md:pb-10"
@@ -5776,7 +6201,8 @@ function PakshApp() {
     open: open,
     saved: savedIds,
     onToggleSave: toggleSave,
-    a11y: a11y
+    a11y: a11y,
+    auth: auth
   }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
     t: t
   }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {
@@ -5788,7 +6214,9 @@ function PakshApp() {
     t: t,
     lang: lang,
     open: open,
-    go: go
+    go: go,
+    auth: auth,
+    lens: lensStats
   }) : route.view === "topics" ? /*#__PURE__*/React.createElement(TopicsHub, {
     topics: topicsOrdered,
     counts: countsByTopic,
@@ -5815,7 +6243,9 @@ function PakshApp() {
     lang: lang
   }) : route.view === "privacy" ? /*#__PURE__*/React.createElement(PrivacyPage, {
     t: t,
-    lang: lang
+    lang: lang,
+    consent: consent,
+    setConsent: setConsentChoice
   }) : route.view === "support" ? /*#__PURE__*/React.createElement(SupportPage, {
     t: t,
     lang: lang,
@@ -5840,7 +6270,10 @@ function PakshApp() {
     lang: lang,
     open: open,
     goTopic: goTopic,
-    go: go
+    go: go,
+    auth: auth,
+    lens: lensStats,
+    openHelp: () => setOnboard(true)
   })), route.view !== "story" && /*#__PURE__*/React.createElement(Footer, {
     t: t,
     lang: lang,
@@ -5849,7 +6282,8 @@ function PakshApp() {
     t: t,
     lang: lang,
     view: headerView,
-    go: go
+    go: go,
+    auth: auth
   }), onboard && /*#__PURE__*/React.createElement(Onboarding, {
     t: t,
     lang: lang,

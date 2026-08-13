@@ -83,8 +83,8 @@ const {useState,useEffect,useMemo}=React;
     const SUPPORT = { upi: "", url: "", payeeName: "Paksh" };
     const supportReady = () => !!(SUPPORT.upi || SUPPORT.url);
     // A UPI deep link that opens the user's UPI app pre-filled (no amount forced).
-    const upiLink = () => SUPPORT.upi
-      ? `upi://pay?pa=${encodeURIComponent(SUPPORT.upi)}&pn=${encodeURIComponent(SUPPORT.payeeName||"Paksh")}&cu=INR`
+    const upiLink = (amt) => SUPPORT.upi
+      ? `upi://pay?pa=${encodeURIComponent(SUPPORT.upi)}&pn=${encodeURIComponent(SUPPORT.payeeName||"Paksh")}&cu=INR${amt?`&am=${amt}`:""}`
       : "";
 
     // --- Sponsorship (stays INVISIBLE until you actually have a sponsor) -------------------
@@ -393,6 +393,8 @@ const {useState,useEffect,useMemo}=React;
     const LinkIcon=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>;
     const Check=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
     const Bookmark=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill={p.fill||"none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>;
+    const User=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>;
+    const Help=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>;
 
     /* ---------------- helpers ---------------- */
     const _ts=(iso)=>{ if(!iso) return NaN; let x=(""+iso).replace(" ","T"); if(!/[zZ]|[+\-]\d\d:?\d\d$/.test(x)) x+="Z"; return Date.parse(x); };
@@ -748,7 +750,7 @@ const {useState,useEffect,useMemo}=React;
     // Masthead — brand, inline nav with a 2px active underline, search as an icon, the
     // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
     // utility strip, no topic-chip rail (design spec 2a).
-    function Header({ t, lang, setLang, dark, setDark, go, view, auth }) {
+    function Header({ t, lang, setLang, dark, setDark, go, view, auth, openHelp }) {
       const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
       const initials=(email)=>{ const s=(email||"").trim(); return s?s[0].toUpperCase():"?"; };
       return (
@@ -769,6 +771,7 @@ const {useState,useEffect,useMemo}=React;
               <div className="ml-auto flex items-center gap-3 sm:gap-4">
                 <button onClick={()=>go("support")} aria-label={lang==="hi"?"सहयोग":"Support"} title={lang==="hi"?"सहयोग":"Support"} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{color:"#75442E"}}><span aria-hidden="true">♥</span><span className={lang==="hi"?"deva":""}>{lang==="hi"?"सहयोग":"Support"}</span></button>
                 <button onClick={()=>go("search")} aria-label="Search" className={`${t.tf} hover:${t.tp}`}><Search size={17}/></button>
+                {openHelp && <button onClick={openHelp} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"} title={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"} className={`hidden sm:inline ${t.tf} hover:${t.tp}`}><Help size={17}/></button>}
                 <LangToggle t={t} lang={lang} setLang={setLang} dark={dark} />
                 <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={16}/>:<Moon size={16}/>}</button>
                 {authOn() && (auth
@@ -780,12 +783,15 @@ const {useState,useEffect,useMemo}=React;
         </header>
       );
     }
-    function BottomNav({ t, lang, view, go }) {
-      const items=[["home",STR[lang].navTop,Layers],["blindspot",STR[lang].navOS,Eye],["topics",ui("sections",lang),Compass],["about",STR[lang].navMethod,Scale]];
+    function BottomNav({ t, lang, view, go, auth }) {
+      // Front · Gaps · Search · Saved · You (per the mobile handoff). "You" = account (or sign in).
+      const items=[["home",lang==="hi"?"मुख":"Front",Home],["blindspot",STR[lang].navOS,Eye],["search",ui("searchTab",lang),Search],
+        ["saved",lang==="hi"?"सहेजा":"Saved",Bookmark],[authOn()&&auth?"account":(authOn()?"login":"about"),lang==="hi"?(auth?"आप":"साइन इन"):(authOn()&&auth?"You":(authOn()?"Sign in":"Method")),authOn()?User:Scale]];
+      const active=(k)=>view===k||(k==="account"&&view==="account")||(k==="login"&&view==="login");
       return (
         <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>
           <div className="flex">
-            {items.map(([k,label,Ic])=>(<button key={k} onClick={()=>go(k)} className={`flex flex-1 flex-col items-center gap-0.5 py-2 ${view===k?t.tp:t.tf}`}><Ic size={19}/><span className={`text-[9.5px] font-semibold ${lang==="hi"?"deva":""}`}>{label}</span></button>))}
+            {items.map(([k,label,Ic])=>(<button key={k} onClick={()=>go(k)} className={`flex flex-1 flex-col items-center gap-0.5 py-2 ${active(k)?t.tp:t.tf}`}><Ic size={19}/><span className={`text-[9.5px] font-semibold ${lang==="hi"?"deva":""}`}>{label}</span></button>))}
           </div>
         </nav>
       );
@@ -959,7 +965,39 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go }) {
+    // Right-rail auth-aware card (Direction B, transparent personalization). Member: a "Because
+    // you read {topic}" pointer to a story on the topic they read most. Guest: a "New to Paksh?"
+    // explainer with a How-it-works link. Never reorders the feed; ranking stays arithmetic.
+    function RailPersonalize({ auth, lens, cards, t, lang, go, open, openHelp }) {
+      if(auth && lens && lens.total>0 && lens.topics.length){
+        const topic=lens.topics[0];
+        const pick=(cards||[]).find(c=>c.topic===topic)||(cards||[])[0];
+        const tp=lang==="hi"?(TOPIC_HI[topic]||topic):topic;
+        return (
+          <div className={`border p-4 ${t.surface} ${t.border}`}>
+            <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?`क्योंकि आपने ${tp} पढ़ा`:`Because you read ${tp}`}</div>
+            {pick && (
+              <a href={"/story/"+encodeURIComponent(pick.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(pick.id); }} className="block no-underline group cursor-pointer mt-2">
+                <div className={`headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{pick.headline}</div>
+                <div className="mt-2"><BiasSegments bias={pick.bias} t={t} h={8} lang={lang} /></div>
+              </a>
+            )}
+            <button onClick={()=>go("lens")} className={`mt-3 eyebrow ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"मेरा रीडिंग लेंस →":"My Reading Lens →"}</button>
+          </div>
+        );
+      }
+      return (
+        <div className={`border p-4 ${t.surface} ${t.border}`}>
+          <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"पक्ष में नए?":"New to Paksh?"}</div>
+          <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{lang==="hi"?"पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।":"Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {openHelp && <button onClick={openHelp} className={`border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"यह कैसे काम करता है":"How it works"}</button>}
+            {authOn() && !auth && <button onClick={()=>go("login")} className={`px-3 py-1.5 eyebrow ${t.cta} ${t.ctaT} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"साइन इन":"Sign in"}</button>}
+          </div>
+        </div>
+      );
+    }
+    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go, auth, lens, openHelp }) {
       // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
       // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
       // top-ranked story leads, the rest fall into the tier ladder in ranked order.
@@ -1016,8 +1054,10 @@ const {useState,useEffect,useMemo}=React;
                 {lead && <LeadStory story={lead} t={t} lang={lang} onOpen={open} />}
               </div>
               <div className="order-3 py-4 lg:py-6 lg:pl-7 space-y-6">
+                <RailPersonalize auth={auth} lens={lens} cards={cards} t={t} lang={lang} go={go} open={open} openHelp={openHelp} />
                 <SpectrumRail cards={cards} t={t} lang={lang} />
                 <WidestAgreement cards={cards} t={t} lang={lang} onOpen={open} />
+                <AdSlot t={t} lang={lang} />
               </div>
             </div>
           </div>
@@ -1124,6 +1164,15 @@ const {useState,useEffect,useMemo}=React;
               <span className={`mono text-[10px] ${t.tf}`} style={{position:"absolute",left:"50%",top:7,transform:"translateX(-50%)",whiteSpace:"nowrap"}}>{lang==="hi"?"कवरेज का 50%":"50% of coverage"}</span>
             </div>
           </div>
+
+          {/* Reading Lens margin-mark (member) / sign-in nudge (guest). Private; never affects the bar. */}
+          {authOn() && (
+            <div className="mx-auto mt-3 max-w-[840px]">
+              {auth
+                ? <div className={`flex items-center gap-1.5 mono text-[10.5px] ${t.tf} ${isHi(lang)}`}><Check size={12}/> {lang==="hi"?"आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है":"Recorded to your Reading Lens · visible only to you"}</div>
+                : <button onClick={()=>go("login")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{lang==="hi"?"अपना रीडिंग लेंस बनाने के लिए साइन इन करें →":"Sign in to build your Reading Lens →"}</button>}
+            </div>
+          )}
 
           {/* the story, without framing — label + note | summary */}
           <div className="mx-auto mt-9 max-w-[840px] grid gap-5 md:grid-cols-[200px_1fr] md:gap-11">
@@ -1288,7 +1337,7 @@ const {useState,useEffect,useMemo}=React;
         </a>
       );
     }
-    function BlindspotPage({ left, right, roster, agg, stats, t, lang, open, go }) {
+    function BlindspotPage({ left, right, roster, agg, stats, t, lang, open, go, auth, lens }) {
       // left = left_heavier (RIGHT is the under-covered side); right = right_heavier (LEFT is).
       const cards=[];
       (right||[]).forEach(s=>cards.push({story:s, gapSide:"left"}));
@@ -1298,6 +1347,13 @@ const {useState,useEffect,useMemo}=React;
       const shown=cards.slice(0,15);
       const gapsToday=(agg.total!=null?agg.total:cards.length);
       const pad="px-4 sm:px-10";
+      // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
+      // surface up to 3 gaps where that side is the under-covered one, preferring topics you read.
+      const sides=(lens&&lens.sides)||{};
+      const leastSide=["left","center","right"].reduce((a,b)=>((sides[b]||0)<(sides[a]||0)?b:a),"left");
+      const tuned=(auth&&lens&&lens.total>0)
+        ? cards.filter(c=>c.gapSide===leastSide).sort((a,b)=>{ const at=lens.topics.indexOf(a.story.topic), bt=lens.topics.indexOf(b.story.topic); return (at<0?99:at)-(bt<0?99:bt); }).slice(0,3)
+        : [];
       const explain=(head,body)=>(
         <div>
           <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{head}</div>
@@ -1318,6 +1374,26 @@ const {useState,useEffect,useMemo}=React;
               </div>
             </div>
           </div>
+          {/* Tuned to your reading (member) — gaps on the side you read least */}
+          {tuned.length>0 && (
+            <div className={pad}>
+              <div className={`mt-6 p-5 ${t.soft}`}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आपके पढ़ने के हिसाब से":"Tuned to your reading"}</div>
+                  <button onClick={()=>go("lens")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा लेंस →":"My lens →"}</button>
+                </div>
+                <p className={`mt-1.5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?`आप ${lbl(leastSide,lang)} की कवरेज सबसे कम पढ़ते हैं, ये वही खबरें हैं जो उस पक्ष पर कम कवर हुईं।`:`You read ${lbl(leastSide,lang)} coverage the least, here are gaps where that side is under-covered.`}</p>
+                <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-3">
+                  {tuned.map((g,i)=>(
+                    <a key={g.story.id} href={"/story/"+encodeURIComponent(g.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(g.story.id); }} className={`block no-underline group cursor-pointer ${i>0?"sm:border-l sm:pl-6":""} ${t.border}`}>
+                      <div className={`headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{g.story.headline}</div>
+                      <div className="mt-2"><GapColumns counts={g.story.counts||{}} t={t} lang={lang} /></div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* gap cards */}
           <div className={pad}>
             {shown.length? (
@@ -1406,7 +1482,25 @@ const {useState,useEffect,useMemo}=React;
           </div>
           {s.ownership && <div className={`mt-2.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</div>}
           {s.rationale && <p className={`mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{s.rationale}</p>}
+          <SignalChips subscores={s.subscores} t={t} lang={lang} />
           <AxisBars axes={s.axes} t={t} lang={lang} />
+        </div>
+      );
+    }
+    // The six-signal rubric scores per outlet (-2..+2), shown as small chips. Only non-zero
+    // signals are chipped (they're what pushed the lean); sign colours by side, magnitude by number.
+    const SIG_LABELS={ editorial:{en:"Stance",hi:"रुख"}, framing:{en:"Framing",hi:"फ़्रेमिंग"}, selection:{en:"Selection",hi:"चयन"},
+      sourcing:{en:"Sourcing",hi:"स्रोत"}, ownership:{en:"Ownership",hi:"स्वामित्व"}, panel:{en:"Panel",hi:"पैनल"} };
+    function SignalChips({ subscores, t, lang }) {
+      if(!subscores) return null;
+      const order=["editorial","framing","selection","sourcing","ownership","panel"];
+      const items=order.filter(k=>typeof subscores[k]==="number" && subscores[k]!==0);
+      if(!items.length) return null;
+      return (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {items.map(k=>{ const v=subscores[k]; const col=v<0?BIAS.left.color:BIAS.right.color; const lab=(SIG_LABELS[k]||{})[lang]||(SIG_LABELS[k]||{}).en||k;
+            return <span key={k} className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[9.5px] font-semibold ${lang==="hi"?"deva":""}`} style={{backgroundColor:col,color:"#fff"}}>{lab} {v>0?`+${v}`:v}</span>;
+          })}
         </div>
       );
     }
@@ -1438,7 +1532,21 @@ const {useState,useEffect,useMemo}=React;
             <Row h={STR[lang].m_orderH}>{STR[lang].m_order}</Row>
             <Row h={STR[lang].m_freshH}>{STR[lang].m_fresh}</Row>
             {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
-            <Row h={STR[lang].m_rateH}><p className="mb-2">{STR[lang].m_rateLede}</p><p className={`text-[12px] ${t.tf}`}>{STR[lang].m_rateFoot}</p></Row>
+            <Row h={STR[lang].m_rateH}>
+              <p className="mb-3">{STR[lang].m_rateLede}</p>
+              <div className={`border ${t.border}`}>
+                {SIGNALS.map((sig,i)=>(
+                  <div key={i} className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${i>0?"border-t":""} ${t.border}`}>
+                    <span className={`text-[13.5px] ${t.tp} ${isHi(lang)}`}>{sig[lang]||sig.en}</span>
+                    <span className="flex items-center gap-2.5 shrink-0">
+                      <span style={{width:56,height:6,background:t.track||"#EAE6DB",border:`1px solid ${t.line}`}}><span className="seg-center" style={{display:"block",height:"100%",width:`${sig.w/30*100}%`}}/></span>
+                      <span className={`mono text-[12px] font-semibold ${t.tp}`} style={{width:34,textAlign:"right"}}>{sig.w}%</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className={`mt-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{STR[lang].m_rateFoot}</p>
+            </Row>
             <Row h={STR[lang].m_axisH}>{STR[lang].m_axis}</Row>
             <Row h={STR[lang].m_partiesH}>{STR[lang].m_parties}</Row>
             <Row h={STR[lang].m_provH}>{STR[lang].m_prov}</Row>
@@ -1450,20 +1558,27 @@ const {useState,useEffect,useMemo}=React;
     function ContactPage({ t, lang }) {
       const [status,setStatus]=useState("idle");
       const [err,setErr]=useState("");
+      const [topic,setTopic]=useState("rating");
       const L = lang==="hi" ? {
         title:"संपर्क करें", lede:"सवाल, सुधार या शिकायत? हमें लिखें, हम हर संदेश पढ़ते हैं।",
-        name:"आपका नाम (वैकल्पिक)", email:"ईमेल", topic:"विषय",
-        tQ:"सामान्य सवाल", tC:"सुधार / तथ्य-जाँच", tX:"शिकायत", tO:"अन्य",
-        msg:"आपका संदेश", send:"भेजें", sending:"भेजा जा रहा है…",
+        name:"आपका नाम (वैकल्पिक)", email:"ईमेल", topicL:"विषय",
+        msg:"आपका संदेश", send:"डेस्क को भेजें", sending:"भेजा जा रहा है…",
         ok:"धन्यवाद, आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
-        err:"संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।"
+        err:"संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।",
+        chips:{rating:"रेटिंग सुधार", outlet:"नया आउटलेट सुझाएँ", general:"सामान्य"},
+        ph:{rating:"आउटलेट, जिस रेटिंग से असहमत हैं, और 2-3 उदाहरण हेडलाइन बताएँ…", outlet:"आउटलेट का नाम, वेबसाइट, भाषा और वह किस ओर झुका लगता है…", general:"आपका संदेश…"},
+        railH:"रेटिंग पर असहमति?", rail:"हमें आउटलेट, जिस रेटिंग से आप असहमत हैं, और 2-3 उदाहरण हेडलाइन/लेख बताएँ। हम उसे छह-संकेत रूब्रिक के विरुद्ध फिर से देखेंगे।",
+        emailH:"सीधा ईमेल", indep:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।"
       } : {
         title:"Contact", lede:"A question, a correction, or a complaint? Write to us, we read every message.",
-        name:"Your name (optional)", email:"Email", topic:"Topic",
-        tQ:"General question", tC:"Correction / fact-check", tX:"Complaint", tO:"Other",
-        msg:"Your message", send:"Send", sending:"Sending…",
+        name:"Your name (optional)", email:"Email", topicL:"Topic",
+        msg:"Your message", send:"Send to the desk", sending:"Sending…",
         ok:"Thank you, your message reached us. We'll reply soon.",
-        err:"Could not send your message. Please try again."
+        err:"Could not send your message. Please try again.",
+        chips:{rating:"Rating correction", outlet:"Suggest an outlet", general:"General"},
+        ph:{rating:"Name the outlet, the rating you dispute, and 2-3 example headlines…", outlet:"Outlet name, website, language, and where it seems to lean…", general:"Your message…"},
+        railH:"Disputing a rating?", rail:"Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
+        emailH:"Direct email", indep:"Paksh is an independent project and is not affiliated with any outlet shown."
       };
       async function submit(e){
         e.preventDefault(); setStatus("sending"); setErr("");
@@ -1478,25 +1593,43 @@ const {useState,useEffect,useMemo}=React;
       const lbl=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
       return (
         <PageWrap>
-          <div className="max-w-xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
-            <p className={`mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{L.lede}</p>
-            {status==="ok" ? (
-              <div className={`rounded-lg border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
-            ) : (
-              <form onSubmit={submit} className="space-y-4">
-                <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
-                <input type="hidden" name="_subject" value="New Paksh contact message" />
-                <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
-                <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
-                <div><label className={lbl}>{L.topic}</label>
-                  <select name="topic" className={inp}><option>{L.tQ}</option><option>{L.tC}</option><option>{L.tX}</option><option>{L.tO}</option></select>
-                </div>
-                <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" className={inp} /></div>
-                {status==="error" && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
-                <button type="submit" disabled={status==="sending"} className={`rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
-              </form>
-            )}
+          <div className="grid gap-10 lg:grid-cols-[1fr_320px]">
+            <div className="max-w-xl">
+              <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+              <p className={`mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{L.lede}</p>
+              {status==="ok" ? (
+                <div className={`rounded-lg border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
+              ) : (
+                <form onSubmit={submit} className="space-y-4">
+                  <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
+                  <input type="hidden" name="_subject" value="New Paksh contact message" />
+                  <input type="hidden" name="topic" value={L.chips[topic]} />
+                  <div><label className={lbl}>{L.topicL}</label>
+                    <div className="flex flex-wrap gap-2">
+                      {["rating","outlet","general"].map(k=>(
+                        <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
+                  <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
+                  <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" placeholder={L.ph[topic]} className={inp} /></div>
+                  {status==="error" && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+                  <button type="submit" disabled={status==="sending"} className={`rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
+                </form>
+              )}
+            </div>
+            <aside className="space-y-6">
+              <div className={`border p-5 ${t.surface} ${t.border}`} style={{borderLeft:`3px solid #75442E`}}>
+                <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.railH}</div>
+                <p className={`mt-2 text-[13.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.rail}</p>
+              </div>
+              <div className={`border p-5 ${t.surface} ${t.border}`}>
+                <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.emailH}</div>
+                <a href="mailto:hello@paksh.news" className={`mt-2 block mono text-[13px] ${t.ts} hover:${t.tp}`}>hello@paksh.news</a>
+              </div>
+              <p className={`text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.indep}</p>
+            </aside>
           </div>
         </PageWrap>
       );
@@ -1553,11 +1686,17 @@ const {useState,useEffect,useMemo}=React;
                 {SUPPORT.upi && (
                   <div className="mb-5">
                     <div className={`eyebrow mb-2 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.upiH}</div>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {[99,299,999].map(a=>(
+                        <a key={a} href={upiLink(a)} className={`inline-flex items-center justify-center border px-4 py-2 text-[15px] font-semibold ${t.border} ${t.ts} hover:${t.cta} hover:${t.ctaT}`}>₹{a}</a>
+                      ))}
+                    </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <a href={upiLink()} className={btn}>{L.upiPay}</a>
                       <button onClick={copyUpi} className={btn2}>{copied?L.copied:L.copy}</button>
                       <span className={`mono text-[13px] ${t.ts}`}>{SUPPORT.upi}</span>
                     </div>
+                    <p className={`mt-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"एक-बार UPI · कोई खाता या आवर्ती शुल्क नहीं · भुगतान आपके बैंक से होता है, पक्ष इसे संग्रहीत नहीं करता।":"One-time UPI · no account or recurring charge · handled by your bank, never stored by Paksh."}</p>
                   </div>
                 )}
                 {SUPPORT.url && <a href={SUPPORT.url} target="_blank" rel="noopener noreferrer" className={btn}>{L.linkBtn}</a>}
@@ -1579,7 +1718,7 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
-    function PrivacyPage({ t, lang }) {
+    function PrivacyPage({ t, lang, consent, setConsent }) {
       const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} serif mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] serif ${t.ts}`}>{children}</div></div>);
       return (
         <PageWrap>
@@ -1587,6 +1726,12 @@ const {useState,useEffect,useMemo}=React;
             <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} serif`} style={{letterSpacing:"-0.018em"}}>Privacy Policy</h1>
             <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 9 August 2026 · Operated by Redstocks Technology LLP</p>
             {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
+            {setConsent && (
+              <div className={`mt-4 mb-2 flex items-center justify-between gap-4 border p-4 ${t.surface} ${t.border}`}>
+                <div className="min-w-0"><div className={`text-[14px] font-semibold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?"गुमनाम एनालिटिक्स":"Anonymous analytics"}</div><div className={`mt-0.5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।":"Privacy-respecting, cookieless. Everything works with it off."}</div></div>
+                <Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={lang==="hi"?"गुमनाम एनालिटिक्स":"Anonymous analytics"} t={t} />
+              </div>
+            )}
             <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
             <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel’s privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected.</Row>
             <Row h="Cookies and tracking">Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
@@ -2140,6 +2285,7 @@ const {useState,useEffect,useMemo}=React;
       const [a11y,setA11yState]=useState(readA11y);
       const [savedIds,setSavedIds]=useState(()=>new Set());   // story_ids the user has clipped
       const [savedRows,setSavedRows]=useState(null);          // full saved list for the Saved page
+      const [lensStats,setLensStats]=useState({topics:[],sides:{left:0,center:0,right:0},total:0}); // reading summary → feed/gaps personalization
       const [onboard,setOnboard]=useState(()=>{ try{ return !localStorage.getItem("paksh-onboarded"); }catch(e){ return false; } });
       // Honour a remembered choice first, else the OS preference (prefers-color-scheme),
       // else light. Previously it always started light, ignoring a device set to dark.
@@ -2173,9 +2319,15 @@ const {useState,useEffect,useMemo}=React;
           if(p.a11y) setA11yState(prev=>{ const merged=Object.assign({}, prev, p.a11y); writeA11y(merged); return merged; });
           if(p.lang==="en"||p.lang==="hi") setLang(p.lang);
         });
-        refreshSaved(); }).catch(()=>setAuth(null)); },[]);
+        refreshSaved(); refreshLens(); }).catch(()=>setAuth(null)); },[]);
       // Pull the saved list (ids for button state + rows for the Saved page).
       const refreshSaved=()=>{ listSaved().then(rows=>{ rows=rows||[]; setSavedRows(rows); setSavedIds(new Set(rows.map(r=>String(r.story_id)))); }).catch(()=>{ setSavedRows([]); }); };
+      // Summarise the reader's last-30-day history (top topics + lean split) for the transparent
+      // personalization rails on the feed and Coverage Gaps. Never changes ranking or the bias bar.
+      const refreshLens=()=>{ if(!authOn()||!_uid()){ setLensStats({topics:[],sides:{left:0,center:0,right:0},total:0}); return; }
+        listReading(30).then(rows=>{ rows=rows||[]; const sides={left:0,center:0,right:0}; const tc={};
+          rows.forEach(r=>{ if(sides[r.side]!=null)sides[r.side]++; if(r.topic)tc[r.topic]=(tc[r.topic]||0)+1; });
+          setLensStats({ topics:Object.keys(tc).sort((a,b)=>tc[b]-tc[a]), sides, total:rows.length }); }).catch(()=>{}); };
       // Record every opened story into the Reading Lens (signed-in only; best-effort).
       useEffect(()=>{ if(route.view==="story"&&route.id&&auth&&detail[route.id]){ recordRead(toCard(detail[route.id],lang)); } },[route.view,route.id,auth,detail]);
 
@@ -2187,8 +2339,8 @@ const {useState,useEffect,useMemo}=React;
       const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); try{ localStorage.setItem("paksh-lang",l); }catch(e){} if(auth) savePrefsRemote({ lang:l }); };
       // Accessibility setter: update state, persist locally (applies for everyone), sync to the account.
       const setA11y=(p)=>{ setA11yState(p); writeA11y(p); if(auth) savePrefsRemote({ a11y:p }); };
-      const onAuthed=(s)=>{ setAuth(s); track("sign_in",{}); loadPrefs().then(p=>{ if(p&&p.a11y){ const merged=Object.assign({},a11y,p.a11y); setA11yState(merged); writeA11y(merged); } if(p&&(p.lang==="en"||p.lang==="hi")) setLang(p.lang); }); refreshSaved(); go("home"); };
-      const onSignOut=()=>{ authSignOut().finally(()=>{ setAuth(null); setSavedIds(new Set()); setSavedRows(null); go("home"); }); };
+      const onAuthed=(s)=>{ setAuth(s); track("sign_in",{}); loadPrefs().then(p=>{ if(p&&p.a11y){ const merged=Object.assign({},a11y,p.a11y); setA11yState(merged); writeA11y(merged); } if(p&&(p.lang==="en"||p.lang==="hi")) setLang(p.lang); }); refreshSaved(); refreshLens(); go("home"); };
+      const onSignOut=()=>{ authSignOut().finally(()=>{ setAuth(null); setSavedIds(new Set()); setSavedRows(null); setLensStats({topics:[],sides:{left:0,center:0,right:0},total:0}); go("home"); }); };
       const setConsentChoice=(v)=>{ try{ localStorage.setItem("paksh-consent",v); }catch(e){} setConsent(v); };
       const finishOnboarding=()=>{ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); };
       // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is not).
@@ -2253,7 +2405,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
-          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} />
+          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} openHelp={()=>setOnboard(true)} />
           <main id="main" className="pb-24 md:pb-10">
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
             : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} go={go} />
@@ -2262,21 +2414,21 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
             : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
             : !ready ? <FeedSkeleton t={t} />
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} /> : <FeedSkeleton t={t} />)
-            : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} />
+            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} auth={auth} /> : <FeedSkeleton t={t} />)
+            : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} />
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
-            : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} />
+            : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} consent={consent} setConsent={setConsentChoice} />
             : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
-               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} />)}
+               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} />)}
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
-          <BottomNav t={t} lang={lang} view={headerView} go={go} />
+          <BottomNav t={t} lang={lang} view={headerView} go={go} auth={auth} />
           {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} />}
           {!onboard && consent==="" && <ConsentBanner t={t} lang={lang} go={go}
             onChoose={(v)=>{ setConsentChoice(v); }} />}
