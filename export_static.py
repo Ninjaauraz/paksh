@@ -849,7 +849,9 @@ def main():
         "style-src 'self' 'unsafe-inline'; "                     # React inline styles + self-hosted fonts.css
         "font-src 'self' data:; "                                # fonts are self-hosted (fetch_fonts.py)
         "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
-        "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com; "
+        # Supabase Auth (GoTrue) + PostgREST for accounts / Reading Lens / Saved (direct REST,
+        # no SDK). Publishable anon key only; RLS guards every table. Formspree = contact form.
+        "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co; "
         "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
         "base-uri 'self'; form-action 'self' https://formspree.io; "
         "manifest-src 'self'; worker-src 'self'"

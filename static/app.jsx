@@ -92,6 +92,89 @@ const {useState,useEffect,useMemo}=React;
     // NOTHING until a sponsor is configured. Fill one in only when a deal is signed.
     const SPONSOR = { name: "", url: "", line: "" };   // e.g. {name:"Acme", url:"https://…", line:"Media literacy for all"}
 
+    /* ---------------- accounts (Supabase, NO SDK - direct REST, like the Formspree fetch) ----------------
+       Static-site-safe: talks to Supabase's hosted Auth (GoTrue) + PostgREST over plain fetch.
+       No CDN script, no bundler, no runtime dependency added. The key below is the PUBLIC
+       "anon"/publishable key - it is DESIGNED to ship to browsers and is guarded by row-level
+       security on every table, so it is NOT a secret. The secret service_role key is never used
+       on the client and never appears here. News is NEVER gated by an account - only the personal
+       features (Reading Lens, Saved) are. Leave SUPABASE.url = "" to switch accounts fully OFF:
+       the Sign-in / account UI simply disappears and the rest of the site is unaffected. */
+    const SUPABASE = {
+      url: "https://zzjsjqqcpyyodatlmcux.supabase.co",
+      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6anNqcXFjcHl5b2RhdGxtY3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNzU1OTIsImV4cCI6MjA5Mzc1MTU5Mn0.U-TRJegvnt7iO1mM9nok319FJHszJ9HNzuRZLfuuvys",
+    };
+    const authOn = () => !!(SUPABASE.url && SUPABASE.anonKey);
+    const AUTH_LS = "paksh-auth";
+    const _readSession = () => { try { return JSON.parse(localStorage.getItem(AUTH_LS)||"null"); } catch(e){ return null; } };
+    const _writeSession = (s) => { try { if(s) localStorage.setItem(AUTH_LS, JSON.stringify(s)); else localStorage.removeItem(AUTH_LS); } catch(e){} };
+    const _mkSession = (s) => ({ access_token:s.access_token, refresh_token:s.refresh_token,
+      expires_at:(Math.floor(Date.now()/1000))+(s.expires_in||3600), user:s.user||null });
+    async function _sb(path, opts){
+      opts=opts||{};
+      const headers=Object.assign({ apikey:SUPABASE.anonKey, "Content-Type":"application/json" }, opts.headers||{});
+      const r=await fetch(SUPABASE.url+path, Object.assign({}, opts, {headers}));
+      const ct=(r.headers.get("content-type")||"");
+      const body=ct.includes("json")?await r.json().catch(()=>({})):await r.text().catch(()=>"");
+      if(!r.ok){ const m=(body&&(body.error_description||body.msg||body.error||body.message))||(typeof body==="string"&&body)||("HTTP "+r.status); throw new Error(m); }
+      return body;
+    }
+    // Send a 6-digit email code. create_user:true means one flow both signs in AND registers.
+    async function authSendCode(email){ return _sb("/auth/v1/otp", { method:"POST", body:JSON.stringify({ email, create_user:true }) }); }
+    // Verify the code -> a session; persist it.
+    async function authVerifyCode(email, token){ const s=_mkSession(await _sb("/auth/v1/verify",{ method:"POST", body:JSON.stringify({ type:"email", email, token }) })); _writeSession(s); return s; }
+    async function authRefresh(refresh_token){ const s=_mkSession(await _sb("/auth/v1/token?grant_type=refresh_token",{ method:"POST", body:JSON.stringify({ refresh_token }) })); _writeSession(s); return s; }
+    async function authSignOut(){ const s=_readSession(); if(s&&s.access_token){ try{ await _sb("/auth/v1/logout",{ method:"POST", headers:{ Authorization:"Bearer "+s.access_token } }); }catch(e){} } _writeSession(null); }
+    // Return a valid session, refreshing if the access token is within 2 min of expiry; null if signed out.
+    async function authEnsure(){ let s=_readSession(); if(!s||!s.refresh_token) return null;
+      if((s.expires_at||0)-(Date.now()/1000)<120){ try{ s=await authRefresh(s.refresh_token); }catch(e){ _writeSession(null); return null; } } return s; }
+    // Authenticated PostgREST call (row-level security enforced by the user's bearer token).
+    async function dbFetch(path, opts){ const s=await authEnsure(); if(!s) throw new Error("not signed in");
+      opts=opts||{};
+      const headers=Object.assign({ apikey:SUPABASE.anonKey, Authorization:"Bearer "+s.access_token, "Content-Type":"application/json" }, opts.headers||{});
+      const r=await fetch(SUPABASE.url+"/rest/v1"+path, Object.assign({}, opts, {headers}));
+      if(!r.ok){ const b=await r.text().catch(()=>""); throw new Error(b||("HTTP "+r.status)); }
+      const ct=(r.headers.get("content-type")||""); return ct.includes("json")?r.json():null; }
+    // Per-account preferences live in profiles.prefs (jsonb): { a11y:{...}, lang:"en"|"hi" }.
+    async function loadPrefs(){ try{ const rows=await dbFetch("/profiles?select=prefs&limit=1"); return (rows&&rows[0]&&rows[0].prefs)||{}; }catch(e){ return {}; } }
+    // Read-modify-write so a partial save (just lang, or just a11y) never clobbers the rest.
+    async function savePrefsRemote(patch){ try{ const s=await authEnsure(); if(!s) return; const cur=await loadPrefs();
+      const next=Object.assign({}, cur, patch);
+      await dbFetch("/profiles?id=eq."+s.user.id, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ prefs:next, updated_at:new Date().toISOString() }) }); }catch(e){} }
+    const _uid = () => { const s=_readSession(); return s&&s.user?s.user.id:null; };
+    const _sideOf = (story) => { const c=(story&&story.counts)||{}; const L=c.left||0,C=c.center||0,R=c.right||0; if(L+C+R===0) return null; return R>L&&R>=C?"right":(L>=C&&L>=R?"left":"center"); };
+    // Reading Lens: record each opened story (upsert refreshes opened_at). Best-effort, never blocks.
+    async function recordRead(story){ if(!authOn()||!_uid()||!story) return; try{
+      await dbFetch("/reading_history", { method:"POST", headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
+        body:JSON.stringify({ user_id:_uid(), story_id:String(story.id), topic:story.topic||null, side:_sideOf(story), title:(story.headline||story.title||"").slice(0,300), opened_at:new Date().toISOString() }) });
+    }catch(e){} }
+    async function listReading(days){ const since=new Date(Date.now()-(days||30)*86400000).toISOString();
+      return dbFetch("/reading_history?select=story_id,topic,side,title,opened_at&opened_at=gte."+since+"&order=opened_at.desc"); }
+    // Saved / clippings.
+    async function listSaved(){ return dbFetch("/saved_stories?select=story_id,topic,title,saved_at&order=saved_at.desc"); }
+    async function saveStory(story){ return dbFetch("/saved_stories", { method:"POST", headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
+      body:JSON.stringify({ user_id:_uid(), story_id:String(story.id), topic:story.topic||null, title:(story.headline||story.title||"").slice(0,300), saved_at:new Date().toISOString() }) }); }
+    async function unsaveStory(id){ return dbFetch("/saved_stories?story_id=eq."+encodeURIComponent(String(id)), { method:"DELETE", headers:{ Prefer:"return=minimal" } }); }
+
+    /* ---------------- accessibility (works on EVERY page, not just Settings) ----------------
+       Stored in localStorage so it applies for guests too (news is never gated), and mirrored
+       into the account's profile when signed in. Applied as attributes/classes on <html>; the
+       real CSS lives in styles.css (text-size zoom, high-contrast overrides, dyslexia font). */
+    const A11Y_LS = "paksh-a11y";
+    const DEFAULT_A11Y = { textSize:"standard", highContrast:false, dyslexiaFont:false, readAloud:false };
+    const readA11y = () => { try{ return Object.assign({}, DEFAULT_A11Y, JSON.parse(localStorage.getItem(A11Y_LS)||"{}")); }catch(e){ return Object.assign({}, DEFAULT_A11Y); } };
+    const writeA11y = (p) => { try{ localStorage.setItem(A11Y_LS, JSON.stringify(p)); }catch(e){} };
+    const applyA11y = (p) => { try{ const el=document.documentElement;
+      el.setAttribute("data-pk-text", p.textSize||"standard");
+      el.classList.toggle("pk-hc", !!p.highContrast);
+      el.classList.toggle("pk-dys", !!p.dyslexiaFont);
+    }catch(e){} };
+    // Read a block of text aloud with the browser's speech synthesiser (no network, no library).
+    const canSpeak = () => { try{ return typeof window!=="undefined" && "speechSynthesis" in window; }catch(e){ return false; } };
+    const speak = (text, lang) => { try{ if(!canSpeak()) return; const sy=window.speechSynthesis; sy.cancel();
+      const u=new SpeechSynthesisUtterance(String(text||"")); u.lang=lang==="hi"?"hi-IN":"en-IN"; u.rate=1; sy.speak(u); }catch(e){} };
+    const stopSpeak = () => { try{ if(canSpeak()) window.speechSynthesis.cancel(); }catch(e){} };
+
     const UI = {
       seeAll:{en:"See all", hi:"सभी देखें"}, top:{en:"Top", hi:"मुख्य"},
       sections:{en:"Sections", hi:"खंड"}, oneSided:{en:"One-Sided", hi:"एकतरफ़ा"},
@@ -309,6 +392,7 @@ const {useState,useEffect,useMemo}=React;
     const Clock=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v5l3 2"/></svg>;
     const LinkIcon=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>;
     const Check=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+    const Bookmark=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill={p.fill||"none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>;
 
     /* ---------------- helpers ---------------- */
     const _ts=(iso)=>{ if(!iso) return NaN; let x=(""+iso).replace(" ","T"); if(!/[zZ]|[+\-]\d\d:?\d\d$/.test(x)) x+="Z"; return Date.parse(x); };
@@ -664,8 +748,9 @@ const {useState,useEffect,useMemo}=React;
     // Masthead — brand, inline nav with a 2px active underline, search as an icon, the
     // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
     // utility strip, no topic-chip rail (design spec 2a).
-    function Header({ t, lang, setLang, dark, setDark, go, view }) {
+    function Header({ t, lang, setLang, dark, setDark, go, view, auth }) {
       const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
+      const initials=(email)=>{ const s=(email||"").trim(); return s?s[0].toUpperCase():"?"; };
       return (
         <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
           <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
@@ -682,9 +767,13 @@ const {useState,useEffect,useMemo}=React;
                 ))}
               </nav>
               <div className="ml-auto flex items-center gap-3 sm:gap-4">
+                <button onClick={()=>go("support")} aria-label={lang==="hi"?"सहयोग":"Support"} title={lang==="hi"?"सहयोग":"Support"} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{color:"#75442E"}}><span aria-hidden="true">♥</span><span className={lang==="hi"?"deva":""}>{lang==="hi"?"सहयोग":"Support"}</span></button>
                 <button onClick={()=>go("search")} aria-label="Search" className={`${t.tf} hover:${t.tp}`}><Search size={17}/></button>
                 <LangToggle t={t} lang={lang} setLang={setLang} dark={dark} />
                 <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={16}/>:<Moon size={16}/>}</button>
+                {authOn() && (auth
+                  ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:32,height:32,border:`1px solid ${t.ink}`}}><span style={{fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</span></button>
+                  : <button onClick={()=>go("login")} className={`border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"साइन इन":"Sign in"}</button>)}
               </div>
             </div>
           </div>
@@ -713,7 +802,7 @@ const {useState,useEffect,useMemo}=React;
                 <button onClick={()=>go("support")} className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{lang==="hi"?"पक्ष का सहयोग करें":"Support Paksh"} →</button>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["support",lang==="hi"?"सहयोग":"Support"],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"]].map(([k,l])=>(
+                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["support",lang==="hi"?"सहयोग":"Support"],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"],["settings",lang==="hi"?"सेटिंग्स":"Settings"]].map(([k,l])=>(
                   <button key={k} onClick={()=>go(k)} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</button>
                 ))}
               </div>
@@ -727,17 +816,35 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- HOME ---------------- */
-    // Ad slot — STRUCTURE ONLY until launch. The call sites (home / story / gaps / sources
-    // / topic) mark where ads go, but with no ADSENSE_CLIENT this renders NOTHING: no box,
-    // no label, no script, no cookie - zero footprint during review. Going live is the
-    // one-line ADSENSE_CLIENT change (+ uncomment the loader in index.html), which turns
-    // every reserved slot into a live responsive unit.
+    // Ad slot. With a live ADSENSE_CLIENT this is a responsive AdSense unit. With AdSense OFF
+    // (the default) it renders the print-CLASSIFIEDS placeholder from the design: a 2px ink
+    // frame + "Advertisement · Classifieds" label bar, DELIBERATELY walled off from editorial
+    // so an ad can never be mistaken for a story (FLAG 1). No script, no cookie, no tracking.
+    // The placeholder copy is an honest "space available" invitation, never a fabricated listing.
     function AdSlot({ t, lang, slot, format, h }) {
       React.useEffect(()=>{ if(ADSENSE_CLIENT){ try{ (window.adsbygoogle=window.adsbygoogle||[]).push({}); }catch(e){} } },[]);
-      if(!ADSENSE_CLIENT) return null;
-      return (
+      if(ADSENSE_CLIENT) return (
         <div className={`relative flex items-center justify-center overflow-hidden border ${t.border} ${t.soft}`} style={{minHeight:h||250}}>
           <ins className="adsbygoogle" style={{display:"block",position:"absolute",inset:0,width:"100%",height:"100%"}} data-ad-client={ADSENSE_CLIENT} data-ad-slot={slot||""} data-ad-format={format||"auto"} data-full-width-responsive="true"/>
+        </div>
+      );
+      const label = lang==="hi" ? "विज्ञापन · क्लासिफ़ाइड" : "Advertisement · Classifieds";
+      const entries = lang==="hi"
+        ? [["स्थान उपलब्ध","इस कॉलम में आपका विज्ञापन, पक्ष के पाठकों तक।"],["सूचना","पक्ष क्लासिफ़ाइड, बिना ट्रैकिंग वाले विज्ञापन।"]]
+        : [["SPACE AVAILABLE","Your classified here, seen by Paksh readers."],["NOTICE","Paksh classifieds, ads without tracking."]];
+      return (
+        <div className={t.surface} style={{border:`2px solid ${t.ink}`}} aria-label={label}>
+          <div className="text-center" style={{borderBottom:`1px solid ${t.ink}`,padding:"4px 0"}}>
+            <span className="mono" style={{fontSize:8.5,fontWeight:700,letterSpacing:".22em",textTransform:"uppercase",color:t.ink}}>{label}</span>
+          </div>
+          <div className="grid gap-x-6 gap-y-3 p-4 sm:grid-cols-2">
+            {entries.map(([k,v],i)=>(
+              <div key={i}>
+                <div className={`mono text-[9.5px] font-bold uppercase tracking-[0.12em] ${t.tf} ${lang==="hi"?"deva":""}`}>{k}</div>
+                <div className={`mt-0.5 text-[12.5px] leading-snug ${t.ts} ${readCls(lang)}`}>{v}</div>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -950,7 +1057,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     /* ---------------- STORY (tabbed) ---------------- */
-    function StoryPage({ story, t, lang, go, openTopic, related=[], open }) {
+    function StoryPage({ story, t, lang, go, openTopic, related=[], open, saved, onToggleSave, a11y }) {
       const fr=story.framing||{};
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
@@ -989,7 +1096,10 @@ const {useState,useEffect,useMemo}=React;
           <div className="mb-8 flex items-center justify-between gap-3 pb-3" style={{borderBottom:`1px solid ${t.ink}`}}>
             <button onClick={()=>go("home")} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {STR[lang].back}</button>
             <button onClick={()=>openTopic(story.topic)} className={`hidden sm:inline truncate eyebrow ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}</button>
-            <button onClick={copy} className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
+            <div className="flex shrink-0 items-center gap-4">
+              {authOn() && onToggleSave && <SaveButton story={story} saved={saved||new Set()} onToggle={onToggleSave} t={t} lang={lang} />}
+              <button onClick={copy} className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
+            </div>
           </div>
 
           {/* headline block — centered on desktop, left on mobile */}
@@ -1024,6 +1134,7 @@ const {useState,useEffect,useMemo}=React;
             <div>
               {story.lead && <p className={`text-[16px] md:text-[19px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.85:1.6}}>{story.lead}</p>}
               <ul className="mt-3 space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] md:text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.8:1.6}}><span className="mt-[10px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
+              {a11y&&a11y.readAloud && <div className="mt-3"><ListenButton text={[story.lead].concat(story.summary||[]).filter(Boolean).join(". ")} lang={lang} t={t} /></div>}
               <p className={`mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
             </div>
           </div>
@@ -1517,15 +1628,485 @@ const {useState,useEffect,useMemo}=React;
       );
     }
 
+    /* ---------------- account + accessibility UI ---------------- */
+    // The 42x24 switch from the design: 1px ink track, 20px knob, ink-fill when on.
+    function Toggle({ on, onChange, label, t }) {
+      return (
+        <button type="button" role="switch" aria-checked={on?"true":"false"} aria-label={label||""} onClick={()=>onChange(!on)}
+          className="relative shrink-0" style={{width:42,height:24,border:`1px solid ${t.ink}`,background:on?t.ink:"transparent"}}>
+          <span style={{position:"absolute",top:1,left:on?19:1,width:20,height:20,background:on?(t.gap||"#F4F1EA"):t.ink,transition:"left .18s cubic-bezier(.4,0,.2,1)"}}/>
+        </button>
+      );
+    }
+    // Segmented choice (e.g. Standard / Large / Classic), active side ink-filled.
+    function SegChoice({ value, options, onChange, t, lang }) {
+      return (
+        <div className="inline-flex" style={{border:`1px solid ${t.ink}`}}>
+          {options.map(([k,label],i)=>{ const on=value===k;
+            return <button key={k} type="button" onClick={()=>onChange(k)} className={lang==="hi"?"deva":""}
+              style={{padding:"6px 14px",font:"600 12px 'IBM Plex Sans',sans-serif",borderLeft:i>0?`1px solid ${t.ink}`:"none",
+                background:on?t.ink:"transparent",color:on?(t.gap||"#F4F1EA"):t.ink}}>{label}</button>;
+          })}
+        </div>
+      );
+    }
+    // Read-aloud control (browser speech synthesis; no network, no library). Renders nothing
+    // where speech isn't available. Shown next to summaries when "Read aloud" is on in Settings.
+    function ListenButton({ text, lang, t }) {
+      const [on,setOn]=useState(false);
+      useEffect(()=>()=>stopSpeak(),[]);
+      if(!canSpeak()) return null;
+      const toggle=()=>{ if(on){ stopSpeak(); setOn(false); } else { speak(text,lang); setOn(true); } };
+      return <button type="button" onClick={toggle} className={`inline-flex items-center gap-1.5 border px-2.5 py-1 mono text-[10.5px] uppercase tracking-wide ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{on?"■":"▶"} {lang==="hi"?(on?"रोकें":"सुनें"):(on?"Stop":"Listen")}</button>;
+    }
+    const prettyAuthErr=(ex,L)=>{ const m=String((ex&&ex.message)||"").toLowerCase();
+      if(m.includes("rate limit")||m.includes("too many")) return L.errRate;
+      if(m.includes("invalid")||m.includes("expired")||m.includes("token")) return L.errCode;
+      if(m.includes("signups not allowed")||m.includes("not allowed")) return L.errClosed;
+      if(m.includes("failed to fetch")||m.includes("networkerror")) return L.errNet;
+      return L.errGeneric; };
+
+    // LOGIN / SIGN-UP - "the subscription desk". Email -> emailed sign-in code -> in. No
+    // password, no Google, no phone. The code length follows the Supabase Auth setting (6-8
+    // digits); the input accepts up to 10. Both tabs use one OTP flow (create_user = new+returning).
+    function LoginPage({ t, lang, go, onAuthed }) {
+      const [mode,setMode]=useState("signin");   // signin | signup (copy only; one OTP flow)
+      const [step,setStep]=useState("email");     // email | code
+      const [email,setEmail]=useState("");
+      const [code,setCode]=useState("");
+      const [busy,setBusy]=useState(false);
+      const [err,setErr]=useState("");
+      const L = lang==="hi" ? {
+        signin:"साइन इन", signup:"खाता बनाएँ",
+        lede:"मुफ़्त, कोई पेवॉल नहीं। खाता सिर्फ़ निजीकरण जोड़ता है, पक्ष बिना खाते के भी पूरी तरह पढ़ा जा सकता है।",
+        emailL:"ईमेल", emailP:"you@example.com", sendBtn:"मुझे साइन-इन कोड ईमेल करें", sending:"भेजा जा रहा है…",
+        codeL:"ईमेल पर आया साइन-इन कोड", codeP:"कोड", verifyBtn:"साइन इन करें", verifying:"जाँच हो रही है…",
+        sentTo:"कोड भेजा गया", change:"ईमेल बदलें", resend:"कोड फिर भेजें",
+        p1:"आप जो खबरें खोलते हैं उससे बनता आपका अपना ‘रीडिंग लेंस’, सिर्फ़ आपके लिए।",
+        p2:"पढ़ने की सुलभता सेटिंग्स हर डिवाइस पर सहेजी जाती हैं।", p3:"पसंदीदा खबरें अख़बार-कतरन की तरह सहेजें।",
+        propsH:"खाता क्या जोड़ता है",
+        errRate:"बहुत सारे प्रयास। कृपया थोड़ी देर बाद फिर कोशिश करें।",
+        errCode:"कोड ग़लत या समय-समाप्त। कृपया दोबारा जाँचें या नया कोड मँगाएँ।",
+        errClosed:"अभी नए साइन-अप बंद हैं।", errNet:"नेटवर्क समस्या। कनेक्शन जाँचें।",
+        errGeneric:"कुछ ग़लत हुआ। कृपया दोबारा प्रयास करें।",
+        off:"खाते अभी उपलब्ध नहीं हैं।", back:"वापस"
+      } : {
+        signin:"Sign in", signup:"Create account",
+        lede:"Free, no paywall. An account only adds personalisation, Paksh stays fully readable without one.",
+        emailL:"Email", emailP:"you@example.com", sendBtn:"Email me a sign-in code", sending:"Sending…",
+        codeL:"Sign-in code from your email", codeP:"Sign-in code", verifyBtn:"Sign in", verifying:"Checking…",
+        sentTo:"Code sent to", change:"Change email", resend:"Resend code",
+        p1:"Your own Reading Lens, built from the stories you open, visible only to you.",
+        p2:"Your reading & accessibility settings saved across devices.", p3:"Clip and save stories like newspaper cuttings.",
+        propsH:"What an account adds",
+        errRate:"Too many attempts. Please wait a little and try again.",
+        errCode:"That code is wrong or expired. Re-check it or request a new one.",
+        errClosed:"New sign-ups are closed right now.", errNet:"Network problem. Check your connection.",
+        errGeneric:"Something went wrong. Please try again.",
+        off:"Accounts aren't available yet.", back:"Back"
+      };
+      async function send(e){ e.preventDefault(); if(!email.trim())return; setErr(""); setBusy(true);
+        try{ await authSendCode(email.trim()); setStep("code"); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
+      async function verify(e){ e.preventDefault(); if(!code.trim())return; setErr(""); setBusy(true);
+        try{ const s=await authVerifyCode(email.trim(), code.trim()); onAuthed(s); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
+      const inp=`w-full border px-3.5 py-2.5 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp}`;
+      const lblc=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
+      const btn=`w-full rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`;
+      const props=(
+        <div>
+          <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.propsH}</div>
+          <ul className="mt-4 space-y-3">{[L.p1,L.p2,L.p3].map((p,i)=>(
+            <li key={i} className={`flex gap-2.5 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}><span className="mt-[9px] h-1.5 w-1.5 shrink-0" style={{background:t.ink}}/>{p}</li>))}</ul>
+          <p className={`mt-5 text-[12.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.lede}</p>
+        </div>
+      );
+      const form=(
+        <div>
+          <div className="inline-flex mb-6" style={{border:`1px solid ${t.ink}`}}>
+            {[["signin",L.signin],["signup",L.signup]].map(([k,label],i)=>{ const on=mode===k;
+              return <button key={k} type="button" onClick={()=>setMode(k)} className={lang==="hi"?"deva":""}
+                style={{padding:"7px 16px",font:"600 12px 'IBM Plex Sans',sans-serif",borderLeft:i>0?`1px solid ${t.ink}`:"none",background:on?t.ink:"transparent",color:on?(t.gap||"#F4F1EA"):t.ink}}>{label}</button>;
+            })}
+          </div>
+          {!authOn() ? <p className={`text-[14px] ${t.tf} ${isHi(lang)}`}>{L.off}</p>
+          : step==="email" ? (
+            <form onSubmit={send} className="space-y-4">
+              <div><label className={lblc}>{L.emailL}</label><input value={email} onChange={e=>setEmail(e.target.value)} type="email" required autoFocus placeholder={L.emailP} className={inp} inputMode="email" autoComplete="email" /></div>
+              {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+              <button type="submit" disabled={busy} className={btn}>{busy?L.sending:L.sendBtn}</button>
+            </form>
+          ) : (
+            <form onSubmit={verify} className="space-y-4">
+              <p className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{L.sentTo} <span className="font-semibold">{email}</span>.</p>
+              <div><label className={lblc}>{L.codeL}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^0-9]/g,"").slice(0,10))} required autoFocus placeholder={L.codeP} className={`${inp} mono tracking-[0.3em] text-center text-[20px]`} inputMode="numeric" autoComplete="one-time-code" maxLength={10} /></div>
+              {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+              <button type="submit" disabled={busy} className={btn}>{busy?L.verifying:L.verifyBtn}</button>
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={()=>{setStep("email");setCode("");setErr("");}} className={`text-[12.5px] underline underline-offset-2 ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{L.change}</button>
+                <button type="button" onClick={send} disabled={busy} className={`text-[12.5px] underline underline-offset-2 ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{L.resend}</button>
+              </div>
+            </form>
+          )}
+        </div>
+      );
+      return (
+        <PageWrap>
+          <button onClick={()=>go("home")} className={`mb-6 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {L.back}</button>
+          <div className={`mx-auto max-w-[760px] border md:grid md:grid-cols-2 ${t.border}`}>
+            <div className="p-6 sm:p-8">
+              <h1 className={`headline text-[26px] sm:text-[30px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{mode==="signup"?L.signup:L.signin}</h1>
+              <div className="mt-6">{form}</div>
+            </div>
+            <div className={`hidden md:block p-6 sm:p-8 border-l ${t.border} ${t.surface}`}>{props}</div>
+          </div>
+        </PageWrap>
+      );
+    }
+
+    // SETTINGS - account + accessibility that actually works on every page (applied to <html>).
+    function SettingsPage({ t, lang, setLang, a11y, setA11y, auth, onSignOut, consent, setConsent, go }) {
+      const L = lang==="hi" ? {
+        title:"सेटिंग्स", acc:"खाता", free:"मुफ़्त", email:"ईमेल", signout:"साइन आउट", support:"पक्ष का सहयोग करें →",
+        guestH:"साइन इन नहीं हैं", guestP:"खाता निजीकरण जोड़ता है (रीडिंग लेंस, सहेजी खबरें)। खबरें हमेशा बिना खाते के खुली रहती हैं।", signin:"साइन इन",
+        readLang:"डिफ़ॉल्ट पढ़ने की भाषा", a11yH:"पढ़ने और सुलभता",
+        tSize:"अक्षर आकार", tStd:"मानक", tLg:"बड़ा", tCl:"क्लासिक",
+        hc:"उच्च कंट्रास्ट", hcS:"गाढ़ा पाठ, सफ़ेद पृष्ठभूमि।",
+        dys:"डिस्लेक्सिया-अनुकूल फ़ॉन्ट", dysS:"अधिक सुपाठ्य अक्षर-आकृतियाँ।",
+        aloud:"ज़ोर से पढ़ें", aloudS:"सारांश के पास ‘सुनें’ बटन जोड़ता है।",
+        anon:"गुमनाम एनालिटिक्स", anonS:"गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।",
+        prevH:"झलक", prevBody:"यह नमूना पाठ ऊपर चुनी गई सेटिंग्स के साथ तुरंत बदलता है, ताकि असर तुरंत दिखे। पक्ष हर खबर को हर पक्ष से दिखाता है।"
+      } : {
+        title:"Settings", acc:"Account", free:"Free", email:"Email", signout:"Sign out", support:"Support Paksh →",
+        guestH:"Not signed in", guestP:"An account adds personalisation (Reading Lens, Saved). The news itself is always open, no account needed.", signin:"Sign in",
+        readLang:"Default reading language", a11yH:"Reading & accessibility",
+        tSize:"Text size", tStd:"Standard", tLg:"Large", tCl:"Classic",
+        hc:"High contrast", hcS:"Darker text on a white surface.",
+        dys:"Dyslexia-friendly font", dysS:"More distinguishable letterforms.",
+        aloud:"Read aloud", aloudS:"Adds a ‘Listen’ button next to summaries.",
+        anon:"Anonymous analytics", anonS:"Privacy-respecting, cookieless. Everything works with it off.",
+        prevH:"Preview", prevBody:"This sample text re-renders with the settings above so you can see the effect immediately. Paksh shows every side of every story."
+      };
+      const set=(k,v)=>setA11y(Object.assign({},a11y,{[k]:v}));
+      const card=`border ${t.border} ${t.surface}`;
+      const row=(label,sub,ctrl)=>(
+        <div className={`flex items-center justify-between gap-4 border-b py-4 ${t.border} last:border-b-0`}>
+          <div className="min-w-0"><div className={`text-[14px] font-semibold ${t.tp} ${isHi(lang)}`}>{label}</div>{sub&&<div className={`mt-0.5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{sub}</div>}</div>
+          <div className="shrink-0">{ctrl}</div>
+        </div>
+      );
+      const sample={ standard:{h:20,b:15,lh:1.62}, large:{h:24,b:18,lh:1.7}, classic:{h:29,b:22,lh:1.8} }[a11y.textSize]||{h:20,b:15,lh:1.62};
+      return (
+        <PageWrap>
+          <div className="max-w-2xl">
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+
+            {/* Account */}
+            <div className="mt-7">
+              <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.acc}</div>
+              {auth ? (
+                <div className={`p-5 ${card}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0"><div className={`mono text-[10px] uppercase tracking-wide ${t.tf}`}>{L.email}</div><div className={`truncate text-[15px] font-semibold ${t.tp}`}>{(auth.user&&auth.user.email)||""}</div></div>
+                    <span className={`shrink-0 rounded mono px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${t.chip} ${t.ts}`}>{L.free}</span>
+                  </div>
+                  <div className={`mt-4 border-t pt-4 ${t.border}`}>{row(L.readLang,null,
+                    <SegChoice value={lang} options={[["en","EN"],["hi","हिं"]]} onChange={setLang} t={t} lang={lang} />)}</div>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button onClick={()=>go("support")} className={`text-[13px] font-semibold ${t.blind} hover:underline ${isHi(lang)}`}>{L.support}</button>
+                    <button onClick={onSignOut} className={`ml-auto border px-4 py-2 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.signout}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className={`p-5 ${card}`}>
+                  <div className={`text-[15px] font-semibold ${t.tp} ${isHi(lang)}`}>{L.guestH}</div>
+                  <p className={`mt-1.5 text-[13px] ${t.tf} ${isHi(lang)}`}>{L.guestP}</p>
+                  {authOn() && <button onClick={()=>go("login")} className={`mt-4 rounded-full px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.signin}</button>}
+                </div>
+              )}
+            </div>
+
+            {/* Accessibility */}
+            <div className="mt-8">
+              <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.a11yH}</div>
+              <div className={`px-5 ${card}`}>
+                {row(L.tSize,null,<SegChoice value={a11y.textSize} options={[["standard",L.tStd],["large",L.tLg],["classic",L.tCl]]} onChange={v=>set("textSize",v)} t={t} lang={lang} />)}
+                {row(L.hc,L.hcS,<Toggle on={a11y.highContrast} onChange={v=>set("highContrast",v)} label={L.hc} t={t} />)}
+                {row(L.dys,L.dysS,<Toggle on={a11y.dyslexiaFont} onChange={v=>set("dyslexiaFont",v)} label={L.dys} t={t} />)}
+                {row(L.aloud,L.aloudS,<Toggle on={a11y.readAloud} onChange={v=>set("readAloud",v)} label={L.aloud} t={t} />)}
+                {row(L.anon,L.anonS,<Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={L.anon} t={t} />)}
+              </div>
+            </div>
+
+            {/* Live preview */}
+            <div className="mt-8">
+              <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.prevH}</div>
+              <div className={`p-5 ${card}`}>
+                <h3 className={`headline ${t.tp} ${readCls(lang)}`} style={{fontSize:sample.h,lineHeight:1.2}}>{lang==="hi"?"हर खबर, हर पक्ष":"Every story, every side"}</h3>
+                <p className={`mt-2 ${t.ts} ${readCls(lang)}`} style={{fontSize:sample.b,lineHeight:sample.lh}}>{L.prevBody}</p>
+                {a11y.readAloud && <div className="mt-3"><ListenButton text={(lang==="hi"?"हर खबर, हर पक्ष। ":"Every story, every side. ")+L.prevBody} lang={lang} t={t} /></div>}
+              </div>
+            </div>
+          </div>
+        </PageWrap>
+      );
+    }
+
+    // ACCOUNT - the avatar's landing. Signed-in menu; a guest is sent to sign in.
+    function AccountPage({ t, lang, auth, go, onSignOut }) {
+      const L = lang==="hi" ? { title:"मेरा खाता", hi:"नमस्ते", lens:"मेरा रीडिंग लेंस", saved:"सहेजी खबरें", settings:"सेटिंग्स और सुलभता", support:"पक्ष का सहयोग करें", signout:"साइन आउट",
+        guestP:"अपना रीडिंग लेंस और सहेजी खबरें देखने के लिए साइन इन करें।", signin:"साइन इन" }
+        : { title:"My account", hi:"Hello", lens:"My Reading Lens", saved:"Saved", settings:"Settings & accessibility", support:"Support Paksh", signout:"Sign out",
+        guestP:"Sign in to see your Reading Lens and saved stories.", signin:"Sign in" };
+      const item=(label,onClick)=>(<button onClick={onClick} className={`flex w-full items-center justify-between border p-4 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`text-[14.5px] font-semibold ${t.tp} ${isHi(lang)}`}>{label}</span><ChevronRight size={16} className={t.tf}/></button>);
+      return (
+        <PageWrap>
+          <div className="max-w-xl">
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+            {auth ? (
+              <>
+                <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.hi}, <span className="font-semibold">{(auth.user&&auth.user.email)||""}</span></p>
+                <div className="mt-6 grid gap-3">
+                  {item(L.lens,()=>go("lens"))}
+                  {item(L.saved,()=>go("saved"))}
+                  {item(L.settings,()=>go("settings"))}
+                  {item(L.support,()=>go("support"))}
+                </div>
+                <button onClick={onSignOut} className={`mt-6 border px-4 py-2 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.signout}</button>
+              </>
+            ) : (
+              <>
+                <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.guestP}</p>
+                {authOn() && <button onClick={()=>go("login")} className={`mt-5 rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.signin}</button>}
+              </>
+            )}
+          </div>
+        </PageWrap>
+      );
+    }
+
+    // 404 - the "Misprint" newspaper treatment.
+    function NotFoundPage({ t, lang, go }) {
+      const L = lang==="hi" ? { kick:"त्रुटि 404", h:"यह पन्ना कभी दाख़िल ही नहीं हुआ।", p:"जो पता आपने खोला वह हमारे पास नहीं है, शायद कड़ी पुरानी हो या पता ग़लत टाइप हुआ हो।", home:"मुख पृष्ठ पर लौटें", links:"त्वरित कड़ियाँ" }
+        : { kick:"Error 404", h:"This page was never filed.", p:"The address you opened isn't one we have, the link may be old, or the URL mistyped.", home:"Back to the front page", links:"Quick links" };
+      const quick=[["blindspot",STR[lang].navOS],["sources",STR[lang].navSrc],["about",STR[lang].navMethod],["search",ui("searchTab",lang)]];
+      return (
+        <PageWrap>
+          <div className="mx-auto max-w-[720px] py-8 text-center">
+            <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".2em"}}>{L.kick}</div>
+            <div className="my-5" style={{borderTop:`2px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`,padding:"20px 0"}}>
+              <h1 className={`headline text-[30px] sm:text-[42px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{L.h}</h1>
+            </div>
+            <p className={`mx-auto max-w-[52ch] text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.p}</p>
+            <button onClick={()=>go("home")} className={`mt-7 rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.home}</button>
+            <div className={`mt-9 border-t pt-5 ${t.border}`}>
+              <div className={`eyebrow mb-3 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.links}</div>
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+                {quick.map(([k,l])=>(<button key={k} onClick={()=>go(k)} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</button>))}
+              </div>
+            </div>
+          </div>
+        </PageWrap>
+      );
+    }
+
+    // Save/clip toggle. Ink-filled when saved. Guests are nudged to sign in by the handler.
+    function SaveButton({ story, saved, onToggle, t, lang }) {
+      const on=saved.has(String(story.id));
+      return <button type="button" onClick={()=>onToggle(story)} aria-pressed={on?"true":"false"}
+        className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
+        <Bookmark size={14} fill={on?"currentColor":"none"}/>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}</button>;
+    }
+
+    // Sign-in gate reused by Lens + Saved (the news is never gated; only these personal views are).
+    function SignInGate({ t, lang, go, title, body }) {
+      return (
+        <PageWrap>
+          <div className="mx-auto max-w-[520px] py-10 text-center">
+            <h1 className={`headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{title}</h1>
+            <p className={`mx-auto mt-3 max-w-[44ch] text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{body}</p>
+            {authOn() && <button onClick={()=>go("login")} className={`mt-6 rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{lang==="hi"?"साइन इन":"Sign in"}</button>}
+          </div>
+        </PageWrap>
+      );
+    }
+
+    // MY READING LENS - the personal balance bar: distinct-publisher-lean of the stories YOU
+    // opened, counted the SAME way a story's bar is (one publisher, one vote). Private to you.
+    function LensPage({ t, lang, auth, go, open }) {
+      const [rows,setRows]=useState(null);
+      useEffect(()=>{ if(!auth) return; listReading(30).then(r=>setRows(r||[])).catch(()=>setRows([])); },[auth]);
+      const L = lang==="hi" ? {
+        title:"मेरा रीडिंग लेंस", sub:"पिछले 30 दिनों में आपने जो खबरें खोलीं, उनके प्रकाशक-झुकाव के हिसाब से, वही गिनती जो किसी खबर के बार में है। सिर्फ़ आपके लिए।",
+        loading:"आपका लेंस तैयार हो रहा है…", empty:"अभी पर्याप्त पढ़ाई नहीं। कुछ खबरें खोलें, आपका संतुलन यहाँ बनेगा।",
+        read:"पढ़ी · 30 दिन", least:"सबसे कम पढ़ा पक्ष", topics:"विषय",
+        verdictEven:"आप जो खोलते हैं उसमें आपका पढ़ना काफ़ी संतुलित है।",
+        nudgeH:"मैं क्या चूक रहा/रही हूँ", nudgeB:"आप सबसे कम जिस पक्ष को पढ़ते हैं, उस ओर की कवरेज गैप देखें।", nudgeBtn:"जो छूट रहा है देखें →",
+        recent:"हाल में पढ़ी", none:"—",
+        privacy:"जिस तरह किसी खबर का बार गिना जाता है उसी तरह: एक प्रकाशक, एक वोट। यह सिर्फ़ आपको दिखता है, और यह कभी नहीं बदलता कि आपको कौन-सी खबरें दिखाई जाती हैं। इतिहास बंद करना हो तो सेटिंग्स में।",
+        gateB:"अपना रीडिंग लेंस देखने के लिए साइन इन करें। खबरें हमेशा बिना खाते के खुली रहती हैं।"
+      } : {
+        title:"My Reading Lens", sub:"The stories you opened in the last 30 days, by each source's publisher lean, counted the same way a story's bar is. Visible to no one but you.",
+        loading:"Building your lens…", empty:"Not enough reading yet. Open a few stories and your balance will build here.",
+        read:"Read · 30d", least:"Least-read side", topics:"Topics",
+        verdictEven:"Your reading is fairly balanced across what you open.",
+        nudgeH:"See what I'm missing", nudgeB:"Look at coverage gaps on the side you read least.", nudgeBtn:"See what I'm missing →",
+        recent:"Recently read", none:"—",
+        privacy:"Counted the same way a story's bar is: one publisher, one vote. Visible to no one but you, and it never changes what stories you're shown. Turn history off in Settings.",
+        gateB:"Sign in to see your Reading Lens. The news itself is always open, no account needed."
+      };
+      if(!auth) return <SignInGate t={t} lang={lang} go={go} title={L.title} body={L.gateB} />;
+      const list=rows||[];
+      const agg={left:0,center:0,right:0}; list.forEach(r=>{ if(agg[r.side]!=null) agg[r.side]++; });
+      const total=list.length;
+      const bpct=biasPct(agg);
+      const least=["left","center","right"].reduce((a,b)=>agg[b]<agg[a]?b:a,"left");
+      const topics=new Set(list.map(r=>r.topic).filter(Boolean)).size;
+      const hi=agg.left>=agg.right?"left":"right", lo=agg.left>=agg.right?"right":"left";
+      const ratio=agg[lo]>0?(agg[hi]/agg[lo]):0;
+      const verdict = total<3 ? "" : (agg.left===agg.right ? L.verdictEven
+        : (lang==="hi"
+          ? `आप ${lbl(hi,lang)} की ओर झुकते हैं, ${lbl(lo,lang)}-कवर खबरों से ${ratio>=2?`लगभग ${Math.round(ratio)} गुना`:"कुछ"} ज़्यादा ${lbl(hi,lang)}-कवर खबरें खोलते हैं।`
+          : `You lean ${lbl(hi,lang)} in what you open, ${ratio>=2?`about ${Math.round(ratio)}x`:"somewhat"} as many ${lbl(hi,lang)}-covered stories as ${lbl(lo,lang)}-covered ones.`));
+      const stat=(n,label,clay)=>(<div><div className={`mono text-[22px] font-semibold ${clay?t.blind:t.tp}`}>{n}</div><div className={`mt-0.5 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{label}</div></div>);
+      return (
+        <PageWrap>
+          <div className="max-w-2xl">
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+            <p className={`mt-3 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.sub}</p>
+            {rows===null ? <div className={`mt-8 py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{L.loading}</div>
+            : total===0 ? <div className={`mt-8 border border-dashed p-10 text-center text-[14px] ${t.border} ${t.tf} ${readCls(lang)}`}>{L.empty}</div>
+            : (
+              <>
+                <div className={`mt-7 border p-5 ${t.surface} ${t.border}`}>
+                  <BiasBar bias={bpct} counts={agg} t={t} lang={lang} height={26} />
+                  {verdict && <p className={`mt-4 text-[15px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{verdict}</p>}
+                </div>
+                <div className="mt-6 grid grid-cols-3 gap-4">
+                  {stat(total,L.read)}
+                  {stat(`${lbl(least,lang)} ${agg[least]}`,L.least,true)}
+                  {stat(topics,L.topics)}
+                </div>
+                <div className={`mt-6 flex flex-wrap items-center justify-between gap-3 p-4 ${t.blindSoft}`}>
+                  <div className="min-w-0"><div className={`text-[13.5px] font-semibold ${t.blind} ${isHi(lang)}`}>{L.nudgeH}</div><div className={`mt-0.5 text-[12.5px] ${t.blind} ${isHi(lang)}`} style={{opacity:.85}}>{L.nudgeB}</div></div>
+                  <button onClick={()=>go("blindspot")} className={`shrink-0 text-[12.5px] font-semibold ${t.blind} hover:underline ${isHi(lang)}`}>{L.nudgeBtn}</button>
+                </div>
+                <div className="mt-8">
+                  <div className={`eyebrow mb-3 pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{L.recent}</div>
+                  {list.slice(0,10).map((r,i)=>(
+                    <button key={i} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`}>
+                      <span className={`min-w-0 flex-1 truncate text-[14px] ${t.ts} ${readCls(lang)}`}>{r.title||r.story_id}</span>
+                      <span className={`shrink-0 mono text-[10px] uppercase tracking-wide ${r.side?"text-white":t.tf}`} style={r.side&&BIAS[r.side]?{backgroundColor:BIAS[r.side].color,padding:"2px 6px"}:{}}>{r.side?lbl(r.side,lang):L.none}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className={`mt-6 text-[11.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.privacy}</p>
+              </>
+            )}
+          </div>
+        </PageWrap>
+      );
+    }
+
+    // SAVED / clippings - newspaper-cutting treatment (dashed frame + a "clipped" tab).
+    function SavedPage({ t, lang, auth, go, open, savedRows, onUnsave }) {
+      const L = lang==="hi" ? { title:"सहेजी खबरें", empty:"अभी कुछ नहीं कतरा गया।", emptyB:"किसी खबर पर ‘सहेजें’ दबाएँ, वह यहाँ कतरन की तरह जुड़ जाएगी।",
+        browse:"मुख्य खबरें देखें →", clipped:"कतरा", remove:"हटाएँ", gateB:"अपनी सहेजी खबरें देखने के लिए साइन इन करें।" }
+        : { title:"Saved", empty:"Nothing clipped yet.", emptyB:"Press ‘Save’ on any story and it gets pinned here like a cutting.",
+        browse:"Browse top stories →", clipped:"Clipped", remove:"Remove", gateB:"Sign in to see your saved stories." };
+      if(!auth) return <SignInGate t={t} lang={lang} go={go} title={L.title} body={L.gateB} />;
+      const rows=savedRows||[];
+      return (
+        <PageWrap>
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          {savedRows===null ? <div className={`mt-8 py-10 text-center text-[13px] ${t.tf}`}>…</div>
+          : rows.length===0 ? (
+            <div className={`mt-8 border border-dashed p-12 text-center ${t.border}`}>
+              <div className="text-[40px]" aria-hidden="true">✂</div>
+              <div className={`mt-3 text-[16px] font-semibold ${t.tp} ${isHi(lang)}`}>{L.empty}</div>
+              <p className={`mx-auto mt-1.5 max-w-[40ch] text-[13.5px] ${t.tf} ${readCls(lang)}`}>{L.emptyB}</p>
+              <button onClick={()=>go("home")} className={`mt-5 border px-4 py-2 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.browse}</button>
+            </div>
+          ) : (
+            <div className="mt-8 grid gap-6 sm:grid-cols-2">
+              {rows.map((r)=>(
+                <div key={r.story_id} className="relative" style={{border:`1px dashed #C4BEAE`,padding:"22px 18px 18px"}}>
+                  <span className={`absolute mono text-[10px] uppercase tracking-wide ${t.cta} ${t.ctaT}`} style={{top:-9,left:14,padding:"2px 8px"}}>✂ {L.clipped} · {timeAgo(r.saved_at,lang)}</span>
+                  <button onClick={()=>open(r.story_id)} className="block w-full text-left">
+                    {r.topic && <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?(TOPIC_HI[r.topic]||r.topic):r.topic}</div>}
+                    <h3 className={`headline mt-1.5 text-[18px] leading-[1.24] lc-3 ${t.tp} ${readCls(lang)} hover:underline decoration-1 underline-offset-2`}>{r.title||r.story_id}</h3>
+                  </button>
+                  <button onClick={()=>onUnsave(r.story_id)} className={`mt-3 mono text-[10.5px] uppercase tracking-wide ${t.tf} hover:${t.blind} ${lang==="hi"?"deva":""}`}>{L.remove}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </PageWrap>
+      );
+    }
+
     /* ---------------- routing + app ---------------- */
     function parsePath(){
       const p=(typeof window!=="undefined"?(window.location.pathname||"/"):"/");
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
-      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support"].includes(seg[0])) return {view:seg[0]};
-      return {view:"home"};
+      if(seg.length===0) return {view:"home"};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support","login","settings","account","saved","lens"].includes(seg[0])) return {view:seg[0]};
+      return {view:"404"};
     }
+    // First-run onboarding: a reading-language ask + four one-line explainers of how to read
+    // Paksh (the bias bar, coverage gaps, publisher-not-article, bilingual). Shown once, then
+    // remembered in localStorage ("paksh-onboarded"). Dismissable at any step.
+    function Onboarding({ t, lang, setLang, onDone }) {
+      const [step,setStep]=useState(0);
+      const steps = lang==="hi" ? [
+        {k:"बायस बार", b:"रंगीन बार गिनता है कि कवर करने वाले कितने अलग-अलग आउटलेट वाम, केंद्र या दक्षिण की ओर हैं, एक प्रकाशक = एक वोट।"},
+        {k:"कवरेज गैप", b:"जब एक पक्ष के आउटलेट कोई खबर चलाएँ पर दूसरे न चलाएँ, पक्ष उसे चिह्नित करता है, यह अंकगणित है, निर्णय नहीं।"},
+        {k:"झुकाव प्रकाशन का, लेख का नहीं", b:"झुकाव का लेबल हर प्रकाशन का होता है और संपादक तय करते हैं, कोई एल्गोरिद्म नहीं।"},
+        {k:"द्विभाषी", b:"हर खबर अंग्रेज़ी और हिंदी में, ऊपर के टॉगल से भाषा कभी भी बदलें।"},
+      ] : [
+        {k:"The bias bar", b:"The coloured bar counts how many distinct outlets covering a story lean Left, Centre or Right, one publisher = one vote."},
+        {k:"Coverage gaps", b:"When one side's outlets run a story and the other's don't, Paksh flags it, arithmetic, not a judgment."},
+        {k:"Lean is the publisher's, not the article's", b:"A lean label belongs to each publication and is set by editors, never by an algorithm."},
+        {k:"Bilingual", b:"Every story in English and Hindi, switch language any time with the toggle up top."},
+      ];
+      const L = lang==="hi"
+        ? { welcome:"पक्ष में आपका स्वागत है", pick:"पढ़ने की भाषा चुनें", next:"आगे", start:"शुरू करें", skip:"छोड़ें" }
+        : { welcome:"Welcome to Paksh", pick:"Choose your reading language", next:"Next", start:"Get started", skip:"Skip" };
+      const done=()=>onDone();
+      return (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4" style={{background:"rgba(21,20,15,0.55)"}}>
+          <div className={`w-full max-w-[440px] border ${t.surface} ${t.border}`} style={{boxShadow:"0 12px 40px rgba(0,0,0,0.30)"}}>
+            <div className="flex items-center justify-between px-5 pt-4">
+              <span className={`brand-hi text-[20px] ${t.tp}`}>पक्ष</span>
+              <button onClick={done} className={`mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.skip}</button>
+            </div>
+            {step===0 ? (
+              <div className="px-5 pb-5 pt-3">
+                <h2 className={`headline text-[22px] ${t.tp} ${readCls(lang)}`}>{L.welcome}</h2>
+                <div className={`mt-4 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.pick}</div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {[["en","English"],["hi","हिंदी"]].map(([k,label])=>(
+                    <button key={k} onClick={()=>{ setLang(k); }} className={`border px-4 py-3 text-[15px] font-semibold ${lang===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${k==="hi"?"deva":""}`}>{label}</button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="px-5 pb-5 pt-3">
+                <div className={`mono text-[10px] uppercase tracking-[0.16em] ${t.blind}`}>{step}/4</div>
+                <h2 className={`headline mt-2 text-[21px] ${t.tp} ${readCls(lang)}`}>{steps[step-1].k}</h2>
+                <p className={`mt-2 text-[14.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{steps[step-1].b}</p>
+              </div>
+            )}
+            <div className={`flex items-center justify-between border-t px-5 py-3 ${t.border}`}>
+              <div className="flex gap-1.5">{[0,1,2,3,4].map(i=><span key={i} style={{width:6,height:6,borderRadius:0,background:i===step?t.ink:t.line}}/>)}</div>
+              <button onClick={()=> step<4?setStep(step+1):done()} className={`rounded-full px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<4?L.next:L.start}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // Consent gate. Nothing is tracked until the visitor accepts here; "Decline" is honoured
     // for the whole session and remembered. Copy is deliberately plain about what's collected.
     function ConsentBanner({ t, lang, onChoose, go }) {
@@ -1551,7 +2132,15 @@ const {useState,useEffect,useMemo}=React;
 
     function PakshApp() {
       const [route,setRoute]=useState(parsePath());
-      const [lang,setLang]=useState("en");
+      // Default reading language: a remembered choice (set in Settings), else English.
+      const [lang,setLang]=useState(()=>{ try{ const s=localStorage.getItem("paksh-lang"); return (s==="hi"||s==="en")?s:"en"; }catch(e){ return "en"; } });
+      // Account session (Supabase, direct REST) + accessibility prefs. Accessibility is applied
+      // to <html> for guests too (news is never gated); it's mirrored to the profile when signed in.
+      const [auth,setAuth]=useState(null);
+      const [a11y,setA11yState]=useState(readA11y);
+      const [savedIds,setSavedIds]=useState(()=>new Set());   // story_ids the user has clipped
+      const [savedRows,setSavedRows]=useState(null);          // full saved list for the Saved page
+      const [onboard,setOnboard]=useState(()=>{ try{ return !localStorage.getItem("paksh-onboarded"); }catch(e){ return false; } });
       // Honour a remembered choice first, else the OS preference (prefers-color-scheme),
       // else light. Previously it always started light, ignoring a device set to dark.
       const [dark,setDark]=useState(()=>{ try{ const s=localStorage.getItem("paksh-theme"); if(s==="dark")return true; if(s==="light")return false; return !!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches); }catch(e){ return false; } });
@@ -1575,12 +2164,38 @@ const {useState,useEffect,useMemo}=React;
       // fetch fires only once even if it fails (then search/topic just cover recent stories).
       useEffect(()=>{ if(archive!==null) return; if(!["search","topic","topics"].includes(route.view)) return; setArchive([]); apiGet("events-archive").then(a=>setArchive(a.events||[])).catch(()=>{}); },[route.view,archive]);
 
+      // Apply accessibility to <html> immediately and whenever it changes (so every page reflects it).
+      useEffect(()=>{ applyA11y(a11y); },[a11y]);
+      // Restore a signed-in session on load (refreshes the token if needed); then pull the
+      // account's saved prefs (accessibility + default language) and merge them in.
+      useEffect(()=>{ if(!authOn()) return; authEnsure().then(s=>{ if(!s){ setAuth(null); return; } setAuth(s);
+        loadPrefs().then(p=>{ if(!p) return;
+          if(p.a11y) setA11yState(prev=>{ const merged=Object.assign({}, prev, p.a11y); writeA11y(merged); return merged; });
+          if(p.lang==="en"||p.lang==="hi") setLang(p.lang);
+        });
+        refreshSaved(); }).catch(()=>setAuth(null)); },[]);
+      // Pull the saved list (ids for button state + rows for the Saved page).
+      const refreshSaved=()=>{ listSaved().then(rows=>{ rows=rows||[]; setSavedRows(rows); setSavedIds(new Set(rows.map(r=>String(r.story_id)))); }).catch(()=>{ setSavedRows([]); }); };
+      // Record every opened story into the Reading Lens (signed-in only; best-effort).
+      useEffect(()=>{ if(route.view==="story"&&route.id&&auth&&detail[route.id]){ recordRead(toCard(detail[route.id],lang)); } },[route.view,route.id,auth,detail]);
+
       const t=dark?TOKENS.dark:TOKENS.light;
       const nav=(path)=>{ if(window.location.pathname!==path){ window.history.pushState(null,"",path); } setRoute(parsePath()); };
       const go=(v)=> nav(v==="home"?"/":"/"+v);
       const open=(id)=>{ track("story_open",{device:deviceClass()}); nav("/story/"+encodeURIComponent(id)); };
       const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
-      const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); };   // wrap so the toggle is measured
+      const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); try{ localStorage.setItem("paksh-lang",l); }catch(e){} if(auth) savePrefsRemote({ lang:l }); };
+      // Accessibility setter: update state, persist locally (applies for everyone), sync to the account.
+      const setA11y=(p)=>{ setA11yState(p); writeA11y(p); if(auth) savePrefsRemote({ a11y:p }); };
+      const onAuthed=(s)=>{ setAuth(s); track("sign_in",{}); loadPrefs().then(p=>{ if(p&&p.a11y){ const merged=Object.assign({},a11y,p.a11y); setA11yState(merged); writeA11y(merged); } if(p&&(p.lang==="en"||p.lang==="hi")) setLang(p.lang); }); refreshSaved(); go("home"); };
+      const onSignOut=()=>{ authSignOut().finally(()=>{ setAuth(null); setSavedIds(new Set()); setSavedRows(null); go("home"); }); };
+      const setConsentChoice=(v)=>{ try{ localStorage.setItem("paksh-consent",v); }catch(e){} setConsent(v); };
+      const finishOnboarding=()=>{ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); };
+      // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is not).
+      const toggleSave=(story)=>{ if(!auth){ go("login"); return; } const id=String(story.id); const on=savedIds.has(id);
+        const next=new Set(savedIds); if(on){ next.delete(id); } else { next.add(id); } setSavedIds(next);
+        if(on){ unsaveStory(id).then(refreshSaved).catch(refreshSaved); }
+        else { saveStory(story).then(refreshSaved).catch(refreshSaved); } };
 
       // Combine recent (always loaded) with the lazy archive once it arrives, so Search / Topic /
       // Sections cover the FULL catalogue while the home feed's first paint stayed small. The two
@@ -1638,10 +2253,16 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
-          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} />
+          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} />
           <main id="main" className="pb-24 md:pb-10">
-            {!ready ? <FeedSkeleton t={t} />
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} /> : <FeedSkeleton t={t} />)
+            {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
+            : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} go={go} />
+            : route.view==="account" ? <AccountPage t={t} lang={lang} auth={auth} go={go} onSignOut={onSignOut} />
+            : route.view==="lens" ? <LensPage t={t} lang={lang} auth={auth} go={go} open={open} />
+            : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
+            : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
+            : !ready ? <FeedSkeleton t={t} />
+            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} /> : <FeedSkeleton t={t} />)
             : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
@@ -1656,8 +2277,9 @@ const {useState,useEffect,useMemo}=React;
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} />
-          {consent==="" && <ConsentBanner t={t} lang={lang} go={go}
-            onChoose={(v)=>{ try{ localStorage.setItem("paksh-consent",v); }catch(e){} setConsent(v); }} />}
+          {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} />}
+          {!onboard && consent==="" && <ConsentBanner t={t} lang={lang} go={go}
+            onChoose={(v)=>{ setConsentChoice(v); }} />}
         </div>
       );
     }

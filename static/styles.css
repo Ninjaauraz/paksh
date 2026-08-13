@@ -82,3 +82,24 @@
   /* comfier reading on small screens */
   @media (max-width:640px){p{line-height:1.62;}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+
+  /* ---- accessibility (set in Settings, applied to <html> so EVERY page reflects it) ---- */
+  /* Text size — whole-UI zoom so the type AND the bias instrument scale together, nothing clips. */
+  html[data-pk-text="large"]{zoom:1.12;}
+  html[data-pk-text="classic"]{zoom:1.30;}
+  /* High contrast (light): near-black text, white surfaces, ink hairlines. */
+  html.pk-hc body{background:#fff!important;color:#000!important;}
+  html.pk-hc .bg-\[\#F4F1EA\],html.pk-hc .bg-\[\#EFEBE1\],html.pk-hc .bg-\[\#EAE6DB\],html.pk-hc .bg-\[\#F9F7F1\]{background-color:#fff!important;}
+  html.pk-hc .text-\[\#3A372F\],html.pk-hc .text-\[\#26241E\],html.pk-hc .text-\[\#3A4B54\],html.pk-hc .text-\[\#57503F\]{color:#000!important;}
+  html.pk-hc .text-\[\#8A8371\]{color:#26241E!important;}
+  html.pk-hc .border-\[\#D8D3C6\]{border-color:#15140F!important;}
+  /* High contrast (dark): pure-black surfaces, near-white text. */
+  html.pk-hc.dark body{background:#000!important;color:#fff!important;}
+  html.pk-hc.dark .bg-\[\#201F1C\],html.pk-hc.dark .bg-\[\#262420\],html.pk-hc.dark .bg-\[\#1A1917\]{background-color:#000!important;}
+  html.pk-hc.dark .text-\[\#B7B1A4\],html.pk-hc.dark .text-\[\#948E7E\]{color:#fff!important;}
+  html.pk-hc.dark .border-\[\#35322C\]{border-color:#EDEAE2!important;}
+  /* Dyslexia-friendly reading font (Latin reading text only; Devanagari keeps its script font).
+     Uses Atkinson Hyperlegible / OpenDyslexic if the reader has them, else Verdana/Tahoma. */
+  html.pk-dys body,
+  html.pk-dys .serif:not(.read-hi),
+  html.pk-dys .headline:not(.read-hi){font-family:"Atkinson Hyperlegible","OpenDyslexic",Verdana,Tahoma,system-ui,sans-serif!important;}
