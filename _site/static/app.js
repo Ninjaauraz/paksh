@@ -3,6 +3,12 @@ const {
   useEffect,
   useMemo
 } = React;
+// Save/clip state shared to any card without prop-drilling (feed cards get a ✂ CLIP action).
+const SaveCtx = React.createContext({
+  saved: new Set(),
+  toggle: () => {},
+  on: false
+});
 /* ---------------- icons ---------------- */
 const Search = p => /*#__PURE__*/React.createElement("svg", {
   width: p.size || 24,
@@ -1344,6 +1350,8 @@ const covLine = (story, lang) => {
 };
 // Newspaper count line: raw distinct-outlet counts L · C · R, plus n and age. Reads
 // straight from the real per-lean counts (never a hardcoded ratio).
+// Newspaper count caption with L/C/R labels (design card): "L 4 · C 9 · R 3 · n=16".
+// Hindi uses वा/कें/द short marks. Reads straight from the real per-lean owner counts.
 const countLine = (story, lang) => {
   const c = story.counts || {};
   const L = c.left || 0,
@@ -1351,7 +1359,8 @@ const countLine = (story, lang) => {
     R = c.right || 0;
   const n = L + C + R;
   const ta = timeAgo(story.created_at, lang);
-  return `${L} · ${C} · ${R}   n=${n}${ta ? " · " + ta : ""}`;
+  const lab = lang === "hi" ? ["वा", "कें", "द"] : ["L", "C", "R"];
+  return `${lab[0]} ${L} · ${lab[1]} ${C} · ${lab[2]} ${R} · n=${n}${ta ? " · " + ta : ""}`;
 };
 function Thumb({
   src,
@@ -1915,8 +1924,14 @@ function SecondaryStory({
     lang: lang,
     height: 11
   })), /*#__PURE__*/React.createElement("div", {
-    className: `mt-1.5 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, countLine(story, lang)));
+    className: "mt-1.5 flex items-center justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, countLine(story, lang)), /*#__PURE__*/React.createElement(CardClip, {
+    story: story,
+    t: t,
+    lang: lang
+  })));
 }
 // DENSE — the tail: a compact headline row with a mini bias bar. High information density.
 function DenseRow({
@@ -2151,8 +2166,14 @@ function GridCard({
     bias: story.bias,
     t: t
   })), /*#__PURE__*/React.createElement("div", {
-    className: `mt-2 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, covLine(story, lang))));
+    className: "mt-2 flex items-center justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, covLine(story, lang)), /*#__PURE__*/React.createElement(CardClip, {
+    story: story,
+    t: t,
+    lang: lang
+  }))));
 }
 
 /* ---------------- shell ---------------- */
@@ -2283,7 +2304,8 @@ function Header({
   go,
   view,
   auth,
-  openHelp
+  openHelp,
+  savedCount
 }) {
   const NAV = [["home", STR[lang].navTop], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["about", STR[lang].navMethod]];
   const initials = email => {
@@ -2359,7 +2381,20 @@ function Header({
     size: 16
   }) : /*#__PURE__*/React.createElement(Moon, {
     size: 16
-  })), authOn() && (auth ? /*#__PURE__*/React.createElement("button", {
+  })), authOn() && auth && /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("lens"),
+    className: `hidden md:inline eyebrow ${view === "lens" ? t.tp : `${t.tf} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".12em"
+    }
+  }, lang === "hi" ? "रीडिंग लेंस" : "My Reading Lens"), authOn() && auth && /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("saved"),
+    "aria-label": lang === "hi" ? "सहेजी खबरें" : "Saved",
+    title: lang === "hi" ? "सहेजी खबरें" : "Saved",
+    className: `inline-flex items-center gap-1 mono text-[12px] ${view === "saved" ? t.tp : `${t.tf} hover:${t.tp}`}`
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, "\u2702"), savedCount || 0), authOn() && (auth ? /*#__PURE__*/React.createElement("button", {
     onClick: () => go("account"),
     "aria-label": lang === "hi" ? "मेरा खाता" : "My account",
     title: auth.user && auth.user.email || "",
@@ -2632,8 +2667,14 @@ function SectionCard({
     h: 10,
     lang: lang
   })), /*#__PURE__*/React.createElement("div", {
-    className: `mt-1.5 mono text-[10.5px] ${t.tf}`
-  }, L, " \xB7 ", C, " \xB7 ", R, " \xB7 n = ", n));
+    className: "mt-1.5 flex items-center justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, (lang === "hi" ? ["वा", "कें", "द"] : ["L", "C", "R"])[0], " ", L, " \xB7 ", lang === "hi" ? "कें" : "C", " ", C, " \xB7 ", lang === "hi" ? "द" : "R", " ", R, " \xB7 n = ", n), /*#__PURE__*/React.createElement(CardClip, {
+    story: story,
+    t: t,
+    lang: lang
+  })));
 }
 // BRIEF tier bar — 6px, FLAT fills (hatch would moiré this small), no centre axis; the
 // printed count carries the exact reading. Under 3 outlets: the hatched "too thin" state.
@@ -5450,6 +5491,38 @@ function SaveButton({
     fill: on ? "currentColor" : "none"
   }), on ? lang === "hi" ? "सहेजा" : "Saved" : lang === "hi" ? "सहेजें" : "Save");
 }
+// Per-card "✂ CLIP" action (design mobile card). Uses the shared SaveCtx so no card needs
+// save props threaded. Renders nothing when accounts are off; a guest tap routes to sign in.
+function CardClip({
+  story,
+  t,
+  lang
+}) {
+  const ctx = React.useContext(SaveCtx);
+  if (!ctx || !ctx.on) return null;
+  const on = ctx.saved.has(String(story.id));
+  const act = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    ctx.toggle(story);
+  };
+  return /*#__PURE__*/React.createElement("span", {
+    role: "button",
+    tabIndex: 0,
+    "aria-pressed": on ? "true" : "false",
+    onClick: act,
+    onKeyDown: e => {
+      if (e.key === "Enter" || e.key === " ") act(e);
+    },
+    className: `inline-flex cursor-pointer items-center gap-1 mono text-[10px] font-semibold uppercase tracking-[0.1em] ${on ? t.blind : t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, /*#__PURE__*/React.createElement("span", {
+    key: on ? "on" : "off",
+    className: on ? "pk-pop" : "",
+    style: {
+      display: "inline-block"
+    }
+  }, "\u2702"), on ? lang === "hi" ? "कतरा" : "Clipped" : lang === "hi" ? "कतरें" : "Clip");
+}
 
 // Sign-in gate reused by Lens + Saved (the news is never gated; only these personal views are).
 function SignInGate({
@@ -6266,7 +6339,13 @@ function PakshApp() {
   // Same-topic stories to keep a reader moving instead of dead-ending at the article.
   const related = story ? baseCards.filter(c => c.topic === story.topic && String(c.id) !== String(story.id)).slice(0, 6) : [];
   const headerView = route.view === "story" ? "" : route.view;
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement(SaveCtx.Provider, {
+    value: {
+      saved: savedIds,
+      toggle: toggleSave,
+      on: authOn()
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     className: `min-h-screen font-sans ${t.bg} ${t.tp}`
   }, /*#__PURE__*/React.createElement("a", {
     href: "#main",
@@ -6285,7 +6364,8 @@ function PakshApp() {
     go: go,
     view: headerView,
     auth: auth,
-    openHelp: () => setOnboard(true)
+    openHelp: () => setOnboard(true),
+    savedCount: savedIds.size
   }), /*#__PURE__*/React.createElement("main", {
     id: "main",
     className: "pb-24 md:pb-10"
@@ -6441,6 +6521,6 @@ function PakshApp() {
     onChoose: v => {
       setConsentChoice(v);
     }
-  }));
+  })));
 }
 ReactDOM.createRoot(document.getElementById("root")).render( /*#__PURE__*/React.createElement(PakshApp, null));

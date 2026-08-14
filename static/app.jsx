@@ -1,4 +1,6 @@
 const {useState,useEffect,useMemo}=React;
+    // Save/clip state shared to any card without prop-drilling (feed cards get a ✂ CLIP action).
+    const SaveCtx = React.createContext({ saved:new Set(), toggle:()=>{}, on:false });
     /* ---------------- icons ---------------- */
     const Search = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
     const Sun = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
@@ -410,7 +412,10 @@ const {useState,useEffect,useMemo}=React;
     const covLine=(story,lang)=>{ const d=domSide(story.bias); const tot=story.sources+(story.unrated||0)+(story.international||0); return `${story.bias[d]}% ${lbl(d,lang)} · ${tot} ${tot===1?STR[lang].source:STR[lang].sources}`; };
     // Newspaper count line: raw distinct-outlet counts L · C · R, plus n and age. Reads
     // straight from the real per-lean counts (never a hardcoded ratio).
-    const countLine=(story,lang)=>{ const c=story.counts||{}; const L=c.left||0,C=c.center||0,R=c.right||0; const n=L+C+R; const ta=timeAgo(story.created_at,lang); return `${L} · ${C} · ${R}   n=${n}${ta?" · "+ta:""}`; };
+    // Newspaper count caption with L/C/R labels (design card): "L 4 · C 9 · R 3 · n=16".
+    // Hindi uses वा/कें/द short marks. Reads straight from the real per-lean owner counts.
+    const countLine=(story,lang)=>{ const c=story.counts||{}; const L=c.left||0,C=c.center||0,R=c.right||0; const n=L+C+R; const ta=timeAgo(story.created_at,lang);
+      const lab=lang==="hi"?["वा","कें","द"]:["L","C","R"]; return `${lab[0]} ${L} · ${lab[1]} ${C} · ${lab[2]} ${R} · n=${n}${ta?" · "+ta:""}`; };
 
     function Thumb({ src, topic, title, ratio, t, lang, className }) {
       const [err,setErr]=useState(false);
@@ -629,7 +634,10 @@ const {useState,useEffect,useMemo}=React;
           <h3 className={`headline mt-1.5 text-[20px] sm:text-[21px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
           {story.lead && <p className={`mt-2 text-[14px] leading-[1.55] lc-2 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
           <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={11} /></div>
-          <div className={`mt-1.5 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{countLine(story,lang)}</div>
+          <div className="mt-1.5 flex items-center justify-between gap-3">
+            <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{countLine(story,lang)}</span>
+            <CardClip story={story} t={t} lang={lang} />
+          </div>
         </a>
       );
     }
@@ -720,7 +728,10 @@ const {useState,useEffect,useMemo}=React;
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)}`}>{story.headline}</h3>
             <div className="mt-3"><MiniBar bias={story.bias} t={t} /></div>
-            <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</div>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
+              <CardClip story={story} t={t} lang={lang} />
+            </div>
           </div>
         </a>
       );
@@ -785,7 +796,7 @@ const {useState,useEffect,useMemo}=React;
     // Masthead — brand, inline nav with a 2px active underline, search as an icon, the
     // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
     // utility strip, no topic-chip rail (design spec 2a).
-    function Header({ t, lang, setLang, dark, setDark, go, view, auth, openHelp }) {
+    function Header({ t, lang, setLang, dark, setDark, go, view, auth, openHelp, savedCount }) {
       const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
       const initials=(email)=>{ const s=(email||"").trim(); return s?s[0].toUpperCase():"?"; };
       return (
@@ -809,6 +820,8 @@ const {useState,useEffect,useMemo}=React;
                 {openHelp && <button onClick={openHelp} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"} title={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"} className={`hidden sm:inline ${t.tf} hover:${t.tp}`}><Help size={17}/></button>}
                 <LangToggle t={t} lang={lang} setLang={setLang} dark={dark} />
                 <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={16}/>:<Moon size={16}/>}</button>
+                {authOn() && auth && <button onClick={()=>go("lens")} className={`hidden md:inline eyebrow ${view==="lens"?t.tp:`${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{lang==="hi"?"रीडिंग लेंस":"My Reading Lens"}</button>}
+                {authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} title={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
                 {authOn() && (auth
                   ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:32,height:32,border:`1px solid ${t.ink}`}}><span style={{fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</span></button>
                   : <button onClick={()=>go("login")} className={`border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"साइन इन":"Sign in"}</button>)}
@@ -917,7 +930,10 @@ const {useState,useEffect,useMemo}=React;
           <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp||"News"}</div>
           <h3 className={`headline mt-2 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.28,textWrap:"pretty"}}>{story.headline}</h3>
           <div className="mt-3"><BiasSegments bias={story.bias} t={t} h={10} lang={lang} /></div>
-          <div className={`mt-1.5 mono text-[10.5px] ${t.tf}`}>{L} · {C} · {R} · n = {n}</div>
+          <div className="mt-1.5 flex items-center justify-between gap-3">
+            <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{(lang==="hi"?["वा","कें","द"]:["L","C","R"])[0]} {L} · {(lang==="hi"?"कें":"C")} {C} · {(lang==="hi"?"द":"R")} {R} · n = {n}</span>
+            <CardClip story={story} t={t} lang={lang} />
+          </div>
         </a>
       );
     }
@@ -2107,6 +2123,20 @@ const {useState,useEffect,useMemo}=React;
         className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
         <Bookmark key={on?"on":"off"} className={on?"pk-pop":""} size={14} fill={on?"currentColor":"none"}/>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}</button>;
     }
+    // Per-card "✂ CLIP" action (design mobile card). Uses the shared SaveCtx so no card needs
+    // save props threaded. Renders nothing when accounts are off; a guest tap routes to sign in.
+    function CardClip({ story, t, lang }) {
+      const ctx=React.useContext(SaveCtx);
+      if(!ctx || !ctx.on) return null;
+      const on=ctx.saved.has(String(story.id));
+      const act=(e)=>{ e.stopPropagation(); e.preventDefault(); ctx.toggle(story); };
+      return (
+        <span role="button" tabIndex={0} aria-pressed={on?"true":"false"} onClick={act} onKeyDown={(e)=>{ if(e.key==="Enter"||e.key===" ") act(e); }}
+          className={`inline-flex cursor-pointer items-center gap-1 mono text-[10px] font-semibold uppercase tracking-[0.1em] ${on?t.blind:t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>
+          <span key={on?"on":"off"} className={on?"pk-pop":""} style={{display:"inline-block"}}>✂</span>{on?(lang==="hi"?"कतरा":"Clipped"):(lang==="hi"?"कतरें":"Clip")}
+        </span>
+      );
+    }
 
     // Sign-in gate reused by Lens + Saved (the news is never gated; only these personal views are).
     function SignInGate({ t, lang, go, title, body }) {
@@ -2449,10 +2479,11 @@ const {useState,useEffect,useMemo}=React;
       const headerView = route.view==="story" ? "" : route.view;
 
       return (
+        <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn() }}>
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
           {ready && homeCards.length>0 && <BreakingTicker cards={homeCards} t={t} lang={lang} open={open} />}
-          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} openHelp={()=>setOnboard(true)} />
+          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} openHelp={()=>setOnboard(true)} savedCount={savedIds.size} />
           <main id="main" className="pb-24 md:pb-10">
             <div className="pk-page" key={route.view+(route.id||route.topic||"")}>
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
@@ -2482,6 +2513,7 @@ const {useState,useEffect,useMemo}=React;
           {!onboard && consent==="" && <ConsentBanner t={t} lang={lang} go={go}
             onChoose={(v)=>{ setConsentChoice(v); }} />}
         </div>
+        </SaveCtx.Provider>
       );
     }
     ReactDOM.createRoot(document.getElementById("root")).render(<PakshApp />);
