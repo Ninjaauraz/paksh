@@ -6095,82 +6095,158 @@ function LensPage({
     lo = agg.left >= agg.right ? "right" : "left";
   const ratio = agg[lo] > 0 ? agg[hi] / agg[lo] : 0;
   const verdict = total < 3 ? "" : agg.left === agg.right ? L.verdictEven : lang === "hi" ? `आप ${lbl(hi, lang)} की ओर झुकते हैं, ${lbl(lo, lang)}-कवर खबरों से ${ratio >= 2 ? `लगभग ${Math.round(ratio)} गुना` : "कुछ"} ज़्यादा ${lbl(hi, lang)}-कवर खबरें खोलते हैं।` : `You lean ${lbl(hi, lang)} in what you open, ${ratio >= 2 ? `about ${Math.round(ratio)}x` : "somewhat"} as many ${lbl(hi, lang)}-covered stories as ${lbl(lo, lang)}-covered ones.`;
-  const stat = (n, label, clay) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    className: `mono text-[22px] font-semibold ${clay ? t.blind : t.tp}`
-  }, n), /*#__PURE__*/React.createElement("div", {
-    className: `mt-0.5 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+  const statCell = (n, label, clay, i) => /*#__PURE__*/React.createElement("div", {
+    className: `text-center ${i > 0 ? "border-l" : ""} ${t.border}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".1em"
+      padding: "14px 8px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[24px] font-semibold ${clay ? t.blind : t.tp}`,
+    style: {
+      fontFamily: "'Source Serif 4',Georgia,serif",
+      lineHeight: 1
+    }
+  }, n), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 mono text-[8.5px] uppercase ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em",
+      lineHeight: 1.2
     }
   }, label));
+  const balSub = lang === "hi" ? "कोई फ़ैसला नहीं, आपने जो खबरें खोलीं उनके प्रकाशक-झुकाव की गिनती।" : "Not a judgement, the arithmetic of the stories you opened, by each source's publisher lean.";
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-2xl"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    className: "mx-auto max-w-[1180px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap items-end justify-between gap-3 pb-3",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "मेरा रीडिंग लेंस" : "My reading lens"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, L.title), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[15px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.75 : 1.6
-    }
-  }, L.sub), rows === null ? /*#__PURE__*/React.createElement("div", {
-    className: `mt-8 py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`
+  }, lang === "hi" ? "मेरा न्यूज़ झुकाव" : "My news bias")), total > 0 && /*#__PURE__*/React.createElement("span", {
+    className: `shrink-0 text-[13px] ${t.tf} ${readCls(lang)}`
+  }, total, " ", lang === "hi" ? "खबरें · 30 दिन" : "stories · 30 days")), rows === null ? /*#__PURE__*/React.createElement("div", {
+    className: `py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`
   }, L.loading) : total === 0 ? /*#__PURE__*/React.createElement("div", {
     className: `mt-8 border border-dashed p-10 text-center text-[14px] ${t.border} ${t.tf} ${readCls(lang)}`
-  }, L.empty) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: `mt-7 border p-5 ${t.surface} ${t.border}`
-  }, /*#__PURE__*/React.createElement(BiasBar, {
+  }, L.empty) : /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 grid lg:grid-cols-[1.6fr_1fr]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lg:border-r lg:pr-8",
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lang === "hi" ? "आप क्या पढ़ते हैं, उसका संतुलन" : "The balance of what you read"), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 text-[13px] ${t.tf} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.6 : 1.5
+    }
+  }, balSub), /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 mb-2 mono text-[11px] uppercase ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lbl("left", lang), " ", agg.left, " \xB7 ", lbl("center", lang), " ", agg.center, " \xB7 ", lbl("right", lang), " ", agg.right), /*#__PURE__*/React.createElement(BiasSegments, {
     bias: bpct,
-    counts: agg,
     t: t,
-    lang: lang,
-    height: 26
-  }), verdict && /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 text-[15px] ${t.tp} ${readCls(lang)}`,
+    h: 30,
+    lang: lang
+  }), verdict && /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 flex items-start gap-2.5 p-3",
     style: {
-      lineHeight: lang === "hi" ? 1.7 : 1.55
+      background: BIAS.left.soft,
+      borderLeft: `2px solid ${BIAS.left.color}`
     }
-  }, verdict)), /*#__PURE__*/React.createElement("div", {
-    className: "mt-6 grid grid-cols-3 gap-4"
-  }, stat(total, L.read), stat(`${lbl(least, lang)} ${agg[least]}`, L.least, true), stat(topics, L.topics)), /*#__PURE__*/React.createElement("div", {
-    className: `mt-6 flex flex-wrap items-center justify-between gap-3 p-4 ${t.blindSoft}`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "min-w-0"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `text-[13.5px] font-semibold ${t.blind} ${isHi(lang)}`
-  }, L.nudgeH), /*#__PURE__*/React.createElement("div", {
-    className: `mt-0.5 text-[12.5px] ${t.blind} ${isHi(lang)}`,
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      opacity: .85
-    }
-  }, L.nudgeB)), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("blindspot"),
-    className: `shrink-0 text-[12.5px] font-semibold ${t.blind} hover:underline ${isHi(lang)}`
-  }, L.nudgeBtn)), /*#__PURE__*/React.createElement("div", {
-    className: "mt-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow mb-3 pb-2 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+      color: BIAS.left.color,
+      fontSize: 13
+    },
+    "aria-hidden": "true"
+  }, "\u25EA"), /*#__PURE__*/React.createElement("span", {
+    className: `text-[13.5px] ${readCls(lang)}`,
     style: {
-      borderBottom: `1px solid ${t.ink}`,
-      letterSpacing: lang === "hi" ? 0 : ".14em"
+      color: "#3A4B54",
+      lineHeight: lang === "hi" ? 1.6 : 1.5
     }
-  }, L.recent), list.slice(0, 10).map((r, i) => /*#__PURE__*/React.createElement("button", {
+  }, verdict)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[11px] ${t.tf} ${isHi(lang)}`,
+    style: {
+      lineHeight: 1.5
+    }
+  }, lang === "hi" ? "गिनती वैसी ही जैसी खबर की पट्टी में, एक प्रकाशक एक वोट। सिर्फ़ आपको दिखती है।" : "Counted the same way a story's bar is: one publisher, one vote. Visible to no one but you."), /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 mb-3 text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, L.recent), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${t.line}`
+    }
+  }, list.slice(0, 8).map((r, i) => /*#__PURE__*/React.createElement("button", {
     key: i,
     onClick: () => open(r.story_id),
-    className: `flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`
+    className: `flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left ${i < Math.min(8, list.length) - 1 ? "border-b" : ""} ${t.border}`
   }, /*#__PURE__*/React.createElement("span", {
-    className: `min-w-0 flex-1 truncate text-[14px] ${t.ts} ${readCls(lang)}`
-  }, r.title || r.story_id), /*#__PURE__*/React.createElement("span", {
-    className: `shrink-0 mono text-[10px] uppercase tracking-wide ${r.side ? "text-white" : t.tf}`,
-    style: r.side && BIAS[r.side] ? {
-      backgroundColor: BIAS[r.side].color,
-      padding: "2px 6px"
-    } : {}
-  }, r.side ? lbl(r.side, lang) : L.none)))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-6 text-[11.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, L.privacy))));
+    className: `min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`
+  }, r.title || r.story_id), r.side && BIAS[r.side] && /*#__PURE__*/React.createElement("span", {
+    className: "shrink-0 mono text-[9px] font-semibold uppercase",
+    style: {
+      backgroundColor: BIAS[r.side].soft,
+      color: BIAS[r.side].color,
+      padding: "3px 6px",
+      letterSpacing: ".04em"
+    }
+  }, lbl(r.side, lang)))))), /*#__PURE__*/React.createElement("div", {
+    className: "lg:pl-8 mt-6 lg:mt-0 space-y-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3",
+    style: {
+      border: `1px solid ${t.line}`
+    }
+  }, statCell(total, L.read, false, 0), statCell(agg[least], lang === "hi" ? `कम पढ़ा: ${lbl(least, lang)}` : `Least: ${lbl(least, lang)}`, true, 1), statCell(topics, L.topics, false, 2)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid #E0CBB9`
+    },
+    className: `${t.blindSoft} p-4`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, L.nudgeH), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 text-[13.5px] ${t.blind} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.6 : 1.5
+    }
+  }, L.nudgeB), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("blindspot"),
+    className: `mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      border: "1px solid currentColor",
+      padding: "8px 12px",
+      letterSpacing: lang === "hi" ? 0 : ".05em"
+    }
+  }, L.nudgeBtn)), /*#__PURE__*/React.createElement("p", {
+    className: `pt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`,
+    style: {
+      borderTop: `1px dashed ${t.line}`,
+      lineHeight: 1.55
+    }
+  }, L.privacy)))));
 }
 
 // SAVED / clippings - newspaper-cutting treatment (dashed frame + a "clipped" tab).

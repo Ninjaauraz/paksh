@@ -2352,40 +2352,61 @@ const {useState,useEffect,useMemo}=React;
         : (lang==="hi"
           ? `आप ${lbl(hi,lang)} की ओर झुकते हैं, ${lbl(lo,lang)}-कवर खबरों से ${ratio>=2?`लगभग ${Math.round(ratio)} गुना`:"कुछ"} ज़्यादा ${lbl(hi,lang)}-कवर खबरें खोलते हैं।`
           : `You lean ${lbl(hi,lang)} in what you open, ${ratio>=2?`about ${Math.round(ratio)}x`:"somewhat"} as many ${lbl(hi,lang)}-covered stories as ${lbl(lo,lang)}-covered ones.`));
-      const stat=(n,label,clay)=>(<div><div className={`mono text-[22px] font-semibold ${clay?t.blind:t.tp}`}>{n}</div><div className={`mt-0.5 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{label}</div></div>);
+      const statCell=(n,label,clay,i)=>(
+        <div className={`text-center ${i>0?"border-l":""} ${t.border}`} style={{padding:"14px 8px"}}>
+          <div className={`text-[24px] font-semibold ${clay?t.blind:t.tp}`} style={{fontFamily:"'Source Serif 4',Georgia,serif",lineHeight:1}}>{n}</div>
+          <div className={`mt-1.5 mono text-[8.5px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em",lineHeight:1.2}}>{label}</div>
+        </div>
+      );
+      const balSub = lang==="hi"?"कोई फ़ैसला नहीं, आपने जो खबरें खोलीं उनके प्रकाशक-झुकाव की गिनती।":"Not a judgement, the arithmetic of the stories you opened, by each source's publisher lean.";
       return (
         <PageWrap>
-          <div className="max-w-2xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
-            <p className={`mt-3 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.sub}</p>
-            {rows===null ? <div className={`mt-8 py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{L.loading}</div>
+          <div className="mx-auto max-w-[1180px]">
+            {/* header: eyebrow + title + N stories · 30 days */}
+            <div className="flex flex-wrap items-end justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+              <div>
+                <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"मेरा रीडिंग लेंस":"My reading lens"}</div>
+                <h1 className={`headline mt-2 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?"मेरा न्यूज़ झुकाव":"My news bias"}</h1>
+              </div>
+              {total>0 && <span className={`shrink-0 text-[13px] ${t.tf} ${readCls(lang)}`}>{total} {lang==="hi"?"खबरें · 30 दिन":"stories · 30 days"}</span>}
+            </div>
+            {rows===null ? <div className={`py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{L.loading}</div>
             : total===0 ? <div className={`mt-8 border border-dashed p-10 text-center text-[14px] ${t.border} ${t.tf} ${readCls(lang)}`}>{L.empty}</div>
             : (
-              <>
-                <div className={`mt-7 border p-5 ${t.surface} ${t.border}`}>
-                  <BiasBar bias={bpct} counts={agg} t={t} lang={lang} height={26} />
-                  {verdict && <p className={`mt-4 text-[15px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{verdict}</p>}
+              <div className="mt-6 grid lg:grid-cols-[1.6fr_1fr]">
+                {/* main: balance bar + verdict + recently read */}
+                <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+                  <div className={`text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"आप क्या पढ़ते हैं, उसका संतुलन":"The balance of what you read"}</div>
+                  <div className={`mt-1.5 text-[13px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{balSub}</div>
+                  <div className={`mt-4 mb-2 mono text-[11px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lbl("left",lang)} {agg.left} · {lbl("center",lang)} {agg.center} · {lbl("right",lang)} {agg.right}</div>
+                  <BiasSegments bias={bpct} t={t} h={30} lang={lang} />
+                  {verdict && <div className="mt-4 flex items-start gap-2.5 p-3" style={{background:BIAS.left.soft,borderLeft:`2px solid ${BIAS.left.color}`}}><span style={{color:BIAS.left.color,fontSize:13}} aria-hidden="true">◪</span><span className={`text-[13.5px] ${readCls(lang)}`} style={{color:"#3A4B54",lineHeight:lang==="hi"?1.6:1.5}}>{verdict}</span></div>}
+                  <p className={`mt-3 text-[11px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{lang==="hi"?"गिनती वैसी ही जैसी खबर की पट्टी में, एक प्रकाशक एक वोट। सिर्फ़ आपको दिखती है।":"Counted the same way a story's bar is: one publisher, one vote. Visible to no one but you."}</p>
+                  <div className={`mt-6 mb-3 text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.recent}</div>
+                  <div style={{border:`1px solid ${t.line}`}}>
+                    {list.slice(0,8).map((r,i)=>(
+                      <button key={i} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left ${i<Math.min(8,list.length)-1?"border-b":""} ${t.border}`}>
+                        <span className={`min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</span>
+                        {r.side&&BIAS[r.side] && <span className="shrink-0 mono text-[9px] font-semibold uppercase" style={{backgroundColor:BIAS[r.side].soft,color:BIAS[r.side].color,padding:"3px 6px",letterSpacing:".04em"}}>{lbl(r.side,lang)}</span>}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  {stat(total,L.read)}
-                  {stat(`${lbl(least,lang)} ${agg[least]}`,L.least,true)}
-                  {stat(topics,L.topics)}
+                {/* rail: stat row + blindspot nudge + privacy foot */}
+                <div className="lg:pl-8 mt-6 lg:mt-0 space-y-5">
+                  <div className="grid grid-cols-3" style={{border:`1px solid ${t.line}`}}>
+                    {statCell(total,L.read,false,0)}
+                    {statCell(agg[least],lang==="hi"?`कम पढ़ा: ${lbl(least,lang)}`:`Least: ${lbl(least,lang)}`,true,1)}
+                    {statCell(topics,L.topics,false,2)}
+                  </div>
+                  <div style={{border:`1px solid #E0CBB9`}} className={`${t.blindSoft} p-4`}>
+                    <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.nudgeH}</div>
+                    <div className={`mt-1.5 text-[13.5px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{L.nudgeB}</div>
+                    <button onClick={()=>go("blindspot")} className={`mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang==="hi"?"deva":""}`} style={{border:"1px solid currentColor",padding:"8px 12px",letterSpacing:lang==="hi"?0:".05em"}}>{L.nudgeBtn}</button>
+                  </div>
+                  <p className={`pt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{borderTop:`1px dashed ${t.line}`,lineHeight:1.55}}>{L.privacy}</p>
                 </div>
-                <div className={`mt-6 flex flex-wrap items-center justify-between gap-3 p-4 ${t.blindSoft}`}>
-                  <div className="min-w-0"><div className={`text-[13.5px] font-semibold ${t.blind} ${isHi(lang)}`}>{L.nudgeH}</div><div className={`mt-0.5 text-[12.5px] ${t.blind} ${isHi(lang)}`} style={{opacity:.85}}>{L.nudgeB}</div></div>
-                  <button onClick={()=>go("blindspot")} className={`shrink-0 text-[12.5px] font-semibold ${t.blind} hover:underline ${isHi(lang)}`}>{L.nudgeBtn}</button>
-                </div>
-                <div className="mt-8">
-                  <div className={`eyebrow mb-3 pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{L.recent}</div>
-                  {list.slice(0,10).map((r,i)=>(
-                    <button key={i} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`}>
-                      <span className={`min-w-0 flex-1 truncate text-[14px] ${t.ts} ${readCls(lang)}`}>{r.title||r.story_id}</span>
-                      <span className={`shrink-0 mono text-[10px] uppercase tracking-wide ${r.side?"text-white":t.tf}`} style={r.side&&BIAS[r.side]?{backgroundColor:BIAS[r.side].color,padding:"2px 6px"}:{}}>{r.side?lbl(r.side,lang):L.none}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className={`mt-6 text-[11.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.privacy}</p>
-              </>
+              </div>
             )}
           </div>
         </PageWrap>
