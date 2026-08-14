@@ -888,7 +888,7 @@ const {useState,useEffect,useMemo}=React;
       const last = (authOn() && auth)
         ? ["account", lang==="hi"?"आप":"You", User]
         : ["topics", ui("sections",lang), Grid];
-      const items=[["home",lang==="hi"?"मुख":"Front",Home],["blindspot",STR[lang].navOS,Eye],["search",ui("searchTab",lang),Search],
+      const items=[["home",lang==="hi"?"मुख":"Front",Home],["blindspot",lang==="hi"?"गैप":"Gaps",Eye],["search",ui("searchTab",lang),Search],
         ["saved",lang==="hi"?"सहेजा":"Saved",Bookmark], last];
       const active=(k)=>view===k;
       return (
