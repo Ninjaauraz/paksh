@@ -112,6 +112,13 @@
   @keyframes pk-page{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @keyframes pk-rise{from{opacity:0;transform:translateY(10px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
   @keyframes pk-pop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+  @keyframes pk-pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  @keyframes pk-fade{from{opacity:0}to{opacity:1}}
+  .pk-pulse{animation:pk-pulse 1.4s ease-in-out infinite;}
+  .pk-fade{animation:pk-fade .4s ease both;}
+  /* onboarding bottom-sheet slide-up (mobile) */
+  @keyframes pk-sheet{from{transform:translateY(100%)}to{transform:none}}
+  @media (prefers-reduced-motion:no-preference){.pk-sheet{animation:pk-sheet .3s cubic-bezier(.2,.7,.2,1) both;}}
   @media (prefers-reduced-motion:no-preference){
     /* bias-bar ink-fill: each segment grows from 0 to its counted width, ink settling to its mark */
     .pk-seg{transform-origin:left center;animation:pk-fill .66s cubic-bezier(.2,.7,.2,1) both;}

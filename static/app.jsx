@@ -511,13 +511,24 @@ const {useState,useEffect,useMemo}=React;
       ? <span className={`shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${t.chip} ${t.tf}`}>{lang==="hi"?"अनरेटेड":"Unrated"}</span>
       : <span className="shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white" style={{backgroundColor:BIAS[side].color}}>{lbl(side,lang)}</span>;
     function AutoTag({ lang, t }) { return <span className={`inline-flex items-center gap-1 rounded mono px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${t.chip} ${t.tf}`}>{STR[lang].autoTag}</span>; }
+    // Blindspot / Coverage-Gap badge — bordered clay pill with a dot (design mobile card). `side`
+    // is the UNDER-covered side; shown as "COVERAGE GAP · {SIDE}" when a side is known.
+    function BlindspotBadge({ side, t, lang }) {
+      const sideLab=side&&BIAS[side]?lbl(side,lang):"";
+      return (
+        <span className={`inline-flex items-center gap-1.5 mono text-[9px] font-bold uppercase tracking-[0.12em] ${t.blind} ${t.blindSoft} ${lang==="hi"?"deva":""}`} style={{padding:"2px 6px",border:"1px solid #E0CBB9"}}>
+          <span style={{width:5,height:5,borderRadius:9,background:"#75442E",display:"inline-block"}}/>
+          {STR[lang].navOS}{sideLab?` · ${sideLab}`:""}
+        </span>
+      );
+    }
     function Eyebrow({ topic, created_at, blindspot, t, lang }) {
       const tp=lang==="hi"?(TOPIC_HI[topic]||topic):topic; const face=lang==="hi"?"deva":"mono";
       return (
-        <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`}>
+        <div className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`}>
+          {blindspot && <BlindspotBadge side={blindspot} t={t} lang={lang} />}
           <span className={t.ts}>{tp||"News"}</span>
           {created_at && <><span className={t.tf}>·</span><span className={t.tf}>{timeAgo(created_at,lang)}</span></>}
-          {blindspot && <><span className={t.tf}>·</span><span className={t.blind}>{STR[lang].navOS}</span></>}
         </div>
       );
     }
@@ -531,6 +542,27 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- feed pieces (newspaper hierarchy) ---------------- */
+    // BREAKING TICKER — the dark "DEVELOPING" strip above the masthead (design mobile prototype):
+    // a pulsing dot + "DEVELOPING" label, then the freshest headlines cycling. Pure display of
+    // real, recent headlines; no new data, no ranking change.
+    function BreakingTicker({ cards, t, lang, open }) {
+      const items=(cards||[]).slice(0,6).map(c=>c.headline).filter(Boolean);
+      const [i,setI]=useState(0);
+      useEffect(()=>{ if(items.length<2) return; const id=setInterval(()=>setI(x=>(x+1)%items.length),4200); return ()=>clearInterval(id); },[items.length]);
+      if(!items.length) return null;
+      const idx=i%items.length;
+      return (
+        <div style={{background:"#15140F"}} className="overflow-hidden">
+          <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 sm:px-10" style={{height:30}}>
+            <span className="flex shrink-0 items-center gap-1.5">
+              <span className="pk-pulse" style={{width:6,height:6,borderRadius:9,background:"#C0392B",display:"inline-block"}}/>
+              <span className="mono" style={{fontSize:9.5,fontWeight:700,letterSpacing:".18em",color:"#C89170"}}>{lang==="hi"?"ताज़ा ख़बर":"DEVELOPING"}</span>
+            </span>
+            <a key={idx} href={"/story/"+encodeURIComponent(cards[idx].id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open&&open(cards[idx].id); }} className={`pk-fade min-w-0 flex-1 truncate no-underline ${readCls(lang)}`} style={{color:"rgba(244,241,234,.92)",fontSize:12.5}}>{items[idx]}</a>
+          </div>
+        </div>
+      );
+    }
     // A dated masthead sub-strip: today's date + how many outlets Paksh tracks.
     // The dated strip under the masthead: a 2px rule over a 1px rule (design 2a), carrying
     // the edition toggle + today's date on the left, the live tally in the centre, and the
@@ -569,8 +601,11 @@ const {useState,useEffect,useMemo}=React;
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
-          <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
-          <h2 className={`headline pk-rise mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.14:1.06,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
+            {n>0 && <span className={`shrink-0 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{n} {n===1?STR[lang].source:STR[lang].sources}</span>}
+          </div>
+          <h2 className={`headline pk-rise mt-3 text-[36px] sm:text-[44px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.12:1.04,letterSpacing:lang==="hi"?0:"-0.024em",textWrap:"balance"}}>{story.headline}</h2>
           {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
             {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
@@ -1097,7 +1132,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     /* ---------------- STORY (tabbed) ---------------- */
-    function StoryPage({ story, t, lang, go, openTopic, related=[], open, saved, onToggleSave, a11y }) {
+    function StoryPage({ story, t, lang, go, openTopic, related=[], open, saved, onToggleSave, a11y, auth }) {
       const fr=story.framing||{};
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
@@ -1116,6 +1151,14 @@ const {useState,useEffect,useMemo}=React;
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
       const total=story.sources+(story.unrated||0)+(story.international||0);
       const [copied,setCopied]=useState(false);
+      // SWIPE L/C/R coverage (design mobile prototype): a horizontal swipe over the coverage
+      // list cycles the side filter through the present sides. Keyboard/tab clicks still work.
+      const _swipe=React.useRef({x:0,y:0});
+      const _tabsOrder=()=>["all"].concat(["left","center","right","international","unrated"].filter(k=>counts[k]>0));
+      const onTouchStart=(e)=>{ const p=e.touches&&e.touches[0]; if(p) _swipe.current={x:p.clientX,y:p.clientY}; };
+      const onTouchEnd=(e)=>{ const p=e.changedTouches&&e.changedTouches[0]; if(!p) return; const dx=p.clientX-_swipe.current.x, dy=p.clientY-_swipe.current.y;
+        if(Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.4){ const ord=_tabsOrder(); let i=ord.indexOf(atab); if(i<0)i=0; i=(i+(dx<0?1:-1)+ord.length)%ord.length; setAtab(ord[i]);
+          const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); } };
       const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       const region=lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India");
@@ -1250,8 +1293,11 @@ const {useState,useEffect,useMemo}=React;
           {/* AD — one in-content unit before the outlet list */}
           <div className="mx-auto mt-10 max-w-[840px]"><AdSlot t={t} lang={lang} h={110} format="horizontal" /></div>
 
-          <div className="mx-auto mt-10 max-w-[840px]" id="arts">
-            <div className={`mb-3 eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
+          <div className="mx-auto mt-10 max-w-[840px]" id="arts" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
+              <span className={`md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पक्ष बदलने को स्वाइप करें ⇄":"swipe to change side ⇄"}</span>
+            </div>
             <div className={`flex items-center gap-5 border-b ${t.border}`}>
               <ATab k="all" n={outlets.length} />
               {counts.left>0 && <ATab k="left" n={counts.left} />}
@@ -2220,16 +2266,17 @@ const {useState,useEffect,useMemo}=React;
         : { welcome:"Welcome to Paksh", pick:"Choose your reading language", next:"Next", start:"Get started", skip:"Skip" };
       const done=()=>onDone();
       return (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4" style={{background:"rgba(21,20,15,0.55)"}}>
-          <div className={`w-full max-w-[440px] border ${t.surface} ${t.border}`} style={{boxShadow:"0 12px 40px rgba(0,0,0,0.30)"}}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4" style={{background:"rgba(21,20,15,0.55)"}}>
+          <div className={`pk-sheet w-full max-w-[460px] border-t sm:border ${t.surface} ${t.border}`} style={{boxShadow:"0 -8px 40px rgba(0,0,0,0.30)"}}>
             <div className="flex items-center justify-between px-5 pt-4">
-              <span className={`brand-hi text-[20px] ${t.tp}`}>पक्ष</span>
+              <span className="mono text-[10px] uppercase tracking-[0.16em]" style={{color:"#75442E"}}>{step===0?(lang==="hi"?"आपका स्वागत है":"Welcome"):`${lang==="hi"?"चरण":"Step"} ${step} ${lang==="hi"?"/":"of"} 4`}</span>
               <button onClick={done} className={`mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.skip}</button>
             </div>
             {step===0 ? (
-              <div className="px-5 pb-5 pt-3">
-                <h2 className={`headline text-[22px] ${t.tp} ${readCls(lang)}`}>{L.welcome}</h2>
-                <div className={`mt-4 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.pick}</div>
+              <div className="px-5 pb-5 pt-4 text-center">
+                <div className={`brand-hi text-[46px] leading-none ${t.tp}`}>पक्ष</div>
+                <div className={`mt-2 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".18em"}}>{lang==="hi"?"भारत की खबरों का हर पक्ष":"Every side of India's news"}</div>
+                <div className={`mt-5 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.pick}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   {[["en","English"],["hi","हिंदी"]].map(([k,label])=>(
                     <button key={k} onClick={()=>{ setLang(k); }} className={`border px-4 py-3 text-[15px] font-semibold ${lang===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${k==="hi"?"deva":""}`}>{label}</button>
@@ -2238,8 +2285,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
             ) : (
               <div className="px-5 pb-5 pt-3">
-                <div className={`mono text-[10px] uppercase tracking-[0.16em] ${t.blind}`}>{step}/4</div>
-                <h2 className={`headline mt-2 text-[21px] ${t.tp} ${readCls(lang)}`}>{steps[step-1].k}</h2>
+                <h2 className={`headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`}>{steps[step-1].k}</h2>
                 <p className={`mt-2 text-[14.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{steps[step-1].b}</p>
               </div>
             )}
@@ -2405,6 +2451,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
+          {ready && homeCards.length>0 && <BreakingTicker cards={homeCards} t={t} lang={lang} open={open} />}
           <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} openHelp={()=>setOnboard(true)} />
           <main id="main" className="pb-24 md:pb-10">
             <div className="pk-page" key={route.view+(route.id||route.topic||"")}>

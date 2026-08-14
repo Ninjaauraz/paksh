@@ -1619,6 +1619,30 @@ function AutoTag({
     className: `inline-flex items-center gap-1 rounded mono px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${t.chip} ${t.tf}`
   }, STR[lang].autoTag);
 }
+// Blindspot / Coverage-Gap badge — bordered clay pill with a dot (design mobile card). `side`
+// is the UNDER-covered side; shown as "COVERAGE GAP · {SIDE}" when a side is known.
+function BlindspotBadge({
+  side,
+  t,
+  lang
+}) {
+  const sideLab = side && BIAS[side] ? lbl(side, lang) : "";
+  return /*#__PURE__*/React.createElement("span", {
+    className: `inline-flex items-center gap-1.5 mono text-[9px] font-bold uppercase tracking-[0.12em] ${t.blind} ${t.blindSoft} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      padding: "2px 6px",
+      border: "1px solid #E0CBB9"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 5,
+      height: 5,
+      borderRadius: 9,
+      background: "#75442E",
+      display: "inline-block"
+    }
+  }), STR[lang].navOS, sideLab ? ` · ${sideLab}` : "");
+}
 function Eyebrow({
   topic,
   created_at,
@@ -1629,18 +1653,18 @@ function Eyebrow({
   const tp = lang === "hi" ? TOPIC_HI[topic] || topic : topic;
   const face = lang === "hi" ? "deva" : "mono";
   return /*#__PURE__*/React.createElement("div", {
-    className: `flex flex-wrap items-center gap-x-2 gap-y-1 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`
-  }, /*#__PURE__*/React.createElement("span", {
+    className: `flex flex-wrap items-center gap-x-2 gap-y-1.5 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`
+  }, blindspot && /*#__PURE__*/React.createElement(BlindspotBadge, {
+    side: blindspot,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("span", {
     className: t.ts
   }, tp || "News"), created_at && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: t.tf
   }, "\xB7"), /*#__PURE__*/React.createElement("span", {
     className: t.tf
-  }, timeAgo(created_at, lang))), blindspot && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    className: t.tf
-  }, "\xB7"), /*#__PURE__*/React.createElement("span", {
-    className: t.blind
-  }, STR[lang].navOS)));
+  }, timeAgo(created_at, lang))));
 }
 function SectionTitle({
   children,
@@ -1656,6 +1680,68 @@ function SectionTitle({
 }
 
 /* ---------------- feed pieces (newspaper hierarchy) ---------------- */
+// BREAKING TICKER — the dark "DEVELOPING" strip above the masthead (design mobile prototype):
+// a pulsing dot + "DEVELOPING" label, then the freshest headlines cycling. Pure display of
+// real, recent headlines; no new data, no ranking change.
+function BreakingTicker({
+  cards,
+  t,
+  lang,
+  open
+}) {
+  const items = (cards || []).slice(0, 6).map(c => c.headline).filter(Boolean);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (items.length < 2) return;
+    const id = setInterval(() => setI(x => (x + 1) % items.length), 4200);
+    return () => clearInterval(id);
+  }, [items.length]);
+  if (!items.length) return null;
+  const idx = i % items.length;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#15140F"
+    },
+    className: "overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto flex max-w-[1280px] items-center gap-3 px-4 sm:px-10",
+    style: {
+      height: 30
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "flex shrink-0 items-center gap-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pk-pulse",
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: 9,
+      background: "#C0392B",
+      display: "inline-block"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "mono",
+    style: {
+      fontSize: 9.5,
+      fontWeight: 700,
+      letterSpacing: ".18em",
+      color: "#C89170"
+    }
+  }, lang === "hi" ? "ताज़ा ख़बर" : "DEVELOPING")), /*#__PURE__*/React.createElement("a", {
+    key: idx,
+    href: "/story/" + encodeURIComponent(cards[idx].id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open && open(cards[idx].id);
+    },
+    className: `pk-fade min-w-0 flex-1 truncate no-underline ${readCls(lang)}`,
+    style: {
+      color: "rgba(244,241,234,.92)",
+      fontSize: 12.5
+    }
+  }, items[idx])));
+}
 // A dated masthead sub-strip: today's date + how many outlets Paksh tracks.
 // The dated strip under the masthead: a 2px rule over a 1px rule (design 2a), carrying
 // the edition toggle + today's date on the left, the live tally in the centre, and the
@@ -1739,15 +1825,19 @@ function LeadStory({
     },
     className: "block no-underline group cursor-pointer"
   }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow accent-clay ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, lang === "hi" ? "आज सबसे ज़्यादा कवरेज" : "Most covered today", tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h2", {
-    className: `headline pk-rise mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
+  }, lang === "hi" ? "आज सबसे ज़्यादा कवरेज" : "Most covered today", tp ? ` · ${tp}` : ""), n > 0 && /*#__PURE__*/React.createElement("span", {
+    className: `shrink-0 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, n, " ", n === 1 ? STR[lang].source : STR[lang].sources)), /*#__PURE__*/React.createElement("h2", {
+    className: `headline pk-rise mt-3 text-[36px] sm:text-[44px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
     style: {
-      lineHeight: lang === "hi" ? 1.14 : 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.022em",
+      lineHeight: lang === "hi" ? 1.12 : 1.04,
+      letterSpacing: lang === "hi" ? 0 : "-0.024em",
       textWrap: "balance"
     }
   }, story.headline), story.img && /*#__PURE__*/React.createElement("div", {
@@ -3081,7 +3171,8 @@ function StoryPage({
   open,
   saved,
   onToggleSave,
-  a11y
+  a11y,
+  auth
 }) {
   const fr = story.framing || {};
   const outlets = story.outlets || [];
@@ -3129,6 +3220,38 @@ function StoryPage({
   const arts = atab === "all" ? outlets : outlets.filter(o => o.lean === atab);
   const total = story.sources + (story.unrated || 0) + (story.international || 0);
   const [copied, setCopied] = useState(false);
+  // SWIPE L/C/R coverage (design mobile prototype): a horizontal swipe over the coverage
+  // list cycles the side filter through the present sides. Keyboard/tab clicks still work.
+  const _swipe = React.useRef({
+    x: 0,
+    y: 0
+  });
+  const _tabsOrder = () => ["all"].concat(["left", "center", "right", "international", "unrated"].filter(k => counts[k] > 0));
+  const onTouchStart = e => {
+    const p = e.touches && e.touches[0];
+    if (p) _swipe.current = {
+      x: p.clientX,
+      y: p.clientY
+    };
+  };
+  const onTouchEnd = e => {
+    const p = e.changedTouches && e.changedTouches[0];
+    if (!p) return;
+    const dx = p.clientX - _swipe.current.x,
+      dy = p.clientY - _swipe.current.y;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      const ord = _tabsOrder();
+      let i = ord.indexOf(atab);
+      if (i < 0) i = 0;
+      i = (i + (dx < 0 ? 1 : -1) + ord.length) % ord.length;
+      setAtab(ord[i]);
+      const el = document.getElementById("arts");
+      if (el) el.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  };
   const copy = () => {
     try {
       navigator.clipboard.writeText(window.location.href);
@@ -3468,13 +3591,19 @@ function StoryPage({
     format: "horizontal"
   })), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]",
-    id: "arts"
+    id: "arts",
+    onTouchStart: onTouchStart,
+    onTouchEnd: onTouchEnd
   }, /*#__PURE__*/React.createElement("div", {
-    className: `mb-3 eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    className: "mb-3 flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("span", {
+    className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("div", {
     className: `flex items-center gap-5 border-b ${t.border}`
   }, /*#__PURE__*/React.createElement(ATab, {
     k: "all",
@@ -5658,28 +5787,36 @@ function Onboarding({
   };
   const done = () => onDone();
   return /*#__PURE__*/React.createElement("div", {
-    className: "fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4",
+    className: "fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4",
     style: {
       background: "rgba(21,20,15,0.55)"
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: `w-full max-w-[440px] border ${t.surface} ${t.border}`,
+    className: `pk-sheet w-full max-w-[460px] border-t sm:border ${t.surface} ${t.border}`,
     style: {
-      boxShadow: "0 12px 40px rgba(0,0,0,0.30)"
+      boxShadow: "0 -8px 40px rgba(0,0,0,0.30)"
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between px-5 pt-4"
   }, /*#__PURE__*/React.createElement("span", {
-    className: `brand-hi text-[20px] ${t.tp}`
-  }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("button", {
+    className: "mono text-[10px] uppercase tracking-[0.16em]",
+    style: {
+      color: "#75442E"
+    }
+  }, step === 0 ? lang === "hi" ? "आपका स्वागत है" : "Welcome" : `${lang === "hi" ? "चरण" : "Step"} ${step} ${lang === "hi" ? "/" : "of"} 4`), /*#__PURE__*/React.createElement("button", {
     onClick: done,
     className: `mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, L.skip)), step === 0 ? /*#__PURE__*/React.createElement("div", {
-    className: "px-5 pb-5 pt-3"
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: `headline text-[22px] ${t.tp} ${readCls(lang)}`
-  }, L.welcome), /*#__PURE__*/React.createElement("div", {
-    className: `mt-4 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    className: "px-5 pb-5 pt-4 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `brand-hi text-[46px] leading-none ${t.tp}`
+  }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".18em"
+    }
+  }, lang === "hi" ? "भारत की खबरों का हर पक्ष" : "Every side of India's news"), /*#__PURE__*/React.createElement("div", {
+    className: `mt-5 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
@@ -5693,10 +5830,8 @@ function Onboarding({
     className: `border px-4 py-3 text-[15px] font-semibold ${lang === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.border} ${t.ts} hover:${t.tp}`} ${k === "hi" ? "deva" : ""}`
   }, label)))) : /*#__PURE__*/React.createElement("div", {
     className: "px-5 pb-5 pt-3"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `mono text-[10px] uppercase tracking-[0.16em] ${t.blind}`
-  }, step, "/4"), /*#__PURE__*/React.createElement("h2", {
-    className: `headline mt-2 text-[21px] ${t.tp} ${readCls(lang)}`
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`
   }, steps[step - 1].k), /*#__PURE__*/React.createElement("p", {
     className: `mt-2 text-[14.5px] ${t.ts} ${readCls(lang)}`,
     style: {
@@ -6136,7 +6271,12 @@ function PakshApp() {
   }, /*#__PURE__*/React.createElement("a", {
     href: "#main",
     className: "sr-only-focusable"
-  }, lang === "hi" ? "मुख्य सामग्री पर जाएँ" : "Skip to content"), /*#__PURE__*/React.createElement(Header, {
+  }, lang === "hi" ? "मुख्य सामग्री पर जाएँ" : "Skip to content"), ready && homeCards.length > 0 && /*#__PURE__*/React.createElement(BreakingTicker, {
+    cards: homeCards,
+    t: t,
+    lang: lang,
+    open: open
+  }), /*#__PURE__*/React.createElement(Header, {
     t: t,
     lang: lang,
     setLang: chooseLang,
