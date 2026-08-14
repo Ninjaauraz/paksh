@@ -119,6 +119,9 @@
   /* onboarding bottom-sheet slide-up (mobile) */
   @keyframes pk-sheet{from{transform:translateY(100%)}to{transform:none}}
   @media (prefers-reduced-motion:no-preference){.pk-sheet{animation:pk-sheet .3s cubic-bezier(.2,.7,.2,1) both;}}
+  /* DEVELOPING marquee — continuous 24h scroll; content is duplicated so -50% loops seamlessly */
+  @keyframes pk-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion:no-preference){.pk-marquee{animation:pk-scroll 60s linear infinite;}.pk-marquee:hover{animation-play-state:paused;}}
   @media (prefers-reduced-motion:no-preference){
     /* bias-bar ink-fill: each segment grows from 0 to its counted width, ink settling to its mark */
     .pk-seg{transform-origin:left center;animation:pk-fill .66s cubic-bezier(.2,.7,.2,1) both;}

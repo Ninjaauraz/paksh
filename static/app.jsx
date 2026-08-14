@@ -1,6 +1,9 @@
 const {useState,useEffect,useMemo}=React;
-    // Save/clip state shared to any card without prop-drilling (feed cards get a ✂ CLIP action).
-    const SaveCtx = React.createContext({ saved:new Set(), toggle:()=>{}, on:false });
+    // App context: save/clip state (feed cards get a ✂ CLIP action) + go() for nav from deep
+    // components (e.g. a clicked ad box → the advertiser form) without prop-drilling.
+    const SaveCtx = React.createContext({ saved:new Set(), toggle:()=>{}, on:false, go:()=>{} });
+    // Set true when a reader clicks an ad box, so the Contact form opens pre-set to "Advertise".
+    let _adIntent = false;
     /* ---------------- icons ---------------- */
     const Search = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
     const Sun = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
@@ -125,6 +128,29 @@ const {useState,useEffect,useMemo}=React;
     async function authSendCode(email){ return _sb("/auth/v1/otp", { method:"POST", body:JSON.stringify({ email, create_user:true }) }); }
     // Verify the code -> a session; persist it.
     async function authVerifyCode(email, token){ const s=_mkSession(await _sb("/auth/v1/verify",{ method:"POST", body:JSON.stringify({ type:"email", email, token }) })); _writeSession(s); return s; }
+    // Password sign-in (GoTrue password grant). Supabase stores only a salted hash, never plaintext.
+    async function authPasswordSignIn(email, password){ const s=_mkSession(await _sb("/auth/v1/token?grant_type=password",{ method:"POST", body:JSON.stringify({ email, password }) })); _writeSession(s); return s; }
+    // Password sign-up. If email-confirmation is ON, no session is returned (user must confirm);
+    // if OFF, a session comes back immediately. Caller handles the "confirm your email" case.
+    async function authPasswordSignUp(email, password){ const r=await _sb("/auth/v1/signup",{ method:"POST", body:JSON.stringify({ email, password }) });
+      if(r&&r.access_token){ const s=_mkSession(r); _writeSession(s); return { session:s }; } return { needsConfirm:true }; }
+    // Magic-link / email-confirmation return: GoTrue redirects back with either an implicit hash
+    // (#access_token=…&refresh_token=…) or a ?token_hash=…&type=… (PKCE-less verify). Parse whichever
+    // is present on load, establish the session, and scrub the URL so tokens never linger in history.
+    async function authSessionFromUrl(){
+      try{
+        const h=window.location.hash||""; const qs=new URLSearchParams(window.location.search||"");
+        if(h.indexOf("access_token=")>-1){ const p=new URLSearchParams(h.replace(/^#/,""));
+          const at=p.get("access_token"), rt=p.get("refresh_token");
+          if(at&&rt){ const s={ access_token:at, refresh_token:rt, expires_at:(Math.floor(Date.now()/1000))+parseInt(p.get("expires_in")||"3600",10), user:null };
+            _writeSession(s); try{ const u=await _sb("/auth/v1/user",{ headers:{ Authorization:"Bearer "+at } }); s.user=u; _writeSession(s); }catch(e){}
+            history.replaceState(null,"",window.location.pathname); return s; } }
+        const th=qs.get("token_hash"), ty=qs.get("type");
+        if(th&&ty){ const s=_mkSession(await _sb("/auth/v1/verify",{ method:"POST", body:JSON.stringify({ token_hash:th, type:ty }) })); _writeSession(s);
+          const clean=window.location.pathname; history.replaceState(null,"",clean); return s; }
+      }catch(e){ /* leave signed-out on any failure */ }
+      return null;
+    }
     async function authRefresh(refresh_token){ const s=_mkSession(await _sb("/auth/v1/token?grant_type=refresh_token",{ method:"POST", body:JSON.stringify({ refresh_token }) })); _writeSession(s); return s; }
     async function authSignOut(){ const s=_readSession(); if(s&&s.access_token){ try{ await _sb("/auth/v1/logout",{ method:"POST", headers:{ Authorization:"Bearer "+s.access_token } }); }catch(e){} } _writeSession(null); }
     // Return a valid session, refreshing if the access token is within 2 min of expiry; null if signed out.
@@ -551,19 +577,25 @@ const {useState,useEffect,useMemo}=React;
     // a pulsing dot + "DEVELOPING" label, then the freshest headlines cycling. Pure display of
     // real, recent headlines; no new data, no ranking change.
     function BreakingTicker({ cards, t, lang, open }) {
-      const items=(cards||[]).slice(0,6).map(c=>c.headline).filter(Boolean);
-      const [i,setI]=useState(0);
-      useEffect(()=>{ if(items.length<2) return; const id=setInterval(()=>setI(x=>(x+1)%items.length),4200); return ()=>clearInterval(id); },[items.length]);
+      const items=(cards||[]).slice(0,12).filter(c=>c.headline);
       if(!items.length) return null;
-      const idx=i%items.length;
+      const seq=items.concat(items);   // duplicated so the -50% keyframe loops seamlessly
       return (
         <div style={{background:"#15140F"}} className="overflow-hidden">
           <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 sm:px-10" style={{height:30}}>
-            <span className="flex shrink-0 items-center gap-1.5">
+            <span className="flex shrink-0 items-center gap-1.5" style={{zIndex:1}}>
               <span className="pk-pulse" style={{width:6,height:6,borderRadius:9,background:"#C0392B",display:"inline-block"}}/>
               <span className="mono" style={{fontSize:9.5,fontWeight:700,letterSpacing:".18em",color:"#C89170"}}>{lang==="hi"?"ताज़ा ख़बर":"DEVELOPING"}</span>
             </span>
-            <a key={idx} href={"/story/"+encodeURIComponent(cards[idx].id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open&&open(cards[idx].id); }} className={`pk-fade min-w-0 flex-1 truncate no-underline ${readCls(lang)}`} style={{color:"rgba(244,241,234,.92)",fontSize:12.5}}>{items[idx]}</a>
+            <div className="relative min-w-0 flex-1 overflow-hidden" style={{height:30}}>
+              <div className="pk-marquee flex items-center whitespace-nowrap" style={{position:"absolute",top:0,height:30,willChange:"transform"}}>
+                {seq.map((c,i)=>(
+                  <a key={i} href={"/story/"+encodeURIComponent(c.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open&&open(c.id); }} className={`no-underline ${readCls(lang)}`} style={{color:"rgba(244,241,234,.9)",fontSize:12.5,marginRight:26,display:"inline-flex",alignItems:"center"}} aria-hidden={i>=items.length?"true":undefined} tabIndex={i>=items.length?-1:undefined}>
+                    <span style={{color:"#C89170",marginRight:11}}>•</span>{c.headline}
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -832,10 +864,14 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BottomNav({ t, lang, view, go, auth }) {
-      // Front · Gaps · Search · Saved · You (per the mobile handoff). "You" = account (or sign in).
+      // Front · Gaps · Search · Saved · [You (member) | Sections (guest)]. Login lives ONLY in the
+      // top-right (single login); the 5th slot is Sections for guests, the account for members.
+      const last = (authOn() && auth)
+        ? ["account", lang==="hi"?"आप":"You", User]
+        : ["topics", ui("sections",lang), Grid];
       const items=[["home",lang==="hi"?"मुख":"Front",Home],["blindspot",STR[lang].navOS,Eye],["search",ui("searchTab",lang),Search],
-        ["saved",lang==="hi"?"सहेजा":"Saved",Bookmark],[authOn()&&auth?"account":(authOn()?"login":"about"),lang==="hi"?(auth?"आप":"साइन इन"):(authOn()&&auth?"You":(authOn()?"Sign in":"Method")),authOn()?User:Scale]];
-      const active=(k)=>view===k||(k==="account"&&view==="account")||(k==="login"&&view==="login");
+        ["saved",lang==="hi"?"सहेजा":"Saved",Bookmark], last];
+      const active=(k)=>view===k;
       return (
         <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>
           <div className="flex">
@@ -852,8 +888,8 @@ const {useState,useEffect,useMemo}=React;
               <div className="max-w-md">
                 <div className="flex items-baseline gap-1.5"><span className={`brand-hi text-xl ${t.tp}`}>पक्ष</span><span className={`text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`}>Paksh</span></div>
                 <p className={`mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].footIndependence}</p>
-                {/* Reader-support CTA - visible now; the page tells readers how to chip in */}
-                <button onClick={()=>go("support")} className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{lang==="hi"?"पक्ष का सहयोग करें":"Support Paksh"} →</button>
+                {/* Support lives once in the masthead (♥ Support) + the footer link row below;
+                    the big footer CTA was a duplicate and has been removed. */}
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
                 {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["support",lang==="hi"?"सहयोग":"Support"],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"],["settings",lang==="hi"?"सेटिंग्स":"Settings"]].map(([k,l])=>(
@@ -883,14 +919,12 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
       const label = lang==="hi" ? "विज्ञापन · क्लासिफ़ाइड" : "Advertisement · Classifieds";
+      const cta = lang==="hi" ? "यहाँ विज्ञापन दें →" : "Advertise here →";
       const entries = lang==="hi"
         ? [["स्थान उपलब्ध","इस कॉलम में आपका विज्ञापन, पक्ष के पाठकों तक।"],["सूचना","पक्ष क्लासिफ़ाइड, बिना ट्रैकिंग वाले विज्ञापन।"]]
         : [["SPACE AVAILABLE","Your classified here, seen by Paksh readers."],["NOTICE","Paksh classifieds, ads without tracking."]];
       return (
-        <div className={t.surface} style={{border:`2px solid ${t.ink}`}} aria-label={label}>
-          <div className="text-center" style={{borderBottom:`1px solid ${t.ink}`,padding:"4px 0"}}>
-            <span className="mono" style={{fontSize:8.5,fontWeight:700,letterSpacing:".22em",textTransform:"uppercase",color:t.ink}}>{label}</span>
-          </div>
+        <AdCtaBox t={t} lang={lang} label={label}>
           <div className="grid gap-x-6 gap-y-3 p-4 sm:grid-cols-2">
             {entries.map(([k,v],i)=>(
               <div key={i}>
@@ -899,6 +933,22 @@ const {useState,useEffect,useMemo}=React;
               </div>
             ))}
           </div>
+          <div className={`px-4 pb-3 eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{cta}</div>
+        </AdCtaBox>
+      );
+    }
+    // The classifieds placeholder is CLICKABLE: any interested advertiser lands on the Contact
+    // form pre-set to "Advertise" (the Formspree dropdown option). Still walled off from editorial.
+    function AdCtaBox({ t, lang, label, children }) {
+      const ctx=React.useContext(SaveCtx);
+      const open=()=>{ _adIntent=true; if(ctx&&ctx.go) ctx.go("contact"); };
+      return (
+        <div role="button" tabIndex={0} onClick={open} onKeyDown={(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } }}
+          className={`${t.surface} cursor-pointer`} style={{border:`2px solid ${t.ink}`}} aria-label={(lang==="hi"?"विज्ञापन दें: ":"Advertise: ")+label}>
+          <div className="text-center" style={{borderBottom:`1px solid ${t.ink}`,padding:"4px 0"}}>
+            <span className="mono" style={{fontSize:8.5,fontWeight:700,letterSpacing:".22em",textTransform:"uppercase",color:t.ink}}>{label}</span>
+          </div>
+          {children}
         </div>
       );
     }
@@ -1620,15 +1670,16 @@ const {useState,useEffect,useMemo}=React;
     function ContactPage({ t, lang }) {
       const [status,setStatus]=useState("idle");
       const [err,setErr]=useState("");
-      const [topic,setTopic]=useState("rating");
+      // Arriving from a clicked ad box pre-selects "Advertise"; the flag is one-shot.
+      const [topic,setTopic]=useState(()=>{ if(_adIntent){ _adIntent=false; return "advertise"; } return "rating"; });
       const L = lang==="hi" ? {
         title:"संपर्क करें", lede:"सवाल, सुधार या शिकायत? हमें लिखें, हम हर संदेश पढ़ते हैं।",
         name:"आपका नाम (वैकल्पिक)", email:"ईमेल", topicL:"विषय",
         msg:"आपका संदेश", send:"डेस्क को भेजें", sending:"भेजा जा रहा है…",
         ok:"धन्यवाद, आपका संदेश मिल गया। हम जल्द जवाब देंगे।",
         err:"संदेश नहीं भेजा जा सका। कृपया दोबारा प्रयास करें।",
-        chips:{rating:"रेटिंग सुधार", outlet:"नया आउटलेट सुझाएँ", general:"सामान्य"},
-        ph:{rating:"आउटलेट, जिस रेटिंग से असहमत हैं, और 2-3 उदाहरण हेडलाइन बताएँ…", outlet:"आउटलेट का नाम, वेबसाइट, भाषा और वह किस ओर झुका लगता है…", general:"आपका संदेश…"},
+        chips:{rating:"रेटिंग सुधार", outlet:"नया आउटलेट सुझाएँ", advertise:"विज्ञापन दें", general:"सामान्य"},
+        ph:{rating:"आउटलेट, जिस रेटिंग से असहमत हैं, और 2-3 उदाहरण हेडलाइन बताएँ…", outlet:"आउटलेट का नाम, वेबसाइट, भाषा और वह किस ओर झुका लगता है…", advertise:"आपकी कंपनी/उत्पाद, बजट का अंदाज़ा और आप किस तरह का विज्ञापन चाहते हैं…", general:"आपका संदेश…"},
         railH:"रेटिंग पर असहमति?", rail:"हमें आउटलेट, जिस रेटिंग से आप असहमत हैं, और 2-3 उदाहरण हेडलाइन/लेख बताएँ। हम उसे छह-संकेत रूब्रिक के विरुद्ध फिर से देखेंगे।",
         emailH:"सीधा ईमेल", indep:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।"
       } : {
@@ -1637,8 +1688,8 @@ const {useState,useEffect,useMemo}=React;
         msg:"Your message", send:"Send to the desk", sending:"Sending…",
         ok:"Thank you, your message reached us. We'll reply soon.",
         err:"Could not send your message. Please try again.",
-        chips:{rating:"Rating correction", outlet:"Suggest an outlet", general:"General"},
-        ph:{rating:"Name the outlet, the rating you dispute, and 2-3 example headlines…", outlet:"Outlet name, website, language, and where it seems to lean…", general:"Your message…"},
+        chips:{rating:"Rating correction", outlet:"Suggest an outlet", advertise:"Advertise with Paksh", general:"General"},
+        ph:{rating:"Name the outlet, the rating you dispute, and 2-3 example headlines…", outlet:"Outlet name, website, language, and where it seems to lean…", advertise:"Your company/product, rough budget, and the kind of placement you want…", general:"Your message…"},
         railH:"Disputing a rating?", rail:"Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
         emailH:"Direct email", indep:"Paksh is an independent project and is not affiliated with any outlet shown."
       };
@@ -1668,7 +1719,7 @@ const {useState,useEffect,useMemo}=React;
                   <input type="hidden" name="topic" value={L.chips[topic]} />
                   <div><label className={lbl}>{L.topicL}</label>
                     <div className="flex flex-wrap gap-2">
-                      {["rating","outlet","general"].map(k=>(
+                      {["rating","outlet","advertise","general"].map(k=>(
                         <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
                       ))}
                     </div>
@@ -1877,48 +1928,73 @@ const {useState,useEffect,useMemo}=React;
     // password, no Google, no phone. The code length follows the Supabase Auth setting (6-8
     // digits); the input accepts up to 10. Both tabs use one OTP flow (create_user = new+returning).
     function LoginPage({ t, lang, go, onAuthed }) {
-      const [mode,setMode]=useState("signin");   // signin | signup (copy only; one OTP flow)
-      const [step,setStep]=useState("email");     // email | code
+      const [mode,setMode]=useState("signin");   // signin | signup
+      const [method,setMethod]=useState("password"); // password | code
+      const [step,setStep]=useState("email");     // (code method) email | code
       const [email,setEmail]=useState("");
+      const [password,setPassword]=useState("");
       const [code,setCode]=useState("");
       const [busy,setBusy]=useState(false);
       const [err,setErr]=useState("");
+      const [note,setNote]=useState("");
+      const [cool,setCool]=useState(0);            // resend cooldown seconds
+      useEffect(()=>{ if(cool<=0) return; const id=setInterval(()=>setCool(c=>c-1),1000); return ()=>clearInterval(id); },[cool]);
       const L = lang==="hi" ? {
         signin:"साइन इन", signup:"खाता बनाएँ",
         lede:"मुफ़्त, कोई पेवॉल नहीं। खाता सिर्फ़ निजीकरण जोड़ता है, पक्ष बिना खाते के भी पूरी तरह पढ़ा जा सकता है।",
-        emailL:"ईमेल", emailP:"you@example.com", sendBtn:"मुझे साइन-इन कोड ईमेल करें", sending:"भेजा जा रहा है…",
+        emailL:"ईमेल", emailP:"you@example.com", pwL:"पासवर्ड", pwP:"कम से कम 8 अक्षर",
+        signinBtn:"साइन इन करें", createBtn:"खाता बनाएँ", working:"हो रहा है…",
+        sendBtn:"मुझे साइन-इन कोड ईमेल करें", sending:"भेजा जा रहा है…",
         codeL:"ईमेल पर आया साइन-इन कोड", codeP:"कोड", verifyBtn:"साइन इन करें", verifying:"जाँच हो रही है…",
-        sentTo:"कोड भेजा गया", change:"ईमेल बदलें", resend:"कोड फिर भेजें",
+        sentTo:"कोड भेजा गया", change:"ईमेल बदलें", resend:"कोड फिर भेजें", resent:"नया कोड भेज दिया।", resendIn:"फिर भेजें",
+        useCode:"पासवर्ड के बजाय ईमेल कोड इस्तेमाल करें", usePw:"पासवर्ड इस्तेमाल करें",
+        confirm:"पुष्टि करने के लिए अपना ईमेल देखें, फिर साइन इन करें।",
         p1:"आप जो खबरें खोलते हैं उससे बनता आपका अपना ‘रीडिंग लेंस’, सिर्फ़ आपके लिए।",
         p2:"पढ़ने की सुलभता सेटिंग्स हर डिवाइस पर सहेजी जाती हैं।", p3:"पसंदीदा खबरें अख़बार-कतरन की तरह सहेजें।",
         propsH:"खाता क्या जोड़ता है",
         errRate:"बहुत सारे प्रयास। कृपया थोड़ी देर बाद फिर कोशिश करें।",
         errCode:"कोड ग़लत या समय-समाप्त। कृपया दोबारा जाँचें या नया कोड मँगाएँ।",
+        errPw:"ईमेल या पासवर्ड ग़लत।", errWeak:"पासवर्ड कम से कम 8 अक्षर का हो।",
         errClosed:"अभी नए साइन-अप बंद हैं।", errNet:"नेटवर्क समस्या। कनेक्शन जाँचें।",
         errGeneric:"कुछ ग़लत हुआ। कृपया दोबारा प्रयास करें।",
         off:"खाते अभी उपलब्ध नहीं हैं।", back:"वापस"
       } : {
         signin:"Sign in", signup:"Create account",
         lede:"Free, no paywall. An account only adds personalisation, Paksh stays fully readable without one.",
-        emailL:"Email", emailP:"you@example.com", sendBtn:"Email me a sign-in code", sending:"Sending…",
+        emailL:"Email", emailP:"you@example.com", pwL:"Password", pwP:"At least 8 characters",
+        signinBtn:"Sign in", createBtn:"Create account", working:"Working…",
+        sendBtn:"Email me a sign-in code", sending:"Sending…",
         codeL:"Sign-in code from your email", codeP:"Sign-in code", verifyBtn:"Sign in", verifying:"Checking…",
-        sentTo:"Code sent to", change:"Change email", resend:"Resend code",
+        sentTo:"Code sent to", change:"Change email", resend:"Resend code", resent:"New code sent.", resendIn:"Resend in",
+        useCode:"Use an email code instead", usePw:"Use a password",
+        confirm:"Check your email to confirm, then sign in.",
         p1:"Your own Reading Lens, built from the stories you open, visible only to you.",
         p2:"Your reading & accessibility settings saved across devices.", p3:"Clip and save stories like newspaper cuttings.",
         propsH:"What an account adds",
         errRate:"Too many attempts. Please wait a little and try again.",
         errCode:"That code is wrong or expired. Re-check it or request a new one.",
+        errPw:"Wrong email or password.", errWeak:"Password must be at least 8 characters.",
         errClosed:"New sign-ups are closed right now.", errNet:"Network problem. Check your connection.",
         errGeneric:"Something went wrong. Please try again.",
         off:"Accounts aren't available yet.", back:"Back"
       };
-      async function send(e){ e.preventDefault(); if(!email.trim())return; setErr(""); setBusy(true);
-        try{ await authSendCode(email.trim()); setStep("code"); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
+      // Password sign in / create account.
+      async function pwSubmit(e){ e.preventDefault(); if(!email.trim())return; setErr(""); setNote("");
+        if(password.length<8){ setErr(L.errWeak); return; } setBusy(true);
+        try{ if(mode==="signup"){ const r=await authPasswordSignUp(email.trim(),password); if(r.session){ onAuthed(r.session); } else { setNote(L.confirm); } }
+          else { const s=await authPasswordSignIn(email.trim(),password); onAuthed(s); } }
+        catch(ex){ const m=String((ex&&ex.message)||"").toLowerCase();
+          setErr(m.includes("invalid login")||m.includes("credential")?L.errPw:m.includes("already registered")?(lang==="hi"?"यह ईमेल पहले से पंजीकृत है, साइन इन करें।":"That email is already registered, sign in instead."):prettyAuthErr(ex,L)); }
+        finally{ setBusy(false); } }
+      // Email OTP: send / verify / resend (with cooldown + feedback).
+      async function send(e){ if(e&&e.preventDefault)e.preventDefault(); if(!email.trim())return; setErr(""); setNote(""); setBusy(true);
+        try{ await authSendCode(email.trim()); setStep("code"); setNote(L.resent); setCool(30); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
       async function verify(e){ e.preventDefault(); if(!code.trim())return; setErr(""); setBusy(true);
         try{ const s=await authVerifyCode(email.trim(), code.trim()); onAuthed(s); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
       const inp=`w-full border px-3.5 py-2.5 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp}`;
       const lblc=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
       const btn=`w-full rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`;
+      const link=`text-[12.5px] underline underline-offset-2 ${t.tf} hover:${t.tp} ${isHi(lang)}`;
       const props=(
         <div>
           <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.propsH}</div>
@@ -1931,26 +2007,37 @@ const {useState,useEffect,useMemo}=React;
         <div>
           <div className="inline-flex mb-6" style={{border:`1px solid ${t.ink}`}}>
             {[["signin",L.signin],["signup",L.signup]].map(([k,label],i)=>{ const on=mode===k;
-              return <button key={k} type="button" onClick={()=>setMode(k)} className={lang==="hi"?"deva":""}
+              return <button key={k} type="button" onClick={()=>{setMode(k);setErr("");setNote("");}} className={lang==="hi"?"deva":""}
                 style={{padding:"7px 16px",font:"600 12px 'IBM Plex Sans',sans-serif",borderLeft:i>0?`1px solid ${t.ink}`:"none",background:on?t.ink:"transparent",color:on?(t.gap||"#F4F1EA"):t.ink}}>{label}</button>;
             })}
           </div>
           {!authOn() ? <p className={`text-[14px] ${t.tf} ${isHi(lang)}`}>{L.off}</p>
-          : step==="email" ? (
+          : method==="password" ? (
+            <form onSubmit={pwSubmit} className="space-y-4">
+              <div><label className={lblc}>{L.emailL}</label><input value={email} onChange={e=>setEmail(e.target.value)} type="email" required autoFocus placeholder={L.emailP} className={inp} inputMode="email" autoComplete="email" /></div>
+              <div><label className={lblc}>{L.pwL}</label><input value={password} onChange={e=>setPassword(e.target.value)} type="password" required placeholder={L.pwP} className={inp} autoComplete={mode==="signup"?"new-password":"current-password"} /></div>
+              {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+              {note && <p className={`text-[13px] font-medium ${t.blind} ${isHi(lang)}`}>{note}</p>}
+              <button type="submit" disabled={busy} className={btn}>{busy?L.working:(mode==="signup"?L.createBtn:L.signinBtn)}</button>
+              <button type="button" onClick={()=>{setMethod("code");setErr("");setNote("");setStep("email");}} className={link}>{L.useCode}</button>
+            </form>
+          ) : step==="email" ? (
             <form onSubmit={send} className="space-y-4">
               <div><label className={lblc}>{L.emailL}</label><input value={email} onChange={e=>setEmail(e.target.value)} type="email" required autoFocus placeholder={L.emailP} className={inp} inputMode="email" autoComplete="email" /></div>
               {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
               <button type="submit" disabled={busy} className={btn}>{busy?L.sending:L.sendBtn}</button>
+              <button type="button" onClick={()=>{setMethod("password");setErr("");setNote("");}} className={link}>{L.usePw}</button>
             </form>
           ) : (
             <form onSubmit={verify} className="space-y-4">
               <p className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{L.sentTo} <span className="font-semibold">{email}</span>.</p>
               <div><label className={lblc}>{L.codeL}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^0-9]/g,"").slice(0,10))} required autoFocus placeholder={L.codeP} className={`${inp} mono tracking-[0.3em] text-center text-[20px]`} inputMode="numeric" autoComplete="one-time-code" maxLength={10} /></div>
               {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+              {note && !err && <p className={`text-[13px] font-medium ${t.blind} ${isHi(lang)}`}>{note}</p>}
               <button type="submit" disabled={busy} className={btn}>{busy?L.verifying:L.verifyBtn}</button>
               <div className="flex items-center justify-between">
-                <button type="button" onClick={()=>{setStep("email");setCode("");setErr("");}} className={`text-[12.5px] underline underline-offset-2 ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{L.change}</button>
-                <button type="button" onClick={send} disabled={busy} className={`text-[12.5px] underline underline-offset-2 ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{L.resend}</button>
+                <button type="button" onClick={()=>{setStep("email");setCode("");setErr("");setNote("");}} className={link}>{L.change}</button>
+                <button type="button" onClick={send} disabled={busy||cool>0} className={link}>{cool>0?`${L.resendIn} ${cool}s`:L.resend}</button>
               </div>
             </form>
           )}
@@ -2390,12 +2477,15 @@ const {useState,useEffect,useMemo}=React;
       useEffect(()=>{ applyA11y(a11y); },[a11y]);
       // Restore a signed-in session on load (refreshes the token if needed); then pull the
       // account's saved prefs (accessibility + default language) and merge them in.
-      useEffect(()=>{ if(!authOn()) return; authEnsure().then(s=>{ if(!s){ setAuth(null); return; } setAuth(s);
-        loadPrefs().then(p=>{ if(!p) return;
-          if(p.a11y) setA11yState(prev=>{ const merged=Object.assign({}, prev, p.a11y); writeA11y(merged); return merged; });
-          if(p.lang==="en"||p.lang==="hi") setLang(p.lang);
-        });
-        refreshSaved(); refreshLens(); }).catch(()=>setAuth(null)); },[]);
+      useEffect(()=>{ if(!authOn()) return;
+        // First honour a magic-link / email-confirm redirect (tokens in the URL), then fall back
+        // to a stored session. Either way, hydrate prefs + saved + lens for cross-device continuity.
+        authSessionFromUrl().then(()=>authEnsure()).then(s=>{ if(!s){ setAuth(null); return; } setAuth(s);
+          loadPrefs().then(p=>{ if(!p) return;
+            if(p.a11y) setA11yState(prev=>{ const merged=Object.assign({}, prev, p.a11y); writeA11y(merged); return merged; });
+            if(p.lang==="en"||p.lang==="hi") setLang(p.lang);
+          });
+          refreshSaved(); refreshLens(); }).catch(()=>setAuth(null)); },[]);
       // Pull the saved list (ids for button state + rows for the Saved page).
       const refreshSaved=()=>{ listSaved().then(rows=>{ rows=rows||[]; setSavedRows(rows); setSavedIds(new Set(rows.map(r=>String(r.story_id)))); }).catch(()=>{ setSavedRows([]); }); };
       // Summarise the reader's last-30-day history (top topics + lean split) for the transparent
@@ -2479,7 +2569,7 @@ const {useState,useEffect,useMemo}=React;
       const headerView = route.view==="story" ? "" : route.view;
 
       return (
-        <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn() }}>
+        <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn(), go }}>
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
           {ready && homeCards.length>0 && <BreakingTicker cards={homeCards} t={t} lang={lang} open={open} />}
