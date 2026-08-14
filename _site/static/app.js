@@ -4102,9 +4102,10 @@ function GapRateColumns({
 }
 // A single coverage-gap card: which side missed it (eyebrow, clay), the headline, a
 // taste of the neutral summary, the rate columns, and a link into the story.
+// Gap card (prototype): a bordered card — kicker · time + a clay "Gap" badge, headline, the
+// three EQUAL-WIDTH count columns (absence drawn as hatch), then a plain-language note.
 function GapCard({
   story,
-  roster,
   gapSide,
   t,
   lang,
@@ -4116,8 +4117,13 @@ function GapCard({
     right: 0
   };
   const gapN = c[gapSide] || 0;
-  const sideWord = lang === "hi" ? gapSide === "left" ? "वाम" : "दक्षिण" : gapSide;
-  const eyebrow = lang === "hi" ? gapN === 0 ? `${sideWord} पर अप्रकाशित` : `${sideWord} पर कम कवरेज` : gapN === 0 ? `Unreported on the ${sideWord}` : `Under-covered on the ${sideWord}`;
+  const L = c.left || 0,
+    C = c.center || 0,
+    R = c.right || 0;
+  const sideLab = lbl(gapSide, lang);
+  const covered = gapSide === "left" ? lang === "hi" ? `${R} दक्षिण, ${C} केंद्र` : `${R} Right, ${C} Centre` : lang === "hi" ? `${L} वाम, ${C} केंद्र` : `${L} Left, ${C} Centre`;
+  const tail = gapN === 0 ? lang === "hi" ? `— अभी ${sideLab} कवरेज नहीं।` : `— no ${sideLab} coverage yet.` : lang === "hi" ? `— ${sideLab} कम।` : `— ${sideLab} thin.`;
+  const kick = lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic;
   return /*#__PURE__*/React.createElement("a", {
     href: "/story/" + encodeURIComponent(story.id),
     onClick: e => {
@@ -4125,42 +4131,37 @@ function GapCard({
       e.preventDefault();
       onOpen(story.id);
     },
-    className: "flex h-full flex-col no-underline group cursor-pointer"
+    className: `flex h-full flex-col no-underline group cursor-pointer border p-4 ${t.surface} ${t.border}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    className: "flex items-baseline justify-between gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
+      letterSpacing: lang === "hi" ? 0 : ".1em"
     }
-  }, eyebrow), /*#__PURE__*/React.createElement("h3", {
-    className: `headline mt-3 text-[20px] lg:text-[24px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+  }, kick, story.created_at ? ` · ${timeAgo(story.created_at, lang)}` : ""), /*#__PURE__*/React.createElement("span", {
+    className: `shrink-0 mono text-[9px] font-bold uppercase tracking-[0.06em] ${t.blind} ${t.blindSoft} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      lineHeight: 1.24,
-      textWrap: "pretty"
+      padding: "3px 6px"
     }
-  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[14px] lg:text-[15px] lc-3 ${t.ts} ${readCls(lang)}`,
+  }, lang === "hi" ? "गैप" : "Gap")), /*#__PURE__*/React.createElement("h3", {
+    className: `headline mt-2 text-[18px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
     style: {
-      lineHeight: lang === "hi" ? 1.7 : 1.6
+      lineHeight: 1.2,
+      textWrap: "balance"
     }
-  }, story.lead), /*#__PURE__*/React.createElement("div", {
-    className: "mt-5"
-  }, /*#__PURE__*/React.createElement(GapRateColumns, {
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3.5"
+  }, /*#__PURE__*/React.createElement(GapColumns, {
     counts: c,
-    roster: roster,
-    gapSide: gapSide,
     t: t,
     lang: lang
   })), /*#__PURE__*/React.createElement("div", {
-    className: `mt-4 eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    className: `mt-3 text-[12px] ${t.blind} ${readCls(lang)}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".06em"
+      lineHeight: 1.45
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      borderBottom: `1px solid ${t.ink}`,
-      paddingBottom: 2
-    }
-  }, lang === "hi" ? "तटस्थ सारांश पढ़ें" : "Read the neutral summary", " \u2192")));
+  }, covered, " ", tail));
 }
 function BlindspotPage({
   left,
@@ -4210,6 +4211,7 @@ function BlindspotPage({
       lineHeight: lang === "hi" ? 1.75 : 1.65
     }
   }, body));
+  const methodNote = lang === "hi" ? "किसी खबर को कवरेज गैप उसी अंकगणित से चिह्नित किया जाता है जैसे बार: प्रति झुकाव अलग कवर करने वाले आउटलेट, एक स्वामी एक वोट। कोई लेख आँका नहीं जाता, केवल गिना जाता है।" : "A story is flagged a Coverage Gap by the same arithmetic as the bar: distinct covering outlets per lean, one vote per owner. No article is judged, only counted.";
   return /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("div", {
@@ -4220,9 +4222,14 @@ function BlindspotPage({
       borderBottom: `2px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-[62ch]"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    className: "max-w-[70ch]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "कवरेज गैप · ब्लाइंडस्पॉट" : "Coverage gaps · blindspots"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
@@ -4233,25 +4240,51 @@ function BlindspotPage({
     }
   }, STR[lang].osSub)), /*#__PURE__*/React.createElement("div", {
     className: `mono text-[11px] leading-[1.7] text-right shrink-0 ${t.tf}`
-  }, gapsToday, " ", lang === "hi" ? "गैप आज" : "gaps today", /*#__PURE__*/React.createElement("br", null), stats.stories, " ", lang === "hi" ? "ख़बरें ट्रैक" : "stories tracked"))), tuned.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, gapsToday, " ", lang === "hi" ? "गैप आज" : "gaps today", /*#__PURE__*/React.createElement("br", null), stats.stories, " ", lang === "hi" ? "ख़बरें ट्रैक" : "stories tracked"))), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
-    className: `mt-6 p-5 ${t.soft}`
+    className: "grid lg:grid-cols-[2fr_1fr]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-6 lg:border-r lg:pr-7",
+    style: {
+      borderColor: t.line
+    }
+  }, shown.length ? /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-5 sm:grid-cols-2"
+  }, shown.map(g => /*#__PURE__*/React.createElement(GapCard, {
+    key: g.story.id,
+    story: g.story,
+    gapSide: g.gapSide,
+    t: t,
+    lang: lang,
+    onOpen: open
+  }))) : /*#__PURE__*/React.createElement("div", {
+    className: `border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`
+  }, STR[lang].noStories)), /*#__PURE__*/React.createElement("div", {
+    className: "py-6 lg:pl-7 space-y-6"
+  }, tuned.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderLeft: `2px solid ${BIAS.left.color}`
+    },
+    className: `${t.soft} p-4`
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-baseline justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
+      letterSpacing: lang === "hi" ? 0 : ".1em"
     }
   }, lang === "hi" ? "आपके पढ़ने के हिसाब से" : "Tuned to your reading"), /*#__PURE__*/React.createElement("button", {
     onClick: () => go("lens"),
-    className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? "मेरा लेंस →" : "My lens →")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-1.5 text-[12.5px] ${t.tf} ${isHi(lang)}`
-  }, lang === "hi" ? `आप ${lbl(leastSide, lang)} की कवरेज सबसे कम पढ़ते हैं, ये वही खबरें हैं जो उस पक्ष पर कम कवर हुईं।` : `You read ${lbl(leastSide, lang)} coverage the least, here are gaps where that side is under-covered.`), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-3"
-  }, tuned.map((g, i) => /*#__PURE__*/React.createElement("a", {
+    className: `mono text-[10px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "लेंस →" : "Lens →")), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.7 : 1.5
+    }
+  }, lang === "hi" ? `आप ${lbl(leastSide, lang)} की कवरेज सबसे कम पढ़ते हैं, ये उस पक्ष पर कम कवर हुई खबरें हैं।` : `You read ${lbl(leastSide, lang)} coverage the least, here are gaps where that side is under-covered.`), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 space-y-2.5"
+  }, tuned.map(g => /*#__PURE__*/React.createElement("a", {
     key: g.story.id,
     href: "/story/" + encodeURIComponent(g.story.id),
     onClick: e => {
@@ -4259,54 +4292,25 @@ function BlindspotPage({
       e.preventDefault();
       open(g.story.id);
     },
-    className: `block no-underline group cursor-pointer ${i > 0 ? "sm:border-l sm:pl-6" : ""} ${t.border}`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    className: `block no-underline group cursor-pointer headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
     style: {
       lineHeight: 1.3
     }
-  }, g.story.headline), /*#__PURE__*/React.createElement("div", {
-    className: "mt-2"
-  }, /*#__PURE__*/React.createElement(GapColumns, {
-    counts: g.story.counts || {},
+  }, g.story.headline)))), /*#__PURE__*/React.createElement("div", {
+    className: `${t.surface} p-4`,
+    style: {
+      border: `1px solid ${t.line}`,
+      borderLeft: `3px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[12.5px] ${t.ts} ${isHi(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, methodNote)), /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
     lang: lang
-  }))))))), /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, shown.length ? /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-x-6 gap-y-9 py-8 sm:grid-cols-2 lg:grid-cols-3",
-    style: {
-      borderBottom: `1px solid ${t.ink}`
-    }
-  }, shown.map((g, i) => /*#__PURE__*/React.createElement("div", {
-    key: g.story.id,
-    className: i > 0 ? "lg:border-l lg:pl-6" : "",
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
-  }, /*#__PURE__*/React.createElement(GapCard, {
-    story: g.story,
-    roster: roster,
-    gapSide: g.gapSide,
-    t: t,
-    lang: lang,
-    onOpen: open
-  })))) : /*#__PURE__*/React.createElement("div", {
-    className: `my-8 border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`
-  }, STR[lang].noStories)), /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "py-6"
-  }, /*#__PURE__*/React.createElement(AdSlot, {
-    t: t,
-    lang: lang,
-    h: 90,
-    format: "horizontal"
-  }))), /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `my-8 grid gap-8 p-6 sm:p-8 md:grid-cols-2 ${t.soft}`
-  }, explain(lang === "hi" ? "गैप कैसे तय होता है" : "How a gap is declared", lang === "hi" ? "पक्ष किसी ख़बर को गैप तब चिह्नित करता है जब स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने उसे कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं, वही अलग-अलग आउटलेट गिनती जो बायस बार में है। यह अंकगणित है, इस पर निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।" : "Paksh flags a story as a gap when outlets on one side of the spectrum covered it while few or none on the other did, the same distinct-outlet-per-lean counting as the bias bar. It's arithmetic, not a judgment about why a side did or didn't cover it."), explain(lang === "hi" ? "स्लॉट बराबर चौड़े क्यों" : "Why the slots are equal width", lang === "hi" ? "यह चार्ट बायस बार नहीं है। बायस बार जो मौजूद है उसे बाँटता है; गैप चार्ट हर पक्ष को बराबर स्लॉट देता है, ताकि ग़ैरमौजूद पक्ष ग़ायब होने के बजाय, हैच और शून्य के साथ, दिखे। अनुपस्थिति को दिखने के लिए जगह घेरनी पड़ती है।" : "This chart is not the bias bar. The bias bar divides what exists; the gap chart reserves an equal slot per side, so the empty one is drawn, hatched and labelled zero, instead of vanishing. Absence has to occupy space to be seen."))));
+  })))));
 }
 function TopicsHub({
   topics,

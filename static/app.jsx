@@ -1510,20 +1510,27 @@ const {useState,useEffect,useMemo}=React;
     }
     // A single coverage-gap card: which side missed it (eyebrow, clay), the headline, a
     // taste of the neutral summary, the rate columns, and a link into the story.
-    function GapCard({ story, roster, gapSide, t, lang, onOpen }) {
+    // Gap card (prototype): a bordered card — kicker · time + a clay "Gap" badge, headline, the
+    // three EQUAL-WIDTH count columns (absence drawn as hatch), then a plain-language note.
+    function GapCard({ story, gapSide, t, lang, onOpen }) {
       const c=story.counts||{left:0,center:0,right:0};
-      const gapN=c[gapSide]||0;
-      const sideWord=lang==="hi"?(gapSide==="left"?"वाम":"दक्षिण"):gapSide;
-      const eyebrow=lang==="hi"
-        ? (gapN===0?`${sideWord} पर अप्रकाशित`:`${sideWord} पर कम कवरेज`)
-        : (gapN===0?`Unreported on the ${sideWord}`:`Under-covered on the ${sideWord}`);
+      const gapN=c[gapSide]||0; const L=c.left||0,C=c.center||0,R=c.right||0;
+      const sideLab=lbl(gapSide,lang);
+      const covered = gapSide==="left"
+        ? (lang==="hi"?`${R} दक्षिण, ${C} केंद्र`:`${R} Right, ${C} Centre`)
+        : (lang==="hi"?`${L} वाम, ${C} केंद्र`:`${L} Left, ${C} Centre`);
+      const tail = gapN===0 ? (lang==="hi"?`— अभी ${sideLab} कवरेज नहीं।`:`— no ${sideLab} coverage yet.`)
+                            : (lang==="hi"?`— ${sideLab} कम।`:`— ${sideLab} thin.`);
+      const kick=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="flex h-full flex-col no-underline group cursor-pointer">
-          <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{eyebrow}</div>
-          <h3 className={`headline mt-3 text-[20px] lg:text-[24px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.24,textWrap:"pretty"}}>{story.headline}</h3>
-          {story.lead && <p className={`mt-2.5 text-[14px] lg:text-[15px] lc-3 ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.6}}>{story.lead}</p>}
-          <div className="mt-5"><GapRateColumns counts={c} roster={roster} gapSide={gapSide} t={t} lang={lang} /></div>
-          <div className={`mt-4 eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}><span style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"तटस्थ सारांश पढ़ें":"Read the neutral summary"} →</span></div>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`flex h-full flex-col no-underline group cursor-pointer border p-4 ${t.surface} ${t.border}`}>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{kick}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</span>
+            <span className={`shrink-0 mono text-[9px] font-bold uppercase tracking-[0.06em] ${t.blind} ${t.blindSoft} ${lang==="hi"?"deva":""}`} style={{padding:"3px 6px"}}>{lang==="hi"?"गैप":"Gap"}</span>
+          </div>
+          <h3 className={`headline mt-2 text-[18px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.2,textWrap:"balance"}}>{story.headline}</h3>
+          <div className="mt-3.5"><GapColumns counts={c} t={t} lang={lang} /></div>
+          <div className={`mt-3 text-[12px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:1.45}}>{covered} {tail}</div>
         </a>
       );
     }
@@ -1550,13 +1557,17 @@ const {useState,useEffect,useMemo}=React;
           <p className={`mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.65}}>{body}</p>
         </div>
       );
+      const methodNote = lang==="hi"
+        ? "किसी खबर को कवरेज गैप उसी अंकगणित से चिह्नित किया जाता है जैसे बार: प्रति झुकाव अलग कवर करने वाले आउटलेट, एक स्वामी एक वोट। कोई लेख आँका नहीं जाता, केवल गिना जाता है।"
+        : "A story is flagged a Coverage Gap by the same arithmetic as the bar: distinct covering outlets per lean, one vote per owner. No article is judged, only counted.";
       return (
         <div className="mx-auto max-w-[1280px]">
-          {/* header */}
+          {/* header — clay eyebrow + title + sub, 2px ink rule (prototype) */}
           <div className={`${pad} pt-6`}>
             <div className="flex flex-wrap items-end justify-between gap-4 pb-5" style={{borderBottom:`2px solid ${t.ink}`}}>
-              <div className="max-w-[62ch]">
-                <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].osTitle}</h1>
+              <div className="max-w-[70ch]">
+                <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"कवरेज गैप · ब्लाइंडस्पॉट":"Coverage gaps · blindspots"}</div>
+                <h1 className={`headline mt-2.5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].osTitle}</h1>
                 <p className={`mt-3 text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{STR[lang].osSub}</p>
               </div>
               <div className={`mono text-[11px] leading-[1.7] text-right shrink-0 ${t.tf}`}>
@@ -1564,46 +1575,34 @@ const {useState,useEffect,useMemo}=React;
               </div>
             </div>
           </div>
-          {/* Tuned to your reading (member) — gaps on the side you read least */}
-          {tuned.length>0 && (
-            <div className={pad}>
-              <div className={`mt-6 p-5 ${t.soft}`}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आपके पढ़ने के हिसाब से":"Tuned to your reading"}</div>
-                  <button onClick={()=>go("lens")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा लेंस →":"My lens →"}</button>
-                </div>
-                <p className={`mt-1.5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?`आप ${lbl(leastSide,lang)} की कवरेज सबसे कम पढ़ते हैं, ये वही खबरें हैं जो उस पक्ष पर कम कवर हुईं।`:`You read ${lbl(leastSide,lang)} coverage the least, here are gaps where that side is under-covered.`}</p>
-                <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-3">
-                  {tuned.map((g,i)=>(
-                    <a key={g.story.id} href={"/story/"+encodeURIComponent(g.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(g.story.id); }} className={`block no-underline group cursor-pointer ${i>0?"sm:border-l sm:pl-6":""} ${t.border}`}>
-                      <div className={`headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{g.story.headline}</div>
-                      <div className="mt-2"><GapColumns counts={g.story.counts||{}} t={t} lang={lang} /></div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          {/* gap cards */}
+          {/* 2fr / 1fr — gap-card grid beside the rail (Tuned to your reading + method note) */}
           <div className={pad}>
-            {shown.length? (
-              <div className="grid gap-x-6 gap-y-9 py-8 sm:grid-cols-2 lg:grid-cols-3" style={{borderBottom:`1px solid ${t.ink}`}}>
-                {shown.map((g,i)=>(
-                  <div key={g.story.id} className={i>0?"lg:border-l lg:pl-6":""} style={i>0?{borderColor:t.line}:{}}>
-                    <GapCard story={g.story} roster={roster} gapSide={g.gapSide} t={t} lang={lang} onOpen={open} />
+            <div className="grid lg:grid-cols-[2fr_1fr]">
+              <div className="py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
+                {shown.length
+                  ? <div className="grid gap-5 sm:grid-cols-2">{shown.map(g=>(<GapCard key={g.story.id} story={g.story} gapSide={g.gapSide} t={t} lang={lang} onOpen={open} />))}</div>
+                  : <div className={`border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
+              </div>
+              <div className="py-6 lg:pl-7 space-y-6">
+                {tuned.length>0 && (
+                  <div style={{borderLeft:`2px solid ${BIAS.left.color}`}} className={`${t.soft} p-4`}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{lang==="hi"?"आपके पढ़ने के हिसाब से":"Tuned to your reading"}</div>
+                      <button onClick={()=>go("lens")} className={`mono text-[10px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"लेंस →":"Lens →"}</button>
+                    </div>
+                    <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.5}}>{lang==="hi"?`आप ${lbl(leastSide,lang)} की कवरेज सबसे कम पढ़ते हैं, ये उस पक्ष पर कम कवर हुई खबरें हैं।`:`You read ${lbl(leastSide,lang)} coverage the least, here are gaps where that side is under-covered.`}</p>
+                    <div className="mt-3 space-y-2.5">
+                      {tuned.map(g=>(
+                        <a key={g.story.id} href={"/story/"+encodeURIComponent(g.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(g.story.id); }} className={`block no-underline group cursor-pointer headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{g.story.headline}</a>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+                <div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`,borderLeft:`3px solid ${t.ink}`}}>
+                  <p className={`text-[12.5px] ${t.ts} ${isHi(lang)}`} style={{lineHeight:1.55}}>{methodNote}</p>
+                </div>
+                <AdSlot t={t} lang={lang} />
               </div>
-            ) : <div className={`my-8 border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
-          </div>
-          {/* AD — one leaderboard before the explainer */}
-          <div className={pad}><div className="py-6"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div></div>
-
-          {/* explainer */}
-          <div className={pad}>
-            <div className={`my-8 grid gap-8 p-6 sm:p-8 md:grid-cols-2 ${t.soft}`}>
-              {explain(lang==="hi"?"गैप कैसे तय होता है":"How a gap is declared", lang==="hi"?"पक्ष किसी ख़बर को गैप तब चिह्नित करता है जब स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने उसे कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं, वही अलग-अलग आउटलेट गिनती जो बायस बार में है। यह अंकगणित है, इस पर निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।":"Paksh flags a story as a gap when outlets on one side of the spectrum covered it while few or none on the other did, the same distinct-outlet-per-lean counting as the bias bar. It's arithmetic, not a judgment about why a side did or didn't cover it.")}
-              {explain(lang==="hi"?"स्लॉट बराबर चौड़े क्यों":"Why the slots are equal width", lang==="hi"?"यह चार्ट बायस बार नहीं है। बायस बार जो मौजूद है उसे बाँटता है; गैप चार्ट हर पक्ष को बराबर स्लॉट देता है, ताकि ग़ैरमौजूद पक्ष ग़ायब होने के बजाय, हैच और शून्य के साथ, दिखे। अनुपस्थिति को दिखने के लिए जगह घेरनी पड़ती है।":"This chart is not the bias bar. The bias bar divides what exists; the gap chart reserves an equal slot per side, so the empty one is drawn, hatched and labelled zero, instead of vanishing. Absence has to occupy space to be seen.")}
             </div>
           </div>
         </div>
