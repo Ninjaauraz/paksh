@@ -3662,27 +3662,31 @@ function StoryPage({
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
   }), " ", lang === "hi" ? "शेयर" : "Share")))), /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[840px] text-left sm:text-center"
+    className: "mx-auto max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow sm:hidden ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, tp, " \xB7 ", region), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-3 sm:mt-0 text-[28px] sm:text-[42px] lg:text-[50px] ${t.tp} ${readCls(lang)}`,
+  }, tp, " \xB7 ", region, story.created_at ? ` · ${timeAgo(story.created_at, lang)}` : ""), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-3 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
     style: {
-      lineHeight: lang === "hi" ? 1.18 : 1.1,
-      letterSpacing: lang === "hi" ? 0 : "-0.02em",
+      lineHeight: lang === "hi" ? 1.16 : 1.08,
+      letterSpacing: lang === "hi" ? 0 : "-0.022em",
       textWrap: "balance"
     }
-  }, story.headline), /*#__PURE__*/React.createElement("div", {
-    className: `mt-4 mono text-[11.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[17px] sm:text-[18px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.85 : 1.62,
+      maxWidth: "62ch",
+      textWrap: "pretty"
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, metaLine, story.auto && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 ", /*#__PURE__*/React.createElement("span", {
     className: "uppercase"
-  }, STR[lang].autoTag))), absDate(story.created_at, lang) && /*#__PURE__*/React.createElement("div", {
-    className: `mt-1 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    title: lang === "hi" ? "नवीनतम स्रोत का प्रकाशन समय" : "Newest source's publish time"
-  }, absDate(story.created_at, lang))), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].autoTag)), absDate(story.created_at, lang) ? ` · ${absDate(story.created_at, lang)}` : "")), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-8 max-w-[840px] py-6",
     style: {
       borderTop: `1px solid ${t.ink}`,
@@ -3752,35 +3756,31 @@ function StoryPage({
   }), " ", lang === "hi" ? "आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है" : "Recorded to your Reading Lens · visible only to you") : /*#__PURE__*/React.createElement("button", {
     onClick: () => go("login"),
     className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`
-  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें →" : "Sign in to build your Reading Lens →")), /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto mt-9 max-w-[840px] grid gap-5 md:grid-cols-[200px_1fr] md:gap-11"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें →" : "Sign in to build your Reading Lens →")), story.summary && story.summary.length ? /*#__PURE__*/React.createElement("div", {
+    className: `mx-auto mt-9 max-w-[840px] ${t.surface}`,
+    style: {
+      border: `1px solid ${t.line}`,
+      borderLeft: `3px solid ${t.ink}`,
+      padding: "18px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
+      letterSpacing: lang === "hi" ? 0 : ".1em"
     }
-  }, lang === "hi" ? "बिना फ़्रेमिंग की ख़बर" : "The story, without framing"), story.auto && /*#__PURE__*/React.createElement("div", {
-    className: `mt-2 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      textTransform: "none",
-      letterSpacing: 0
-    }
-  }, STR[lang].autoFrom)), /*#__PURE__*/React.createElement("div", null, story.lead && /*#__PURE__*/React.createElement("p", {
-    className: `text-[16px] md:text-[19px] ${t.tp} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.85 : 1.6
-    }
-  }, story.lead), /*#__PURE__*/React.createElement("ul", {
-    className: "mt-3 space-y-2.5"
-  }, (story.summary || []).map((p, i) => /*#__PURE__*/React.createElement("li", {
+  }, STR[lang].aiSummary, story.auto ? ` · ${STR[lang].autoFrom}` : ""), /*#__PURE__*/React.createElement("ul", {
+    className: "mt-3.5 space-y-2.5"
+  }, story.summary.map((p, i) => /*#__PURE__*/React.createElement("li", {
     key: i,
-    className: `flex gap-2.5 text-[15px] md:text-[16px] ${t.ts} ${readCls(lang)}`,
+    className: `flex gap-2.5 text-[15px] ${t.ts} ${readCls(lang)}`,
     style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.6
+      lineHeight: lang === "hi" ? 1.8 : 1.55
     }
   }, /*#__PURE__*/React.createElement("span", {
-    className: "mt-[10px] h-1 w-2 shrink-0",
+    className: "mt-[9px] shrink-0",
     style: {
+      width: 5,
+      height: 5,
       background: t.ink
     }
   }), p))), a11y && a11y.readAloud && /*#__PURE__*/React.createElement("div", {
@@ -3789,9 +3789,14 @@ function StoryPage({
     text: [story.lead].concat(story.summary || []).filter(Boolean).join(". "),
     lang: lang,
     t: t
-  })), /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, STR[lang].aiNote))), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3.5 pt-3",
+    style: {
+      borderTop: `1px dashed ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `mono text-[10.5px] leading-[1.55] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].aiNote))) : null, story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
@@ -3830,24 +3835,31 @@ function StoryPage({
     }
   }, sides.map(k => /*#__PURE__*/React.createElement("div", {
     key: k,
-    className: `flex flex-col border md:border-0 md:border-r last:md:border-r-0 ${t.surface}`,
+    className: "flex flex-col border md:border-0 md:border-r last:md:border-r-0",
     style: {
       borderColor: t.ink
     }
   }, /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center justify-between ${t.soft}`,
+    style: {
+      padding: "8px 12px",
+      borderBottom: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[10.5px] font-bold uppercase tracking-[0.06em] ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      color: BIAS[k].color
+    }
+  }, lbl(k, lang), " \xB7 ", counts[k]), /*#__PURE__*/React.createElement("span", {
     className: BIAS[k].tex,
     style: {
-      height: 6
+      width: 10,
+      height: 10,
+      border: `1px solid ${t.ink}`
     }
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-1 flex-col p-5"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, lbl(k, lang)), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, counts[k], " ", lang === "hi" ? "मास्टहेड" : counts[k] === 1 ? "masthead" : "mastheads")), Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("ul", {
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-1 flex-col p-4 ${t.surface}`
+  }, Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("ul", {
     className: "mt-3.5 space-y-2"
   }, fr[k].map((p, i) => /*#__PURE__*/React.createElement("li", {
     key: i,

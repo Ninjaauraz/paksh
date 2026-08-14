@@ -1323,12 +1323,12 @@ const {useState,useEffect,useMemo}=React;
             </div>
           </div>
 
-          {/* headline block — centered on desktop, left on mobile */}
-          <div className="mx-auto max-w-[840px] text-left sm:text-center">
-            <div className={`eyebrow sm:hidden ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}</div>
-            <h1 className={`headline mt-3 sm:mt-0 text-[28px] sm:text-[42px] lg:text-[50px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.18:1.1,letterSpacing:lang==="hi"?0:"-0.02em",textWrap:"balance"}}>{story.headline}</h1>
-            <div className={`mt-4 mono text-[11.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{metaLine}{story.auto && <> · <span className="uppercase">{STR[lang].autoTag}</span></>}</div>
-            {absDate(story.created_at,lang) && <div className={`mt-1 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`} title={lang==="hi"?"नवीनतम स्रोत का प्रकाशन समय":"Newest source's publish time"}>{absDate(story.created_at,lang)}</div>}
+          {/* headline block — left-aligned: kicker · region · time, 40px headline, 18px lead (prototype) */}
+          <div className="mx-auto max-w-[840px]">
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</div>
+            <h1 className={`headline mt-3 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.16:1.08,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h1>
+            {story.lead && <p className={`mt-4 text-[17px] sm:text-[18px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.85:1.62,maxWidth:"62ch",textWrap:"pretty"}}>{story.lead}</p>}
+            <div className={`mt-4 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{metaLine}{story.auto && <> · <span className="uppercase">{STR[lang].autoTag}</span></>}{absDate(story.created_at,lang)?` · ${absDate(story.created_at,lang)}`:""}</div>
           </div>
 
           {/* the bias instrument — border-y ink, printed scale; segments filter the article list */}
@@ -1355,19 +1355,15 @@ const {useState,useEffect,useMemo}=React;
             </div>
           )}
 
-          {/* the story, without framing — label + note | summary */}
-          <div className="mx-auto mt-9 max-w-[840px] grid gap-5 md:grid-cols-[200px_1fr] md:gap-11">
-            <div>
-              <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"बिना फ़्रेमिंग की ख़बर":"The story, without framing"}</div>
-              {story.auto && <div className={`mt-2 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{textTransform:"none",letterSpacing:0}}>{STR[lang].autoFrom}</div>}
-            </div>
-            <div>
-              {story.lead && <p className={`text-[16px] md:text-[19px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.85:1.6}}>{story.lead}</p>}
-              <ul className="mt-3 space-y-2.5">{(story.summary||[]).map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] md:text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.8:1.6}}><span className="mt-[10px] h-1 w-2 shrink-0" style={{background:t.ink}}/>{p}</li>)}</ul>
-              {a11y&&a11y.readAloud && <div className="mt-3"><ListenButton text={[story.lead].concat(story.summary||[]).filter(Boolean).join(". ")} lang={lang} t={t} /></div>}
-              <p className={`mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
-            </div>
+          {/* Paksh neutral summary — bordered card with a 3px ink left rule (prototype) */}
+          {(story.summary&&story.summary.length) ? (
+          <div className={`mx-auto mt-9 max-w-[840px] ${t.surface}`} style={{border:`1px solid ${t.line}`,borderLeft:`3px solid ${t.ink}`,padding:"18px 20px"}}>
+            <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{STR[lang].aiSummary}{story.auto?` · ${STR[lang].autoFrom}`:""}</div>
+            <ul className="mt-3.5 space-y-2.5">{story.summary.map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.8:1.55}}><span className="mt-[9px] shrink-0" style={{width:5,height:5,background:t.ink}}/>{p}</li>)}</ul>
+            {a11y&&a11y.readAloud && <div className="mt-3"><ListenButton text={[story.lead].concat(story.summary||[]).filter(Boolean).join(". ")} lang={lang} t={t} /></div>}
+            <div className="mt-3.5 pt-3" style={{borderTop:`1px dashed ${t.line}`}}><p className={`mono text-[10.5px] leading-[1.55] ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p></div>
           </div>
+          ) : null}
 
           {/* STORYLINE — how this saga developed across days (only when linked to >1 event) */}
           {story.storyline && (story.storyline.events||[]).length>1 && (
@@ -1389,13 +1385,12 @@ const {useState,useEffect,useMemo}=React;
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0 md:border" style={{borderColor:t.ink}}>
               {sides.map(k=>(
-                <div key={k} className={`flex flex-col border md:border-0 md:border-r last:md:border-r-0 ${t.surface}`} style={{borderColor:t.ink}}>
-                  <div className={BIAS[k].tex} style={{height:6}}/>
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="flex items-baseline justify-between">
-                      <span className={`text-[11.5px] font-medium uppercase tracking-[0.14em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
-                      <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{counts[k]} {lang==="hi"?"मास्टहेड":(counts[k]===1?"masthead":"mastheads")}</span>
-                    </div>
+                <div key={k} className="flex flex-col border md:border-0 md:border-r last:md:border-r-0" style={{borderColor:t.ink}}>
+                  <div className={`flex items-center justify-between ${t.soft}`} style={{padding:"8px 12px",borderBottom:`1px solid ${t.line}`}}>
+                    <span className={`text-[10.5px] font-bold uppercase tracking-[0.06em] ${lang==="hi"?"deva":""}`} style={{color:BIAS[k].color}}>{lbl(k,lang)} · {counts[k]}</span>
+                    <span className={BIAS[k].tex} style={{width:10,height:10,border:`1px solid ${t.ink}`}}/>
+                  </div>
+                  <div className={`flex flex-1 flex-col p-4 ${t.surface}`}>
                     {Array.isArray(fr[k]) && fr[k].length
                       ? <ul className="mt-3.5 space-y-2">{fr[k].map((p,i)=>(
                           <li key={i} className={`flex gap-2 text-[14px] md:text-[14.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>
