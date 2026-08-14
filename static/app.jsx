@@ -1143,8 +1143,7 @@ const {useState,useEffect,useMemo}=React;
       const used=new Set();
       const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
       const lead=cards[0]; if(lead) used.add(lead.id);
-      const alsoLeading=take(cards,2);      // "Also leading" rail (2)
-      const section=take(cards,4);          // 4-up Section band
+      const section=take(cards,4);          // the 2×2 secondary grid in the main well
       // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
       // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
       // more of what you already open. Computed before "In brief" so it gets first pick of matches.
@@ -1186,38 +1185,44 @@ const {useState,useEffect,useMemo}=React;
             </div>
           </div>
 
-          {/* HERO — 250 / 1fr / 280 with vertical hairlines on desktop; on mobile the lead
-              leads, then the rail, then the spectrum (order utilities) */}
+          {/* FRONT PAGE — prototype 2.1fr / 1fr: a main well (Top Stories header + hero + a 2×2
+              secondary grid) beside a rail (personalization / onboarding · Coverage Gaps · ad). */}
           <div className={pad}>
-            <div className="grid lg:grid-cols-[250px_1fr_280px]" style={{}}>
-              <div className="order-2 lg:order-1 py-4 lg:py-6 lg:pr-7 lg:border-r" style={{borderColor:t.line}}>
-                <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"ये भी प्रमुख":"Also leading"}</div>
-                {alsoLeading.map((s,i)=><AlsoLeadingItem key={s.id} story={s} t={t} lang={lang} onOpen={open} last={i===alsoLeading.length-1} />)}
+            <div className="grid lg:grid-cols-[2.1fr_1fr]">
+              {/* main well */}
+              <div className="py-4 lg:py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
+                <div className="flex items-baseline justify-between gap-3 pb-2" style={{borderBottom:`2px solid ${t.ink}`}}>
+                  <span className={`text-[13px] font-bold uppercase ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{STR[lang].topNews}</span>
+                  {stats.updated && <span className={`mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?`${timeAgo(stats.updated,lang)} अपडेट`:`Updated ${timeAgo(stats.updated,lang)}`}</span>}
+                </div>
+                {lead && <div className="py-5" style={{borderBottom:`1px solid ${t.line}`}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
+                <div className="grid sm:grid-cols-2">
+                  {section.map((s,i)=>(
+                    <div key={s.id} className={`py-5 ${i<section.length-1?"border-b":""} ${i%2===1?"sm:border-l sm:pl-5":"sm:pr-5"} ${i>=2?"sm:border-b-0":""}`} style={{borderColor:t.line}}>
+                      <SectionCard story={s} t={t} lang={lang} onOpen={open} />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="order-1 lg:order-2 py-4 lg:py-6 lg:px-7 lg:border-r border-b-2 lg:border-b-0" style={{borderColor:t.line,borderBottomColor:t.ink}}>
-                {lead && <LeadStory story={lead} t={t} lang={lang} onOpen={open} />}
-              </div>
-              <div className="order-3 py-4 lg:py-6 lg:pl-7 space-y-6">
+              {/* right rail */}
+              <div className="py-4 lg:py-6 lg:pl-7 space-y-7">
                 <RailPersonalize auth={auth} lens={lens} cards={cards} t={t} lang={lang} go={go} open={open} openHelp={openHelp} />
+                {gapItems.length>0 && (
+                  <div>
+                    <div className="pb-2" style={{borderBottom:`2px solid ${t.ink}`}}><span className={`text-[12px] font-bold uppercase ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{STR[lang].navOS}</span></div>
+                    {gapItems.slice(0,2).map((it,i)=>(
+                      <a key={it.story.id} href={"/story/"+encodeURIComponent(it.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(it.story.id); }} className={`block no-underline group cursor-pointer py-3 ${i===0?"border-b":""} ${t.border}`}>
+                        <div className={`headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.24,textWrap:"balance"}}>{it.story.headline}</div>
+                        {i===0
+                          ? <div className="mt-2 max-w-[180px]"><GapColumns counts={it.story.counts||{}} t={t} lang={lang} /></div>
+                          : <div className={`mt-1.5 text-[11px] ${t.blind} ${lang==="hi"?"deva":""}`}>{it.label}</div>}
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <DevelopingRail storylines={storylines} t={t} lang={lang} goStoryline={goStoryline} />
-                <SpectrumRail cards={cards} t={t} lang={lang} />
-                <WidestAgreement cards={cards} t={t} lang={lang} onOpen={open} />
                 <AdSlot t={t} lang={lang} />
               </div>
-            </div>
-          </div>
-
-          {/* THE INK BAND — full width within the frame */}
-          <div style={{borderTop:`2px solid ${t.ink}`}}><InkGapBand items={gapItems.slice(0,3)} t={t} lang={lang} go={go} open={open} /></div>
-
-          {/* SECTION band — 4-up on desktop, 2-up tablet, stacked mobile */}
-          <div className={pad}>
-            <div className="grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 py-7" style={{borderBottom:`1px solid ${t.ink}`}}>
-              {section.map((s,i)=>(
-                <div key={s.id} className={i>0?"lg:border-l lg:pl-6":""} style={i>0?{borderColor:t.line}:{}}>
-                  <SectionCard story={s} t={t} lang={lang} onOpen={open} />
-                </div>
-              ))}
             </div>
           </div>
 

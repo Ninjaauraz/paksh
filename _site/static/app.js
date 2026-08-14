@@ -3254,8 +3254,7 @@ function HomeView({
   };
   const lead = cards[0];
   if (lead) used.add(lead.id);
-  const alsoLeading = take(cards, 2); // "Also leading" rail (2)
-  const section = take(cards, 4); // 4-up Section band
+  const section = take(cards, 4); // the 2×2 secondary grid in the main well
   // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
   // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
   // more of what you already open. Computed before "In brief" so it gets first pick of matches.
@@ -3333,39 +3332,49 @@ function HomeView({
   }, lang === "hi" ? "हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट" : "distinct outlets on each side that covered the story · one publisher = one vote"))), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
-    className: "grid lg:grid-cols-[250px_1fr_280px]",
-    style: {}
+    className: "grid lg:grid-cols-[2.1fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "order-2 lg:order-1 py-4 lg:py-6 lg:pr-7 lg:border-r",
+    className: "py-4 lg:py-6 lg:border-r lg:pr-7",
     style: {
       borderColor: t.line
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow pb-2 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    className: "flex items-baseline justify-between gap-3 pb-2",
     style: {
-      borderBottom: `1px solid ${t.ink}`,
-      letterSpacing: lang === "hi" ? 0 : ".14em"
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, lang === "hi" ? "ये भी प्रमुख" : "Also leading"), alsoLeading.map((s, i) => /*#__PURE__*/React.createElement(AlsoLeadingItem, {
-    key: s.id,
-    story: s,
-    t: t,
-    lang: lang,
-    onOpen: open,
-    last: i === alsoLeading.length - 1
-  }))), /*#__PURE__*/React.createElement("div", {
-    className: "order-1 lg:order-2 py-4 lg:py-6 lg:px-7 lg:border-r border-b-2 lg:border-b-0",
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-bold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      borderColor: t.line,
-      borderBottomColor: t.ink
+      letterSpacing: lang === "hi" ? 0 : ".08em"
     }
-  }, lead && /*#__PURE__*/React.createElement(LeadStory, {
+  }, STR[lang].topNews), stats.updated && /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? `${timeAgo(stats.updated, lang)} अपडेट` : `Updated ${timeAgo(stats.updated, lang)}`)), lead && /*#__PURE__*/React.createElement("div", {
+    className: "py-5",
+    style: {
+      borderBottom: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement(LeadStory, {
     story: lead,
     t: t,
     lang: lang,
     onOpen: open
   })), /*#__PURE__*/React.createElement("div", {
-    className: "order-3 py-4 lg:py-6 lg:pl-7 space-y-6"
+    className: "grid sm:grid-cols-2"
+  }, section.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s.id,
+    className: `py-5 ${i < section.length - 1 ? "border-b" : ""} ${i % 2 === 1 ? "sm:border-l sm:pl-5" : "sm:pr-5"} ${i >= 2 ? "sm:border-b-0" : ""}`,
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement(SectionCard, {
+    story: s,
+    t: t,
+    lang: lang,
+    onOpen: open
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: "py-4 lg:py-6 lg:pl-7 space-y-7"
   }, /*#__PURE__*/React.createElement(RailPersonalize, {
     auth: auth,
     lens: lens,
@@ -3375,52 +3384,48 @@ function HomeView({
     go: go,
     open: open,
     openHelp: openHelp
-  }), /*#__PURE__*/React.createElement(DevelopingRail, {
+  }), gapItems.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "pb-2",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[12px] font-bold uppercase ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, STR[lang].navOS)), gapItems.slice(0, 2).map((it, i) => /*#__PURE__*/React.createElement("a", {
+    key: it.story.id,
+    href: "/story/" + encodeURIComponent(it.story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open(it.story.id);
+    },
+    className: `block no-underline group cursor-pointer py-3 ${i === 0 ? "border-b" : ""} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: 1.24,
+      textWrap: "balance"
+    }
+  }, it.story.headline), i === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 max-w-[180px]"
+  }, /*#__PURE__*/React.createElement(GapColumns, {
+    counts: it.story.counts || {},
+    t: t,
+    lang: lang
+  })) : /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 text-[11px] ${t.blind} ${lang === "hi" ? "deva" : ""}`
+  }, it.label)))), /*#__PURE__*/React.createElement(DevelopingRail, {
     storylines: storylines,
     t: t,
     lang: lang,
     goStoryline: goStoryline
-  }), /*#__PURE__*/React.createElement(SpectrumRail, {
-    cards: cards,
-    t: t,
-    lang: lang
-  }), /*#__PURE__*/React.createElement(WidestAgreement, {
-    cards: cards,
-    t: t,
-    lang: lang,
-    onOpen: open
   }), /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
     lang: lang
-  })))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      borderTop: `2px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement(InkGapBand, {
-    items: gapItems.slice(0, 3),
-    t: t,
-    lang: lang,
-    go: go,
-    open: open
-  })), /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4 py-7",
-    style: {
-      borderBottom: `1px solid ${t.ink}`
-    }
-  }, section.map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: s.id,
-    className: i > 0 ? "lg:border-l lg:pl-6" : "",
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
-  }, /*#__PURE__*/React.createElement(SectionCard, {
-    story: s,
-    t: t,
-    lang: lang,
-    onOpen: open
-  }))))), forYou.length > 0 && /*#__PURE__*/React.createElement("div", {
+  })))), forYou.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "py-7",
