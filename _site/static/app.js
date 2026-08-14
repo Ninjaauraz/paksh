@@ -3334,7 +3334,7 @@ function HomeView({
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-[2.1fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "py-4 lg:py-6 lg:border-r lg:pr-7",
+    className: "min-w-0 py-4 lg:py-6 lg:border-r lg:pr-7",
     style: {
       borderColor: t.line
     }
@@ -3374,7 +3374,7 @@ function HomeView({
     lang: lang,
     onOpen: open
   }))))), /*#__PURE__*/React.createElement("div", {
-    className: "py-4 lg:py-6 lg:pl-7 space-y-7"
+    className: "min-w-0 py-4 lg:py-6 lg:pl-7 space-y-7"
   }, /*#__PURE__*/React.createElement(RailPersonalize, {
     auth: auth,
     lens: lens,
@@ -3609,7 +3609,7 @@ function StoryPage({
     const lab = k === "all" ? lang === "hi" ? "सभी" : "All" : k === "unrated" ? lang === "hi" ? "बिना रेटिंग" : "Unrated" : lbl(k, lang);
     return /*#__PURE__*/React.createElement("button", {
       onClick: () => setAtab(k),
-      className: `flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on ? t.tp : `${t.tf} hover:${t.ts}`}`,
+      className: `flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on ? t.tp : `${t.tf} hover:${t.ts}`} ${lang === "hi" ? "deva" : ""}`,
       style: {
         borderColor: on ? k === "all" || k === "center" ? t.ink : BIAS[k] && BIAS[k].color || "#B8B4AC" : "transparent"
       }
@@ -3976,7 +3976,10 @@ function StoryPage({
   }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("span", {
     className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("div", {
-    className: `flex items-center gap-5 border-b ${t.border}`
+    className: `flex items-center gap-5 overflow-x-auto border-b ${t.border}`,
+    style: {
+      scrollbarWidth: "none"
+    }
   }, /*#__PURE__*/React.createElement(ATab, {
     k: "all",
     n: outlets.length
@@ -6386,7 +6389,7 @@ function LensPage({
   }, L.empty) : /*#__PURE__*/React.createElement("div", {
     className: "mt-6 grid lg:grid-cols-[1.6fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "lg:border-r lg:pr-8",
+    className: "min-w-0 lg:border-r lg:pr-8",
     style: {
       borderColor: t.line
     }
@@ -6457,7 +6460,7 @@ function LensPage({
       letterSpacing: ".04em"
     }
   }, lbl(r.side, lang)))))), /*#__PURE__*/React.createElement("div", {
-    className: "lg:pl-8 mt-6 lg:mt-0 space-y-5"
+    className: "min-w-0 lg:pl-8 mt-6 lg:mt-0 space-y-5"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-3",
     style: {
