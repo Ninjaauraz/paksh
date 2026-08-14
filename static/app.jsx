@@ -1190,7 +1190,7 @@ const {useState,useEffect,useMemo}=React;
           <div className={pad}>
             <div className="grid lg:grid-cols-[2.1fr_1fr]">
               {/* main well */}
-              <div className="py-4 lg:py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
+              <div className="min-w-0 py-4 lg:py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
                 <div className="flex items-baseline justify-between gap-3 pb-2" style={{borderBottom:`2px solid ${t.ink}`}}>
                   <span className={`text-[13px] font-bold uppercase ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{STR[lang].topNews}</span>
                   {stats.updated && <span className={`mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?`${timeAgo(stats.updated,lang)} अपडेट`:`Updated ${timeAgo(stats.updated,lang)}`}</span>}
@@ -1205,7 +1205,7 @@ const {useState,useEffect,useMemo}=React;
                 </div>
               </div>
               {/* right rail */}
-              <div className="py-4 lg:py-6 lg:pl-7 space-y-7">
+              <div className="min-w-0 py-4 lg:py-6 lg:pl-7 space-y-7">
                 <RailPersonalize auth={auth} lens={lens} cards={cards} t={t} lang={lang} go={go} open={open} openHelp={openHelp} />
                 {gapItems.length>0 && (
                   <div>
@@ -1305,7 +1305,7 @@ const {useState,useEffect,useMemo}=React;
         : `${total} outlets · ${vc.left} left · ${vc.center} centre · ${vc.right} right · ${timeAgo(story.created_at,lang)}`;
       const ATab=({k,n})=>{ const on=atab===k;
         const lab=k==="all"?(lang==="hi"?"सभी":"All"):(k==="unrated"?(lang==="hi"?"बिना रेटिंग":"Unrated"):lbl(k,lang));
-        return <button onClick={()=>setAtab(k)} className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`}`} style={{borderColor:on?(k==="all"||k==="center"?t.ink:((BIAS[k]&&BIAS[k].color)||"#B8B4AC")):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
+        return <button onClick={()=>setAtab(k)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`} ${lang==="hi"?"deva":""}`} style={{borderColor:on?(k==="all"||k==="center"?t.ink:((BIAS[k]&&BIAS[k].color)||"#B8B4AC")):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
       const frLen=(v)=>Array.isArray(v)?v.length:(typeof v==="string"&&v.trim()?1:0);
       const sides=["left","center","right"].filter(k=> frLen(fr[k])>0 || counts[k]>0);
       // Distinguish "this story isn't analysed yet" (all sides blank -> pending) from a side
@@ -1442,7 +1442,7 @@ const {useState,useEffect,useMemo}=React;
               <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
               <span className={`md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पक्ष बदलने को स्वाइप करें ⇄":"swipe to change side ⇄"}</span>
             </div>
-            <div className={`flex items-center gap-5 border-b ${t.border}`}>
+            <div className={`flex items-center gap-5 overflow-x-auto border-b ${t.border}`} style={{scrollbarWidth:"none"}}>
               <ATab k="all" n={outlets.length} />
               {counts.left>0 && <ATab k="left" n={counts.left} />}
               {counts.center>0 && <ATab k="center" n={counts.center} />}
@@ -2478,7 +2478,7 @@ const {useState,useEffect,useMemo}=React;
             : (
               <div className="mt-6 grid lg:grid-cols-[1.6fr_1fr]">
                 {/* main: balance bar + verdict + recently read */}
-                <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+                <div className="min-w-0 lg:border-r lg:pr-8" style={{borderColor:t.line}}>
                   <div className={`text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"आप क्या पढ़ते हैं, उसका संतुलन":"The balance of what you read"}</div>
                   <div className={`mt-1.5 text-[13px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{balSub}</div>
                   <div className={`mt-4 mb-2 mono text-[11px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lbl("left",lang)} {agg.left} · {lbl("center",lang)} {agg.center} · {lbl("right",lang)} {agg.right}</div>
@@ -2496,7 +2496,7 @@ const {useState,useEffect,useMemo}=React;
                   </div>
                 </div>
                 {/* rail: stat row + blindspot nudge + privacy foot */}
-                <div className="lg:pl-8 mt-6 lg:mt-0 space-y-5">
+                <div className="min-w-0 lg:pl-8 mt-6 lg:mt-0 space-y-5">
                   <div className="grid grid-cols-3" style={{border:`1px solid ${t.line}`}}>
                     {statCell(total,L.read,false,0)}
                     {statCell(agg[least],lang==="hi"?`कम पढ़ा: ${lbl(least,lang)}`:`Least: ${lbl(least,lang)}`,true,1)}
