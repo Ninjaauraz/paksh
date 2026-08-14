@@ -1658,19 +1658,35 @@ const {useState,useEffect,useMemo}=React;
     }
     function SourceCard({ s, t, lang }) {
       const side=["left","center","right"].includes(s.lean)?s.lean:null;
+      const badge = side
+        ? (side==="center"?lbl("center",lang):(lang==="hi"?lbl(side,lang):`${lbl(side,lang)}`))
+        : (s.label||"-");
+      const conf = s.confidence ? (lang==="hi"?`${confName(s.confidence,lang)} विश्वास`:`${confName(s.confidence,lang)} confidence`) : "";
       return (
-        <div className={`rounded-lg border p-4 ${t.surface} ${t.border}`} style={side?{borderLeftWidth:3,borderLeftColor:BIAS[side].color}:{}}>
+        <div className={`border p-4 ${t.surface} ${t.border}`}>
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0"><div className={`headline text-[15px] ${t.tp} ${readCls(lang)}`}>{s.name}</div>{s.website && <a href={s.website} target="_blank" rel="nofollow noopener noreferrer" className={`mono text-[11px] break-all ${t.tf} hover:${t.ts}`}>{(s.website||"").replace(/^https?:\/\//,"")}</a>}</div>
-            {side?<LeanBadge side={side} lang={lang} t={t}/>:<span className={`shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip} ${t.tf}`}>{s.label||"-"}</span>}
+            <div className="min-w-0">
+              <div className={`flex flex-wrap items-baseline gap-2`}>
+                <span className={`text-[16px] font-bold ${t.tp}`} style={{fontFamily:"'Source Serif 4',Georgia,serif"}}>{s.name}</span>
+                <span className={`mono text-[9px] uppercase ${t.tf}`} style={{border:`1px solid ${t.line}`,padding:"1px 4px"}}>{(s.language||"en").toUpperCase()}</span>
+              </div>
+              {s.website && <a href={s.website} target="_blank" rel="nofollow noopener noreferrer" className={`mt-1 block text-[11.5px] font-semibold ${t.blind} hover:underline`}>{(s.website||"").replace(/^https?:\/\//,"").replace(/\/$/,"")}</a>}
+            </div>
+            <div className="shrink-0 text-right">
+              {side
+                ? <span className="mono text-[11px] font-bold uppercase text-white" style={{backgroundColor:BIAS[side].color,padding:"4px 9px",letterSpacing:".04em"}}>{badge}</span>
+                : <span className={`mono text-[10px] font-bold uppercase ${t.chip} ${t.tf}`} style={{padding:"4px 9px"}}>{badge}</span>}
+              {conf && <div className={`mt-1.5 text-[10px] font-medium ${t.tf} ${isHi(lang)}`}>{conf}</div>}
+            </div>
           </div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2 mono text-[10px]">
-            <span className={`uppercase ${t.tf}`}>{(s.language||"en").toUpperCase()}</span>
-            {s.confidence && <span className={t.tf}>· conf {s.confidence}</span>}
-            {s.contested && <span className={`rounded px-1.5 py-0.5 font-bold ${t.blindSoft} ${t.blind}`}>{STR[lang].contested}</span>}
-          </div>
-          {s.ownership && <div className={`mt-2.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</div>}
-          {s.rationale && <p className={`mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`}>{s.rationale}</p>}
+          {s.contested && <div className="mt-2.5"><span className={`mono text-[9.5px] font-bold uppercase ${t.blind} ${t.blindSoft} ${lang==="hi"?"deva":""}`} style={{border:`1px solid #E0CBB9`,padding:"3px 8px",letterSpacing:".06em"}}>{STR[lang].contested}</span></div>}
+          {(s.ownership||s.rationale) && (
+            <div className={`mt-2.5 text-[12.5px] leading-[1.5] ${t.ts} ${readCls(lang)}`}>
+              {s.ownership && <><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</>}
+              {s.ownership && s.rationale && " · "}
+              {s.rationale && <><span className={`font-semibold ${t.tp}`}>{STR[lang].whyRated}:</span> {s.rationale}</>}
+            </div>
+          )}
           <SignalChips subscores={s.subscores} t={t} lang={lang} />
           <AxisBars axes={s.axes} t={t} lang={lang} />
         </div>
@@ -1686,9 +1702,10 @@ const {useState,useEffect,useMemo}=React;
       const items=order.filter(k=>typeof subscores[k]==="number" && subscores[k]!==0);
       if(!items.length) return null;
       return (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {items.map(k=>{ const v=subscores[k]; const col=v<0?BIAS.left.color:BIAS.right.color; const lab=(SIG_LABELS[k]||{})[lang]||(SIG_LABELS[k]||{}).en||k;
-            return <span key={k} className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[9.5px] font-semibold ${lang==="hi"?"deva":""}`} style={{backgroundColor:col,color:"#fff"}}>{lab} {v>0?`+${v}`:v}</span>;
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className={`mono text-[9px] font-semibold uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:".04em"}}>{STR[lang].signals}</span>
+          {items.map(k=>{ const v=subscores[k]; const bg=v<0?BIAS.left.soft:BIAS.right.soft; const fg=v<0?"#3A4B54":"#75442E"; const lab=(SIG_LABELS[k]||{})[lang]||(SIG_LABELS[k]||{}).en||k;
+            return <span key={k} className="mono text-[10px] font-semibold" style={{backgroundColor:bg,color:fg,padding:"2px 6px"}}>{lab} {v>0?`+${v}`:v}</span>;
           })}
         </div>
       );
@@ -1699,47 +1716,84 @@ const {useState,useEffect,useMemo}=React;
       const filters=[["all",lang==="hi"?"सभी":"All"],["left",lbl("left",lang)],["center",lbl("center",lang)],["right",lbl("right",lang)]];
       return (
         <PageWrap>
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].srcTitle}</h1>
-          <p className={`mb-5 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
-          <div className="mb-6 flex flex-wrap gap-2">{filters.map(([k,label])=>(<button key={k} onClick={()=>setF(k)} className={`border px-3.5 py-1.5 eyebrow ${f===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{label}</button>))}</div>
-          <GridGrid items={list} t={t} lang={lang} gap="gap-4" render={(s)=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>} />
-          <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
+          <div className="mx-auto max-w-[1180px]">
+            <div className="flex flex-wrap items-end justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+              <div>
+                <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"रेटिंग रजिस्ट्री":"Ratings registry"}</div>
+                <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{STR[lang].srcTitle}</h1>
+              </div>
+              <div className="flex flex-wrap gap-1.5">{filters.map(([k,label])=>{ const on=f===k;
+                return <button key={k} onClick={()=>setF(k)} className={`text-[10px] font-semibold uppercase ${on?t.ctaT:t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{border:`1px solid ${t.ink}`,padding:"8px 12px",background:on?t.ink:"transparent",letterSpacing:lang==="hi"?0:".04em"}}>{label}</button>;
+              })}</div>
+            </div>
+            <p className={`mt-3 mb-5 max-w-[74ch] text-[13.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
+            <div className="grid gap-4 sm:grid-cols-2">{list.map(s=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>)}</div>
+            <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
+          </div>
         </PageWrap>
       );
     }
-    function AboutPage({ t, lang, agg }) {
+    function AboutPage({ t, lang, agg, go }) {
       const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} ${readCls(lang)} mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{children}</div></div>);
       const a=agg||{};
       const gapText=(STR[lang].m_gap||"").replace("{total}",a.total).replace("{rh}",a.right_heavier).replace("{lh}",a.left_heavier).replace("{lo}",a.left_outlets).replace("{ro}",a.right_outlets);
+      const heroH1=lang==="hi"?"भारत की हर खबर, हर पक्ष — और उसके पीछे का अंकगणित":"Every side of India's news, and the arithmetic behind it";
+      const bullets=M_READ[lang]||M_READ.en; const bulletColors=[BIAS.left.color,BIAS.center.color,BIAS.right.color];
       return (
         <PageWrap>
-          <div className="max-w-3xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].methodTitle}</h1>
-            <p className={`mb-2 mt-3 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{STR[lang].m_does}</p>
-            <Row h={STR[lang].m_ruleH}>{STR[lang].m_rule}</Row>
-            <Row h={STR[lang].m_aiH}>{STR[lang].m_ai}</Row>
-            <Row h={STR[lang].m_orderH}>{STR[lang].m_order}</Row>
-            <Row h={STR[lang].m_freshH}>{STR[lang].m_fresh}</Row>
-            {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
-            <Row h={STR[lang].m_rateH}>
-              <p className="mb-3">{STR[lang].m_rateLede}</p>
-              <div className={`border ${t.border}`}>
-                {SIGNALS.map((sig,i)=>(
-                  <div key={i} className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${i>0?"border-t":""} ${t.border}`}>
-                    <span className={`text-[13.5px] ${t.tp} ${isHi(lang)}`}>{sig[lang]||sig.en}</span>
-                    <span className="flex items-center gap-2.5 shrink-0">
-                      <span style={{width:56,height:6,background:t.track||"#EAE6DB",border:`1px solid ${t.line}`}}><span className="seg-center" style={{display:"block",height:"100%",width:`${sig.w/30*100}%`}}/></span>
-                      <span className={`mono text-[12px] font-semibold ${t.tp}`} style={{width:34,textAlign:"right"}}>{sig.w}%</span>
-                    </span>
-                  </div>
-                ))}
+          <div className="mx-auto max-w-[1180px]">
+            {/* header */}
+            <div className="pb-3.5" style={{borderBottom:`2px solid ${t.ink}`}}>
+              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{STR[lang].methodTitle}</div>
+              <h1 className={`headline mt-3 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.022em",maxWidth:"22ch",textWrap:"balance"}}>{heroH1}</h1>
+            </div>
+            {/* 1.7fr / 1fr */}
+            <div className="mt-6 grid lg:grid-cols-[1.7fr_1fr]">
+              <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+                <p className={`text-[17px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.62,maxWidth:"62ch"}}>{STR[lang].m_does}</p>
+                <div className={`mt-6 ${t.surface} p-5`} style={{border:`1px solid ${t.line}`,borderLeft:`3px solid ${t.ink}`}}>
+                  <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{STR[lang].m_ruleH}</div>
+                  <p className={`mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.6}}>{STR[lang].m_rule}</p>
+                </div>
+                <div className={`mt-7 eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{STR[lang].m_aiH}</div>
+                <p className={`mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.62,maxWidth:"62ch"}}>{STR[lang].m_ai}</p>
+                <div className={`mt-7 eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{STR[lang].m_rateH}</div>
+                <p className={`mt-2.5 mb-3 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.55}}>{STR[lang].m_rateLede}</p>
+                <div className="grid sm:grid-cols-2" style={{border:`1px solid ${t.line}`}}>
+                  {SIGNALS.map((sig,i)=>(
+                    <div key={i} className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${i<SIGNALS.length-(SIGNALS.length%2===0?2:1)?"border-b":""} ${i%2===0?"sm:border-r":""}`} style={{borderColor:t.line}}>
+                      <span className={`text-[13px] ${t.ts} ${readCls(lang)}`}>{sig[lang]||sig.en}</span>
+                      <span className={`mono text-[12px] font-semibold ${t.blind}`}>{sig.w}%</span>
+                    </div>
+                  ))}
+                </div>
+                <p className={`mt-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{STR[lang].m_rateFoot}</p>
               </div>
-              <p className={`mt-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{STR[lang].m_rateFoot}</p>
-            </Row>
-            <Row h={STR[lang].m_axisH}>{STR[lang].m_axis}</Row>
-            <Row h={STR[lang].m_partiesH}>{STR[lang].m_parties}</Row>
-            <Row h={STR[lang].m_provH}>{STR[lang].m_prov}</Row>
-            <Row h={STR[lang].m_readH}>{STR[lang].m_appeal}</Row>
+              {/* rail */}
+              <div className="mt-6 lg:mt-0 lg:pl-8 space-y-6">
+                <div>
+                  <div className={`eyebrow mb-3 ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{STR[lang].m_readH}</div>
+                  <ul className="space-y-3">{bullets.map((b,i)=>(
+                    <li key={i} className={`relative pl-5 text-[13.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.55}}><span style={{position:"absolute",left:2,top:8,width:6,height:6,background:bulletColors[i]||t.ink}}/>{b}</li>
+                  ))}</ul>
+                </div>
+                <div style={{border:`1px solid #E0CBB9`}} className={`${t.blindSoft} p-4`}>
+                  <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{STR[lang].m_appealH}</div>
+                  <p className={`mt-2 text-[13.5px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:1.55}}>{STR[lang].m_appeal}</p>
+                  <button onClick={()=>go&&go("contact")} className={`mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang==="hi"?"deva":""}`} style={{border:"1px solid currentColor",padding:"8px 13px",letterSpacing:lang==="hi"?0:".05em"}}>{lang==="hi"?"सुधार भेजें":"File a correction"}</button>
+                </div>
+                <p className={`text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{STR[lang].footIndependence}</p>
+              </div>
+            </div>
+            {/* deeper method rows (kept for completeness) */}
+            <div className="mt-8 max-w-3xl">
+              <Row h={STR[lang].m_orderH}>{STR[lang].m_order}</Row>
+              <Row h={STR[lang].m_freshH}>{STR[lang].m_fresh}</Row>
+              {a.total!=null && <Row h={STR[lang].m_gapH}>{gapText}</Row>}
+              <Row h={STR[lang].m_axisH}>{STR[lang].m_axis}</Row>
+              <Row h={STR[lang].m_partiesH}>{STR[lang].m_parties}</Row>
+              <Row h={STR[lang].m_provH}>{STR[lang].m_prov}</Row>
+            </div>
           </div>
         </PageWrap>
       );
@@ -1783,33 +1837,40 @@ const {useState,useEffect,useMemo}=React;
       const lbl=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
       return (
         <PageWrap>
-          <div className="grid gap-10 lg:grid-cols-[1fr_320px]">
-            <div className="max-w-xl">
-              <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
-              <p className={`mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`}>{L.lede}</p>
+          <div className="mx-auto max-w-[1180px]">
+            {/* header */}
+            <div className="pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"संपर्क व सुधार":"Contact & corrections"}</div>
+              <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{lang==="hi"?"डेस्क को लिखें":"Write to the desk"}</h1>
+            </div>
+            <div className="mt-6 grid lg:grid-cols-[1.4fr_1fr]">
+            <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
               {status==="ok" ? (
-                <div className={`rounded-lg border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
+                <div className={`border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
               ) : (
                 <form onSubmit={submit} className="space-y-4">
                   <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
                   <input type="hidden" name="_subject" value="New Paksh contact message" />
                   <input type="hidden" name="topic" value={L.chips[topic]} />
-                  <div><label className={lbl}>{L.topicL}</label>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
+                    <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
+                  </div>
+                  <div><label className={lbl}>{lang==="hi"?"यह किस बारे में है?":"What's this about?"}</label>
                     <div className="flex flex-wrap gap-2">
                       {["rating","outlet","advertise","general"].map(k=>(
                         <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
                       ))}
                     </div>
                   </div>
-                  <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
-                  <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
                   <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" placeholder={L.ph[topic]} className={inp} /></div>
                   {status==="error" && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
                   <button type="submit" disabled={status==="sending"} className={`rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
+                  <div className={`text-[11px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"Formspree द्वारा वितरित · हम असली इनबॉक्स से जवाब देते हैं।":"Delivered by Formspree · we reply from a real inbox, usually within a few days."}</div>
                 </form>
               )}
             </div>
-            <aside className="space-y-6">
+            <aside className="mt-6 lg:mt-0 lg:pl-8 space-y-6">
               <div className={`border p-5 ${t.surface} ${t.border}`} style={{borderLeft:`3px solid #75442E`}}>
                 <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.railH}</div>
                 <p className={`mt-2 text-[13.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.rail}</p>
@@ -1820,6 +1881,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
               <p className={`text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.indep}</p>
             </aside>
+            </div>
           </div>
         </PageWrap>
       );
@@ -1910,18 +1972,58 @@ const {useState,useEffect,useMemo}=React;
     }
     function PrivacyPage({ t, lang, consent, setConsent }) {
       const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} serif mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] serif ${t.ts}`}>{children}</div></div>);
+      const P = lang==="hi" ? {
+        eyebrow:"गोपनीयता", title:"हम क्या इकट्ठा करते हैं, और क्या नहीं",
+        lede:"पक्ष बिना निगरानी के पढ़ने के लिए बना है। मुख्य साइट बिना खाते और बिना ट्रैकिंग के चलती है। जो थोड़ा-बहुत हम इकट्ठा करते हैं वह सिर्फ़ साइट चलाने के लिए है, और आपकी अनुमति से आपके रीडिंग लेंस के लिए।",
+        c1H:"सेल्फ-होस्टेड फ़ॉन्ट व कोड", c1:"फ़ॉन्ट और ऐप कोड पक्ष के अपने डोमेन से आते हैं, पेज लोड करने के लिए किसी तीसरे-पक्ष CDN से संपर्क नहीं होता।",
+        c2H:"विज्ञापन", c2:"विज्ञापन क्लासिफ़ाइड-शैली के और गैर-वैयक्तिकृत हैं। कॉन्फ़िगर व घोषित होने तक कोई विज्ञापन नेटवर्क लोड नहीं होता, अभी स्लॉट निष्क्रिय प्लेसहोल्डर हैं।",
+        c3H:"आपका रीडिंग लेंस", c3:"साइन इन करने पर आप जो खबरें खोलते हैं वे आपके खाते में दर्ज होती हैं ताकि आपका पढ़ने का संतुलन निकले। यह निजी है, बेचा नहीं जाता, और यह नहीं बदलता कि आपको कौन-सी खबरें दिखें।",
+        anH:"गुमनाम एनालिटिक्स", anSub:"गोपनीयता-सम्मानित गिनती, कोई विज्ञापन-ट्रैकिंग नहीं",
+        note1:"आप एनालिटिक्स बंद करके भी हर सुविधा इस्तेमाल कर सकते हैं। बंद करने पर आपकी विज़िट की सारी समग्र माप रुक जाती है।",
+        note2:"डेटा के बारे में सवाल? लिखें"
+      } : {
+        eyebrow:"Privacy", title:"What we collect, and what we don't",
+        lede:"Paksh is built to be read without surveillance. The core site works with no account and no tracking. What little we collect exists only to keep the site running and, if you opt in, to power your Reading Lens.",
+        c1H:"Self-hosted fonts & code", c1:"Fonts and app code are served from Paksh's own domain, no third-party CDN is contacted just to load the page, so reading leaks nothing to outside servers.",
+        c2H:"Advertising", c2:"Ads are classifieds-style and non-personalised. No ad network is loaded until it's configured and disclosed, today the slots are inert placeholders.",
+        c3H:"Your Reading Lens", c3:"If you sign in, the stories you open are recorded to your account to compute your reading balance. It is private to you, never sold, and never used to change which stories you're shown.",
+        anH:"Anonymous analytics", anSub:"Privacy-respecting counts, no ad tracking",
+        note1:"You can switch analytics off and still use every feature. Turning it off stops all aggregate measurement of your visit.",
+        note2:"Questions about your data? Write to"
+      };
+      const card=(h,body)=>(<div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`}}><div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{h}</div><p className={`mt-2 text-[13.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.55}}>{body}</p></div>);
       return (
         <PageWrap>
-          <div className="max-w-3xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} serif`} style={{letterSpacing:"-0.018em"}}>Privacy Policy</h1>
-            <p className={`mb-1 mt-3 text-[13px] ${t.tf}`}>Last updated: 9 August 2026 · Operated by Redstocks Technology LLP</p>
-            {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>यह गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
-            {setConsent && (
-              <div className={`mt-4 mb-2 flex items-center justify-between gap-4 border p-4 ${t.surface} ${t.border}`}>
-                <div className="min-w-0"><div className={`text-[14px] font-semibold ${t.tp} ${isHi(lang)}`}>{lang==="hi"?"गुमनाम एनालिटिक्स":"Anonymous analytics"}</div><div className={`mt-0.5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।":"Privacy-respecting, cookieless. Everything works with it off."}</div></div>
-                <Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={lang==="hi"?"गुमनाम एनालिटिक्स":"Anonymous analytics"} t={t} />
+          <div className="mx-auto max-w-[1180px]">
+            {/* header */}
+            <div className="pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{P.eyebrow}</div>
+              <h1 className={`headline mt-2.5 text-[30px] sm:text-[36px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{P.title}</h1>
+            </div>
+            {/* 1.6fr / 1fr explainer */}
+            <div className="mt-6 grid lg:grid-cols-[1.6fr_1fr]">
+              <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+                <p className={`text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.62,maxWidth:"62ch"}}>{P.lede}</p>
+                <div className="mt-5 space-y-3.5">{card(P.c1H,P.c1)}{card(P.c2H,P.c2)}{card(P.c3H,P.c3)}</div>
               </div>
-            )}
+              <div className="mt-6 lg:mt-0 lg:pl-8 space-y-4">
+                {setConsent && (
+                  <div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`}}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0"><div className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{P.anH}</div><div className={`mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`}>{P.anSub}</div></div>
+                      <Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={P.anH} t={t} />
+                    </div>
+                  </div>
+                )}
+                <p className={`text-[12.5px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:1.55}}>{P.note1}</p>
+                <p className={`text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{P.note2} <a href="mailto:hello@paksh.news" className={`font-semibold ${t.ts} hover:${t.tp}`}>hello@paksh.news</a>.</p>
+              </div>
+            </div>
+            {/* full legal policy */}
+            <div className="mt-10 max-w-3xl">
+            <h2 className={`headline text-[20px] ${t.tp} serif`}>Privacy Policy</h2>
+            <p className={`mb-1 mt-2 text-[13px] ${t.tf}`}>Last updated: 9 August 2026 · Operated by Redstocks Technology LLP</p>
+            {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>पूरी गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
             <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
             <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel’s privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected.</Row>
             <Row h="Cookies and tracking">Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
@@ -1930,6 +2032,7 @@ const {useState,useEffect,useMemo}=React;
             <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
             <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
             <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
+            </div>
           </div>
         </PageWrap>
       );
@@ -2745,7 +2848,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
-            : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} />
+            : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} go={go} />
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
             : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} consent={consent} setConsent={setConsentChoice} />
             : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />

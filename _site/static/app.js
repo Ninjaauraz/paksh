@@ -4431,44 +4431,64 @@ function SourceCard({
   lang
 }) {
   const side = ["left", "center", "right"].includes(s.lean) ? s.lean : null;
+  const badge = side ? side === "center" ? lbl("center", lang) : lang === "hi" ? lbl(side, lang) : `${lbl(side, lang)}` : s.label || "-";
+  const conf = s.confidence ? lang === "hi" ? `${confName(s.confidence, lang)} विश्वास` : `${confName(s.confidence, lang)} confidence` : "";
   return /*#__PURE__*/React.createElement("div", {
-    className: `rounded-lg border p-4 ${t.surface} ${t.border}`,
-    style: side ? {
-      borderLeftWidth: 3,
-      borderLeftColor: BIAS[side].color
-    } : {}
+    className: `border p-4 ${t.surface} ${t.border}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-start justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "min-w-0"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `headline text-[15px] ${t.tp} ${readCls(lang)}`
-  }, s.name), s.website && /*#__PURE__*/React.createElement("a", {
+    className: `flex flex-wrap items-baseline gap-2`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[16px] font-bold ${t.tp}`,
+    style: {
+      fontFamily: "'Source Serif 4',Georgia,serif"
+    }
+  }, s.name), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[9px] uppercase ${t.tf}`,
+    style: {
+      border: `1px solid ${t.line}`,
+      padding: "1px 4px"
+    }
+  }, (s.language || "en").toUpperCase())), s.website && /*#__PURE__*/React.createElement("a", {
     href: s.website,
     target: "_blank",
     rel: "nofollow noopener noreferrer",
-    className: `mono text-[11px] break-all ${t.tf} hover:${t.ts}`
-  }, (s.website || "").replace(/^https?:\/\//, ""))), side ? /*#__PURE__*/React.createElement(LeanBadge, {
-    side: side,
-    lang: lang,
-    t: t
-  }) : /*#__PURE__*/React.createElement("span", {
-    className: `shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase ${t.chip} ${t.tf}`
-  }, s.label || "-")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-2.5 flex flex-wrap items-center gap-2 mono text-[10px]"
+    className: `mt-1 block text-[11.5px] font-semibold ${t.blind} hover:underline`
+  }, (s.website || "").replace(/^https?:\/\//, "").replace(/\/$/, ""))), /*#__PURE__*/React.createElement("div", {
+    className: "shrink-0 text-right"
+  }, side ? /*#__PURE__*/React.createElement("span", {
+    className: "mono text-[11px] font-bold uppercase text-white",
+    style: {
+      backgroundColor: BIAS[side].color,
+      padding: "4px 9px",
+      letterSpacing: ".04em"
+    }
+  }, badge) : /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] font-bold uppercase ${t.chip} ${t.tf}`,
+    style: {
+      padding: "4px 9px"
+    }
+  }, badge), conf && /*#__PURE__*/React.createElement("div", {
+    className: `mt-1.5 text-[10px] font-medium ${t.tf} ${isHi(lang)}`
+  }, conf))), s.contested && /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5"
   }, /*#__PURE__*/React.createElement("span", {
-    className: `uppercase ${t.tf}`
-  }, (s.language || "en").toUpperCase()), s.confidence && /*#__PURE__*/React.createElement("span", {
-    className: t.tf
-  }, "\xB7 conf ", s.confidence), s.contested && /*#__PURE__*/React.createElement("span", {
-    className: `rounded px-1.5 py-0.5 font-bold ${t.blindSoft} ${t.blind}`
-  }, STR[lang].contested)), s.ownership && /*#__PURE__*/React.createElement("div", {
-    className: `mt-2.5 text-[12.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`
-  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[9.5px] font-bold uppercase ${t.blind} ${t.blindSoft} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      border: `1px solid #E0CBB9`,
+      padding: "3px 8px",
+      letterSpacing: ".06em"
+    }
+  }, STR[lang].contested)), (s.ownership || s.rationale) && /*#__PURE__*/React.createElement("div", {
+    className: `mt-2.5 text-[12.5px] leading-[1.5] ${t.ts} ${readCls(lang)}`
+  }, s.ownership && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: `font-semibold ${t.tp}`
-  }, STR[lang].ownership, ":"), " ", s.ownership), s.rationale && /*#__PURE__*/React.createElement("p", {
-    className: `mt-1.5 text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
-  }, s.rationale), /*#__PURE__*/React.createElement(SignalChips, {
+  }, STR[lang].ownership, ":"), " ", s.ownership), s.ownership && s.rationale && " · ", s.rationale && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: `font-semibold ${t.tp}`
+  }, STR[lang].whyRated, ":"), " ", s.rationale)), /*#__PURE__*/React.createElement(SignalChips, {
     subscores: s.subscores,
     t: t,
     lang: lang
@@ -4516,17 +4536,24 @@ function SignalChips({
   const items = order.filter(k => typeof subscores[k] === "number" && subscores[k] !== 0);
   if (!items.length) return null;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mt-2.5 flex flex-wrap gap-1.5"
-  }, items.map(k => {
+    className: "mt-2.5 flex flex-wrap items-center gap-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[9px] font-semibold uppercase ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: ".04em"
+    }
+  }, STR[lang].signals), items.map(k => {
     const v = subscores[k];
-    const col = v < 0 ? BIAS.left.color : BIAS.right.color;
+    const bg = v < 0 ? BIAS.left.soft : BIAS.right.soft;
+    const fg = v < 0 ? "#3A4B54" : "#75442E";
     const lab = (SIG_LABELS[k] || {})[lang] || (SIG_LABELS[k] || {}).en || k;
     return /*#__PURE__*/React.createElement("span", {
       key: k,
-      className: `inline-flex items-center gap-1 rounded px-1.5 py-0.5 mono text-[9.5px] font-semibold ${lang === "hi" ? "deva" : ""}`,
+      className: "mono text-[10px] font-semibold",
       style: {
-        backgroundColor: col,
-        color: "#fff"
+        backgroundColor: bg,
+        color: fg,
+        padding: "2px 6px"
       }
     }, lab, " ", v > 0 ? `+${v}` : v);
   }));
@@ -4539,46 +4566,61 @@ function SourcesPage({
   const [f, setF] = useState("all");
   const list = (sources || []).filter(s => f === "all" || s.lean === f);
   const filters = [["all", lang === "hi" ? "सभी" : "All"], ["left", lbl("left", lang)], ["center", lbl("center", lang)], ["right", lbl("right", lang)]];
-  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1180px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap items-end justify-between gap-3 pb-3",
     style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, STR[lang].srcTitle), /*#__PURE__*/React.createElement("p", {
-    className: `mb-5 mt-3 max-w-2xl text-[15px] leading-[1.6] ${t.ts} ${readCls(lang)}`
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "रेटिंग रजिस्ट्री" : "Ratings registry"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.02em"
+    }
+  }, STR[lang].srcTitle)), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-1.5"
+  }, filters.map(([k, label]) => {
+    const on = f === k;
+    return /*#__PURE__*/React.createElement("button", {
+      key: k,
+      onClick: () => setF(k),
+      className: `text-[10px] font-semibold uppercase ${on ? t.ctaT : t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        border: `1px solid ${t.ink}`,
+        padding: "8px 12px",
+        background: on ? t.ink : "transparent",
+        letterSpacing: lang === "hi" ? 0 : ".04em"
+      }
+    }, label);
+  }))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 mb-5 max-w-[74ch] text-[13.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`
   }, STR[lang].srcDisclaimer), /*#__PURE__*/React.createElement("div", {
-    className: "mb-6 flex flex-wrap gap-2"
-  }, filters.map(([k, label]) => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    onClick: () => setF(k),
-    className: `border px-3.5 py-1.5 eyebrow ${f === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em"
-    }
-  }, label))), /*#__PURE__*/React.createElement(GridGrid, {
-    items: list,
+    className: "grid gap-4 sm:grid-cols-2"
+  }, list.map(s => /*#__PURE__*/React.createElement(SourceCard, {
+    key: s.id || s.name,
+    s: s,
     t: t,
-    lang: lang,
-    gap: "gap-4",
-    render: s => /*#__PURE__*/React.createElement(SourceCard, {
-      key: s.id || s.name,
-      s: s,
-      t: t,
-      lang: lang
-    })
-  }), /*#__PURE__*/React.createElement("div", {
+    lang: lang
+  }))), /*#__PURE__*/React.createElement("div", {
     className: "mt-8"
   }, /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
     lang: lang,
     h: 90,
     format: "horizontal"
-  })));
+  }))));
 }
 function AboutPage({
   t,
   lang,
-  agg
+  agg,
+  go
 }) {
   const Row = ({
     h,
@@ -4592,69 +4634,162 @@ function AboutPage({
   }, children));
   const a = agg || {};
   const gapText = (STR[lang].m_gap || "").replace("{total}", a.total).replace("{rh}", a.right_heavier).replace("{lh}", a.left_heavier).replace("{lo}", a.left_outlets).replace("{ro}", a.right_outlets);
+  const heroH1 = lang === "hi" ? "भारत की हर खबर, हर पक्ष — और उसके पीछे का अंकगणित" : "Every side of India's news, and the arithmetic behind it";
+  const bullets = M_READ[lang] || M_READ.en;
+  const bulletColors = [BIAS.left.color, BIAS.center.color, BIAS.right.color];
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-3xl"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    className: "mx-auto max-w-[1180px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pb-3.5",
     style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, STR[lang].methodTitle), /*#__PURE__*/React.createElement("p", {
-    className: `mb-2 mt-3 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`
-  }, STR[lang].m_does), /*#__PURE__*/React.createElement(Row, {
-    h: STR[lang].m_ruleH
-  }, STR[lang].m_rule), /*#__PURE__*/React.createElement(Row, {
-    h: STR[lang].m_aiH
-  }, STR[lang].m_ai), /*#__PURE__*/React.createElement(Row, {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, STR[lang].methodTitle), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-3 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.022em",
+      maxWidth: "22ch",
+      textWrap: "balance"
+    }
+  }, heroH1)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 grid lg:grid-cols-[1.7fr_1fr]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lg:border-r lg:pr-8",
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[17px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.62,
+      maxWidth: "62ch"
+    }
+  }, STR[lang].m_does), /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 ${t.surface} p-5`,
+    style: {
+      border: `1px solid ${t.line}`,
+      borderLeft: `3px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_ruleH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.6
+    }
+  }, STR[lang].m_rule)), /*#__PURE__*/React.createElement("div", {
+    className: `mt-7 eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_aiH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.62,
+      maxWidth: "62ch"
+    }
+  }, STR[lang].m_ai), /*#__PURE__*/React.createElement("div", {
+    className: `mt-7 eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_rateH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 mb-3 text-[14px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("div", {
+    className: "grid sm:grid-cols-2",
+    style: {
+      border: `1px solid ${t.line}`
+    }
+  }, SIGNALS.map((sig, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: `flex items-center justify-between gap-3 px-3.5 py-2.5 ${i < SIGNALS.length - (SIGNALS.length % 2 === 0 ? 2 : 1) ? "border-b" : ""} ${i % 2 === 0 ? "sm:border-r" : ""}`,
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] ${t.ts} ${readCls(lang)}`
+  }, sig[lang] || sig.en), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[12px] font-semibold ${t.blind}`
+  }, sig.w, "%")))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[12px] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].m_rateFoot)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 lg:mt-0 lg:pl-8 space-y-6"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow mb-3 ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_readH), /*#__PURE__*/React.createElement("ul", {
+    className: "space-y-3"
+  }, bullets.map((b, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    className: `relative pl-5 text-[13.5px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 2,
+      top: 8,
+      width: 6,
+      height: 6,
+      background: bulletColors[i] || t.ink
+    }
+  }), b)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid #E0CBB9`
+    },
+    className: `${t.blindSoft} p-4`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_appealH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13.5px] ${t.blind} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, STR[lang].m_appeal), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go && go("contact"),
+    className: `mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      border: "1px solid currentColor",
+      padding: "8px 13px",
+      letterSpacing: lang === "hi" ? 0 : ".05em"
+    }
+  }, lang === "hi" ? "सुधार भेजें" : "File a correction")), /*#__PURE__*/React.createElement("p", {
+    className: `text-[11.5px] ${t.tf} ${isHi(lang)}`,
+    style: {
+      lineHeight: 1.5
+    }
+  }, STR[lang].footIndependence))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 max-w-3xl"
+  }, /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_orderH
   }, STR[lang].m_order), /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_freshH
   }, STR[lang].m_fresh), a.total != null && /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_gapH
   }, gapText), /*#__PURE__*/React.createElement(Row, {
-    h: STR[lang].m_rateH
-  }, /*#__PURE__*/React.createElement("p", {
-    className: "mb-3"
-  }, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("div", {
-    className: `border ${t.border}`
-  }, SIGNALS.map((sig, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: `flex items-center justify-between gap-3 px-3.5 py-2.5 ${i > 0 ? "border-t" : ""} ${t.border}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[13.5px] ${t.tp} ${isHi(lang)}`
-  }, sig[lang] || sig.en), /*#__PURE__*/React.createElement("span", {
-    className: "flex items-center gap-2.5 shrink-0"
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 56,
-      height: 6,
-      background: t.track || "#EAE6DB",
-      border: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "seg-center",
-    style: {
-      display: "block",
-      height: "100%",
-      width: `${sig.w / 30 * 100}%`
-    }
-  })), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[12px] font-semibold ${t.tp}`,
-    style: {
-      width: 34,
-      textAlign: "right"
-    }
-  }, sig.w, "%"))))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[12px] ${t.tf} ${isHi(lang)}`
-  }, STR[lang].m_rateFoot)), /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_axisH
   }, STR[lang].m_axis), /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_partiesH
   }, STR[lang].m_parties), /*#__PURE__*/React.createElement(Row, {
     h: STR[lang].m_provH
-  }, STR[lang].m_prov), /*#__PURE__*/React.createElement(Row, {
-    h: STR[lang].m_readH
-  }, STR[lang].m_appeal)));
+  }, STR[lang].m_prov))));
 }
 function ContactPage({
   t,
@@ -4755,18 +4890,31 @@ function ContactPage({
   const inp = `w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
   const lbl = `mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-10 lg:grid-cols-[1fr_320px]"
+    className: "mx-auto max-w-[1180px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-xl"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    className: "pb-3",
     style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, L.title), /*#__PURE__*/React.createElement("p", {
-    className: `mb-6 mt-3 text-[15px] leading-relaxed ${t.ts} ${isHi(lang)}`
-  }, L.lede), status === "ok" ? /*#__PURE__*/React.createElement("div", {
-    className: `rounded-lg border p-5 ${t.border} ${t.surface}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "संपर्क व सुधार" : "Contact & corrections"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.02em"
+    }
+  }, lang === "hi" ? "डेस्क को लिखें" : "Write to the desk")), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 grid lg:grid-cols-[1.4fr_1fr]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lg:border-r lg:pr-8",
+    style: {
+      borderColor: t.line
+    }
+  }, status === "ok" ? /*#__PURE__*/React.createElement("div", {
+    className: `border p-5 ${t.border} ${t.surface}`
   }, /*#__PURE__*/React.createElement("p", {
     className: `text-[15px] font-medium ${t.tp} ${isHi(lang)}`
   }, L.ok)) : /*#__PURE__*/React.createElement("form", {
@@ -4788,19 +4936,9 @@ function ContactPage({
     type: "hidden",
     name: "topic",
     value: L.chips[topic]
-  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: lbl
-  }, L.topicL), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap gap-2"
-  }, ["rating", "outlet", "advertise", "general"].map(k => /*#__PURE__*/React.createElement("button", {
-    key: k,
-    type: "button",
-    onClick: () => setTopic(k),
-    className: `border px-3.5 py-1.5 eyebrow ${topic === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em"
-    }
-  }, L.chips[k])))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-4 sm:grid-cols-2"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: lbl
   }, L.name), /*#__PURE__*/React.createElement("input", {
     name: "name",
@@ -4813,7 +4951,19 @@ function ContactPage({
     type: "email",
     required: true,
     className: inp
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, lang === "hi" ? "यह किस बारे में है?" : "What's this about?"), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2"
+  }, ["rating", "outlet", "advertise", "general"].map(k => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    type: "button",
+    onClick: () => setTopic(k),
+    className: `border px-3.5 py-1.5 eyebrow ${topic === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, L.chips[k])))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: lbl
   }, L.msg), /*#__PURE__*/React.createElement("textarea", {
     name: "message",
@@ -4830,8 +4980,10 @@ function ContactPage({
     type: "submit",
     disabled: status === "sending",
     className: `rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`
-  }, status === "sending" ? L.sending : L.send))), /*#__PURE__*/React.createElement("aside", {
-    className: "space-y-6"
+  }, status === "sending" ? L.sending : L.send), /*#__PURE__*/React.createElement("div", {
+    className: `text-[11px] ${t.tf} ${isHi(lang)}`
+  }, lang === "hi" ? "Formspree द्वारा वितरित · हम असली इनबॉक्स से जवाब देते हैं।" : "Delivered by Formspree · we reply from a real inbox, usually within a few days."))), /*#__PURE__*/React.createElement("aside", {
+    className: "mt-6 lg:mt-0 lg:pl-8 space-y-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: `border p-5 ${t.surface} ${t.border}`,
     style: {
@@ -4856,7 +5008,7 @@ function ContactPage({
     className: `mt-2 block mono text-[13px] ${t.ts} hover:${t.tp}`
   }, "hello@paksh.news")), /*#__PURE__*/React.createElement("p", {
     className: `text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, L.indep))));
+  }, L.indep)))));
 }
 // Sponsor slot: renders NOTHING until SPONSOR.name is set (an empty "supported by" looks
 // broken). Drop <SponsorSlot .../> wherever you want the credit to appear once you sign one.
@@ -5004,31 +5156,125 @@ function PrivacyPage({
   }, h), /*#__PURE__*/React.createElement("div", {
     className: `text-[15px] leading-[1.62] serif ${t.ts}`
   }, children));
-  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-3xl"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[40px] ${t.tp} serif`,
+  const P = lang === "hi" ? {
+    eyebrow: "गोपनीयता",
+    title: "हम क्या इकट्ठा करते हैं, और क्या नहीं",
+    lede: "पक्ष बिना निगरानी के पढ़ने के लिए बना है। मुख्य साइट बिना खाते और बिना ट्रैकिंग के चलती है। जो थोड़ा-बहुत हम इकट्ठा करते हैं वह सिर्फ़ साइट चलाने के लिए है, और आपकी अनुमति से आपके रीडिंग लेंस के लिए।",
+    c1H: "सेल्फ-होस्टेड फ़ॉन्ट व कोड",
+    c1: "फ़ॉन्ट और ऐप कोड पक्ष के अपने डोमेन से आते हैं, पेज लोड करने के लिए किसी तीसरे-पक्ष CDN से संपर्क नहीं होता।",
+    c2H: "विज्ञापन",
+    c2: "विज्ञापन क्लासिफ़ाइड-शैली के और गैर-वैयक्तिकृत हैं। कॉन्फ़िगर व घोषित होने तक कोई विज्ञापन नेटवर्क लोड नहीं होता, अभी स्लॉट निष्क्रिय प्लेसहोल्डर हैं।",
+    c3H: "आपका रीडिंग लेंस",
+    c3: "साइन इन करने पर आप जो खबरें खोलते हैं वे आपके खाते में दर्ज होती हैं ताकि आपका पढ़ने का संतुलन निकले। यह निजी है, बेचा नहीं जाता, और यह नहीं बदलता कि आपको कौन-सी खबरें दिखें।",
+    anH: "गुमनाम एनालिटिक्स",
+    anSub: "गोपनीयता-सम्मानित गिनती, कोई विज्ञापन-ट्रैकिंग नहीं",
+    note1: "आप एनालिटिक्स बंद करके भी हर सुविधा इस्तेमाल कर सकते हैं। बंद करने पर आपकी विज़िट की सारी समग्र माप रुक जाती है।",
+    note2: "डेटा के बारे में सवाल? लिखें"
+  } : {
+    eyebrow: "Privacy",
+    title: "What we collect, and what we don't",
+    lede: "Paksh is built to be read without surveillance. The core site works with no account and no tracking. What little we collect exists only to keep the site running and, if you opt in, to power your Reading Lens.",
+    c1H: "Self-hosted fonts & code",
+    c1: "Fonts and app code are served from Paksh's own domain, no third-party CDN is contacted just to load the page, so reading leaks nothing to outside servers.",
+    c2H: "Advertising",
+    c2: "Ads are classifieds-style and non-personalised. No ad network is loaded until it's configured and disclosed, today the slots are inert placeholders.",
+    c3H: "Your Reading Lens",
+    c3: "If you sign in, the stories you open are recorded to your account to compute your reading balance. It is private to you, never sold, and never used to change which stories you're shown.",
+    anH: "Anonymous analytics",
+    anSub: "Privacy-respecting counts, no ad tracking",
+    note1: "You can switch analytics off and still use every feature. Turning it off stops all aggregate measurement of your visit.",
+    note2: "Questions about your data? Write to"
+  };
+  const card = (h, body) => /*#__PURE__*/React.createElement("div", {
+    className: `${t.surface} p-4`,
     style: {
-      letterSpacing: "-0.018em"
+      border: `1px solid ${t.line}`
     }
-  }, "Privacy Policy"), /*#__PURE__*/React.createElement("p", {
-    className: `mb-1 mt-3 text-[13px] ${t.tf}`
-  }, "Last updated: 9 August 2026 \xB7 Operated by Redstocks Technology LLP"), lang === "hi" && /*#__PURE__*/React.createElement("p", {
-    className: `mb-2 text-[12.5px] deva ${t.tf}`
-  }, "\u092F\u0939 \u0917\u094B\u092A\u0928\u0940\u092F\u0924\u093E \u0928\u0940\u0924\u093F \u0905\u0902\u0917\u094D\u0930\u0947\u091C\u093C\u0940 \u092E\u0947\u0902 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u0948\u0964"), setConsent && /*#__PURE__*/React.createElement("div", {
-    className: `mt-4 mb-2 flex items-center justify-between gap-4 border p-4 ${t.surface} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, h), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13.5px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, body));
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1180px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pb-3",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, P.eyebrow), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[36px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.02em"
+    }
+  }, P.title)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 grid lg:grid-cols-[1.6fr_1fr]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lg:border-r lg:pr-8",
+    style: {
+      borderColor: t.line
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[16px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.62,
+      maxWidth: "62ch"
+    }
+  }, P.lede), /*#__PURE__*/React.createElement("div", {
+    className: "mt-5 space-y-3.5"
+  }, card(P.c1H, P.c1), card(P.c2H, P.c2), card(P.c3H, P.c3))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 lg:mt-0 lg:pl-8 space-y-4"
+  }, setConsent && /*#__PURE__*/React.createElement("div", {
+    className: `${t.surface} p-4`,
+    style: {
+      border: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "min-w-0"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `text-[14px] font-semibold ${t.tp} ${isHi(lang)}`
-  }, lang === "hi" ? "गुमनाम एनालिटिक्स" : "Anonymous analytics"), /*#__PURE__*/React.createElement("div", {
-    className: `mt-0.5 text-[12.5px] ${t.tf} ${isHi(lang)}`
-  }, lang === "hi" ? "गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।" : "Privacy-respecting, cookieless. Everything works with it off.")), /*#__PURE__*/React.createElement(Toggle, {
+    className: `text-[13px] font-semibold ${t.tp} ${readCls(lang)}`
+  }, P.anH), /*#__PURE__*/React.createElement("div", {
+    className: `mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`
+  }, P.anSub)), /*#__PURE__*/React.createElement(Toggle, {
     on: consent === "granted",
     onChange: v => setConsent(v ? "granted" : "denied"),
-    label: lang === "hi" ? "गुमनाम एनालिटिक्स" : "Anonymous analytics",
+    label: P.anH,
     t: t
-  })), /*#__PURE__*/React.createElement(Row, {
+  }))), /*#__PURE__*/React.createElement("p", {
+    className: `text-[12.5px] ${t.tf} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, P.note1), /*#__PURE__*/React.createElement("p", {
+    className: `text-[11.5px] ${t.tf} ${isHi(lang)}`,
+    style: {
+      lineHeight: 1.5
+    }
+  }, P.note2, " ", /*#__PURE__*/React.createElement("a", {
+    href: "mailto:hello@paksh.news",
+    className: `font-semibold ${t.ts} hover:${t.tp}`
+  }, "hello@paksh.news"), "."))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-10 max-w-3xl"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline text-[20px] ${t.tp} serif`
+  }, "Privacy Policy"), /*#__PURE__*/React.createElement("p", {
+    className: `mb-1 mt-2 text-[13px] ${t.tf}`
+  }, "Last updated: 9 August 2026 \xB7 Operated by Redstocks Technology LLP"), lang === "hi" && /*#__PURE__*/React.createElement("p", {
+    className: `mb-2 text-[12.5px] deva ${t.tf}`
+  }, "\u092A\u0942\u0930\u0940 \u0917\u094B\u092A\u0928\u0940\u092F\u0924\u093E \u0928\u0940\u0924\u093F \u0905\u0902\u0917\u094D\u0930\u0947\u091C\u093C\u0940 \u092E\u0947\u0902 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u0948\u0964"), /*#__PURE__*/React.createElement(Row, {
     h: "Who we are"
   }, "Paksh (\u092A\u0915\u094D\u0937) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum."), /*#__PURE__*/React.createElement(Row, {
     h: "What we collect"
@@ -5044,7 +5290,7 @@ function PrivacyPage({
     h: "Children"
   }, "Paksh is a general news service and is not directed at children."), /*#__PURE__*/React.createElement(Row, {
     h: "Changes"
-  }, "We may update this policy from time to time; material changes will be reflected by the date shown above.")));
+  }, "We may update this policy from time to time; material changes will be reflected by the date shown above."))));
 }
 function SearchPage({
   t,
@@ -7199,7 +7445,8 @@ function PakshApp() {
   }) : route.view === "about" ? /*#__PURE__*/React.createElement(AboutPage, {
     t: t,
     lang: lang,
-    agg: gapAgg
+    agg: gapAgg,
+    go: go
   }) : route.view === "contact" ? /*#__PURE__*/React.createElement(ContactPage, {
     t: t,
     lang: lang
