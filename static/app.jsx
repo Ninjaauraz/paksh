@@ -830,40 +830,54 @@ const {useState,useEffect,useMemo}=React;
         </span>
       );
     }
-    // Masthead — brand, inline nav with a 2px active underline, search as an icon, the
-    // language toggle, and the theme switch. Ink-on-paper, hairline rule below; no dark
-    // utility strip, no topic-chip rail (design spec 2a).
+    // Masthead — recreated from the desktop prototype: a dateline strip, a CENTRED पक्ष Paksh
+    // wordmark flanked by ♥ Support (left) and Sign-in / avatar (right), then a bordered nav row
+    // with a right-aligned search. Theme-aware (token colours) and responsive (nav row is md+;
+    // mobile leans on the bottom tab bar). Clay (#75442E) via t.blind so it lifts in dark mode.
     function Header({ t, lang, setLang, dark, setDark, go, view, auth, openHelp, savedCount }) {
-      const NAV=[["home",STR[lang].navTop],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["about",STR[lang].navMethod]];
+      const NAV=[["home",STR[lang].navTop,false],["blindspot",STR[lang].navOS,true],["search",ui("searchTab",lang),false],
+        ["topics",ui("sections",lang),false],["sources",STR[lang].navSrc,false],["about",STR[lang].navMethod,false]];
       const initials=(email)=>{ const s=(email||"").trim(); return s?s[0].toUpperCase():"?"; };
+      const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
       return (
-        <header className={`sticky top-0 z-40 border-b ${t.border} ${t.nav}`}>
-          <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
-            <div className="flex h-[58px] items-center gap-6">
-              <button onClick={()=>go("home")} className="flex shrink-0 items-baseline gap-2" aria-label="Paksh home">
-                <span className={`brand-hi text-[27px] leading-none ${t.tp}`}>पक्ष</span>
-                <span className={`text-[17px] font-semibold uppercase tracking-[0.30em] ${t.tp}`}>Paksh</span>
-              </button>
-              <nav className="ml-1 hidden items-center gap-6 md:flex">
-                {NAV.map(([k,label])=>(
-                  <button key={k} onClick={()=>go(k)} className={`eyebrow relative py-1 ${view===k?t.tp:`${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>
-                    {label}{view===k && <span className="absolute -bottom-[3px] left-0 right-0" style={{height:2,background:t.ink}}/>}
-                  </button>
-                ))}
-              </nav>
-              <div className="ml-auto flex items-center gap-3 sm:gap-4">
-                <button onClick={()=>go("support")} aria-label={lang==="hi"?"सहयोग":"Support"} title={lang==="hi"?"सहयोग":"Support"} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{color:"#75442E"}}><span aria-hidden="true">♥</span><span className={lang==="hi"?"deva":""}>{lang==="hi"?"सहयोग":"Support"}</span></button>
-                <button onClick={()=>go("search")} aria-label="Search" className={`${t.tf} hover:${t.tp}`}><Search size={17}/></button>
-                {openHelp && <button onClick={openHelp} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"} title={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"} className={`hidden sm:inline ${t.tf} hover:${t.tp}`}><Help size={17}/></button>}
+        <header className={`sticky top-0 z-40 ${t.nav}`} style={{borderBottom:`1px solid ${t.ink}`}}>
+          <div className="mx-auto max-w-[1280px]">
+            {/* dateline strip */}
+            <div className={`flex items-center justify-between gap-3 border-b px-4 py-2 sm:px-7 ${t.border}`}>
+              <span className={`mono truncate text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{today}</span>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className={`hidden md:inline mono text-[10px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"हर पक्ष, हर खबर":"Every side of the story"}</span>
                 <LangToggle t={t} lang={lang} setLang={setLang} dark={dark} />
-                <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={16}/>:<Moon size={16}/>}</button>
-                {authOn() && auth && <button onClick={()=>go("lens")} className={`hidden md:inline eyebrow ${view==="lens"?t.tp:`${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{lang==="hi"?"रीडिंग लेंस":"My Reading Lens"}</button>}
-                {authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} title={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
-                {authOn() && (auth
-                  ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:32,height:32,border:`1px solid ${t.ink}`}}><span style={{fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</span></button>
-                  : <button onClick={()=>go("login")} className={`border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"साइन इन":"Sign in"}</button>)}
+                <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={15}/>:<Moon size={15}/>}</button>
+                {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
               </div>
             </div>
+            {/* wordmark row: Support · wordmark · Sign in / account */}
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-7">
+              <div className="flex items-center">
+                <button onClick={()=>go("support")} className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase ${t.blind}`} style={{border:"1px solid currentColor",padding:"7px 11px",letterSpacing:lang==="hi"?0:".06em"}} aria-label={lang==="hi"?"सहयोग":"Support"}><span aria-hidden="true">♥</span><span className={`hidden sm:inline ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सहयोग":"Support"}</span></button>
+              </div>
+              <button onClick={()=>go("home")} className="flex items-baseline justify-center gap-2.5" aria-label="Paksh home">
+                <span className={`brand-hi leading-none ${t.tp}`} style={{fontSize:26}}>पक्ष</span>
+                <span className={t.tp} style={{font:"700 30px/1 'Source Serif 4',Georgia,serif",letterSpacing:"-.01em"}}>Paksh</span>
+              </button>
+              <div className="flex items-center justify-end gap-2.5">
+                {authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
+                {authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
+                {authOn() && (auth
+                  ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:34,height:34,border:`1px solid ${t.ink}`,fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</button>
+                  : <button onClick={()=>go("login")} className={`text-[10px] font-semibold uppercase ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{border:`1px solid ${t.ink}`,padding:"9px 13px",letterSpacing:lang==="hi"?0:".05em"}}>{lang==="hi"?"साइन इन":"Sign in"}</button>)}
+              </div>
+            </div>
+            {/* nav row (desktop) */}
+            <nav className={`hidden items-stretch md:flex ${t.surface}`} style={{borderTop:`1px solid ${t.ink}`}}>
+              {NAV.map(([k,label,clay])=>(
+                <button key={k} onClick={()=>go(k)} className={`relative text-[11px] font-semibold uppercase hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)} ${lang==="hi"?"deva":""}`} style={{padding:"11px 20px",borderRight:`1px solid ${t.line}`,letterSpacing:lang==="hi"?0:".04em"}}>
+                  {label}{view===k && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
+                </button>
+              ))}
+              <button onClick={()=>go("search")} className={`ml-auto flex items-center gap-2 ${t.tf} hover:${t.tp}`} style={{padding:"0 18px",borderLeft:`1px solid ${t.line}`}} aria-label="Search"><Search size={14}/><span className={`hidden lg:inline text-[12px] ${readCls(lang)}`}>{STR[lang].search}</span></button>
+            </nav>
           </div>
         </header>
       );
