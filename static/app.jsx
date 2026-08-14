@@ -449,9 +449,9 @@ const {useState,useEffect,useMemo}=React;
               {i>0 && <div style={{flex:"0 0 1px",background:t.gap||"#F4F1EA"}}/>}
               {onPick
                 ? <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onPick(k);}} aria-label={lbl(k,lang||"en")}
-                    className={`${BIAS[k].tex} cursor-pointer hover:brightness-110 ${active&&active!==k?"opacity-40":""}`}
+                    className={`${BIAS[k].tex} pk-seg cursor-pointer hover:brightness-110 ${active&&active!==k?"opacity-40":""}`}
                     style={{flexGrow:bias[k],flexBasis:0,minWidth:2,border:0,padding:0}}/>
-                : <div className={BIAS[k].tex} style={{flexGrow:bias[k],flexBasis:0,minWidth:2}}/>}
+                : <div className={`${BIAS[k].tex} pk-seg`} style={{flexGrow:bias[k],flexBasis:0,minWidth:2}}/>}
             </React.Fragment>
           ))}
           <div style={{position:"absolute",left:"50%",top:-3,bottom:-3,width:1,background:t.ink}}/>
@@ -570,7 +570,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
           <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
-          <h2 className={`headline mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.14:1.06,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h2>
+          <h2 className={`headline pk-rise mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.14:1.06,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h2>
           {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
             {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
@@ -2059,7 +2059,7 @@ const {useState,useEffect,useMemo}=React;
       const on=saved.has(String(story.id));
       return <button type="button" onClick={()=>onToggle(story)} aria-pressed={on?"true":"false"}
         className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
-        <Bookmark size={14} fill={on?"currentColor":"none"}/>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}</button>;
+        <Bookmark key={on?"on":"off"} className={on?"pk-pop":""} size={14} fill={on?"currentColor":"none"}/>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}</button>;
     }
 
     // Sign-in gate reused by Lens + Saved (the news is never gated; only these personal views are).
@@ -2407,6 +2407,7 @@ const {useState,useEffect,useMemo}=React;
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
           <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} openHelp={()=>setOnboard(true)} />
           <main id="main" className="pb-24 md:pb-10">
+            <div className="pk-page" key={route.view+(route.id||route.topic||"")}>
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
             : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} go={go} />
             : route.view==="account" ? <AccountPage t={t} lang={lang} auth={auth} go={go} onSignOut={onSignOut} />
@@ -2426,6 +2427,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
                : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} />)}
+            </div>
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} auth={auth} />

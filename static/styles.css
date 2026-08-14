@@ -103,3 +103,25 @@
   html.pk-dys body,
   html.pk-dys .serif:not(.read-hi),
   html.pk-dys .headline:not(.read-hi){font-family:"Atkinson Hyperlegible","OpenDyslexic",Verdana,Tahoma,system-ui,sans-serif!important;}
+
+  /* ---- motion & micro-interaction layer (design system pg.7) ----
+     Paper-and-ink, not SaaS polish. Standard easing cubic-bezier(.2,.7,.2,1); micro 150-260ms,
+     ambient reveals 280-700ms. EVERYTHING collapses instantly under prefers-reduced-motion (the
+     global reduce rule above already forces animation:none) — counts/text never depend on motion. */
+  @keyframes pk-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes pk-page{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes pk-rise{from{opacity:0;transform:translateY(10px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+  @keyframes pk-pop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+  @media (prefers-reduced-motion:no-preference){
+    /* bias-bar ink-fill: each segment grows from 0 to its counted width, ink settling to its mark */
+    .pk-seg{transform-origin:left center;animation:pk-fill .66s cubic-bezier(.2,.7,.2,1) both;}
+    /* page transition: the view rises + resolves on each route change (keyed remount) */
+    .pk-page{animation:pk-page .28s cubic-bezier(.2,.7,.2,1) both;}
+    /* headline focus-in for the lead */
+    .pk-rise{animation:pk-rise .55s cubic-bezier(.2,.7,.2,1) both;}
+    /* clip/save pop */
+    .pk-pop{animation:pk-pop .26s cubic-bezier(.2,.7,.2,1);}
+    /* card hover-lift (hover-capable pointers only; no shadow, just a small paper lift) */
+    a.group.cursor-pointer{transition:transform .18s cubic-bezier(.4,0,.2,1);}
+    @media (hover:hover){a.group.cursor-pointer:hover{transform:translateY(-2px);}}
+  }

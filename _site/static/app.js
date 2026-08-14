@@ -1460,7 +1460,7 @@ function BiasSegments({
       onPick(k);
     },
     "aria-label": lbl(k, lang || "en"),
-    className: `${BIAS[k].tex} cursor-pointer hover:brightness-110 ${active && active !== k ? "opacity-40" : ""}`,
+    className: `${BIAS[k].tex} pk-seg cursor-pointer hover:brightness-110 ${active && active !== k ? "opacity-40" : ""}`,
     style: {
       flexGrow: bias[k],
       flexBasis: 0,
@@ -1469,7 +1469,7 @@ function BiasSegments({
       padding: 0
     }
   }) : /*#__PURE__*/React.createElement("div", {
-    className: BIAS[k].tex,
+    className: `${BIAS[k].tex} pk-seg`,
     style: {
       flexGrow: bias[k],
       flexBasis: 0,
@@ -1744,7 +1744,7 @@ function LeadStory({
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
   }, lang === "hi" ? "आज सबसे ज़्यादा कवरेज" : "Most covered today", tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h2", {
-    className: `headline mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
+    className: `headline pk-rise mt-3 text-[31px] sm:text-[42px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
     style: {
       lineHeight: lang === "hi" ? 1.14 : 1.06,
       letterSpacing: lang === "hi" ? 0 : "-0.022em",
@@ -5315,6 +5315,8 @@ function SaveButton({
     "aria-pressed": on ? "true" : "false",
     className: `inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on ? `${t.cta} ${t.ctaT} border-transparent` : `${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`
   }, /*#__PURE__*/React.createElement(Bookmark, {
+    key: on ? "on" : "off",
+    className: on ? "pk-pop" : "",
     size: 14,
     fill: on ? "currentColor" : "none"
   }), on ? lang === "hi" ? "सहेजा" : "Saved" : lang === "hi" ? "सहेजें" : "Save");
@@ -6147,6 +6149,9 @@ function PakshApp() {
   }), /*#__PURE__*/React.createElement("main", {
     id: "main",
     className: "pb-24 md:pb-10"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pk-page",
+    key: route.view + (route.id || route.topic || "")
   }, route.view === "login" ? /*#__PURE__*/React.createElement(LoginPage, {
     t: t,
     lang: lang,
@@ -6274,7 +6279,7 @@ function PakshApp() {
     auth: auth,
     lens: lensStats,
     openHelp: () => setOnboard(true)
-  })), route.view !== "story" && /*#__PURE__*/React.createElement(Footer, {
+  }))), route.view !== "story" && /*#__PURE__*/React.createElement(Footer, {
     t: t,
     lang: lang,
     go: go
