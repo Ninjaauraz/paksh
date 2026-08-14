@@ -1107,6 +1107,11 @@ const {useState,useEffect,useMemo}=React;
       const lead=cards[0]; if(lead) used.add(lead.id);
       const alsoLeading=take(cards,2);      // "Also leading" rail (2)
       const section=take(cards,4);          // 4-up Section band
+      // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
+      // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
+      // more of what you already open. Computed before "In brief" so it gets first pick of matches.
+      const _topTopics=(auth && lens && lens.total>0 && lens.topics) ? lens.topics.slice(0,4) : [];
+      const forYou = _topTopics.length ? take(cards.filter(c=>_topTopics.includes(c.topic)),4) : [];
       const brief=take(cards,15);           // "In brief" tier
       const notUsed=arr=>(arr||[]).filter(c=>!used.has(c.id));
       // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
@@ -1176,6 +1181,29 @@ const {useState,useEffect,useMemo}=React;
               ))}
             </div>
           </div>
+
+          {/* FOR YOU — additive personalization for signed-in readers; the arithmetic feed above
+              is untouched (honours "we never hide stories"). Each card says why it's here. */}
+          {forYou.length>0 && (
+            <div className={pad}>
+              <div className="py-7" style={{borderBottom:`1px solid ${t.ink}`}}>
+                <div className="mb-4 flex items-baseline justify-between gap-3 border-b pb-2" style={{borderColor:t.line}}>
+                  <h2 className={`headline text-[15px] font-bold uppercase tracking-[0.08em] ${t.tp} ${isHi(lang)}`}>{lang==="hi"?"आपके लिए":"For you"}</h2>
+                  <button onClick={()=>go("lens")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा लेंस →":"My Reading Lens →"}</button>
+                </div>
+                <div className="grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4">
+                  {forYou.map((s,i)=>{ const tp=lang==="hi"?(TOPIC_HI[s.topic]||s.topic):s.topic;
+                    return (
+                      <div key={s.id} className={i>0?"lg:border-l lg:pl-6":""} style={i>0?{borderColor:t.line}:{}}>
+                        <div className={`eyebrow mb-1.5 ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{lang==="hi"?`क्योंकि आपने ${tp} पढ़ा`:`Because you read ${tp}`}</div>
+                        <SectionCard story={s} t={t} lang={lang} onOpen={open} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* AD — a single in-feed leaderboard at a natural break (calm, not cluttered) */}
           <div className={pad}><div className="py-2"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div></div>
