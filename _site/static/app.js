@@ -1163,6 +1163,12 @@ async function apiGet(res) {
 async function loadAll() {
   try {
     const [e, b, tp, sr] = await Promise.all([apiGet("events"), apiGet("blindspots"), apiGet("topics"), apiGet("sources")]);
+    // Storylines are derived + secondary — load them best-effort so a failure never blocks the feed.
+    let storylines = [];
+    try {
+      const st = await apiGet("storylines");
+      storylines = st.storylines || [];
+    } catch (_) {}
     return {
       events: e.events || [],
       blindspots: b.events || [],
@@ -1173,7 +1179,8 @@ async function loadAll() {
       },
       topics: tp.topics || [],
       sources: sr.sources || [],
-      summary: sr.summary || {}
+      summary: sr.summary || {},
+      storylines: storylines
     };
   } catch (err) {
     console.error(err);
@@ -1187,7 +1194,8 @@ async function loadAll() {
       },
       topics: [],
       sources: [],
-      summary: {}
+      summary: {},
+      storylines: []
     };
   }
 }
@@ -1218,6 +1226,7 @@ const toCard = (e, lang) => {
     unrated: Math.max(0, (e.source_count || 0) - (lc.left + lc.center + lc.right) - (e.international || 0)),
     blindspot: e.blindspot ? e.blindspot.side : null,
     auto: e.summary_method === "extractive",
+    storyline_id: e.storyline_id || null,
     img: e.image_url || "",
     image: e.image_url || imgFor(hueOf(e.topic || e.title))
   };
@@ -1243,6 +1252,7 @@ const toDetail = (e, lang) => {
   c.coverage = e.coverage || {};
   c.outlets = e.sources || [];
   c.framing = framingFor(e, lang);
+  c.storyline = e.storyline || null; // the saga thread this story belongs to (from the per-story JSON)
   return c;
 };
 const isHi = lang => lang === "hi" ? "deva" : "";
@@ -1743,6 +1753,7 @@ function Eyebrow({
   topic,
   created_at,
   blindspot,
+  storyline,
   t,
   lang
 }) {
@@ -1752,6 +1763,9 @@ function Eyebrow({
     className: `flex flex-wrap items-center gap-x-2 gap-y-1.5 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`
   }, blindspot && /*#__PURE__*/React.createElement(BlindspotBadge, {
     side: blindspot,
+    t: t,
+    lang: lang
+  }), storyline && /*#__PURE__*/React.createElement(DevelopingChip, {
     t: t,
     lang: lang
   }), /*#__PURE__*/React.createElement("span", {
@@ -2017,6 +2031,7 @@ function SecondaryStory({
     topic: story.topic,
     created_at: story.created_at,
     blindspot: story.blindspot,
+    storyline: story.storyline_id,
     t: t,
     lang: lang
   }), /*#__PURE__*/React.createElement("h3", {
@@ -2146,6 +2161,7 @@ function FeedRow({
     topic: story.topic,
     created_at: story.created_at,
     blindspot: story.blindspot,
+    storyline: story.storyline_id,
     t: t,
     lang: lang
   }), /*#__PURE__*/React.createElement("h3", {
@@ -2263,6 +2279,7 @@ function GridCard({
     topic: story.topic,
     created_at: story.created_at,
     blindspot: story.blindspot,
+    storyline: story.storyline_id,
     t: t,
     lang: lang
   }), /*#__PURE__*/React.createElement("h3", {
@@ -3117,6 +3134,46 @@ function RailPersonalize({
     }
   }, lang === "hi" ? "साइन इन" : "Sign in")));
 }
+// Right-rail "Developing storylines" — the freshest sagas (multi-event threads). Each links
+// to the full storyline page. Pure chronology of coverage; no bias re-computation.
+function DevelopingRail({
+  storylines,
+  t,
+  lang,
+  goStoryline
+}) {
+  const items = (storylines || []).filter(s => s.n_events >= 2).slice(0, 4);
+  if (!items.length) return null;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow pb-2 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "विकसित होती खबरें" : "Developing storylines"), items.map((s, i) => {
+    const title = lang === "hi" && s.title_hi ? s.title_hi : s.title;
+    return /*#__PURE__*/React.createElement("a", {
+      key: s.id,
+      href: "/storyline/" + encodeURIComponent(s.id),
+      onClick: e => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        goStoryline && goStoryline(s.id);
+      },
+      className: `block no-underline group cursor-pointer py-3 ${i < items.length - 1 ? "border-b" : ""} ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      style: {
+        lineHeight: 1.3,
+        textWrap: "pretty"
+      }
+    }, title), /*#__PURE__*/React.createElement("div", {
+      className: `mt-1 mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+    }, /*#__PURE__*/React.createElement("span", {
+      "aria-hidden": "true"
+    }, "\u25C7"), " ", s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
+  }));
+}
 function HomeView({
   cards,
   gapLeft,
@@ -3131,7 +3188,9 @@ function HomeView({
   go,
   auth,
   lens,
-  openHelp
+  openHelp,
+  storylines,
+  goStoryline
 }) {
   // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
   // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
@@ -3271,6 +3330,11 @@ function HomeView({
     go: go,
     open: open,
     openHelp: openHelp
+  }), /*#__PURE__*/React.createElement(DevelopingRail, {
+    storylines: storylines,
+    t: t,
+    lang: lang,
+    goStoryline: goStoryline
   }), /*#__PURE__*/React.createElement(SpectrumRail, {
     cards: cards,
     t: t,
@@ -3396,7 +3460,8 @@ function StoryPage({
   saved,
   onToggleSave,
   a11y,
-  auth
+  auth,
+  goStoryline
 }) {
   const fr = story.framing || {};
   const outlets = story.outlets || [];
@@ -3676,7 +3741,28 @@ function StoryPage({
     t: t
   })), /*#__PURE__*/React.createElement("p", {
     className: `mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, STR[lang].aiNote))), sides.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].aiNote))), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "यह खबर कैसे विकसित हुई" : "How this developed"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => goStoryline && goStoryline(story.storyline.id),
+    className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, story.storyline.events.length, " ", lang === "hi" ? "अपडेट · पूरी कड़ी →" : "updates · full storyline →")), /*#__PURE__*/React.createElement(StorylineTimeline, {
+    storyline: story.storyline,
+    currentId: story.id,
+    t: t,
+    lang: lang,
+    open: open
+  })), sides.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mt-10"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-4 flex items-baseline justify-between gap-3"
@@ -6110,6 +6196,176 @@ function SavedPage({
   }, L.remove)))));
 }
 
+// STORYLINE timeline — how a saga developed across days. Dated thread of the linked events,
+// the current one marked. Each entry is a real event with its own bias bar; the storyline is
+// purely a chronology of coverage, it never re-computes or merges any bias count.
+function StorylineTimeline({
+  storyline,
+  currentId,
+  t,
+  lang,
+  open,
+  compact
+}) {
+  if (!storyline || !(storyline.events || []).length) return null;
+  const evs = storyline.events;
+  return /*#__PURE__*/React.createElement("ol", {
+    className: "relative mt-4",
+    style: {
+      marginLeft: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 0,
+      top: 4,
+      bottom: 4,
+      width: 2,
+      background: t.line
+    }
+  }), evs.map(ev => {
+    const cur = String(ev.id) === String(currentId);
+    const lc = ev.lean_counts || {};
+    const b = biasPct(lc);
+    const title = lang === "hi" && ev.title_hi ? ev.title_hi : ev.title;
+    return /*#__PURE__*/React.createElement("li", {
+      key: ev.id,
+      className: "relative pb-5",
+      style: {
+        paddingLeft: 22
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        position: "absolute",
+        left: -3,
+        top: 5,
+        width: 9,
+        height: 9,
+        borderRadius: 9,
+        background: cur ? t.ink : t.gap || "#F4F1EA",
+        border: `2px solid ${t.ink}`
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      className: `mono text-[10px] uppercase tracking-[0.1em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+    }, absDate(ev.date, lang) || timeAgo(ev.date, lang)), cur ? /*#__PURE__*/React.createElement("div", {
+      className: `headline mt-1 text-[15px] ${t.tp} ${readCls(lang)}`,
+      style: {
+        lineHeight: 1.3
+      }
+    }, title, " ", /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[9px] uppercase tracking-wide ${t.blind}`
+    }, "\xB7 ", lang === "hi" ? "यह खबर" : "this story")) : /*#__PURE__*/React.createElement("a", {
+      href: "/story/" + encodeURIComponent(ev.id),
+      onClick: e => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        open && open(ev.id);
+      },
+      className: `block no-underline group cursor-pointer mt-1 headline text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      style: {
+        lineHeight: 1.3
+      }
+    }, title), !compact && lc.left + lc.center + lc.right > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "mt-2 w-40"
+    }, /*#__PURE__*/React.createElement(BiasSegments, {
+      bias: b,
+      t: t,
+      h: 8,
+      lang: lang
+    })));
+  }));
+}
+// STORYLINE page (/storyline/:id) — the whole saga: header + the full dated thread.
+// The index is lean (no events), so fetch the full per-saga file on open; `lean` gives an
+// instant header while it loads.
+function StorylinePage({
+  id,
+  lean,
+  t,
+  lang,
+  open,
+  go
+}) {
+  const [storyline, setStoryline] = useState(lean || null);
+  useEffect(() => {
+    let live = true;
+    if (!id) return;
+    apiGet("storylines/" + id).then(s => {
+      if (live) setStoryline(s);
+    }).catch(() => {
+      if (live && !lean) setStoryline(null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  const L = lang === "hi" ? {
+    back: "वापस",
+    eyebrow: "विकसित होती खबर",
+    updates: "अपडेट",
+    note: "यह एक ‘स्टोरीलाइन’ है, समय के साथ इसी घटनाक्रम पर आई अलग-अलग खबरों की कड़ी। हर कड़ी अपनी अलग बायस बार रखती है, स्टोरीलाइन सिर्फ़ क्रम दिखाती है, कोई गिनती दोबारा नहीं जोड़ती।",
+    missing: "यह स्टोरीलाइन नहीं मिली।"
+  } : {
+    back: "Back",
+    eyebrow: "Developing story",
+    updates: "updates",
+    note: "A storyline is a thread of separate stories about the same developing saga over time. Each entry keeps its own bias bar; the storyline only orders them, it never re-counts anything.",
+    missing: "That storyline wasn't found."
+  };
+  if (!storyline) return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: `py-16 text-center ${t.tf} ${isHi(lang)}`
+  }, L.missing));
+  const title = lang === "hi" && storyline.title_hi ? storyline.title_hi : storyline.title;
+  const tp = lang === "hi" ? TOPIC_HI[storyline.topic] || storyline.topic : storyline.topic;
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[840px]"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("home"),
+    className: `mb-5 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".1em"
+    }
+  }, /*#__PURE__*/React.createElement(ArrowLeft, {
+    size: 14
+  }), " ", L.back), /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, L.eyebrow, tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2 text-[26px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, title), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, storyline.n_events, " ", L.updates, " \xB7 ", absDate(storyline.start, lang), " \u2192 ", absDate(storyline.end, lang)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6"
+  }, /*#__PURE__*/React.createElement(StorylineTimeline, {
+    storyline: storyline,
+    t: t,
+    lang: lang,
+    open: open
+  })), /*#__PURE__*/React.createElement("p", {
+    className: `mt-6 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, L.note)));
+}
+// "Developing" chip — marks a story that belongs to a saga thread (Eyebrow + story header).
+function DevelopingChip({
+  t,
+  lang
+}) {
+  return /*#__PURE__*/React.createElement("span", {
+    className: `inline-flex items-center gap-1 mono text-[9px] font-bold uppercase tracking-[0.12em] ${t.ts}`,
+    style: {
+      padding: "2px 6px",
+      border: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, "\u25C7"), lang === "hi" ? "विकसित होती" : "Developing");
+}
+
 /* ---------------- routing + app ---------------- */
 function parsePath() {
   const p = typeof window !== "undefined" ? window.location.pathname || "/" : "/";
@@ -6121,6 +6377,10 @@ function parsePath() {
   if (seg[0] === "topic" && seg[1]) return {
     view: "topic",
     topic: decodeURIComponent(seg[1])
+  };
+  if (seg[0] === "storyline" && seg[1]) return {
+    view: "storyline",
+    id: decodeURIComponent(seg[1])
   };
   if (seg.length === 0) return {
     view: "home"
@@ -6347,7 +6607,8 @@ function PakshApp() {
     },
     topics: [],
     sources: [],
-    summary: {}
+    summary: {},
+    storylines: []
   });
   const [detail, setDetail] = useState({});
   const [archive, setArchive] = useState(null); // older events, lazy-loaded for search/topic browsing
@@ -6497,6 +6758,7 @@ function PakshApp() {
     nav("/story/" + encodeURIComponent(id));
   };
   const goTopic = tp => nav("/topic/" + encodeURIComponent(tp));
+  const goStoryline = id => nav("/storyline/" + encodeURIComponent(id));
   const chooseLang = l => {
     track("lang_switch", {
       to: l
@@ -6719,6 +6981,13 @@ function PakshApp() {
     auth: auth,
     go: go,
     onSignOut: onSignOut
+  }) : route.view === "storyline" ? /*#__PURE__*/React.createElement(StorylinePage, {
+    id: route.id,
+    lean: (data.storylines || []).find(s => s.id === route.id),
+    t: t,
+    lang: lang,
+    open: open,
+    go: go
   }) : route.view === "lens" ? /*#__PURE__*/React.createElement(LensPage, {
     t: t,
     lang: lang,
@@ -6752,7 +7021,8 @@ function PakshApp() {
     saved: savedIds,
     onToggleSave: toggleSave,
     a11y: a11y,
-    auth: auth
+    auth: auth,
+    goStoryline: goStoryline
   }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
     t: t
   }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {
@@ -6823,7 +7093,9 @@ function PakshApp() {
     go: go,
     auth: auth,
     lens: lensStats,
-    openHelp: () => setOnboard(true)
+    openHelp: () => setOnboard(true),
+    storylines: data.storylines,
+    goStoryline: goStoryline
   }))), route.view !== "story" && /*#__PURE__*/React.createElement(Footer, {
     t: t,
     lang: lang,

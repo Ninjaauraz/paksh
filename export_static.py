@@ -34,6 +34,10 @@ from database import (
     init_db, get_all_events, get_blindspot_events, get_topics, get_event,
 )
 from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
+try:
+    from storylines import build_storylines
+except Exception:                       # storyline linking is non-fatal: the site builds without it
+    build_storylines = None
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
@@ -727,6 +731,17 @@ def main():
     events = get_all_events()
     _now = datetime.utcnow()
 
+    # Storylines: stitch separate events into sagas tracked across days (derived only; never
+    # touches a bias count). story_map: event_id -> storyline_id; story_by_id: the full thread.
+    storylines, story_map, story_by_id = [], {}, {}
+    if build_storylines is not None:
+        try:
+            storylines, story_map = build_storylines(events)
+            story_by_id = {s["id"]: s for s in storylines}
+            print(f"  storylines: {len(storylines)} sagas covering {len(story_map)} events")
+        except Exception as _e:
+            print(f"  storylines: skipped ({_e})")
+
     def _row(e):
         d = _lighten(e)
         d["importance"] = _importance(e, _now)   # existing field; untouched, used elsewhere
@@ -734,6 +749,9 @@ def main():
         # (politics / economy / courts / movements) leads. Both factors are explainable and
         # never touch a bias count. Sections/Search/Topic ignore this and stay newest-first.
         d["feed_rank"] = round(_feed_rank(e, _now) * _civic_mult(e), 4)
+        sid = story_map.get(e["id"])
+        if sid:
+            d["storyline_id"] = sid
         return d
 
     # Split the feed payload so first paint isn't a 12+ MB download that grows forever.
@@ -746,6 +764,12 @@ def main():
     recent_rows = [_row(e) for e in recent]
     write_json(OUT / "data" / "events.json", {"events": recent_rows})
     write_json(OUT / "data" / "events-archive.json", {"events": [_row(e) for e in archive]})
+    # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
+    # full file per saga (with its dated events) fetched only when a Storyline page is opened.
+    _sl_index = [{k: s.get(k) for k in ("id","title","title_hi","topic","region","n_events","start","end","updated_at")} for s in storylines]
+    write_json(OUT / "data" / "storylines.json", {"storylines": _sl_index})
+    for s in storylines:
+        write_json(OUT / "data" / "storylines" / f"{s['id']}.json", s)
 
     # per-story social share cards (bias bar). og_ids = the stories that got one, so
     # _story_html can point og:image at the card and everything else falls back cleanly.
@@ -812,6 +836,11 @@ def main():
         if full is None:
             continue
         full = _clean_text(full)
+        # attach the saga thread this story belongs to (if any), so the Story page can show
+        # "how this developed" without another fetch. Small payload (<=25 short entries).
+        _sid = story_map.get(e["id"])
+        if _sid and _sid in story_by_id:
+            full["storyline"] = story_by_id[_sid]
         write_json(OUT / "data" / "events" / f"{e['id']}.json", full)
         sp = OUT / "story" / f"{e['id']}.html"
         sp.parent.mkdir(parents=True, exist_ok=True)

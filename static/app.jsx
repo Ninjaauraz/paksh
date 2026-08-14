@@ -361,8 +361,10 @@ const {useState,useEffect,useMemo}=React;
     async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
-        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}}; }
-      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}}; }
+        // Storylines are derived + secondary — load them best-effort so a failure never blocks the feed.
+        let storylines=[]; try{ const st=await apiGet("storylines"); storylines=st.storylines||[]; }catch(_){}
+        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, storylines:storylines}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]}; }
     }
 
     const toCard = (e, lang) => {
@@ -381,6 +383,7 @@ const {useState,useEffect,useMemo}=React;
         unrated:Math.max(0,(e.source_count||0)-(lc.left+lc.center+lc.right)-(e.international||0)),
         blindspot:e.blindspot?e.blindspot.side:null,
         auto:e.summary_method==="extractive",
+        storyline_id:e.storyline_id||null,
         img:e.image_url||"",
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
@@ -402,6 +405,7 @@ const {useState,useEffect,useMemo}=React;
     const toDetail = (e, lang) => { const c=toCard(e,lang);
       c.coverage=e.coverage||{}; c.outlets=e.sources||[];
       c.framing=framingFor(e,lang);
+      c.storyline=e.storyline||null;   // the saga thread this story belongs to (from the per-story JSON)
       return c; };
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
@@ -553,11 +557,12 @@ const {useState,useEffect,useMemo}=React;
         </span>
       );
     }
-    function Eyebrow({ topic, created_at, blindspot, t, lang }) {
+    function Eyebrow({ topic, created_at, blindspot, storyline, t, lang }) {
       const tp=lang==="hi"?(TOPIC_HI[topic]||topic):topic; const face=lang==="hi"?"deva":"mono";
       return (
         <div className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 ${face} text-[11px] font-medium uppercase tracking-[0.1em]`}>
           {blindspot && <BlindspotBadge side={blindspot} t={t} lang={lang} />}
+          {storyline && <DevelopingChip t={t} lang={lang} />}
           <span className={t.ts}>{tp||"News"}</span>
           {created_at && <><span className={t.tf}>·</span><span className={t.tf}>{timeAgo(created_at,lang)}</span></>}
         </div>
@@ -662,7 +667,7 @@ const {useState,useEffect,useMemo}=React;
     function SecondaryStory({ story, t, lang, onOpen }) {
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer border-b py-5 ${t.border}`}>
-          <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+          <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
           <h3 className={`headline mt-1.5 text-[20px] sm:text-[21px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
           {story.lead && <p className={`mt-2 text-[14px] leading-[1.55] lc-2 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
           <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={11} /></div>
@@ -716,7 +721,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`no-underline group flex cursor-pointer gap-4 border-b pb-6 ${t.border}`}>
           <div className="min-w-0 flex-1">
-            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-lg sm:text-xl leading-[1.18] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
             <div className="mt-2.5 flex items-center gap-3">
               <div className="w-28 sm:w-36"><MiniBar bias={story.bias} t={t} /></div>
@@ -757,7 +762,7 @@ const {useState,useEffect,useMemo}=React;
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
-            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} t={t} lang={lang} />
+            <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)}`}>{story.headline}</h3>
             <div className="mt-3"><MiniBar bias={story.bias} t={t} /></div>
             <div className="mt-2 flex items-center justify-between gap-3">
@@ -1098,7 +1103,26 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go, auth, lens, openHelp }) {
+    // Right-rail "Developing storylines" — the freshest sagas (multi-event threads). Each links
+    // to the full storyline page. Pure chronology of coverage; no bias re-computation.
+    function DevelopingRail({ storylines, t, lang, goStoryline }) {
+      const items=(storylines||[]).filter(s=>s.n_events>=2).slice(0,4);
+      if(!items.length) return null;
+      return (
+        <div>
+          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"विकसित होती खबरें":"Developing storylines"}</div>
+          {items.map((s,i)=>{ const title=(lang==="hi"&&s.title_hi)?s.title_hi:s.title;
+            return (
+              <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer py-3 ${i<items.length-1?"border-b":""} ${t.border}`}>
+                <div className={`headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3,textWrap:"pretty"}}>{title}</div>
+                <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}><span aria-hidden="true">◇</span> {s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
+              </a>
+            );
+          })}
+        </div>
+      );
+    }
+    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go, auth, lens, openHelp, storylines, goStoryline }) {
       // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
       // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
       // top-ranked story leads, the rest fall into the tier ladder in ranked order.
@@ -1161,6 +1185,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
               <div className="order-3 py-4 lg:py-6 lg:pl-7 space-y-6">
                 <RailPersonalize auth={auth} lens={lens} cards={cards} t={t} lang={lang} go={go} open={open} openHelp={openHelp} />
+                <DevelopingRail storylines={storylines} t={t} lang={lang} goStoryline={goStoryline} />
                 <SpectrumRail cards={cards} t={t} lang={lang} />
                 <WidestAgreement cards={cards} t={t} lang={lang} onOpen={open} />
                 <AdSlot t={t} lang={lang} />
@@ -1226,7 +1251,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     /* ---------------- STORY (tabbed) ---------------- */
-    function StoryPage({ story, t, lang, go, openTopic, related=[], open, saved, onToggleSave, a11y, auth }) {
+    function StoryPage({ story, t, lang, go, openTopic, related=[], open, saved, onToggleSave, a11y, auth, goStoryline }) {
       const fr=story.framing||{};
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
@@ -1324,6 +1349,17 @@ const {useState,useEffect,useMemo}=React;
               <p className={`mt-4 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
             </div>
           </div>
+
+          {/* STORYLINE — how this saga developed across days (only when linked to >1 event) */}
+          {story.storyline && (story.storyline.events||[]).length>1 && (
+            <div className="mx-auto mt-10 max-w-[840px]">
+              <div className="mb-1 flex items-baseline justify-between gap-3 pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
+                <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"यह खबर कैसे विकसित हुई":"How this developed"}</h3>
+                <button onClick={()=>goStoryline&&goStoryline(story.storyline.id)} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{story.storyline.events.length} {lang==="hi"?"अपडेट · पूरी कड़ी →":"updates · full storyline →"}</button>
+              </div>
+              <StorylineTimeline storyline={story.storyline} currentId={story.id} t={t} lang={lang} open={open} />
+            </div>
+          )}
 
           {/* how each side framed it — 3-up bordered table (desktop) / stacked cards (mobile) */}
           {sides.length>0 && (
@@ -2380,12 +2416,69 @@ const {useState,useEffect,useMemo}=React;
       );
     }
 
+    // STORYLINE timeline — how a saga developed across days. Dated thread of the linked events,
+    // the current one marked. Each entry is a real event with its own bias bar; the storyline is
+    // purely a chronology of coverage, it never re-computes or merges any bias count.
+    function StorylineTimeline({ storyline, currentId, t, lang, open, compact }) {
+      if(!storyline || !(storyline.events||[]).length) return null;
+      const evs=storyline.events;
+      return (
+        <ol className="relative mt-4" style={{marginLeft:6}}>
+          <span style={{position:"absolute",left:0,top:4,bottom:4,width:2,background:t.line}}/>
+          {evs.map((ev)=>{ const cur=String(ev.id)===String(currentId);
+            const lc=ev.lean_counts||{}; const b=biasPct(lc);
+            const title=(lang==="hi"&&ev.title_hi)?ev.title_hi:ev.title;
+            return (
+              <li key={ev.id} className="relative pb-5" style={{paddingLeft:22}}>
+                <span style={{position:"absolute",left:-3,top:5,width:9,height:9,borderRadius:9,background:cur?t.ink:(t.gap||"#F4F1EA"),border:`2px solid ${t.ink}`}}/>
+                <div className={`mono text-[10px] uppercase tracking-[0.1em] ${t.tf} ${lang==="hi"?"deva":""}`}>{absDate(ev.date,lang)||timeAgo(ev.date,lang)}</div>
+                {cur
+                  ? <div className={`headline mt-1 text-[15px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:1.3}}>{title} <span className={`mono text-[9px] uppercase tracking-wide ${t.blind}`}>· {lang==="hi"?"यह खबर":"this story"}</span></div>
+                  : <a href={"/story/"+encodeURIComponent(ev.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open&&open(ev.id); }} className={`block no-underline group cursor-pointer mt-1 headline text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{title}</a>}
+                {!compact && (lc.left+lc.center+lc.right)>0 && <div className="mt-2 w-40"><BiasSegments bias={b} t={t} h={8} lang={lang} /></div>}
+              </li>
+            );
+          })}
+        </ol>
+      );
+    }
+    // STORYLINE page (/storyline/:id) — the whole saga: header + the full dated thread.
+    // The index is lean (no events), so fetch the full per-saga file on open; `lean` gives an
+    // instant header while it loads.
+    function StorylinePage({ id, lean, t, lang, open, go }) {
+      const [storyline,setStoryline]=useState(lean||null);
+      useEffect(()=>{ let live=true; if(!id) return; apiGet("storylines/"+id).then(s=>{ if(live) setStoryline(s); }).catch(()=>{ if(live&&!lean) setStoryline(null); }); return ()=>{live=false;}; },[id]);
+      const L = lang==="hi"
+        ? { back:"वापस", eyebrow:"विकसित होती खबर", updates:"अपडेट", note:"यह एक ‘स्टोरीलाइन’ है, समय के साथ इसी घटनाक्रम पर आई अलग-अलग खबरों की कड़ी। हर कड़ी अपनी अलग बायस बार रखती है, स्टोरीलाइन सिर्फ़ क्रम दिखाती है, कोई गिनती दोबारा नहीं जोड़ती।", missing:"यह स्टोरीलाइन नहीं मिली।" }
+        : { back:"Back", eyebrow:"Developing story", updates:"updates", note:"A storyline is a thread of separate stories about the same developing saga over time. Each entry keeps its own bias bar; the storyline only orders them, it never re-counts anything.", missing:"That storyline wasn't found." };
+      if(!storyline) return (<PageWrap><div className={`py-16 text-center ${t.tf} ${isHi(lang)}`}>{L.missing}</div></PageWrap>);
+      const title=(lang==="hi"&&storyline.title_hi)?storyline.title_hi:storyline.title;
+      const tp=lang==="hi"?(TOPIC_HI[storyline.topic]||storyline.topic):storyline.topic;
+      return (
+        <PageWrap>
+          <div className="mx-auto max-w-[840px]">
+            <button onClick={()=>go("home")} className={`mb-5 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {L.back}</button>
+            <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{L.eyebrow}{tp?` · ${tp}`:""}</div>
+            <h1 className={`headline mt-2 text-[26px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{title}</h1>
+            <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{storyline.n_events} {L.updates} · {absDate(storyline.start,lang)} → {absDate(storyline.end,lang)}</div>
+            <div className="mt-6"><StorylineTimeline storyline={storyline} t={t} lang={lang} open={open} /></div>
+            <p className={`mt-6 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.note}</p>
+          </div>
+        </PageWrap>
+      );
+    }
+    // "Developing" chip — marks a story that belongs to a saga thread (Eyebrow + story header).
+    function DevelopingChip({ t, lang }) {
+      return <span className={`inline-flex items-center gap-1 mono text-[9px] font-bold uppercase tracking-[0.12em] ${t.ts}`} style={{padding:"2px 6px",border:`1px solid ${t.line}`}}><span aria-hidden="true">◇</span>{lang==="hi"?"विकसित होती":"Developing"}</span>;
+    }
+
     /* ---------------- routing + app ---------------- */
     function parsePath(){
       const p=(typeof window!=="undefined"?(window.location.pathname||"/"):"/");
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
+      if(seg[0]==="storyline"&&seg[1]) return {view:"storyline", id:decodeURIComponent(seg[1])};
       if(seg.length===0) return {view:"home"};
       if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support","login","settings","account","saved","lens"].includes(seg[0])) return {view:seg[0]};
       return {view:"404"};
@@ -2482,7 +2575,7 @@ const {useState,useEffect,useMemo}=React;
       // else light. Previously it always started light, ignoring a device set to dark.
       const [dark,setDark]=useState(()=>{ try{ const s=localStorage.getItem("paksh-theme"); if(s==="dark")return true; if(s==="light")return false; return !!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches); }catch(e){ return false; } });
       const [query,setQuery]=useState("");
-      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{}});
+      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]});
       const [detail,setDetail]=useState({});
       const [archive,setArchive]=useState(null);   // older events, lazy-loaded for search/topic browsing
       const [ready,setReady]=useState(false);
@@ -2530,6 +2623,7 @@ const {useState,useEffect,useMemo}=React;
       const go=(v)=> nav(v==="home"?"/":"/"+v);
       const open=(id)=>{ track("story_open",{device:deviceClass()}); nav("/story/"+encodeURIComponent(id)); };
       const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
+      const goStoryline=(id)=> nav("/storyline/"+encodeURIComponent(id));
       const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); try{ localStorage.setItem("paksh-lang",l); }catch(e){} if(auth) savePrefsRemote({ lang:l }); };
       // Accessibility setter: update state, persist locally (applies for everyone), sync to the account.
       const setA11y=(p)=>{ setA11yState(p); writeA11y(p); if(auth) savePrefsRemote({ a11y:p }); };
@@ -2607,11 +2701,12 @@ const {useState,useEffect,useMemo}=React;
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
             : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} go={go} />
             : route.view==="account" ? <AccountPage t={t} lang={lang} auth={auth} go={go} onSignOut={onSignOut} />
+            : route.view==="storyline" ? <StorylinePage id={route.id} lean={(data.storylines||[]).find(s=>s.id===route.id)} t={t} lang={lang} open={open} go={go} />
             : route.view==="lens" ? <LensPage t={t} lang={lang} auth={auth} go={go} open={open} />
             : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
             : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
             : !ready ? <FeedSkeleton t={t} />
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} auth={auth} /> : <FeedSkeleton t={t} />)
+            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <FeedSkeleton t={t} />)
             : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
@@ -2622,7 +2717,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
-               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} />)}
+               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} storylines={data.storylines} goStoryline={goStoryline} />)}
             </div>
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
