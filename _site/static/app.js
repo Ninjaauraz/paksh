@@ -2589,10 +2589,9 @@ function BottomNav({
   go,
   auth
 }) {
-  // Front · Gaps · Search · Saved · [You (member) | Sections (guest)]. Login lives ONLY in the
-  // top-right (single login); the 5th slot is Sections for guests, the account for members.
-  const last = authOn() && auth ? ["account", lang === "hi" ? "आप" : "You", User] : ["topics", ui("sections", lang), Grid];
-  const items = [["home", lang === "hi" ? "मुख" : "Front", Home], ["blindspot", lang === "hi" ? "गैप" : "Gaps", Eye], ["search", ui("searchTab", lang), Search], ["saved", lang === "hi" ? "सहेजा" : "Saved", Bookmark], last];
+  // Front · Gaps · Search · Sections — same drawer whether signed in or not.
+  // Login lives ONLY in the top-right; Saved sits behind the account button there.
+  const items = [["home", lang === "hi" ? "मुख" : "Front", Home], ["blindspot", lang === "hi" ? "गैप" : "Gaps", Eye], ["search", ui("searchTab", lang), Search], ["topics", ui("sections", lang), Grid]];
   const active = k => view === k;
   return /*#__PURE__*/React.createElement("nav", {
     className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
