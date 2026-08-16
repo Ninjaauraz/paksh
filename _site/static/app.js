@@ -1808,7 +1808,7 @@ function BreakingTicker({
     },
     className: "overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto flex max-w-[1280px] items-center gap-3 px-4 sm:px-10",
+    className: "mx-auto flex max-w-[1800px] items-center gap-3 px-4 sm:px-10",
     style: {
       height: 30
     }
@@ -2357,7 +2357,7 @@ function UtilityStrip({
     },
     className: "text-white/85"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-5",
+    className: "mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-10",
     style: {
       height: 34
     }
@@ -2448,9 +2448,9 @@ function Header({
       borderBottom: `1px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1280px]"
+    className: "mx-auto max-w-[1800px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `flex items-center justify-between gap-3 border-b px-4 py-2 sm:px-7 ${t.border}`
+    className: `flex items-center justify-between gap-3 border-b px-4 py-2 sm:px-10 ${t.border}`
   }, /*#__PURE__*/React.createElement("span", {
     className: `mono truncate text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
@@ -2483,7 +2483,7 @@ function Header({
   }, /*#__PURE__*/React.createElement(Help, {
     size: 15
   })))), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-7"
+    className: "grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-10"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center"
   }, /*#__PURE__*/React.createElement("button", {
@@ -2539,7 +2539,7 @@ function Header({
       letterSpacing: lang === "hi" ? 0 : ".05em"
     }
   }, lang === "hi" ? "साइन इन" : "Sign in")))), /*#__PURE__*/React.createElement("nav", {
-    className: `hidden items-stretch md:flex ${t.surface}`,
+    className: `hidden items-stretch md:flex sm:px-5 ${t.surface}`,
     style: {
       borderTop: `1px solid ${t.ink}`
     }
@@ -2608,7 +2608,7 @@ function Footer({
   return /*#__PURE__*/React.createElement("footer", {
     className: `mt-12 border-t ${t.border} ${t.surface}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1800px] px-4 sm:px-5 py-9"
+    className: "mx-auto max-w-[1800px] px-4 sm:px-10 py-9"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-end justify-between gap-6"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3287,7 +3287,7 @@ function HomeView({
     }
   }, lang === "hi" ? "सभी सेक्शन देखें" : "Browse all sections", " \u2192"));
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1280px]"
+    className: "mx-auto max-w-[1800px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement(DateStrip, {

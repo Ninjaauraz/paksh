@@ -587,7 +587,7 @@ const {useState,useEffect,useMemo}=React;
       const seq=items.concat(items);   // duplicated so the -50% keyframe loops seamlessly
       return (
         <div style={{background:"#15140F"}} className="overflow-hidden">
-          <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 sm:px-10" style={{height:30}}>
+          <div className="mx-auto flex max-w-[1800px] items-center gap-3 px-4 sm:px-10" style={{height:30}}>
             <span className="flex shrink-0 items-center gap-1.5" style={{zIndex:1}}>
               <span className="pk-pulse" style={{width:6,height:6,borderRadius:9,background:"#C0392B",display:"inline-block"}}/>
               <span className="mono" style={{fontSize:9.5,fontWeight:700,letterSpacing:".18em",color:"#C89170"}}>{lang==="hi"?"ताज़ा ख़बर":"DEVELOPING"}</span>
@@ -797,7 +797,7 @@ const {useState,useEffect,useMemo}=React;
       const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
       return (
         <div style={{backgroundColor:"#15140F"}} className="text-white/85">
-          <div className="mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-5" style={{height:34}}>
+          <div className="mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-10" style={{height:34}}>
             <span className="mono text-[11px] tracking-wide text-white/55">{lang==="hi"?"भारत संस्करण":"India Edition"}</span>
             <div className="flex items-center gap-4">
               <span className={`hidden sm:inline mono text-[11px] text-white/55 ${lang==="hi"?"deva":""}`}>{today}</span>
@@ -841,9 +841,9 @@ const {useState,useEffect,useMemo}=React;
       const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
       return (
         <header className={`sticky top-0 z-40 ${t.nav}`} style={{borderBottom:`1px solid ${t.ink}`}}>
-          <div className="mx-auto max-w-[1280px]">
+          <div className="mx-auto max-w-[1800px]">
             {/* dateline strip */}
-            <div className={`flex items-center justify-between gap-3 border-b px-4 py-2 sm:px-7 ${t.border}`}>
+            <div className={`flex items-center justify-between gap-3 border-b px-4 py-2 sm:px-10 ${t.border}`}>
               <span className={`mono truncate text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{today}</span>
               <div className="flex shrink-0 items-center gap-3">
                 <span className={`hidden md:inline mono text-[10px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"हर पक्ष, हर खबर":"Every side of the story"}</span>
@@ -853,7 +853,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
             </div>
             {/* wordmark row: Support · wordmark · Sign in / account */}
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-7">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-10">
               <div className="flex items-center">
                 <button onClick={()=>go("support")} className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase ${t.blind}`} style={{border:"1px solid currentColor",padding:"7px 11px",letterSpacing:lang==="hi"?0:".06em"}} aria-label={lang==="hi"?"सहयोग":"Support"}><span aria-hidden="true">♥</span><span className={`hidden sm:inline ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सहयोग":"Support"}</span></button>
               </div>
@@ -869,7 +869,7 @@ const {useState,useEffect,useMemo}=React;
               </div>
             </div>
             {/* nav row (desktop) */}
-            <nav className={`hidden items-stretch md:flex ${t.surface}`} style={{borderTop:`1px solid ${t.ink}`}}>
+            <nav className={`hidden items-stretch md:flex sm:px-5 ${t.surface}`} style={{borderTop:`1px solid ${t.ink}`}}>
               {NAV.map(([k,label,clay])=>(
                 <button key={k} onClick={()=>go(k)} className={`relative text-[11px] font-semibold uppercase hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)} ${lang==="hi"?"deva":""}`} style={{padding:"11px 20px",borderRight:`1px solid ${t.line}`,letterSpacing:lang==="hi"?0:".04em"}}>
                   {label}{view===k && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
@@ -898,7 +898,7 @@ const {useState,useEffect,useMemo}=React;
     function Footer({ t, lang, go }) {
       return (
         <footer className={`mt-12 border-t ${t.border} ${t.surface}`}>
-          <div className="mx-auto max-w-[1800px] px-4 sm:px-5 py-9">
+          <div className="mx-auto max-w-[1800px] px-4 sm:px-10 py-9">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div className="max-w-md">
                 <div className="flex items-baseline gap-1.5"><span className={`brand-hi text-xl ${t.tp}`}>पक्ष</span><span className={`text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`}>Paksh</span></div>
@@ -1163,7 +1163,7 @@ const {useState,useEffect,useMemo}=React;
       );
 
       return (
-        <div className="mx-auto max-w-[1280px]">
+        <div className="mx-auto max-w-[1800px]">
           <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
           {/* one h1 for the page + an always-on legend so a first-time visitor knows what the
               "3 · 9 · 4" bias counts mean, right where they see them */}
