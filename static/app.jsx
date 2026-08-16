@@ -1355,16 +1355,6 @@ const {useState,useEffect,useMemo}=React;
             </div>
           )}
 
-          {/* Paksh neutral summary — bordered card with a 3px ink left rule (prototype) */}
-          {(story.summary&&story.summary.length) ? (
-          <div className={`mx-auto mt-9 max-w-[840px] ${t.surface}`} style={{border:`1px solid ${t.line}`,borderLeft:`3px solid ${t.ink}`,padding:"18px 20px"}}>
-            <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{STR[lang].aiSummary}{story.auto?` · ${STR[lang].autoFrom}`:""}</div>
-            <ul className="mt-3.5 space-y-2.5">{story.summary.map((p,i)=><li key={i} className={`flex gap-2.5 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.8:1.55}}><span className="mt-[9px] shrink-0" style={{width:5,height:5,background:t.ink}}/>{p}</li>)}</ul>
-            {a11y&&a11y.readAloud && <div className="mt-3"><ListenButton text={[story.lead].concat(story.summary||[]).filter(Boolean).join(". ")} lang={lang} t={t} /></div>}
-            <div className="mt-3.5 pt-3" style={{borderTop:`1px dashed ${t.line}`}}><p className={`mono text-[10.5px] leading-[1.55] ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p></div>
-          </div>
-          ) : null}
-
           {/* STORYLINE — how this saga developed across days (only when linked to >1 event) */}
           {story.storyline && (story.storyline.events||[]).length>1 && (
             <div className="mx-auto mt-10 max-w-[840px]">

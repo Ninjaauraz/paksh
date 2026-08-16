@@ -3756,47 +3756,7 @@ function StoryPage({
   }), " ", lang === "hi" ? "आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है" : "Recorded to your Reading Lens · visible only to you") : /*#__PURE__*/React.createElement("button", {
     onClick: () => go("login"),
     className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`
-  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें →" : "Sign in to build your Reading Lens →")), story.summary && story.summary.length ? /*#__PURE__*/React.createElement("div", {
-    className: `mx-auto mt-9 max-w-[840px] ${t.surface}`,
-    style: {
-      border: `1px solid ${t.line}`,
-      borderLeft: `3px solid ${t.ink}`,
-      padding: "18px 20px"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".1em"
-    }
-  }, STR[lang].aiSummary, story.auto ? ` · ${STR[lang].autoFrom}` : ""), /*#__PURE__*/React.createElement("ul", {
-    className: "mt-3.5 space-y-2.5"
-  }, story.summary.map((p, i) => /*#__PURE__*/React.createElement("li", {
-    key: i,
-    className: `flex gap-2.5 text-[15px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.55
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "mt-[9px] shrink-0",
-    style: {
-      width: 5,
-      height: 5,
-      background: t.ink
-    }
-  }), p))), a11y && a11y.readAloud && /*#__PURE__*/React.createElement("div", {
-    className: "mt-3"
-  }, /*#__PURE__*/React.createElement(ListenButton, {
-    text: [story.lead].concat(story.summary || []).filter(Boolean).join(". "),
-    lang: lang,
-    t: t
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3.5 pt-3",
-    style: {
-      borderTop: `1px dashed ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    className: `mono text-[10.5px] leading-[1.55] ${t.tf} ${isHi(lang)}`
-  }, STR[lang].aiNote))) : null, story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें →" : "Sign in to build your Reading Lens →")), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
