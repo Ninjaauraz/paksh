@@ -620,7 +620,7 @@ const {useState,useEffect,useMemo}=React;
         ? `${stats.stories} ख़बरें · ${stats.outlets} स्रोत · ${stats.gaps} कवरेज गैप`
         : `${stats.stories} stories · ${stats.outlets} outlets tracked · ${stats.gaps} coverage gaps`;
       return (
-        <div className="flex items-center justify-between gap-4 py-[7px]" style={{borderTop:`2px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}>
+        <div className="flex items-center justify-between gap-4 py-[7px]" style={{borderBottom:`1px solid ${t.ink}`}}>
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             {region("National", ui("National",lang))}
             {region("International", ui("International",lang))}
@@ -857,9 +857,8 @@ const {useState,useEffect,useMemo}=React;
               <div className="flex items-center">
                 <button onClick={()=>go("support")} className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase ${t.blind}`} style={{border:"1px solid currentColor",padding:"7px 11px",letterSpacing:lang==="hi"?0:".06em"}} aria-label={lang==="hi"?"सहयोग":"Support"}><span aria-hidden="true">♥</span><span className={`hidden sm:inline ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सहयोग":"Support"}</span></button>
               </div>
-              <button onClick={()=>go("home")} className="flex items-baseline justify-center gap-2.5" aria-label="Paksh home">
-                <span className={`brand-hi leading-none ${t.tp}`} style={{fontSize:26}}>पक्ष</span>
-                <span className={t.tp} style={{font:"700 30px/1 'Source Serif 4',Georgia,serif",letterSpacing:"-.01em"}}>Paksh</span>
+              <button onClick={()=>go("home")} className="flex items-baseline justify-center" aria-label="Paksh home">
+                <span className={`brand-hi leading-none ${t.tp}`} style={{fontSize:30}}>पक्ष</span>
               </button>
               <div className="flex items-center justify-end gap-2.5">
                 {authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
@@ -1178,7 +1177,6 @@ const {useState,useEffect,useMemo}=React;
                   <span className={`text-[11px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
                 </span>
               ))}
-              <span className={`text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट":"distinct outlets on each side that covered the story · one publisher = one vote"}</span>
             </div>
           </div>
 

@@ -1902,7 +1902,6 @@ function DateStrip({
   return /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between gap-4 py-[7px]",
     style: {
-      borderTop: `2px solid ${t.ink}`,
       borderBottom: `1px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -2502,20 +2501,14 @@ function Header({
     className: `hidden sm:inline ${lang === "hi" ? "deva" : ""}`
   }, lang === "hi" ? "सहयोग" : "Support"))), /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
-    className: "flex items-baseline justify-center gap-2.5",
+    className: "flex items-baseline justify-center",
     "aria-label": "Paksh home"
   }, /*#__PURE__*/React.createElement("span", {
     className: `brand-hi leading-none ${t.tp}`,
     style: {
-      fontSize: 26
+      fontSize: 30
     }
-  }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("span", {
-    className: t.tp,
-    style: {
-      font: "700 30px/1 'Source Serif 4',Georgia,serif",
-      letterSpacing: "-.01em"
-    }
-  }, "Paksh")), /*#__PURE__*/React.createElement("div", {
+  }, "\u092A\u0915\u094D\u0937")), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-end gap-2.5"
   }, authOn() && auth && /*#__PURE__*/React.createElement("button", {
     onClick: () => go("lens"),
@@ -3326,9 +3319,7 @@ function HomeView({
     }
   }), /*#__PURE__*/React.createElement("span", {
     className: `text-[11px] ${t.ts} ${lang === "hi" ? "deva" : ""}`
-  }, lbl(k, lang)))), /*#__PURE__*/React.createElement("span", {
-    className: `text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? "हर पक्ष के कितने अलग आउटलेट ने कवर किया · एक प्रकाशक = एक वोट" : "distinct outlets on each side that covered the story · one publisher = one vote"))), /*#__PURE__*/React.createElement("div", {
+  }, lbl(k, lang)))))), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-[2.1fr_1fr]"
