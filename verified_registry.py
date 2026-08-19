@@ -14,7 +14,7 @@ VOTING RULE (see build_verified_registry.py):
                Its lean is home-market/MBFC-calibrated, not India's,
                so it must never move the India Left/Centre/Right bar.
 
-Rows read: 6643 | usable: 6535 (voting India: 101, non-voting intl: 6434) | skipped bad-domain: 2, no-lean: 0, already-curated: 105, dup-vote: 1
+Rows read: 6643 | usable: 6534 (voting India: 100, non-voting intl: 6434) | skipped bad-domain: 2, no-lean: 0, already-curated: 105, dup-vote: 1, known-duplicate: 1
 """
 
 VERIFIED_SOURCES = [
@@ -26,7 +26,6 @@ VERIFIED_SOURCES = [
     {"name": 'Abp Live', "domain": 'abplive.com', "country": 'India', "region": 'Asiatic Region', "language": 'en', "typology": 'General', "rank": 1000, "lean": 'center', "label": 'Centre', "confidence": 'low', "vote": True},
     {"name": 'Daily Excelsior', "domain": 'dailyexcelsior.com', "country": 'India', "region": 'Asiatic Region', "language": 'en', "typology": 'General', "rank": 1000, "lean": 'right', "label": 'Lean Right', "confidence": 'low', "vote": True},
     {"name": 'Dd News', "domain": 'ddnews.gov.in', "country": 'India', "region": 'Asiatic Region', "language": 'en', "typology": 'General', "rank": 1000, "lean": 'right', "label": 'Lean Right', "confidence": 'low', "vote": True},
-    {"name": 'Ndtv (New Delhi Television)', "domain": 'ndtv.in', "country": 'India', "region": 'Asiatic Region', "language": 'hi', "typology": 'General', "rank": 1070, "lean": 'left', "label": 'Lean Left', "confidence": 'low', "vote": True},
     {"name": 'The Siasat Daily', "domain": 'siasat.com', "country": 'India', "region": 'Asiatic Region', "language": 'other', "typology": 'General', "rank": 1245, "lean": 'right', "label": 'Lean Right', "confidence": 'low', "vote": True},
     {"name": 'Dinakaran', "domain": 'dinakaran.com', "country": 'India', "region": 'Asiatic Region', "language": 'other', "typology": 'General', "rank": 1306, "lean": 'left', "label": 'Lean Left', "confidence": 'low', "vote": True},
     {"name": 'Outlook Business', "domain": 'outlookbusiness.com', "country": 'India', "region": 'Asiatic Region', "language": 'en', "typology": 'Finance', "rank": 1347, "lean": 'right', "label": 'Lean Right', "confidence": 'medium', "vote": True},

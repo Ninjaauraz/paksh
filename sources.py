@@ -1383,6 +1383,18 @@ def _registrable(domain: str) -> str:
 # {bare domain -> rated outlet name}, built from each source's website
 DOMAIN_TO_SOURCE = {_host(s["website"]): s["name"] for s in SOURCES if s.get("website")}
 
+# Known same-publisher, different-domain duplicates: extra domains that resolve
+# to an EXISTING curated outlet rather than becoming their own entry. Keeps one
+# publisher casting one vote even when it publishes under two ccTLDs/domains.
+# The verified-registry generator (build_verified_registry.py) already skips
+# emitting a separate voting entry for these hosts - this is just the matching
+# domain-resolution half, so the domain still attributes articles correctly.
+MANUAL_DOMAIN_ALIASES = {
+    "ndtv.in": "NDTV",   # same publisher as curated ndtv.com
+}
+for _alias_domain, _alias_name in MANUAL_DOMAIN_ALIASES.items():
+    DOMAIN_TO_SOURCE.setdefault(_alias_domain, _alias_name)
+
 # ---- reference registry: editor-verified source-lean registry -----------------
 # Thousands of additional outlets (name + domain + a hand-VERIFIED lean), imported
 # to (a) attribute GDELT-ingested articles to a named outlet - domain resolution +

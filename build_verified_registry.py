@@ -51,6 +51,17 @@ CURATED_NAMES = {s["name"] for s in _CURATED_SOURCES}
 CSV_PATH = Path(r"C:\Users\ambuj\Downloads\paksh_source_lean_complete_6643_v04.csv")
 OUT_PATH = Path(__file__).with_name("verified_registry.py")
 
+# Known same-publisher-different-domain duplicates the name/domain dedup above
+# can't catch (different name string AND different domain from the curated
+# entry). Each CSV row whose domain is a key here is the SAME outlet as the
+# curated one, just under another ccTLD/domain - skip generating a second
+# voter for it entirely. sources.py adds the domain -> curated-name resolution
+# manually (see MANUAL_DOMAIN_ALIASES there), so the domain still attributes
+# articles correctly, it just votes as the curated outlet, once.
+KNOWN_DUPLICATE_DOMAINS = {
+    "ndtv.in": "NDTV",   # same publisher as curated ndtv.com, listed twice in the CSV
+}
+
 _DOMAIN_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9\-]+)+$")
 
 # CSV Paksh_Lean -> the pipeline's lean vocabulary ("left"|"center"|"right").
@@ -104,6 +115,7 @@ def build():
     rows = _read_rows()
     by_domain = {}          # FULL host -> chosen entry (best confidence / rank wins)
     skipped_bad = skipped_curated = skipped_dupe_vote = skipped_no_lean = 0
+    skipped_known_dupe = 0
 
     _CONF_ORDER = {"high": 0, "medium": 1, "low": 2}
 
@@ -122,6 +134,12 @@ def build():
         # Curated editorial outlet already owns this host -> curated wins, skip.
         if _curated_owns(host):
             skipped_curated += 1
+            continue
+
+        # Known same-publisher duplicate under a different domain -> curated
+        # outlet already votes for this publisher, skip the second voter.
+        if host in KNOWN_DUPLICATE_DOMAINS:
+            skipped_known_dupe += 1
             continue
 
         try:
@@ -189,12 +207,12 @@ def build():
         final.append(e)
 
     _write(final, skipped_bad, skipped_curated, skipped_dupe_vote,
-           skipped_no_lean, len(rows))
+           skipped_no_lean, skipped_known_dupe, len(rows))
     return final
 
 
 def _write(entries, skipped_bad, skipped_curated, skipped_dupe_vote,
-           skipped_no_lean, total_rows):
+           skipped_no_lean, skipped_known_dupe, total_rows):
     voting = sum(1 for e in entries if e["vote"])
     intl = len(entries) - voting
     lines = []
@@ -217,7 +235,8 @@ def _write(entries, skipped_bad, skipped_curated, skipped_dupe_vote,
     lines.append(f"Rows read: {total_rows} | usable: {len(entries)} "
                  f"(voting India: {voting}, non-voting intl: {intl}) | "
                  f"skipped bad-domain: {skipped_bad}, no-lean: {skipped_no_lean}, "
-                 f"already-curated: {skipped_curated}, dup-vote: {skipped_dupe_vote}")
+                 f"already-curated: {skipped_curated}, dup-vote: {skipped_dupe_vote}, "
+                 f"known-duplicate: {skipped_known_dupe}")
     lines.append('"""')
     lines.append("")
     lines.append("VERIFIED_SOURCES = [")
@@ -238,7 +257,8 @@ def _write(entries, skipped_bad, skipped_curated, skipped_dupe_vote,
     print(f"Wrote {OUT_PATH.name}: {len(entries)} outlets "
           f"(voting India {voting}, non-voting intl {intl}) | "
           f"skipped bad {skipped_bad}, no-lean {skipped_no_lean}, "
-          f"curated {skipped_curated}, dup-vote {skipped_dupe_vote}")
+          f"curated {skipped_curated}, dup-vote {skipped_dupe_vote}, "
+          f"known-duplicate {skipped_known_dupe}")
 
 
 if __name__ == "__main__":
