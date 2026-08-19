@@ -51,6 +51,10 @@ from database import (
     get_event, get_event_articles, update_event, get_recent_events_for_merge,
 )
 from sources import LEAN_BY_SOURCE, INTERNATIONAL_SOURCES, OWNER_BY_SOURCE
+try:
+    from sources import VERIFIED_BY_NAME
+except ImportError:                              # older sources.py / registry not generated yet
+    VERIFIED_BY_NAME = {}
 import cluster
 
 # ---- LLM backend for the bilingual summary --------------------------------
@@ -233,11 +237,42 @@ def _extract_json(text: str):
     return json.loads(_repair_json(t))
 
 
-def lean_of(name):
-    # Foreign wires (Reuters, AP, BBC, Guardian, Al Jazeera, ...) add coverage and
-    # framing, but their lean is set on their HOME-market spectrum, not India's, so
-    # they sit in a non-voting "international" tier and never move the India bias bar.
+def _international_lean(name):
+    """The underlying left/center/right lean of an INTERNATIONAL-tier outlet, if known -
+    curated wires carry it in LEAN_BY_SOURCE, the verified foreign registry in
+    VERIFIED_BY_NAME. Only consulted when a story's region has already made that
+    outlet eligible to vote (see lean_of); never used to decide the region itself."""
+    v = LEAN_BY_SOURCE.get(name)
+    if v in LEAN_ORDER:
+        return v
+    v = (VERIFIED_BY_NAME.get(name) or {}).get("lean")
+    return v if v in LEAN_ORDER else None
+
+
+def lean_of(name, region=None):
+    """`region` must already be FINAL when passed (see postprocess: region is decided
+    first, from the story's own India/World classification only, never from source
+    composition - that circularity was removed on purpose). Voting eligibility is
+    derived FROM region, never the reverse.
+
+    INDIA stories: unchanged rule. Foreign wires (Reuters, AP, BBC, Guardian, Al
+    Jazeera, the verified foreign registry, ...) add coverage and framing, but their
+    lean is set on their HOME-market spectrum, not India's, so they sit in a
+    non-voting "international" tier and never move the India bias bar.
+
+    WORLD stories: an eligible international outlet with a KNOWN lean votes on that
+    lean instead - the explicit international-voting policy. An outlet whose lean we
+    don't know stays "international" (non-voting) either way; this never guesses.
+
+    Callers that don't yet know the story's final region (clustering/ranking, before
+    an event has been analysed) pass no region and get the INDIA-story behaviour,
+    which is the safe default - it never grants a vote a still-unclassified story
+    hasn't earned."""
     if name in INTERNATIONAL_SOURCES:
+        if region == "World":
+            real = _international_lean(name)
+            if real:
+                return real
         return "international"
     # Unknown outlets (e.g. the GDELT long tail) are UNRATED: they add coverage
     # and clustering density but never vote in the Left/Centre/Right bias bar.
@@ -334,6 +369,19 @@ def build_prompt(articles) -> str:
         f'HEADLINE: {a["title"]}\nSUMMARY: {(a["summary"] or "(none)")[:SUMMARY_TRUNC]}'
         for a in picked
     ]
+    # Per-side DISTINCT-OWNER counts - the SAME one-vote-per-owner arithmetic postprocess()
+    # uses for the real bias bar - given as explicit context so the model can write "the sole
+    # rated outlet..." instead of "X-leaning outlets..." for a one-owner side without having to
+    # infer the count itself from the OUTLET blocks below. (This is a wording hint only; the
+    # authoritative count that gates what actually gets stored is computed later, in
+    # postprocess, from the story's finalized region.)
+    owner_counts = {
+        side: len({OWNER_BY_SOURCE.get(a["source"], a["source"])
+                   for a in articles if lean_of(a["source"]) == side})
+        for side in LEAN_ORDER
+    }
+    counts_line = "LEFT: %d owner(s) - CENTRE: %d owner(s) - RIGHT: %d owner(s)" % (
+        owner_counts["left"], owner_counts["center"], owner_counts["right"])
     return f"""You are a neutral news engine for "Paksh", a media-transparency
 tool for India. Below is coverage of ONE event from several Indian outlets
 (English and Hindi), each tagged with its editorially-assigned political lean.
@@ -361,18 +409,34 @@ STRICT NEUTRALITY - never cross these:
 - The neutral title and summary must not adopt any outlet's loaded words or framing,
   and must NOT name individual publications - describe the event, not who reported it.
 
-FRAMING - a per-side BULLET SUMMARY (like Ground News), concrete and specific:
-- For EACH lean, write 3-5 SHORT bullet points describing how that side's outlets
-  COLLECTIVELY cover the story: the specific claims, angles, numbers, names and emphases
-  they lead with, stress or repeat. Each bullet is ONE crisp point WITH the detail cited.
+FRAMING - a per-side BULLET SUMMARY (like Ground News), COMPARATIVE, concrete and specific:
+- First identify what is COMMON across ALL sides' coverage (the facts nobody disputes) -
+  do not restate these in the bullets. Then, for EACH lean, write bullets on what THAT
+  side emphasizes MORE than the others: which facts/claims/quotes/numbers/causes/
+  consequences it leads with, stresses or omits relative to the other sides' coverage.
+  A bullet describes comparative emphasis, not a fresh independent summary of that side
+  read in isolation - the reader should see the difference at a glance across the columns.
+- 1-5 SHORT bullets per side, however many the evidence genuinely supports. One meaningful
+  difference is one sentence; do not pad to a fixed count. Each bullet is ONE crisp point
+  WITH the detail cited.
 - Model the substance (not the length) on:
-    "Framed the funding row as a national-security concern, stressing the foreign-donation angle."
-    "Repeated the opposition's demand for a court-monitored audit."
+    "Framed the funding row as a national-security concern, stressing the foreign-donation angle, while other coverage led with the audit demand."
+    "The sole rated outlet in this tier led with the opposition's court-monitored-audit demand."
   NOT vague ("emphasised different aspects", "focused on the situation").
-- Refer to each side COLLECTIVELY ("...outlets"). Never name, quote or single out any
-  publication by name in a bullet.
-- Draw ONLY on the headlines/summaries below; never invent a position, number, quote,
-  cause or consequence. Attribute contested claims to who makes them.
+- COVERAGE COUNTS below gives each side's distinct rated-owner count. A side with 2+ owners
+  is referred to COLLECTIVELY ("...outlets"); a side with EXACTLY 1 owner must be written as
+  "the sole rated outlet reporting this..." (or equivalent natural phrasing) - NEVER as if
+  one publisher speaks for its whole side. Never name, quote or single out any publication.
+- Describe what the reporting foregrounds - "emphasises", "highlights", "gives more
+  attention to", "frames around", "mentions X while giving less attention to Y". NEVER
+  claim motive or intent ("wants readers to believe", "is hiding", "is trying to"). You are
+  analysing the reporting, not the newsroom's intentions.
+- Draw ONLY on the OUTLET blocks below; never invent a position, number, quote, cause or
+  consequence. Attribute contested claims to who makes them.
+- Outlets tagged [lean: unrated] or [lean: international wire] are EVIDENCE ONLY: real
+  facts, quotes and context you may use in the neutral summary, or to add color to a rated
+  side's framing - but they never define a rated side's position by themselves, never get
+  their own framing bullet, and an unrated outlet's angle is never attributed to a lean.
 - If a side's coverage just tracks the neutral facts with no distinct frame, say so in a
   SINGLE bullet (e.g. "Largely reported the events without a distinct frame"). Do NOT
   manufacture a difference that is not in the text.
@@ -393,14 +457,17 @@ Return ONLY a JSON object with these keys:
   "summary_hi": "REQUIRED - Hindi (Devanagari) translation of the summary, never empty, Hindi script only",
   "summary_points_hi": ["REQUIRED - Hindi (Devanagari) translations of the points, same order, never empty, Hindi script only"],
   "framing": {{
-    "left": ["IN ENGLISH ONLY (never Hindi/Devanagari) - 3-5 short bullet points on how left-leaning outlets collectively cover it; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
-    "center": ["IN ENGLISH ONLY - 3-5 short bullets on how centrist coverage collectively frames it, same rules; [] if none"],
-    "right": ["IN ENGLISH ONLY - 3-5 short bullets on how right-leaning outlets collectively frame it, same rules; [] if none"]
+    "left": ["IN ENGLISH ONLY (never Hindi/Devanagari) - 1-5 short bullets on what left-side coverage comparatively emphasizes vs the other sides; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
+    "center": ["IN ENGLISH ONLY - 1-5 short bullets, same comparative rule for centrist coverage; [] if none"],
+    "right": ["IN ENGLISH ONLY - 1-5 short bullets, same comparative rule for right-side coverage; [] if none"]
   }},
   "framing_hi": {{ "left": ["IN HINDI/DEVANAGARI ONLY (never English) - same points as framing.left, same order"], "center": ["Hindi/Devanagari only, same as framing.center"], "right": ["Hindi/Devanagari only, same as framing.right"] }},
   "topic": "exactly one of {TOPICS}. International = events occurring mainly outside India (foreign politics, wars, foreign disasters). Environment = climate, weather, pollution, natural disasters inside India. Crime & Law = courts, police, crime. Choose the single best fit by the story's MAIN subject, not an incidental mention.",
   "region": "India or World - 'India' if the story is primarily about India or has a direct India angle (Indian people, government, economy, society, courts, prices, sport teams); 'World' if it is mainly about events in other countries"
 }}
+
+COVERAGE COUNTS (distinct rated owners per side - see the sole-outlet wording rule above):
+{counts_line}
 
 COVERAGE:
 {(chr(10) + "---" + chr(10)).join(blocks)}
@@ -408,10 +475,13 @@ COVERAGE:
 
 
 # A side needs at least this many DISTINCT OWNERS (the same "unique coverage" the bias bar
-# counts) before we synthesise its bullet summary. Below it, the UI shows "Not enough unique
-# coverage to create a summary" for that side - so a lone outlet never stands in for a whole
-# wing, and a genuine blindspot reads as one. Editorial knob: raise/lower to taste.
-MIN_SIDE_OWNERS = 2
+# counts) before we synthesise its bullet summary. A side with ZERO owners still gets no
+# summary (there is nothing to summarise) - the UI shows "Not enough unique coverage" only
+# below that floor. At exactly one owner, a summary IS produced, but build_prompt() tells the
+# model to write it as "the sole rated outlet reporting..." rather than "X-leaning outlets...",
+# so one publisher is never presented as its wing's consensus. Editorial knob: raise to demand
+# more owners before summarising a side at all.
+MIN_SIDE_OWNERS = 1
 
 def _clean_framing(raw_framing, coverage):
     """Normalise per-side framing to a LIST of clean bullet points, and keep a side ONLY
@@ -451,8 +521,20 @@ def postprocess(raw, articles) -> dict:
     from the model; the bias breakdown is pure arithmetic on OUR fixed lean
     labels (no AI decides bias)."""
     raw = raw or {}
+
+    # Region is decided FIRST, from the story's own classification (the model's own
+    # "region" field, or a text-only guess) and ONLY from that - never from source/
+    # coverage composition. Voting eligibility (below) is derived FROM this finalized
+    # region; it must never feed back into it, or region and eligibility would each
+    # depend on the other (approved fix - see CLAUDE.md/the international-voting audit).
+    blob = " ".join([raw.get("title", ""), raw.get("summary", "")]
+                    + [a.get("title", "") for a in articles])
+    region = raw.get("region")
+    if region not in ("India", "World"):
+        region = _guess_region(blob)
+
     for a in articles:
-        a["lean"] = lean_of(a["source"])
+        a["lean"] = lean_of(a["source"], region)
     hero = next((a.get("image_url") for a in articles if a.get("image_url")), "")
 
     # source list: outlet, its OWNER, fixed lean, language, link, and its headline.
@@ -486,26 +568,6 @@ def postprocess(raw, articles) -> dict:
     topic = raw.get("topic", "Society")
     if topic not in TOPICS:
         topic = "Society"
-
-    region = raw.get("region")
-    blob = " ".join([raw.get("title", ""), raw.get("summary", "")]
-                    + [a.get("title", "") for a in articles])
-    if region not in ("India", "World"):
-        region = _guess_region(blob)
-    # Keep WORLD news out of the National feed, WITHOUT yanking real India stories
-    # out of it. India-first rule: any clear India angle in the text -> stays
-    # "India" (this protects India-Pakistan/China stories, Bollywood, cricket,
-    # Indian people/places abroad). Otherwise flip to "World" only when foreign
-    # coverage actually DOMINATES - i.e. international-tier outlets are at least as
-    # many as the Indian voting outlets (or it is foreign-outlet-only). Gating the
-    # text signal by composition is what gives high precision: a story Indian media
-    # covers heavily stays National even if it mentions a foreign country.
-    has_india = bool(_INDIA_RE.search(blob))
-    india_votes = sum(coverage_out[s]["count"] for s in LEAN_ORDER)
-    intl_n = coverage_out["international"]["count"]
-    foreign_dominant = (india_votes == 0 and intl_n > 0) or (intl_n >= max(1, india_votes))
-    if not has_india and foreign_dominant and (_FOREIGN_RE.search(blob) or india_votes == 0):
-        region = "World"
 
     points = raw.get("summary_points") or []
     degraded = not (raw.get("title") or raw.get("summary") or points)

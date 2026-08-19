@@ -42,9 +42,13 @@ cov = out["coverage"]
 # lean comes from sources.py: Hindu=left, OpIndia=right, Amar Ujala=center
 assert (cov["left"]["count"], cov["center"]["count"], cov["right"]["count"]) == (1, 1, 1), cov
 assert cov["left"]["sources"] == ["The Hindu"] and cov["right"]["sources"] == ["OpIndia"]
-# each side has only ONE owner here (< MIN_SIDE_OWNERS), so no side gets a synthesised
-# summary - _clean_framing drops them all and the UI shows "not enough unique coverage".
-assert out["framing"] == {} and out["framing_hi"] == {}, out["framing"]
+# MIN_SIDE_OWNERS=1: each side has exactly one owner, which is now ENOUGH to keep a
+# synthesised summary (the one-source-summaries change) - it is no longer silently
+# dropped. The UI's own deterministic "sole rated outlet" guardrail (not tested here,
+# it lives in app.jsx and reads coverage[side].count===1) is what stops this from
+# reading as a whole side's consensus, independent of whatever the model wrote.
+assert out["framing"] == raw["framing"], out["framing"]
+assert out["framing_hi"] == raw["framing_hi"], out["framing_hi"]
 assert out["total_sources"] == 3 and out["degraded"] is False
 assert out["image_url"] == "https://img/1.jpg"                 # first article with an image
 
@@ -58,12 +62,46 @@ print("postprocess (healthy): coverage from our config, bilingual fields, "
 # ---- 2b) _clean_framing: list/string normalisation + unique-coverage threshold ----
 cov2 = {"left": {"count": 3}, "center": {"count": 1}, "right": {"count": 2}}
 cf = analyze._clean_framing(
-    {"left": ["a", " b ", "", 5], "center": ["dropped - lone owner"], "right": "legacy string"},
+    {"left": ["a", " b ", "", 5], "center": ["one-owner side, now kept"], "right": "legacy string"},
     cov2)
-assert cf == {"left": ["a", "b"], "right": ["legacy string"]}, cf   # center dropped; string wrapped
+# MIN_SIDE_OWNERS=1: a one-owner side (center) is now KEPT, not dropped; a zero-owner
+# side still would be (tested next).
+assert cf == {"left": ["a", "b"], "center": ["one-owner side, now kept"], "right": ["legacy string"]}, cf
+cov3 = {"left": {"count": 3}, "center": {"count": 0}, "right": {"count": 2}}
+cf3 = analyze._clean_framing({"left": ["a"], "center": ["should be dropped, zero owners"], "right": ["b"]}, cov3)
+assert cf3 == {"left": ["a"], "right": ["b"]}, cf3   # zero-owner side still dropped
 assert analyze.has_framing(["", "  "]) is False and analyze.has_framing(["x"]) is True
 assert analyze.has_framing("") is False and analyze.has_framing("y") is True
-print("_clean_framing: bullets kept, lone-owner side dropped, legacy string wrapped ... OK")
+print("_clean_framing: bullets kept, one-owner side now kept, zero-owner side still dropped, "
+      "legacy string wrapped ... OK")
+
+# ---- 2c) international voting: eligibility comes from a FINAL region, not the reverse ----
+# Reuters is a curated INTERNATIONAL-tier outlet with a known underlying lean (center).
+assert analyze.lean_of("Reuters") == "international"          # no region passed -> safe default
+assert analyze.lean_of("Reuters", "India") == "international"  # India story: never votes
+assert analyze.lean_of("Reuters", "World") == "center"         # World story: votes its own lean
+# An India-rated outlet's lean never changes with region - only the INTERNATIONAL tier does.
+assert analyze.lean_of("The Hindu", "India") == "left" and analyze.lean_of("The Hindu", "World") == "left"
+print("lean_of: international outlets vote only on World stories, India-tier outlets unaffected ... OK")
+
+# ---- 2d) postprocess: region is decided from raw classification only, before coverage ----
+world_articles = [
+    {"id": 1, "source": "Reuters", "language": "en", "title": "Foreign headline",
+     "url": "https://x/10", "image_url": "", "summary": "s"},
+]
+world_raw = {"title": "T", "summary": "S", "region": "World"}
+out_world = analyze.postprocess(world_raw, world_articles)
+# Reuters now votes CENTRE on this explicitly-World story - not the non-voting "international" tier.
+assert out_world["coverage"]["center"]["count"] == 1, out_world["coverage"]
+assert out_world["coverage"]["international"]["count"] == 0, out_world["coverage"]
+assert out_world["region"] == "World"
+india_raw = {"title": "T", "summary": "S", "region": "India"}
+out_india = analyze.postprocess(india_raw, world_articles)
+# Same outlet, same articles, only the story's OWN region differs -> Reuters stays non-voting.
+assert out_india["coverage"]["center"]["count"] == 0, out_india["coverage"]
+assert out_india["coverage"]["international"]["count"] == 1, out_india["coverage"]
+print("postprocess: voting eligibility follows the story's own region, region never follows "
+      "coverage composition ... OK")
 
 # ---- 3) topic validation ----
 assert analyze.postprocess({**raw, "topic": "Nonsense"}, articles)["topic"] == "Society"

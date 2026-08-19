@@ -208,6 +208,12 @@ const {useState,useEffect,useMemo}=React;
       sections:{en:"Sections", hi:"खंड"}, oneSided:{en:"One-Sided", hi:"एकतरफ़ा"},
       searchTab:{en:"Search", hi:"खोज"}, browse:{en:"Browse by topic", hi:"विषय से देखें"},
       searchHint:{en:"Search across all coverage", hi:"सभी कवरेज में खोजें"},
+      latestCoverage:{en:"Latest coverage", hi:"ताज़ा कवरेज"},
+      gapAll:{en:"All", hi:"सभी"}, gapLeftMissing:{en:"Left missing", hi:"वाम ग़ायब"},
+      gapRightMissing:{en:"Right missing", hi:"दक्षिण ग़ायब"}, showMore:{en:"Show more", hi:"और दिखाएँ"},
+      developingStories:{en:"Developing Stories", hi:"विकसित होती खबरें"},
+      viewAllDeveloping:{en:"View all developing stories", hi:"सभी विकसित होती खबरें देखें"},
+      soleOutlet:{en:"Based on the sole rated outlet covering this", hi:"इसे कवर करने वाले एकमात्र रेटेड आउटलेट पर आधारित"},
       groupBy:{en:"Group by", hi:"समूह"}, gLean:{en:"Lean", hi:"झुकाव"},
       gLang:{en:"Language", hi:"भाषा"}, gRegion:{en:"Region", hi:"क्षेत्र"},
       findOutlet:{en:"Find an outlet…", hi:"आउटलेट खोजें…"},
@@ -223,7 +229,7 @@ const {useState,useEffect,useMemo}=React;
         navTop:"Top Stories", navOS:"Coverage Gaps", navSrc:"Sources", navMethod:"Method",
         search:"Search coverage…", tagline:"Compare how India's media covers each story, every side, side by side.",
         topNews:"Top Stories", osTitle:"Coverage Gaps",
-        osSub:"A coverage gap is a story that outlets on one side of the spectrum covered while few or none on the other did. Paksh flags these by counting distinct outlets per lean, the same counts as the bias bar, and shows the full Left · Centre · Right tally on each. It's arithmetic, not a judgment about any outlet or about why a story was or wasn't covered. Outlets also differ in how much they publish, so an absence of coverage on one side may reflect an outlet's publishing volume rather than a deliberate omission.",
+        osSub:"Stories where one side reports heavily and the other barely does, counted the same way as the bias bar.",
         gapLeftHead:"Covered more by Left-leaning outlets", gapRightHead:"Covered more by Right-leaning outlets",
         gapShowing:"Showing the {n} most lopsided of {total}", gapCovered:"Covered by",
         m_gapH:"How coverage gaps break down",
@@ -273,7 +279,7 @@ const {useState,useEffect,useMemo}=React;
         navTop:"मुख्य खबरें", navOS:"कवरेज गैप", navSrc:"स्रोत", navMethod:"कार्यप्रणाली",
         search:"कवरेज खोजें…", tagline:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है, हर पक्ष, आमने-सामने।",
         topNews:"मुख्य खबरें", osTitle:"कवरेज गैप",
-        osSub:"कवरेज गैप वह ख़बर है जिसे स्पेक्ट्रम के एक तरफ़ के आउटलेट्स ने कवर किया पर दूसरी तरफ़ के बहुत कम या किसी ने नहीं। पक्ष हर झुकाव के अलग-अलग आउटलेट्स गिनकर इन्हें चिह्नित करता है, वही गिनती जो बायस बार में है, और हर एक पर पूरा वाम · केंद्र · दक्षिण आँकड़ा दिखाता है। यह अंकगणित है, किसी आउटलेट या कवरेज के कारण पर निर्णय नहीं। आउटलेट अलग-अलग मात्रा में प्रकाशित करते हैं, इसलिए एक तरफ़ कवरेज की अनुपस्थिति जानबूझकर की गई चूक के बजाय उस आउटलेट के प्रकाशन-आयतन को दर्शा सकती है।",
+        osSub:"वे ख़बरें जिन्हें एक पक्ष ज़्यादा कवर करता है और दूसरा बहुत कम, बायस बार जैसी ही गिनती से चिह्नित।",
         gapLeftHead:"ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर", gapRightHead:"ज़्यादातर दक्षिण-झुकाव आउटलेट्स द्वारा कवर",
         gapShowing:"{total} में से {n} सबसे असंतुलित दिखाई जा रही हैं", gapCovered:"कवर किया गया:",
         m_gapH:"कवरेज गैप का ब्यौरा",
@@ -1115,24 +1121,56 @@ const {useState,useEffect,useMemo}=React;
     }
     // Right-rail "Developing storylines" — the freshest sagas (multi-event threads). Each links
     // to the full storyline page. Pure chronology of coverage; no bias re-computation.
-    function DevelopingRail({ storylines, t, lang, goStoryline }) {
-      const items=(storylines||[]).filter(s=>s.n_events>=2).slice(0,4);
+    // The rail is a compact TEASER by design (narrow column, like the Coverage-Gaps rail below
+    // it) — it is not where "all developing stories" are supposed to live. When more qualify
+    // than fit the teaser, a visible link goes to the full Storylines hub (goStorylines) rather
+    // than silently dropping them.
+    const DEVELOPING_RAIL_N = 4;
+    function DevelopingRail({ storylines, t, lang, goStoryline, goStorylines }) {
+      const all=(storylines||[]).filter(s=>s.n_events>=2);
+      const items=all.slice(0,DEVELOPING_RAIL_N);
       if(!items.length) return null;
       return (
         <div>
-          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"विकसित होती खबरें":"Developing storylines"}</div>
+          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{ui("developingStories",lang)}</div>
           {items.map((s,i)=>{ const title=(lang==="hi"&&s.title_hi)?s.title_hi:s.title;
             return (
-              <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer py-3 ${i<items.length-1?"border-b":""} ${t.border}`}>
+              <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer py-3 ${i<items.length-1||all.length>items.length?"border-b":""} ${t.border}`}>
                 <div className={`headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3,textWrap:"pretty"}}>{title}</div>
                 <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}><span aria-hidden="true">◇</span> {s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
               </a>
             );
           })}
+          {all.length>items.length && (
+            <button onClick={()=>goStorylines&&goStorylines()} className={`mt-2.5 mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{ui("viewAllDeveloping",lang)} ({all.length}) →</button>
+          )}
         </div>
       );
     }
-    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go, auth, lens, openHelp, storylines, goStoryline }) {
+    // Full discovery surface for developing storylines (Section 4/8's "view all" route) — same
+    // card-link pattern as the rail, just unlimited and newest-updated first. Reuses the existing
+    // routing architecture (a plain single-segment view, like TopicsHub) rather than new machinery.
+    function StorylinesHub({ storylines, t, lang, goStoryline }) {
+      const items=(storylines||[]).filter(s=>s.n_events>=2).sort((a,b)=>String(b.updated_at||"").localeCompare(String(a.updated_at||"")));
+      return (
+        <PageWrap>
+          <h1 className={`headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("developingStories",lang)}</h1>
+          {items.length ? (
+            <div className="grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map(s=>{ const title=(lang==="hi"&&s.title_hi)?s.title_hi:s.title;
+                return (
+                  <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer border-b pb-4 ${t.border}`}>
+                    <div className={`headline text-[16px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.32,textWrap:"pretty"}}>{title}</div>
+                    <div className={`mt-1.5 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}><span aria-hidden="true">◇</span> {s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
+                  </a>
+                );
+              })}
+            </div>
+          ) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
+        </PageWrap>
+      );
+    }
+    function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go, auth, lens, openHelp, storylines, goStoryline, goStorylines }) {
       // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
       // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
       // top-ranked story leads, the rest fall into the tier ladder in ranked order.
@@ -1215,7 +1253,7 @@ const {useState,useEffect,useMemo}=React;
                     ))}
                   </div>
                 )}
-                <DevelopingRail storylines={storylines} t={t} lang={lang} goStoryline={goStoryline} />
+                <DevelopingRail storylines={storylines} t={t} lang={lang} goStoryline={goStoryline} goStorylines={goStorylines} />
                 <AdSlot t={t} lang={lang} />
               </div>
             </div>
@@ -1376,6 +1414,12 @@ const {useState,useEffect,useMemo}=React;
                     <span className={BIAS[k].tex} style={{width:10,height:10,border:`1px solid ${t.ink}`}}/>
                   </div>
                   <div className={`flex flex-1 flex-col p-4 ${t.surface}`}>
+                    {/* Deterministic guardrail, independent of what the model wrote: a single
+                        rated owner must never read as that side's consensus. Based on the real
+                        vote count (vc[k]), not the model's wording. */}
+                    {vc[k]===1 && Array.isArray(fr[k]) && fr[k].length>0 && (
+                      <p className={`mt-3.5 mono text-[10px] uppercase tracking-[0.08em] ${t.tf} ${lang==="hi"?"deva":""}`}>{ui("soleOutlet",lang)}</p>
+                    )}
                     {Array.isArray(fr[k]) && fr[k].length
                       ? <ul className="mt-3.5 space-y-2">{fr[k].map((p,i)=>(
                           <li key={i} className={`flex gap-2 text-[14px] md:text-[14.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>
@@ -1526,7 +1570,17 @@ const {useState,useEffect,useMemo}=React;
       (left||[]).forEach(s=>cards.push({story:s, gapSide:"right"}));
       // Starkest first: the smallest under-covered count (0 = unreported) leads.
       cards.sort((a,b)=>((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0));
-      const shown=cards.slice(0,15);
+      // ALL / LEFT MISSING / RIGHT MISSING — filters the already-loaded set (gapSide is the
+      // UNDER-covered side), it never re-fetches. Centre is deliberately not offered: a
+      // Centre-only story is "thinly covered", not a blindspot, in the current editorial model.
+      const [gapFilter,setGapFilter]=useState("all");
+      const filtered = gapFilter==="all" ? cards : cards.filter(c=>c.gapSide===gapFilter);
+      // Progressive reveal instead of a hard cutoff: show a first page, let the reader ask for
+      // more of what's already in memory — no second fetch, no arbitrary "only 15 exist" cap.
+      const PAGE=24;
+      const [visible,setVisible]=useState(PAGE);
+      useEffect(()=>{ setVisible(PAGE); },[gapFilter]);
+      const shown=filtered.slice(0,visible);
       const gapsToday=(agg.total!=null?agg.total:cards.length);
       const pad="px-4 sm:px-10";
       // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
@@ -1564,9 +1618,19 @@ const {useState,useEffect,useMemo}=React;
           <div className={pad}>
             <div className="grid lg:grid-cols-[2fr_1fr]">
               <div className="py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
+                <div className="mb-5">
+                  <SegChoice value={gapFilter} onChange={setGapFilter} lang={lang} t={t} options={[
+                    ["all", ui("gapAll",lang)], ["left", ui("gapLeftMissing",lang)], ["right", ui("gapRightMissing",lang)],
+                  ]} />
+                </div>
                 {shown.length
                   ? <div className="grid gap-5 sm:grid-cols-2">{shown.map(g=>(<GapCard key={g.story.id} story={g.story} gapSide={g.gapSide} t={t} lang={lang} onOpen={open} />))}</div>
                   : <div className={`border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
+                {filtered.length>shown.length && (
+                  <div className="mt-7 flex justify-center">
+                    <button onClick={()=>setVisible(v=>v+PAGE)} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("showMore",lang)} ({filtered.length-shown.length})</button>
+                  </div>
+                )}
               </div>
               <div className="py-6 lg:pl-7 space-y-6">
                 {tuned.length>0 && (
@@ -2022,7 +2086,8 @@ const {useState,useEffect,useMemo}=React;
         </PageWrap>
       );
     }
-    function SearchPage({ t, lang, query, setQuery, results, open }) {
+    function SearchPage({ t, lang, query, setQuery, results, browseCards, open }) {
+      const browsing = !query.trim();
       return (
         <PageWrap>
           <h1 className={`headline mb-5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("searchTab",lang)}</h1>
@@ -2032,8 +2097,12 @@ const {useState,useEffect,useMemo}=React;
               <input autoFocus value={query||""} onChange={e=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang==="hi"?"deva":""}`} />
             </div>
           </div>
-          {!query.trim() ? <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
-            : results.length ? <GridGrid items={results} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
+          {browsing ? (
+            (browseCards||[]).length ? (<>
+              <div className={`mb-4 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{ui("latestCoverage",lang)}</div>
+              <GridGrid items={browseCards} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
+            </>) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
+          ) : results.length ? <GridGrid items={results} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
             : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}><p className={`text-lg font-bold ${t.ts}`}>{STR[lang].noResults}</p><p className="mt-1 text-sm">{STR[lang].noResultsSub}</p></div>}
         </PageWrap>
       );
@@ -2602,7 +2671,7 @@ const {useState,useEffect,useMemo}=React;
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
       if(seg[0]==="storyline"&&seg[1]) return {view:"storyline", id:decodeURIComponent(seg[1])};
       if(seg.length===0) return {view:"home"};
-      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support","login","settings","account","saved","lens"].includes(seg[0])) return {view:seg[0]};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support","login","settings","account","saved","lens","storylines"].includes(seg[0])) return {view:seg[0]};
       return {view:"404"};
     }
     // First-run onboarding: a reading-language ask + four one-line explainers of how to read
@@ -2746,6 +2815,7 @@ const {useState,useEffect,useMemo}=React;
       const open=(id)=>{ track("story_open",{device:deviceClass()}); nav("/story/"+encodeURIComponent(id)); };
       const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
       const goStoryline=(id)=> nav("/storyline/"+encodeURIComponent(id));
+      const goStorylines=()=> nav("/storylines");
       const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); try{ localStorage.setItem("paksh-lang",l); }catch(e){} if(auth) savePrefsRemote({ lang:l }); };
       // Accessibility setter: update state, persist locally (applies for everyone), sync to the account.
       const setA11y=(p)=>{ setA11yState(p); writeA11y(p); if(auth) savePrefsRemote({ a11y:p }); };
@@ -2807,10 +2877,47 @@ const {useState,useEffect,useMemo}=React;
       const qTokens=query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       const _hay=(c)=>`${c.headline||""} ${c.lead||""} ${(c.summary||[]).join(" ")} ${c.topic||""}`.toLowerCase();
       const results=qTokens.length?baseCards.filter(c=>{ const h=_hay(c); return qTokens.every(tok=>h.includes(tok)); }):[];
+      // Pre-query browse view: baseCards is already the full loaded catalogue, newest-first
+      // (see the sort above) — reuse it in place rather than a second fetch or an empty state.
+      const browseCards=baseCards.slice(0,24);
       const story = route.view==="story" ? (detail[route.id]?toDetail(detail[route.id],lang):null) : null;
       // Same-topic stories to keep a reader moving instead of dead-ending at the article.
       const related = story ? baseCards.filter(c=>c.topic===story.topic && String(c.id)!==String(story.id)).slice(0,6) : [];
       const headerView = route.view==="story" ? "" : route.view;
+
+      // Route-aware <title> for client-side navigation. Story pages already ship a unique,
+      // crawler-visible <title> from the pre-rendered HTML (export_static._story_html) — this
+      // only keeps it (and every other view, which had NO client-side title update before this)
+      // correct after an in-app navigation, never on first paint of a server-rendered page.
+      useEffect(()=>{
+        const suffix=(s)=> s ? `${s} | Paksh` : "Paksh";
+        const home = lang==="hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: Every side of India's news";
+        // Story pages already ship a correct, crawler-visible SSR title (headline | Paksh).
+        // While the client-side detail fetch is still in flight, `story` is briefly null -
+        // leave document.title alone rather than downgrading it to a generic placeholder;
+        // only overwrite it once the real headline is known.
+        if(route.view==="story"){ if(story){ try{ document.title = suffix(story.headline); }catch(e){} } return; }
+        let title=home;
+        if(route.view==="topic") title = suffix(route.topic);
+        else if(route.view==="topics") title = suffix(ui("sections",lang));
+        else if(route.view==="blindspot") title = suffix(STR[lang].osTitle);
+        else if(route.view==="search") title = suffix(ui("searchTab",lang));
+        else if(route.view==="storylines") title = suffix(ui("developingStories",lang));
+        else if(route.view==="storyline") { const sl=(data.storylines||[]).find(s=>s.id===route.id);
+          title = suffix(sl ? ((lang==="hi"&&sl.title_hi)?sl.title_hi:sl.title) : ui("developingStories",lang)); }
+        else if(route.view==="sources") title = suffix(STR[lang].navSrc);
+        else if(route.view==="about") title = suffix(STR[lang].navMethod);
+        else if(route.view==="contact") title = suffix(lang==="hi"?"संपर्क":"Contact");
+        else if(route.view==="support") title = suffix(lang==="hi"?"सहयोग":"Support");
+        else if(route.view==="privacy") title = suffix(lang==="hi"?"गोपनीयता":"Privacy");
+        else if(route.view==="login") title = suffix(lang==="hi"?"साइन इन":"Sign in");
+        else if(route.view==="settings") title = suffix(lang==="hi"?"सेटिंग्स":"Settings");
+        else if(route.view==="account") title = suffix(lang==="hi"?"खाता":"Account");
+        else if(route.view==="saved") title = suffix(lang==="hi"?"सेव की गई":"Saved");
+        else if(route.view==="lens") title = suffix(lang==="hi"?"रीडिंग लेंस":"Reading Lens");
+        else if(route.view==="404") title = suffix(lang==="hi"?"पेज नहीं मिला":"Page not found");
+        try{ document.title = title; }catch(e){}
+      },[route.view, route.id, route.topic, lang, story, data.storylines]);
 
       return (
         <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn(), go }}>
@@ -2824,6 +2931,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} go={go} />
             : route.view==="account" ? <AccountPage t={t} lang={lang} auth={auth} go={go} onSignOut={onSignOut} />
             : route.view==="storyline" ? <StorylinePage id={route.id} lean={(data.storylines||[]).find(s=>s.id===route.id)} t={t} lang={lang} open={open} go={go} />
+            : route.view==="storylines" ? <StorylinesHub storylines={data.storylines} t={t} lang={lang} goStoryline={goStoryline} />
             : route.view==="lens" ? <LensPage t={t} lang={lang} auth={auth} go={go} open={open} />
             : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
             : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
@@ -2837,9 +2945,9 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
             : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} consent={consent} setConsent={setConsentChoice} />
             : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />
-            : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} open={open} />
+            : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} browseCards={browseCards} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
-               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} storylines={data.storylines} goStoryline={goStoryline} />)}
+               : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} storylines={data.storylines} goStoryline={goStoryline} goStorylines={goStorylines} />)}
             </div>
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}

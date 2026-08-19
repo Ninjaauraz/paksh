@@ -306,7 +306,7 @@ def _story_html(shell, ev, og_ids=None):
 
     rep = [
         ("<title>Paksh: Every side of India's news</title>",
-         "<title>%s, Paksh</title>" % esc(headline)),
+         "<title>%s | Paksh</title>" % esc(headline)),
         ('<meta name="description" content="Paksh compares how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
          '<meta name="description" content="%s"/>' % esc(desc)),
         ('<link rel="canonical" href="%s/"/>' % SITE_URL,
