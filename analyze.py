@@ -864,10 +864,22 @@ def main():
         return len({src_by_id.get(i) for i in ids
                     if lean_of(src_by_id.get(i, "")) != "unrated"})
 
+    # Bias-bar breadth = DISTINCT VOTING outlets (India-spectrum left/centre/right).
+    # International-tier outlets (foreign wires + the verified foreign registry) count
+    # as "rated" for the qualification gate, but they do NOT vote - so an all-foreign
+    # world cluster can still become an event (it lands in the World/international
+    # section), it just must never out-rank a real India story for the scarce LLM
+    # summary budget. Ranking by voting breadth first keeps India-first priority.
+    def _voting_count(ids):
+        return len({src_by_id.get(i) for i in ids
+                    if lean_of(src_by_id.get(i, "")) in LEAN_ORDER})
+
     qualified = [ids for ids in clusters if _rated_count(ids) >= MIN_RATED_PER_EVENT]
-    # rank by rated breadth first, then total breadth, so well-rated India stories
-    # win the budget over syndication-inflated ones
-    qualified.sort(key=lambda ids: (_rated_count(ids), len(ids)), reverse=True)
+    # rank by VOTING (bias-bar) breadth first, then any rated breadth, then total
+    # breadth - so well-rated India stories win the budget over foreign-world or
+    # syndication-inflated ones
+    qualified.sort(key=lambda ids: (_voting_count(ids), _rated_count(ids), len(ids)),
+                   reverse=True)
     print(f"Found {len(clusters)} multi-outlet cluster(s); "
           f"{len(qualified)} have >={MIN_RATED_PER_EVENT} rated outlets.")
     if not qualified:

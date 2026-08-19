@@ -1383,26 +1383,45 @@ def _registrable(domain: str) -> str:
 # {bare domain -> rated outlet name}, built from each source's website
 DOMAIN_TO_SOURCE = {_host(s["website"]): s["name"] for s in SOURCES if s.get("website")}
 
-# ---- reference registry: SCImago global media ranking -------------------------
-# Thousands of additional outlets (name + domain, from a public global ranking),
-# imported ONLY to attribute GDELT-ingested articles to a named outlet - i.e. to
-# extend domain resolution and clustering breadth. EVERY reference outlet is
-# lean-UNRATED and therefore NON-VOTING: a popularity ranking is NOT a political-
-# lean judgement, and lean labels are editorial (see the invariants in CLAUDE.md).
-# analyze.lean_of() defaults unknown names to "unrated", and analyze.py drops
-# all-unrated clusters as junk - so these can only ADD breadth, never move the
-# Left/Centre/Right bias bar. Curated SOURCES above ALWAYS win (setdefault, and
-# the generator already skips any domain a curated outlet owns).
-# Provenance / regeneration: build_scimago_registry.py.
+# ---- reference registry: editor-verified source-lean registry -----------------
+# Thousands of additional outlets (name + domain + a hand-VERIFIED lean), imported
+# to (a) attribute GDELT-ingested articles to a named outlet - domain resolution +
+# clustering breadth - and (b) carry that outlet's lean. This supersedes the old
+# lean-UNRATED SCImago registry (the CSV is a strict superset of those domains).
+# Provenance / regeneration: build_verified_registry.py.
+#
+# VOTING is gated by COUNTRY, to preserve the bias-bar invariants:
+#   * vote=True  -> India outlet. Its lean is merged into LEAN_BY_SOURCE, so it
+#                   votes in the Left/Centre/Right bar (editor's explicit call;
+#                   these India leans are hand-verified).
+#   * vote=False -> foreign outlet. Added to INTERNATIONAL_SOURCES, so
+#                   analyze.lean_of() maps it to the NON-VOTING "international"
+#                   tier. Its lean is home-market/MBFC-calibrated, not India's, so
+#                   it adds coverage + framing but never moves the India bar.
+# Curated SOURCES ALWAYS win: setdefault() never overrides a hand-curated name or
+# lean, and the generator already skips any domain a curated outlet owns.
 try:
-    from scimago_registry import SCIMAGO_SOURCES
+    from verified_registry import VERIFIED_SOURCES
 except ImportError:                                    # generator not yet run
-    SCIMAGO_SOURCES = []
+    VERIFIED_SOURCES = []
 
-for _ref in SCIMAGO_SOURCES:
+_ref_voting = _ref_intl = 0
+for _ref in VERIFIED_SOURCES:
     DOMAIN_TO_SOURCE.setdefault(_ref["domain"], _ref["name"])
+    if _ref.get("vote"):
+        # India outlet -> voter. setdefault so a curated lean is never overridden.
+        LEAN_BY_SOURCE.setdefault(_ref["name"], _ref["lean"])
+        _ref_voting += 1
+    else:
+        # Foreign outlet -> non-voting international tier (carries lean as metadata).
+        INTERNATIONAL_SOURCES.add(_ref["name"])
+        _ref_intl += 1
 
-REFERENCE_SOURCE_COUNT = len(SCIMAGO_SOURCES)
+REFERENCE_SOURCE_COUNT = len(VERIFIED_SOURCES)
+REFERENCE_VOTING_COUNT = _ref_voting          # India reference outlets that vote
+REFERENCE_INTL_COUNT = _ref_intl              # foreign reference outlets (non-voting)
+# {outlet name -> full verified-registry entry} for lookups (lean/label/country).
+VERIFIED_BY_NAME = {v["name"]: v for v in VERIFIED_SOURCES}
 
 def resolve_source(domain: str):
     """Map an article's domain to a RATED registry outlet, or mark it UNRATED.
@@ -1437,9 +1456,12 @@ def coverage_summary() -> dict:
     """Quick registry stats - handy for a methodology/transparency page."""
     out = {"total": len(SOURCES), "by_language": {}, "by_lean": {},
            "contested": sum(1 for s in SOURCES if s.get("contested")),
-           # curated editorial roster vs. the non-voting SCImago reference registry
-           # (extra outlets used only for GDELT domain attribution, all unrated).
+           # curated editorial roster vs. the editor-verified reference registry
+           # (extra outlets used for GDELT domain attribution; India ones vote,
+           # foreign ones are non-voting international - see build_verified_registry.py).
            "reference_outlets": REFERENCE_SOURCE_COUNT,
+           "reference_voting_india": REFERENCE_VOTING_COUNT,
+           "reference_intl_nonvoting": REFERENCE_INTL_COUNT,
            "resolvable_domains": len(DOMAIN_TO_SOURCE)}
     for s in SOURCES:
         out["by_language"][s["language"]] = out["by_language"].get(s["language"], 0) + 1
