@@ -292,7 +292,8 @@ def get_topics() -> dict:
 
 def get_sources() -> dict:
     rows = _get("/outlets?select=name,domain,owner,lean,label,confidence,contested,"
-                "review_status,last_reviewed,region,language&is_curated=eq.true&order=name.asc")
+                "review_status,last_reviewed,region,language,rationale,axes"
+                "&is_curated=eq.true&order=name.asc")
     sources = [{
         "id": r["name"], "name": r["name"], "language": r.get("language"),
         "website": ("https://" + r["domain"]) if r.get("domain") else None,
@@ -300,6 +301,7 @@ def get_sources() -> dict:
         "label": r.get("label"), "confidence": r.get("confidence"),
         "contested": r.get("contested"), "review_status": r.get("review_status"),
         "last_reviewed": r.get("last_reviewed"),
+        "rationale": r.get("rationale"), "axes": r.get("axes"),
     } for r in rows]
     by_lean = {}
     for s in sources:
