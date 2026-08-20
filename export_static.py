@@ -246,6 +246,23 @@ def _feed_rank(e, now):
     return round(breadth * lean_mult * decay, 4)
 
 
+def feed_row(e, story_map, now):
+    """Shape one event for events.json / events-archive.json (and, since Phase 1.75,
+    main.py's live /api/events-archive) - lightened payload + importance + feed_rank +
+    storyline_id. Module-level (not a build()-local closure) specifically so main.py can
+    import and call the exact same function rather than re-deriving these fields."""
+    d = _lighten(e)
+    d["importance"] = _importance(e, now)   # existing field; untouched, used elsewhere
+    # front-page order = pure breadth*recency, then the civic weight so India-first
+    # (politics / economy / courts / movements) leads. Both factors are explainable and
+    # never touch a bias count. Sections/Search/Topic ignore this and stay newest-first.
+    d["feed_rank"] = round(_feed_rank(e, now) * _civic_mult(e), 4)
+    sid = story_map.get(e["id"])
+    if sid:
+        d["storyline_id"] = sid
+    return d
+
+
 GAP_HALF_LIFE_H = 72.0   # within-column recency nudge so lopsided columns don't freeze
 
 
@@ -742,18 +759,6 @@ def main():
         except Exception as _e:
             print(f"  storylines: skipped ({_e})")
 
-    def _row(e):
-        d = _lighten(e)
-        d["importance"] = _importance(e, _now)   # existing field; untouched, used elsewhere
-        # front-page order = pure breadth*recency, then the civic weight so India-first
-        # (politics / economy / courts / movements) leads. Both factors are explainable and
-        # never touch a bias count. Sections/Search/Topic ignore this and stay newest-first.
-        d["feed_rank"] = round(_feed_rank(e, _now) * _civic_mult(e), 4)
-        sid = story_map.get(e["id"])
-        if sid:
-            d["storyline_id"] = sid
-        return d
-
     # Split the feed payload so first paint isn't a 12+ MB download that grows forever.
     # get_all_events() is newest-first, so events[:N] is the recent feed everyone loads up
     # front; the older tail goes to events-archive.json, which the SPA fetches LAZILY only
@@ -761,9 +766,9 @@ def main():
     # topic cards render identically -- nothing is lost, it just arrives on demand. Every
     # story also keeps its own /data/events/<id>.json + pre-rendered HTML (SEO untouched).
     recent, archive = events[:RECENT_FEED_N], events[RECENT_FEED_N:]
-    recent_rows = [_row(e) for e in recent]
+    recent_rows = [feed_row(e, story_map, _now) for e in recent]
     write_json(OUT / "data" / "events.json", {"events": recent_rows})
-    write_json(OUT / "data" / "events-archive.json", {"events": [_row(e) for e in archive]})
+    write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
     # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
     # full file per saga (with its dated events) fetched only when a Storyline page is opened.
     _sl_index = [{k: s.get(k) for k in ("id","title","title_hi","topic","region","n_events","start","end","updated_at")} for s in storylines]

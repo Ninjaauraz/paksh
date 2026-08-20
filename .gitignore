@@ -1,5 +1,6 @@
 # --- secrets: NEVER commit these ---
 .env
+.env.*
 *.key
 secrets.*
 # AI provider keys - paste real keys ONLY in ai_keys.env (local, never committed).
@@ -33,6 +34,9 @@ venv/
 paksh.db*
 *.db.bak*
 *.bak
+
+# --- Phase 2.0A migration checkpoint (ids/counts/status only, never credentials) ---
+.migration_checkpoint.json
 
 # --- pipeline runtime: interlock + scheduled-task logs ---
 .pipeline.lock

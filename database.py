@@ -81,6 +81,20 @@ def init_db():
     if "image_url" not in art_cols:
         cur.execute("ALTER TABLE articles ADD COLUMN image_url TEXT")
 
+    # updated_at (Paksh 2.0 Phase 1.5): a genuine "last changed" signal, DISTINCT from
+    # created_at. created_at is deliberately preserved across in-place edits (reframe.py,
+    # recount_migrate.py both call update_event(..., bump_created=False) specifically so
+    # the feed order doesn't reshuffle) - so it cannot answer "what changed since X" and
+    # was never meant to. updated_at is set on every insert_event()/update_event() call,
+    # unconditionally, and is read by sync_to_supabase.py to find events needing a sync
+    # without touching anything else in the pipeline. Backfilled to created_at for
+    # existing rows (a safe, conservative default: their first sync run will see them all
+    # as "changed since epoch", which is correct - they were never synced before).
+    ev_cols = [r["name"] for r in cur.execute("PRAGMA table_info(events)").fetchall()]
+    if "updated_at" not in ev_cols:
+        cur.execute("ALTER TABLE events ADD COLUMN updated_at TEXT")
+        cur.execute("UPDATE events SET updated_at = created_at WHERE updated_at IS NULL")
+
     # --- indexes (idempotent) ---------------------------------------------------
     # The tables had only their auto UNIQUE indexes (articles.url, embeddings.key), so
     # every pipeline query scanned all ~240k articles. These cover the hot paths:
@@ -95,6 +109,7 @@ def init_db():
                 "ON articles(fetched_at) WHERE event_id IS NULL")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_articles_event_id ON articles(event_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_events_updated_at ON events(updated_at)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_embeddings_created_at ON embeddings(created_at)")
 
     conn.commit()
@@ -269,6 +284,32 @@ def get_recent_events_for_merge(days=5, limit=400):
     return out
 
 
+def release_event_articles(event_id):
+    """Paksh 2.2: the function cleanup.py --recycle has always called but that
+    never existed (a real, pre-existing bug - see the 2.0B audit). Sets
+    event_id = NULL for every article currently belonging to `event_id`, so a
+    subsequent delete_event(event_id) leaves no article pointing at a deleted
+    row (the ON DELETE behavior consolidate.py relies on by reassigning to a
+    survivor first; cleanup.py has no survivor to reassign to - a grab-bag/dump/
+    generic event isn't one real story - so freeing to NULL, to be picked up by
+    a future cluster.py run, is the correct alternative, matching this
+    function's own name and cleanup.py's --recycle docstring).
+
+    Never deletes rows, never touches title/url/summary/source/any article
+    content - only the event_id foreign key. Returns the number of articles
+    released so the caller can report and verify it (required by the 2.2 brief).
+    A single UPDATE is atomic in SQLite - conn.commit() finalizes it; no
+    partial-release state is reachable if it fails, since nothing commits."""
+    conn = get_connection()
+    cur = conn.execute(
+        "UPDATE articles SET event_id = NULL WHERE event_id = ?", (event_id,)
+    )
+    released = cur.rowcount
+    conn.commit()
+    conn.close()
+    return released
+
+
 def delete_event(event_id):
     """Remove an event row. Used by consolidation AFTER its articles have been
     reassigned to the surviving event - so no article is left orphaned."""
@@ -290,11 +331,16 @@ def get_event_articles(event_id):
 
 def update_event(event_id, analysis, bump_created=True):
     """Rewrite an event's stored analysis after its membership changed. bump_created
-    refreshes created_at so a continuing story resurfaces as recently-updated."""
+    refreshes created_at so a continuing story resurfaces as recently-updated.
+    updated_at is ALWAYS refreshed, independent of bump_created - it is the one
+    reliable "this event genuinely changed" signal (see init_db()'s docstring for
+    the column), read by sync_to_supabase.py. Callers like reframe.py/
+    recount_migrate.py that intentionally keep created_at stable (bump_created=False)
+    still need updated_at to move, or a content fix would never get synced."""
     conn = get_connection()
-    sets = ["title = ?", "summary = ?", "analysis_json = ?"]
+    sets = ["title = ?", "summary = ?", "analysis_json = ?", "updated_at = ?"]
     params = [analysis.get("title", "Untitled event"), analysis.get("summary", ""),
-              json.dumps(analysis, ensure_ascii=False)]
+              json.dumps(analysis, ensure_ascii=False), datetime.utcnow().isoformat()]
     if bump_created:
         sets.append("created_at = ?")
         params.append(datetime.utcnow().isoformat())
@@ -387,9 +433,10 @@ def insert_event(analysis: dict, is_demo: bool = False, created_at: str = None):
     top of the created_at-DESC homepage as if it were fresh."""
     conn = get_connection()
     cur = conn.cursor()
+    now = datetime.utcnow().isoformat()
     cur.execute(
-        """INSERT INTO events (title, summary, divergence, omissions, analysis_json, is_demo, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO events (title, summary, divergence, omissions, analysis_json, is_demo, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             analysis.get("title", "Untitled event"),
             analysis.get("summary", ""),
@@ -397,7 +444,8 @@ def insert_event(analysis: dict, is_demo: bool = False, created_at: str = None):
             analysis.get("omissions", ""),
             json.dumps(analysis, ensure_ascii=False),
             1 if is_demo else 0,
-            created_at or datetime.utcnow().isoformat(),
+            created_at or now,
+            now,  # updated_at is always the real wall-clock time, unlike created_at above
         ),
     )
     conn.commit()
@@ -476,6 +524,22 @@ def get_event_ids(days=None):
         params.append((datetime.utcnow() - timedelta(days=days)).isoformat())
     q += " ORDER BY created_at DESC"
     rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [r["id"] for r in rows]
+
+
+def get_event_ids_updated_since(since_iso: str):
+    """Non-demo event ids with updated_at >= since_iso (oldest first, so a sync
+    that gets interrupted partway can resume from the last id it completed).
+    This is the real "what changed" query for sync_to_supabase.py - unlike
+    get_event_ids(days=...) above, it is NOT fooled by reframe.py/
+    recount_migrate.py's bump_created=False (see update_event()'s docstring)."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id FROM events WHERE COALESCE(is_demo, 0) = 0 AND updated_at >= ? "
+        "ORDER BY updated_at ASC",
+        (since_iso,),
+    ).fetchall()
     conn.close()
     return [r["id"] for r in rows]
 
