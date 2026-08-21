@@ -97,6 +97,40 @@ def _get(path: str, timeout: float = 5.0, max_retries: int = 2):
             raise SupabaseUnavailable(str(e)) from e
 
 
+def _count(path: str, timeout: float = 5.0, max_retries: int = 2) -> int:
+    """Paksh 4.3: an exact row count via PostgREST's `Prefer: count=exact`,
+    with `limit=0` so zero rows are ever transferred - only the `Content-Range`
+    response header (e.g. "*/13486") is read. Same retry/fail-safe shape as
+    _get() above, so a stats query is exactly as robust as any other read
+    here - never a second, competing way of talking to Supabase."""
+    import time
+    sep = "&" if "?" in path else "?"
+    url = SUPABASE_URL + "/rest/v1" + path + f"{sep}limit=0"
+    req = urllib.request.Request(url, headers={
+        "apikey": SUPABASE_ANON_KEY,
+        "Accept": "application/json",
+        "Prefer": "count=exact",
+    })
+    global request_count
+    attempt = 0
+    while True:
+        attempt += 1
+        request_count += 1
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return int(r.headers.get("Content-Range", "*/0").split("/")[-1])
+        except urllib.error.HTTPError as e:
+            if e.code >= 500 and attempt <= max_retries:
+                time.sleep(0.3 * attempt)
+                continue
+            raise SupabaseUnavailable(str(e)) from e
+        except Exception as e:
+            if attempt <= max_retries:
+                time.sleep(0.3 * attempt)
+                continue
+            raise SupabaseUnavailable(str(e)) from e
+
+
 # Paksh 2.1 objective 1: PostgREST's platform default caps any single response at
 # 1000 rows regardless of the `limit` query param - confirmed empirically (a request
 # for limit=1500 silently came back with exactly 1000, no error). This is NOT
@@ -307,6 +341,22 @@ def get_sources() -> dict:
     for s in sources:
         by_lean[s["lean"]] = by_lean.get(s["lean"], 0) + 1
     return {"sources": sources, "summary": {"total": len(sources), "by_lean": by_lean}}
+
+
+def get_stats() -> dict:
+    """Paksh 4.3: the Supabase-backed /api/stats - same shape as main.py's
+    SQLite-mode stats() (events/articles/sources/blindspots), a drop-in swap
+    rather than a new schema. Every figure is a genuine count=exact query
+    against the same tables every other Supabase-backed route already reads -
+    never hardcoded, never a cached/partial estimate. `sources` counts
+    curated (voting) outlets only, matching len(SOURCES) in the SQLite path -
+    verified-registry entries never voted there either."""
+    return {
+        "events": _count("/events?is_demo=eq.false"),
+        "articles": _count("/articles"),
+        "sources": _count("/outlets?is_curated=eq.true"),
+        "blindspots": _count("/events?blindspot_side=not.is.null"),
+    }
 
 
 def get_storylines() -> dict:

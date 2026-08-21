@@ -26,8 +26,10 @@ behavior does not change unless you explicitly opt in, per the Phase 1 brief
 is explicitly enabled). If Supabase is unreachable while the backend is set to
 "supabase", each route falls back to SQLite automatically rather than 500ing -
 "fail safely", per the brief's API design requirement. Static JSON remains a
-separate, independent fallback for the deployed site (see export_static.py) -
-this toggle only affects a locally-run `main.py`, which is not deployed today.
+separate, independent fallback for the Vercel-deployed static site (see
+export_static.py) - this toggle affects every deployment of `main.py`,
+including the Render-hosted production API (PAKSH_CONTENT_BACKEND=supabase)
+that paksh.news's frontend calls directly since Phase 3.8, not just local runs.
 """
 
 import os
@@ -203,6 +205,11 @@ def event_detail(event_id: int):
 
 @app.get("/api/stats")
 def stats():
+    if CONTENT_BACKEND == "supabase":
+        try:
+            return sb.get_stats()
+        except sb.SupabaseUnavailable:
+            pass  # fail safe -> SQLite below
     events = get_all_events()
     return {
         "events": len(events),
@@ -222,7 +229,7 @@ def list_sources():
             pass
     fields = ("id", "name", "language", "website", "ownership", "lean", "label",
               "confidence", "contested", "review_status", "last_reviewed",
-              "rationale", "subscores")
+              "rationale", "axes")
     rows = [{k: s.get(k) for k in fields} for s in SOURCES]
     return {"sources": rows, "summary": coverage_summary()}
 
