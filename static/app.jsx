@@ -362,9 +362,25 @@ const {useState,useEffect,useMemo}=React;
     const lbl = (side, lang) => BIAS[side][lang] || BIAS[side].en;
     const confName = (c, lang) => (({en:{low:"Low",medium:"Medium",high:"High"},hi:{low:"कम",medium:"मध्यम",high:"उच्च"}}[lang])||{})[c] || c;
 
+    // PAKSH 3.0/3.1 staging integration: optional override so a locally-served copy of this
+    // SAME frontend can point its API calls at a remote backend (e.g. the Render staging
+    // API) instead of same-origin /api/*. Empty string by default -> every fetch below is
+    // byte-identical to before ("" + "/api/topics" === "/api/topics"), so production/_site/
+    // behavior is completely unchanged. Checked in priority order:
+    //   1. window.PAKSH_API_BASE - for a build/host that injects it deliberately (none does
+    //      today; index.html carries no such script - see the 3.1 report for why that
+    //      matters: index.html's content flows into _site/index.html on every
+    //      export_static.py run, so a hardcoded value there would leak into production).
+    //   2. localStorage "paksh_api_base" - a pure browser-runtime value nothing in source
+    //      ever sets, so it can never be committed or exported. Set it from devtools to test
+    //      staging locally: localStorage.setItem("paksh_api_base","https://paksh-staging-api.onrender.com")
+    //      then reload; localStorage.removeItem("paksh_api_base") to go back to relative /api/*.
+    const API_BASE = (typeof window!=="undefined" && window.PAKSH_API_BASE)
+      || (typeof localStorage!=="undefined" && localStorage.getItem("paksh_api_base"))
+      || "";
     let _mode;
-    function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch("/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
-    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch("/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
+    function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch(API_BASE+"/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
+    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch(API_BASE+"/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
     async function loadAll(){
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
         // Storylines are derived + secondary — load them best-effort so a failure never blocks the feed.
@@ -2119,6 +2135,29 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
+    // PAKSH 3.3: a shape-matched placeholder for StoryPage's single-column ~1000px layout,
+    // used ONLY while an individual event is loading. Previously this fell back to
+    // FeedSkeleton (the homepage's 3-column grid), which then popped into a completely
+    // different single-column shape once data arrived - a real layout shift on every
+    // story open. This mirrors StoryPage's actual block order (back bar, headline, lead,
+    // bias instrument, framing table, coverage list) so the swap is a content fade, not a
+    // structural jump.
+    function StorySkeleton({ t }) {
+      return (
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-6">
+          <div className="mb-8 flex items-center justify-between pb-3" style={{borderBottom:`1px solid ${t.ink}`}}><div className="skel h-3 w-16"/><div className="skel h-3 w-20"/></div>
+          <div className="mx-auto max-w-[840px]">
+            <div className="skel h-3 w-32 mb-3"/>
+            <div className="skel h-9 w-full mb-2"/>
+            <div className="skel h-9 w-3/4 mb-4"/>
+            <div className="skel h-4 w-full mb-1.5"/>
+            <div className="skel h-4 w-5/6"/>
+          </div>
+          <div className="mx-auto mt-8 max-w-[840px] py-6" style={{borderTop:`1px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}><div className="skel h-7 w-full"/></div>
+          <div className="mx-auto mt-10 max-w-[840px] grid grid-cols-1 gap-4 md:grid-cols-3">{[0,1,2].map(i=><div key={i} className="skel h-32 w-full"/>)}</div>
+        </div>
+      );
+    }
 
     /* ---------------- account + accessibility UI ---------------- */
     // The 42x24 switch from the design: 1px ink track, 20px knob, ink-fill when on.
@@ -2652,8 +2691,10 @@ const {useState,useEffect,useMemo}=React;
             <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{L.eyebrow}{tp?` · ${tp}`:""}</div>
             <h1 className={`headline mt-2 text-[26px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{title}</h1>
             <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{storyline.n_events} {L.updates} · {absDate(storyline.start,lang)} → {absDate(storyline.end,lang)}</div>
+            {/* PAKSH 3.3: moved above the timeline (was below it) - a first-time reader should
+                know what a storyline IS before parsing a dated list of entries, not after. */}
+            <p className={`mt-4 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.note}</p>
             <div className="mt-6"><StorylineTimeline storyline={storyline} t={t} lang={lang} open={open} /></div>
-            <p className={`mt-6 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.note}</p>
           </div>
         </PageWrap>
       );
@@ -2936,7 +2977,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
             : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
             : !ready ? <FeedSkeleton t={t} />
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <FeedSkeleton t={t} />)
+            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <StorySkeleton t={t} />)
             : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} />
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />

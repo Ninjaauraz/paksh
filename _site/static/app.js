@@ -1170,11 +1170,26 @@ const confName = (c, lang) => (({
     high: "उच्च"
   }
 })[lang] || {})[c] || c;
+
+// PAKSH 3.0/3.1 staging integration: optional override so a locally-served copy of this
+// SAME frontend can point its API calls at a remote backend (e.g. the Render staging
+// API) instead of same-origin /api/*. Empty string by default -> every fetch below is
+// byte-identical to before ("" + "/api/topics" === "/api/topics"), so production/_site/
+// behavior is completely unchanged. Checked in priority order:
+//   1. window.PAKSH_API_BASE - for a build/host that injects it deliberately (none does
+//      today; index.html carries no such script - see the 3.1 report for why that
+//      matters: index.html's content flows into _site/index.html on every
+//      export_static.py run, so a hardcoded value there would leak into production).
+//   2. localStorage "paksh_api_base" - a pure browser-runtime value nothing in source
+//      ever sets, so it can never be committed or exported. Set it from devtools to test
+//      staging locally: localStorage.setItem("paksh_api_base","https://paksh-staging-api.onrender.com")
+//      then reload; localStorage.removeItem("paksh_api_base") to go back to relative /api/*.
+const API_BASE = typeof window !== "undefined" && window.PAKSH_API_BASE || typeof localStorage !== "undefined" && localStorage.getItem("paksh_api_base") || "";
 let _mode;
 function detectMode() {
   if (!_mode) _mode = (async () => {
     try {
-      const r = await fetch("/api/topics");
+      const r = await fetch(API_BASE + "/api/topics");
       if (r.ok && (r.headers.get("content-type") || "").includes("json")) return "api";
     } catch (e) {}
     return "static";
@@ -1183,7 +1198,7 @@ function detectMode() {
 }
 async function apiGet(res) {
   if ((await detectMode()) === "api") {
-    const r = await fetch("/api/" + res);
+    const r = await fetch(API_BASE + "/api/" + res);
     if (r.ok && (r.headers.get("content-type") || "").includes("json")) return r.json();
   }
   const r = await fetch("/data/" + res + ".json?t=" + Date.now());
@@ -5475,6 +5490,54 @@ function FeedSkeleton({
     className: "skel h-4 w-full"
   })))));
 }
+// PAKSH 3.3: a shape-matched placeholder for StoryPage's single-column ~1000px layout,
+// used ONLY while an individual event is loading. Previously this fell back to
+// FeedSkeleton (the homepage's 3-column grid), which then popped into a completely
+// different single-column shape once data arrived - a real layout shift on every
+// story open. This mirrors StoryPage's actual block order (back bar, headline, lead,
+// bias instrument, framing table, coverage list) so the swap is a content fade, not a
+// structural jump.
+function StorySkeleton({
+  t
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-8 flex items-center justify-between pb-3",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-3 w-16"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-3 w-20"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[840px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-3 w-32 mb-3"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-9 w-full mb-2"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-9 w-3/4 mb-4"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-4 w-full mb-1.5"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "skel h-4 w-5/6"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-8 max-w-[840px] py-6",
+    style: {
+      borderTop: `1px solid ${t.ink}`,
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-7 w-full"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px] grid grid-cols-1 gap-4 md:grid-cols-3"
+  }, [0, 1, 2].map(i => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "skel h-32 w-full"
+  }))));
+}
 
 /* ---------------- account + accessibility UI ---------------- */
 // The 42x24 switch from the design: 1px ink track, 20px knob, ink-fill when on.
@@ -6815,16 +6878,16 @@ function StorylinePage({
     }
   }, title), /*#__PURE__*/React.createElement("div", {
     className: `mt-2 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, storyline.n_events, " ", L.updates, " \xB7 ", absDate(storyline.start, lang), " \u2192 ", absDate(storyline.end, lang)), /*#__PURE__*/React.createElement("div", {
+  }, storyline.n_events, " ", L.updates, " \xB7 ", absDate(storyline.start, lang), " \u2192 ", absDate(storyline.end, lang)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, L.note), /*#__PURE__*/React.createElement("div", {
     className: "mt-6"
   }, /*#__PURE__*/React.createElement(StorylineTimeline, {
     storyline: storyline,
     t: t,
     lang: lang,
     open: open
-  })), /*#__PURE__*/React.createElement("p", {
-    className: `mt-6 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, L.note)));
+  }))));
 }
 // "Developing" chip — marks a story that belongs to a saga thread (Eyebrow + story header).
 function DevelopingChip({
@@ -7537,7 +7600,7 @@ function PakshApp() {
     a11y: a11y,
     auth: auth,
     goStoryline: goStoryline
-  }) : /*#__PURE__*/React.createElement(FeedSkeleton, {
+  }) : /*#__PURE__*/React.createElement(StorySkeleton, {
     t: t
   }) : route.view === "blindspot" ? /*#__PURE__*/React.createElement(BlindspotPage, {
     left: gapL,
