@@ -798,7 +798,7 @@ def main():
         except ValueError:
             age_h = 1e9
         rank = score * (0.5 ** (age_h / GAP_HALF_LIFE_H))
-        row = _row(e)
+        row = feed_row(e, story_map, _now)
         row["gap_score"] = round(score, 3)
         buckets[direction].append((rank, row))
     for k in buckets:
@@ -885,7 +885,7 @@ def main():
         "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
         # Supabase Auth (GoTrue) + PostgREST for accounts / Reading Lens / Saved (direct REST,
         # no SDK). Publishable anon key only; RLS guards every table. Formspree = contact form.
-        "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co; "
+        "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co https://paksh-staging-api.onrender.com; "
         "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
         "base-uri 'self'; form-action 'self' https://formspree.io; "
         "manifest-src 'self'; worker-src 'self'"
