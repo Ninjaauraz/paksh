@@ -661,11 +661,12 @@ const {useState,useEffect,useMemo}=React;
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
+          {/* the lead photo lives inside the lead-story composition itself, not as a
+              standalone masthead-adjacent banner - same Thumb component every other
+              card uses, editorial 16:9 crop, bounded by the main well's own column. */}
+          {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} className="mb-5" />}
           <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
           <h2 className={`headline pk-rise mt-3 text-[36px] sm:text-[44px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.12:1.04,letterSpacing:lang==="hi"?0:"-0.024em",textWrap:"balance"}}>{story.headline}</h2>
-          {/* image: rendered separately by HomeView above this whole section, contained
-              within the page's editorial shell (6.3B.4) - not inline here. story.img is
-              still read there, from the same `story` object. */}
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
             {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
             <div>
@@ -1272,19 +1273,6 @@ const {useState,useEffect,useMemo}=React;
               see Header). The per-article bias instrument (BiasPill) below is what a reader
               actually needs, on every story, not one extra aggregate at the top. */}
           <h1 className="sr-only">{lang==="hi"?"पक्ष, भारत की खबरों का हर पक्ष":"Paksh: every side of India's news"}</h1>
-
-          {/* LEAD IMAGE (6.3B.4) — 6.3B.3's 100vw edge-to-edge treatment overpowered the page;
-              reversed. The photo stays large and above the 2-column grid (not demoted back into
-              the narrow lead column), but now contained within the same 1280px editorial shell
-              as everything else - a newspaper photo placed in the layout, not a website hero.
-              Headline/paragraph/bias instrument are unaffected, still in LeadStory below. */}
-          {lead && lead.img && (
-            <div className={pad}>
-              <a href={"/story/"+encodeURIComponent(lead.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(lead.id); }} className="block no-underline">
-                <Thumb src={lead.img} topic={lead.topic} title={lead.headline} ratio="3 / 1" t={t} lang={lang} />
-              </a>
-            </div>
-          )}
 
           {/* FRONT PAGE — prototype 2.1fr / 1fr: a main well (Top Stories header + hero + a 2×2
               secondary grid) beside a rail (personalization / onboarding · Coverage Gaps · ad). */}

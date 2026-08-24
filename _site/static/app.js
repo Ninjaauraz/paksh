@@ -1956,7 +1956,15 @@ function LeadStory({
       onOpen(story.id);
     },
     className: "block no-underline group cursor-pointer"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, story.img && /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "16 / 9",
+    t: t,
+    lang: lang,
+    className: "mb-5"
+  }), /*#__PURE__*/React.createElement("div", {
     className: `eyebrow accent-clay ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -3392,24 +3400,7 @@ function HomeView({
     className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("h1", {
     className: "sr-only"
-  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), lead && lead.img && /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("a", {
-    href: "/story/" + encodeURIComponent(lead.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      open(lead.id);
-    },
-    className: "block no-underline"
-  }, /*#__PURE__*/React.createElement(Thumb, {
-    src: lead.img,
-    topic: lead.topic,
-    title: lead.headline,
-    ratio: "3 / 1",
-    t: t,
-    lang: lang
-  }))), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-[2.1fr_1fr]"
