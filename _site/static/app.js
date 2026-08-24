@@ -2445,9 +2445,9 @@ function Masthead({
     className: "grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-5"
   }, /*#__PURE__*/React.createElement("div", {
     className: "min-w-0"
-  }, isReading ? /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     className: "flex min-w-0 items-center gap-3 sm:gap-4"
-  }, /*#__PURE__*/React.createElement("button", {
+  }, isReading && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
     className: `inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
     style: {
@@ -2462,9 +2462,7 @@ function Masthead({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, story ? `${tp} · ${region}` : sectionLabel)) : /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center"
-  }, /*#__PURE__*/React.createElement(LangToggle, {
+  }, story ? `${tp} · ${region}` : sectionLabel)), /*#__PURE__*/React.createElement(LangToggle, {
     t: t,
     lang: lang,
     setLang: setLang,
@@ -2498,12 +2496,7 @@ function Masthead({
     size: 13
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
-  }), " ", lang === "hi" ? "शेयर" : "Share"))), isReading && /*#__PURE__*/React.createElement(LangToggle, {
-    t: t,
-    lang: lang,
-    setLang: setLang,
-    dark: false
-  }), openHelp && /*#__PURE__*/React.createElement("button", {
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), openHelp && /*#__PURE__*/React.createElement("button", {
     onClick: openHelp,
     className: `hidden sm:inline ${t.tf} hover:${t.tp}`,
     "aria-label": lang === "hi" ? "पक्ष कैसे पढ़ें" : "How Paksh works"
