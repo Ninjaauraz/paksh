@@ -61,8 +61,9 @@ def _centroids(events):
     """{event_id: unit vector} built ONLY from cached article embeddings (no new calls).
     Events with no cached member vector are omitted (they simply can't be linked)."""
     ev_keys, all_keys = {}, set()
+    arts_by_event = database.get_articles_for_events([e["id"] for e in events])
     for e in events:
-        arts = database.get_event_articles(e["id"])
+        arts = arts_by_event.get(e["id"], [])
         keys = [cluster._emb_key(cluster._text_of(a)) for a in arts]
         ev_keys[e["id"]] = keys
         all_keys.update(keys)

@@ -24,6 +24,11 @@ __pycache__/
 .venv/
 venv/
 
+# export_static.py builds into these scratch dirs before swapping the finished result
+# into _site/ (see _publish_build) - transient, never meant to be committed.
+_site.building/
+_site.old/
+
 # NOTE: _site/ IS committed on purpose - it's what Vercel serves.
 *.db
 *.db.bak

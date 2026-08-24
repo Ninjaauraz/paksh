@@ -7,7 +7,7 @@ GitHub Pages (no server, no database needed at runtime).
 It writes the SAME shapes the live API returns, as files the SPA reads when no
 live API is present:
     _site/index.html              (the app shell)
-    _site/static/...              (style.css, app.js)
+    _site/static/...              (styles.css, app.js)
     _site/data/events.json        == /api/events
     _site/data/blindspots.json    == /api/blindspots
     _site/data/topics.json        == /api/topics
@@ -401,32 +401,24 @@ def _story_html(shell, ev, og_ids=None):
     bias_html = ('<ul style="margin:0;padding-left:1.1em;font-size:14px;line-height:1.7">%s</ul>'
                  % "".join(rows)) if rows else ""
 
-    # A static, crawlable bias bar whose segment sizes are the REAL distinct-owner counts
-    # (flex-grow = count; never hardcoded), in the design's textured language: Left solid,
-    # Centre 45deg hatch, Right vertical rule, hairline ink frame, fixed centre axis. React
-    # replaces this with the interactive bar on load; crawlers / no-JS readers see this.
-    _tex = {"left": "background:#4A6E80",
-            "center": "background:repeating-linear-gradient(45deg,#7E7768 0 3px,#8C857A 3px 6px)",
-            "right": "background:repeating-linear-gradient(90deg,#96603F 0 4px,#7C4E34 4px 5px)"}
+    # A static, crawlable bias PILL whose segment sizes are the REAL distinct-owner counts
+    # (flex-grow = count; never hardcoded) - same solid-fill, no-hatch, no-percentage language
+    # as the client's BiasPill (static/app.jsx, PILL_COLOR), not the retired textured bar.
+    # React replaces this with the interactive pill on load; crawlers / no-JS readers see this.
+    _pill_color = {"left": "#587A91", "center": "#6F6B61", "right": "#A46149"}
     _bcounts = {k: (cov.get(k, {}) or {}).get("count", 0) for k in ("left", "center", "right")}
     _present = [k for k in ("left", "center", "right") if _bcounts[k] > 0]
     if _present:
-        segs = []
-        for i, k in enumerate(_present):
-            if i:
-                segs.append('<div style="flex:0 0 1px;background:#F4F1EA"></div>')
-            segs.append('<div style="flex-grow:%d;flex-basis:0;min-width:2px;%s"></div>'
-                        % (_bcounts[k], _tex[k]))
+        segs = "".join(
+            '<div style="flex-grow:%d;flex-basis:0;background:%s"></div>' % (_bcounts[k], _pill_color[k])
+            for k in _present
+        )
         bar_html = (
-            '<div style="font:500 11px/1 \'IBM Plex Mono\',monospace;letter-spacing:.08em;'
-            'text-transform:uppercase;color:#6B675C;margin:0 0 8px">'
-            'Left %d &middot; Centre %d &middot; Right %d &nbsp; n = %d</div>'
-            '<div style="position:relative;display:flex;height:22px;border:1px solid #15140F;'
-            'background:#EAE6DB;margin-bottom:26px">%s'
-            '<div style="position:absolute;left:50%%;top:-3px;bottom:-3px;width:1px;background:#15140F"></div>'
-            '</div>'
-        ) % (_bcounts["left"], _bcounts["center"], _bcounts["right"],
-             sum(_bcounts.values()), "".join(segs))
+            '<div style="display:flex;width:100%%;overflow:hidden;height:8px;border-radius:999px;'
+            'background:#D8D3C6;margin-bottom:6px">%s</div>'
+            '<div style="font:500 10px/1 \'IBM Plex Mono\',monospace;letter-spacing:.04em;'
+            'color:#8A8371;margin:0 0 20px">L %d C %d R %d</div>'
+        ) % (segs, _bcounts["left"], _bcounts["center"], _bcounts["right"])
     else:
         bar_html = ""
 
@@ -698,8 +690,8 @@ def _rss_xml(title, channel_link, self_url, rows, limit):
         summ = r.get("summary") or ""
         if isinstance(summ, (list, tuple)):
             summ = " ".join(str(x) for x in summ)
-        desc = ("%s Coverage: Left %d · Centre %d · Right %d (n=%d)."
-                % (summ.strip(), L, C, R, L + C + R)).strip()
+        desc = ("%s Coverage: Left %d · Centre %d · Right %d."
+                % (summ.strip(), L, C, R)).strip()
         items.append(
             "<item>"
             "<title>%s</title>"
@@ -725,246 +717,306 @@ def _rss_xml(title, channel_link, self_url, rows, limit):
         % (esc(title), esc(channel_link), esc(self_url), now, "\n".join(items)))
 
 
+def _rmtree_safe(path: Path, attempts: int = 5, delay: float = 0.5):
+    """shutil.rmtree, retrying briefly on Windows file-lock errors (a lingering handle
+    from a dev server, or antivirus scanning a just-written file) instead of failing
+    outright. No-op if the path doesn't exist."""
+    if not path.exists():
+        return
+    last_err = None
+    for _ in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return
+        except OSError as e:
+            last_err = e
+            time.sleep(delay)
+    raise last_err
+
+
+def _rename_safe(src: Path, dst: Path, attempts: int = 5, delay: float = 0.5):
+    """Path.rename, with the same short retry as _rmtree_safe (same Windows lock risk)."""
+    last_err = None
+    for _ in range(attempts):
+        try:
+            src.rename(dst)
+            return
+        except OSError as e:
+            last_err = e
+            time.sleep(delay)
+    raise last_err
+
+
+def _publish_build(build_dir: Path, final_dir: Path):
+    """Swap a finished build into place. Windows can't atomically replace a directory in
+    one call the way POSIX rename can (os.replace refuses when the destination is a
+    directory), so this uses the standard two-rename dance: move the old site aside, move
+    the new one in, then discard the old one. The window where `_site` doesn't exist at
+    all is one directory rename (milliseconds), not the minutes a full rebuild takes."""
+    old_dir = final_dir.parent / (final_dir.name + ".old")
+    _rmtree_safe(old_dir)                      # leftover from a previous interrupted swap
+    if final_dir.exists():
+        _rename_safe(final_dir, old_dir)
+    _rename_safe(build_dir, final_dir)
+    _rmtree_safe(old_dir)                       # best-effort; a lingering .old dir is harmless
+
+
 def main():
     init_db()
 
-    # fresh output dir
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    OUT.mkdir(parents=True)
+    # Build into a scratch directory, never the live `_site`, so a failure at ANY stage
+    # below (Tailwind CLI, JSX precompile, a bad event row, anything) leaves the last
+    # known-good `_site` completely untouched. Only a build that finishes clean gets
+    # swapped into place, at the very end.
+    global OUT
+    final_dir = OUT
+    build_dir = ROOT / "_site.building"
+    _rmtree_safe(build_dir)          # clear a leftover scratch dir from a previous crash
+    build_dir.mkdir(parents=True)
+    OUT = build_dir
 
-    # 1) the app shell + assets
-    shutil.copytree(ROOT / "static", OUT / "static")
-    _precompile_jsx()   # static/app.jsx -> _site/static/app.js (no Babel shipped to browser)
-    _build_tailwind()   # -> _site/static/tailwind.css (no cdn.tailwindcss.com at runtime)
-    # the served shell: inject the real domain so canonical / OG / sitemap all agree.
-    # Flip SITE_URL (above) when you cut over to paksh.news - nothing else to edit.
-    host = SITE_URL.split("://", 1)[-1].rstrip("/")
-    shell = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
-    shell = shell.replace("https://paksh.vercel.app", SITE_URL).replace("paksh.vercel.app", host)
-    (OUT / "index.html").write_text(shell, encoding="utf-8")
+    try:
+        # 1) the app shell + assets
+        shutil.copytree(ROOT / "static", OUT / "static")
+        _precompile_jsx()   # static/app.jsx -> _site/static/app.js (no Babel shipped to browser)
+        _build_tailwind()   # -> _site/static/tailwind.css (no cdn.tailwindcss.com at runtime)
+        # the served shell: inject the real domain so canonical / OG / sitemap all agree.
+        # Flip SITE_URL (above) when you cut over to paksh.news - nothing else to edit.
+        host = SITE_URL.split("://", 1)[-1].rstrip("/")
+        shell = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+        shell = shell.replace("https://paksh.vercel.app", SITE_URL).replace("paksh.vercel.app", host)
+        (OUT / "index.html").write_text(shell, encoding="utf-8")
 
-    # 2) the data the SPA reads (mirrors the API exactly)
-    events = get_all_events()
-    _now = datetime.utcnow()
+        # 2) the data the SPA reads (mirrors the API exactly)
+        events = get_all_events()
+        _now = datetime.utcnow()
 
-    # Storylines: stitch separate events into sagas tracked across days (derived only; never
-    # touches a bias count). story_map: event_id -> storyline_id; story_by_id: the full thread.
-    storylines, story_map, story_by_id = [], {}, {}
-    if build_storylines is not None:
-        try:
-            storylines, story_map = build_storylines(events)
-            story_by_id = {s["id"]: s for s in storylines}
-            print(f"  storylines: {len(storylines)} sagas covering {len(story_map)} events")
-        except Exception as _e:
-            print(f"  storylines: skipped ({_e})")
+        # Storylines: stitch separate events into sagas tracked across days (derived only; never
+        # touches a bias count). story_map: event_id -> storyline_id; story_by_id: the full thread.
+        storylines, story_map, story_by_id = [], {}, {}
+        if build_storylines is not None:
+            try:
+                storylines, story_map = build_storylines(events)
+                story_by_id = {s["id"]: s for s in storylines}
+                print(f"  storylines: {len(storylines)} sagas covering {len(story_map)} events")
+            except Exception as _e:
+                print(f"  storylines: skipped ({_e})")
 
-    # Split the feed payload so first paint isn't a 12+ MB download that grows forever.
-    # get_all_events() is newest-first, so events[:N] is the recent feed everyone loads up
-    # front; the older tail goes to events-archive.json, which the SPA fetches LAZILY only
-    # when someone opens Search / a Topic (see app.jsx). Same row shape in both, so search /
-    # topic cards render identically -- nothing is lost, it just arrives on demand. Every
-    # story also keeps its own /data/events/<id>.json + pre-rendered HTML (SEO untouched).
-    recent, archive = events[:RECENT_FEED_N], events[RECENT_FEED_N:]
-    recent_rows = [feed_row(e, story_map, _now) for e in recent]
-    write_json(OUT / "data" / "events.json", {"events": recent_rows})
-    write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
-    # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
-    # full file per saga (with its dated events) fetched only when a Storyline page is opened.
-    _sl_index = [{k: s.get(k) for k in ("id","title","title_hi","topic","region","n_events","start","end","updated_at")} for s in storylines]
-    write_json(OUT / "data" / "storylines.json", {"storylines": _sl_index})
-    for s in storylines:
-        write_json(OUT / "data" / "storylines" / f"{s['id']}.json", s)
+        # Split the feed payload so first paint isn't a 12+ MB download that grows forever.
+        # get_all_events() is newest-first, so events[:N] is the recent feed everyone loads up
+        # front; the older tail goes to events-archive.json, which the SPA fetches LAZILY only
+        # when someone opens Search / a Topic (see app.jsx). Same row shape in both, so search /
+        # topic cards render identically -- nothing is lost, it just arrives on demand. Every
+        # story also keeps its own /data/events/<id>.json + pre-rendered HTML (SEO untouched).
+        recent, archive = events[:RECENT_FEED_N], events[RECENT_FEED_N:]
+        recent_rows = [feed_row(e, story_map, _now) for e in recent]
+        write_json(OUT / "data" / "events.json", {"events": recent_rows})
+        write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
+        # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
+        # full file per saga (with its dated events) fetched only when a Storyline page is opened.
+        _sl_index = [{k: s.get(k) for k in ("id","title","title_hi","topic","region","n_events","start","end","updated_at")} for s in storylines]
+        write_json(OUT / "data" / "storylines.json", {"storylines": _sl_index})
+        for s in storylines:
+            write_json(OUT / "data" / "storylines" / f"{s['id']}.json", s)
 
-    # per-story social share cards (bias bar). og_ids = the stories that got one, so
-    # _story_html can point og:image at the card and everything else falls back cleanly.
-    og_ids = _build_og_cards(recent_rows, OG_CARD_N)
+        # per-story social share cards (bias bar). og_ids = the stories that got one, so
+        # _story_html can point og:image at the card and everything else falls back cleanly.
+        og_ids = _build_og_cards(recent_rows, OG_CARD_N)
 
-    # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
-    # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of
-    # freezing for weeks. The honest aggregate (pool sizes) is disclosed for the Method page.
-    _COL_N = 40   # data headroom per direction; the UI shows 15 per column AFTER the
-                  # per-language filter, so each language gets a full, equal-length column
-    buckets = {"left": [], "right": []}
-    agg = {"left_heavier": 0, "right_heavier": 0}
-    for e in events:
-        score, direction, L, C, R = _gap_parts(e)
-        if direction == "even" or not _gap_qualifies(L, R):
-            continue
-        agg["left_heavier" if direction == "left" else "right_heavier"] += 1
-        try:
-            t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
-            age_h = max((_now - t).total_seconds() / 3600.0, 0.0)
-        except ValueError:
-            age_h = 1e9
-        rank = score * (0.5 ** (age_h / GAP_HALF_LIFE_H))
-        row = feed_row(e, story_map, _now)
-        row["gap_score"] = round(score, 3)
-        buckets[direction].append((rank, row))
-    for k in buckets:
-        buckets[k].sort(key=lambda x: x[0], reverse=True)
-    left_col = [r for _, r in buckets["left"][:_COL_N]]
-    right_col = [r for _, r in buckets["right"][:_COL_N]]
-    left_outlets = sum(1 for s in SOURCES if s.get("lean") == "left" and s.get("region") != "International")
-    right_outlets = sum(1 for s in SOURCES if s.get("lean") == "right" and s.get("region") != "International")
-    write_json(OUT / "data" / "blindspots.json", {
-        "events": left_col + right_col,          # union, kept for detail lookups / back-compat
-        "left_heavier": left_col,
-        "right_heavier": right_col,
-        "aggregate": {
-            "total": agg["left_heavier"] + agg["right_heavier"],
-            "left_heavier": agg["left_heavier"], "right_heavier": agg["right_heavier"],
-            "left_outlets": left_outlets, "right_outlets": right_outlets,
-            "shown": _COL_N,
-        },
-    })
-    write_json(OUT / "data" / "topics.json", {"topics": get_topics()})
-    write_json(OUT / "data" / "sources.json", {
-        "sources": [{k: s.get(k) for k in SRC_FIELDS} for s in SOURCES],
-        "summary": coverage_summary(),
-    })
+        # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
+        # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of
+        # freezing for weeks. The honest aggregate (pool sizes) is disclosed for the Method page.
+        _COL_N = 40   # data headroom per direction; the UI shows 15 per column AFTER the
+                      # per-language filter, so each language gets a full, equal-length column
+        buckets = {"left": [], "right": []}
+        agg = {"left_heavier": 0, "right_heavier": 0}
+        for e in events:
+            score, direction, L, C, R = _gap_parts(e)
+            if direction == "even" or not _gap_qualifies(L, R):
+                continue
+            agg["left_heavier" if direction == "left" else "right_heavier"] += 1
+            try:
+                t = datetime.fromisoformat((e.get("created_at") or "").replace("Z", ""))
+                age_h = max((_now - t).total_seconds() / 3600.0, 0.0)
+            except ValueError:
+                age_h = 1e9
+            rank = score * (0.5 ** (age_h / GAP_HALF_LIFE_H))
+            row = feed_row(e, story_map, _now)
+            row["gap_score"] = round(score, 3)
+            buckets[direction].append((rank, row))
+        for k in buckets:
+            buckets[k].sort(key=lambda x: x[0], reverse=True)
+        left_col = [r for _, r in buckets["left"][:_COL_N]]
+        right_col = [r for _, r in buckets["right"][:_COL_N]]
+        left_outlets = sum(1 for s in SOURCES if s.get("lean") == "left" and s.get("region") != "International")
+        right_outlets = sum(1 for s in SOURCES if s.get("lean") == "right" and s.get("region") != "International")
+        write_json(OUT / "data" / "blindspots.json", {
+            "events": left_col + right_col,          # union, kept for detail lookups / back-compat
+            "left_heavier": left_col,
+            "right_heavier": right_col,
+            "aggregate": {
+                "total": agg["left_heavier"] + agg["right_heavier"],
+                "left_heavier": agg["left_heavier"], "right_heavier": agg["right_heavier"],
+                "left_outlets": left_outlets, "right_outlets": right_outlets,
+                "shown": _COL_N,
+            },
+        })
+        write_json(OUT / "data" / "topics.json", {"topics": get_topics()})
+        write_json(OUT / "data" / "sources.json", {
+            "sources": [{k: s.get(k) for k in SRC_FIELDS} for s in SOURCES],
+            "summary": coverage_summary(),
+        })
 
-    # freshness signal: newest event date + build time, written INTO the site so a
-    # silent pipeline stall is visible (py stats.py --freshness, or GET /data/freshness.json).
-    # events come back newest-first, so events[0] is the newest published story.
-    newest_event = events[0].get("created_at") if events else ""
-    write_json(OUT / "data" / "freshness.json", {
-        "newest_event_at": newest_event or "",
-        "built_at": datetime.utcnow().isoformat(),
-        "event_count": len(events),
-    })
+        # freshness signal: newest event date + build time, written INTO the site so a
+        # silent pipeline stall is visible (py stats.py --freshness, or GET /data/freshness.json).
+        # events come back newest-first, so events[0] is the newest published story.
+        newest_event = events[0].get("created_at") if events else ""
+        write_json(OUT / "data" / "freshness.json", {
+            "newest_event_at": newest_event or "",
+            "built_at": datetime.utcnow().isoformat(),
+            "event_count": len(events),
+        })
 
-    # 3) one file per event: detail JSON + a pre-rendered, crawlable HTML page
-    story_urls = []
-    for e in events:
-        full = get_event(e["id"])
-        if full is None:
-            continue
-        full = _clean_text(full)
-        # attach the saga thread this story belongs to (if any), so the Story page can show
-        # "how this developed" without another fetch. Small payload (<=25 short entries).
-        _sid = story_map.get(e["id"])
-        if _sid and _sid in story_by_id:
-            full["storyline"] = story_by_id[_sid]
-        write_json(OUT / "data" / "events" / f"{e['id']}.json", full)
-        sp = OUT / "story" / f"{e['id']}.html"
-        sp.parent.mkdir(parents=True, exist_ok=True)
-        sp.write_text(_story_html(shell, full, og_ids), encoding="utf-8")
-        story_urls.append((f"{SITE_URL}/story/{e['id']}", full.get("created_at")))
+        # 3) one file per event: detail JSON + a pre-rendered, crawlable HTML page
+        story_urls = []
+        for e in events:
+            full = get_event(e["id"])
+            if full is None:
+                continue
+            full = _clean_text(full)
+            # attach the saga thread this story belongs to (if any), so the Story page can show
+            # "how this developed" without another fetch. Small payload (<=25 short entries).
+            _sid = story_map.get(e["id"])
+            if _sid and _sid in story_by_id:
+                full["storyline"] = story_by_id[_sid]
+            write_json(OUT / "data" / "events" / f"{e['id']}.json", full)
+            sp = OUT / "story" / f"{e['id']}.html"
+            sp.parent.mkdir(parents=True, exist_ok=True)
+            sp.write_text(_story_html(shell, full, og_ids), encoding="utf-8")
+            story_urls.append((f"{SITE_URL}/story/{e['id']}", full.get("created_at")))
 
-    # 4) Vercel routing. IMPORTANT: we use the legacy `routes` array, NOT cleanUrls+rewrites.
-    #    The modern `{cleanUrls:true, rewrites:[/(.*)->/index.html]}` combo SILENTLY FAILS on
-    #    Vercel: cleanUrls shadows the catch-all rewrite, so every path without a real file
-    #    (/about, /sources, /search, /topic/X, /topics, /blindspot) returned a hard 404 on
-    #    refresh / shared link / crawler, while headers still applied (that's how we diagnosed
-    #    it). `routes` + an explicit `filesystem` handle is the battle-tested SPA fallback:
-    #    real files win first, then the shell renders every in-app route. `routes` is mutually
-    #    exclusive with cleanUrls/rewrites/headers/trailingSlash, so headers live here too.
-    #    Verify after deploy:  curl -I https://paksh.vercel.app/about   -> HTTP/2 200
-    # --- Content-Security-Policy ---------------------------------------------------------
-    # Rolled out SAFELY. `Content-Security-Policy` (ENFORCING) carries only the STRUCTURAL
-    # directives that cannot break resource loading: no clickjacking (frame-ancestors none +
-    # X-Frame-Options DENY), no plugins (object-src none), no <base> hijack (base-uri self),
-    # no form hijack (form-action). The full resource policy (script/style/img/font/connect)
-    # ships as `Content-Security-Policy-Report-Only` FIRST so we can watch the live console for
-    # violations and fix any missed source BEFORE it can white-screen the site. Once a clean
-    # deploy shows no report-only violations, copy _CSP_STRICT into the enforcing header.
-    # (Enabled by self-hosting React + moving the theme script to a file, so script-src='self'.)
-    # ENFORCING: NO default-src here on purpose. default-src 'self' would fall through to
-    # style-src and block the app's (heavy) inline styles -> broken/blank page. Only the
-    # STRUCTURAL directives that don't govern resource loading are enforced; the full
-    # resource policy (which sets style-src 'unsafe-inline' etc.) rides in Report-Only until
-    # verified, then gets promoted.
-    _CSP_ENFORCE = ("frame-ancestors 'none'; object-src 'none'; "
-                    "base-uri 'self'; form-action 'self' https://formspree.io")
-    _CSP_STRICT = (
-        "default-src 'self'; "
-        "script-src 'self'; "                                    # self-hosted React + app.js + /_vercel/insights
-        "style-src 'self' 'unsafe-inline'; "                     # React inline styles + self-hosted fonts.css
-        "font-src 'self' data:; "                                # fonts are self-hosted (fetch_fonts.py)
-        "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
-        # Supabase Auth (GoTrue) + PostgREST for accounts / Reading Lens / Saved (direct REST,
-        # no SDK). Publishable anon key only; RLS guards every table. Formspree = contact form.
-        "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co https://paksh-staging-api.onrender.com; "
-        "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
-        "base-uri 'self'; form-action 'self' https://formspree.io; "
-        "manifest-src 'self'; worker-src 'self'"
-    )
-    _sec_headers = {
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": ("camera=(), microphone=(), geolocation=(), browsing-topics=(), "
-                               "payment=(), usb=(), magnetometer=(), gyroscope=(), interest-cohort=()"),
-        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "X-Permitted-Cross-Domain-Policies": "none",
-        "X-DNS-Prefetch-Control": "off",
-        "Content-Security-Policy": _CSP_ENFORCE,
-        "Content-Security-Policy-Report-Only": _CSP_STRICT,
-    }
-    write_json(OUT / "vercel.json", {
-        "routes": [
-            # 1) security headers on every response, then keep routing
-            {"src": "/(.*)", "headers": _sec_headers, "continue": True},
-            # 2) serve any real file: /index.html, /static/*, /data/*, /story/<id>.html,
-            #    robots.txt, sitemap.xml, favicons, og.png ...
-            {"handle": "filesystem"},
-            # 3) pretty story URLs -> the pre-rendered crawlable page
-            {"src": "/story/([^/]+)/?$", "dest": "/story/$1.html"},
-            # 4) keep the (absent) API 404 so the SPA's static-mode probe stays a fast 404
-            {"src": "/api/(.*)", "status": 404},
-            # 5) SPA fallback: every other in-app route renders the shell (History API + SEO)
-            {"src": "/(.*)", "dest": "/index.html"},
-        ],
-    })
+        # 4) Vercel routing. IMPORTANT: we use the legacy `routes` array, NOT cleanUrls+rewrites.
+        #    The modern `{cleanUrls:true, rewrites:[/(.*)->/index.html]}` combo SILENTLY FAILS on
+        #    Vercel: cleanUrls shadows the catch-all rewrite, so every path without a real file
+        #    (/about, /sources, /search, /topic/X, /topics, /blindspot) returned a hard 404 on
+        #    refresh / shared link / crawler, while headers still applied (that's how we diagnosed
+        #    it). `routes` + an explicit `filesystem` handle is the battle-tested SPA fallback:
+        #    real files win first, then the shell renders every in-app route. `routes` is mutually
+        #    exclusive with cleanUrls/rewrites/headers/trailingSlash, so headers live here too.
+        #    Verify after deploy:  curl -I https://paksh.vercel.app/about   -> HTTP/2 200
+        # --- Content-Security-Policy ---------------------------------------------------------
+        # Rolled out SAFELY. `Content-Security-Policy` (ENFORCING) carries only the STRUCTURAL
+        # directives that cannot break resource loading: no clickjacking (frame-ancestors none +
+        # X-Frame-Options DENY), no plugins (object-src none), no <base> hijack (base-uri self),
+        # no form hijack (form-action). The full resource policy (script/style/img/font/connect)
+        # ships as `Content-Security-Policy-Report-Only` FIRST so we can watch the live console for
+        # violations and fix any missed source BEFORE it can white-screen the site. Once a clean
+        # deploy shows no report-only violations, copy _CSP_STRICT into the enforcing header.
+        # (Enabled by self-hosting React + moving the theme script to a file, so script-src='self'.)
+        # ENFORCING: NO default-src here on purpose. default-src 'self' would fall through to
+        # style-src and block the app's (heavy) inline styles -> broken/blank page. Only the
+        # STRUCTURAL directives that don't govern resource loading are enforced; the full
+        # resource policy (which sets style-src 'unsafe-inline' etc.) rides in Report-Only until
+        # verified, then gets promoted.
+        _CSP_ENFORCE = ("frame-ancestors 'none'; object-src 'none'; "
+                        "base-uri 'self'; form-action 'self' https://formspree.io")
+        _CSP_STRICT = (
+            "default-src 'self'; "
+            "script-src 'self'; "                                    # self-hosted React + app.js + /_vercel/insights
+            "style-src 'self' 'unsafe-inline'; "                     # React inline styles + self-hosted fonts.css
+            "font-src 'self' data:; "                                # fonts are self-hosted (fetch_fonts.py)
+            "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
+            # Supabase Auth (GoTrue) + PostgREST for accounts / Reading Lens / Saved (direct REST,
+            # no SDK). Publishable anon key only; RLS guards every table. Formspree = contact form.
+            "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co https://paksh-staging-api.onrender.com; "
+            "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
+            "base-uri 'self'; form-action 'self' https://formspree.io; "
+            "manifest-src 'self'; worker-src 'self'"
+        )
+        _sec_headers = {
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Permissions-Policy": ("camera=(), microphone=(), geolocation=(), browsing-topics=(), "
+                                   "payment=(), usb=(), magnetometer=(), gyroscope=(), interest-cohort=()"),
+            "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "X-Permitted-Cross-Domain-Policies": "none",
+            "X-DNS-Prefetch-Control": "off",
+            "Content-Security-Policy": _CSP_ENFORCE,
+            "Content-Security-Policy-Report-Only": _CSP_STRICT,
+        }
+        write_json(OUT / "vercel.json", {
+            "routes": [
+                # 1) security headers on every response, then keep routing
+                {"src": "/(.*)", "headers": _sec_headers, "continue": True},
+                # 2) serve any real file: /index.html, /static/*, /data/*, /story/<id>.html,
+                #    robots.txt, sitemap.xml, favicons, og.png ...
+                {"handle": "filesystem"},
+                # 3) pretty story URLs -> the pre-rendered crawlable page
+                {"src": "/story/([^/]+)/?$", "dest": "/story/$1.html"},
+                # 4) keep the (absent) API 404 so the SPA's static-mode probe stays a fast 404
+                {"src": "/api/(.*)", "status": 404},
+                # 5) SPA fallback: every other in-app route renders the shell (History API + SEO)
+                {"src": "/(.*)", "dest": "/index.html"},
+            ],
+        })
 
-    # 5) robots + sitemap (homepage + every story)
-    (OUT / "robots.txt").write_text(
-        "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\nRSS: %s/rss.xml\n"
-        % (SITE_URL, SITE_URL), encoding="utf-8")
-    rows = ['  <url><loc>%s/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>' % SITE_URL]
-    # section + info pages (now that routing serves them; previously they 404'd AND were
-    # missing here, so they were invisible to search). Topic pages are strong SEO surfaces
-    # ("Politics, every side") -> one entry per distinct topic present.
-    section_paths = ["/topics", "/blindspot", "/about", "/sources", "/support"]
-    topic_names = sorted({e.get("topic") for e in events if e.get("topic")})
-    from urllib.parse import quote
-    for p in section_paths:
-        rows.append('  <url><loc>%s%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>' % (SITE_URL, p))
-    for name in topic_names:
-        rows.append('  <url><loc>%s/topic/%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>'
-                    % (SITE_URL, quote(name, safe="")))
-    for u, ts in story_urls:
-        lm = "<lastmod>%s</lastmod>" % ts[:10] if ts else ""
-        rows.append('  <url><loc>%s</loc>%s<changefreq>daily</changefreq><priority>0.7</priority></url>' % (u, lm))
-    (OUT / "sitemap.xml").write_text(
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "\n".join(rows) + "\n</urlset>\n", encoding="utf-8")
+        # 5) robots + sitemap (homepage + every story)
+        (OUT / "robots.txt").write_text(
+            "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\nRSS: %s/rss.xml\n"
+            % (SITE_URL, SITE_URL), encoding="utf-8")
+        rows = ['  <url><loc>%s/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>' % SITE_URL]
+        # section + info pages (now that routing serves them; previously they 404'd AND were
+        # missing here, so they were invisible to search). Topic pages are strong SEO surfaces
+        # ("Politics, every side") -> one entry per distinct topic present.
+        section_paths = ["/topics", "/blindspot", "/about", "/sources", "/support"]
+        topic_names = sorted({e.get("topic") for e in events if e.get("topic")})
+        from urllib.parse import quote
+        for p in section_paths:
+            rows.append('  <url><loc>%s%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>' % (SITE_URL, p))
+        for name in topic_names:
+            rows.append('  <url><loc>%s/topic/%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>'
+                        % (SITE_URL, quote(name, safe="")))
+        for u, ts in story_urls:
+            lm = "<lastmod>%s</lastmod>" % ts[:10] if ts else ""
+            rows.append('  <url><loc>%s</loc>%s<changefreq>daily</changefreq><priority>0.7</priority></url>' % (u, lm))
+        (OUT / "sitemap.xml").write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            + "\n".join(rows) + "\n</urlset>\n", encoding="utf-8")
 
-    # 6) RSS feeds (static). A main feed of the newest stories, plus one per topic so a
-    # reader can subscribe to just Politics / Economy / etc. recent_rows is newest-first
-    # and already carries title/summary/topic/lean_counts, so no extra work. Each feed
-    # item shows the bias line and the share card, so even a feed reader sees the split.
-    from urllib.parse import quote as _q
-    (OUT / "rss.xml").write_text(
-        _rss_xml("Paksh: Every side of India's news",
-                 SITE_URL + "/", SITE_URL + "/rss.xml", recent_rows, 60),
-        encoding="utf-8")
-    rss_dir = OUT / "rss"
-    rss_dir.mkdir(parents=True, exist_ok=True)
-    by_topic = {}
-    for r in recent_rows:
-        tp = r.get("topic")
-        if tp:
-            by_topic.setdefault(tp, []).append(r)
-    for tp, trows in by_topic.items():
-        (rss_dir / ("%s.xml" % _rss_slug(tp))).write_text(
-            _rss_xml("Paksh: %s" % tp, "%s/topic/%s" % (SITE_URL, _q(tp, safe="")),
-                     "%s/rss/%s.xml" % (SITE_URL, _rss_slug(tp)), trows, 40),
+        # 6) RSS feeds (static). A main feed of the newest stories, plus one per topic so a
+        # reader can subscribe to just Politics / Economy / etc. recent_rows is newest-first
+        # and already carries title/summary/topic/lean_counts, so no extra work. Each feed
+        # item shows the bias line and the share card, so even a feed reader sees the split.
+        from urllib.parse import quote as _q
+        (OUT / "rss.xml").write_text(
+            _rss_xml("Paksh: Every side of India's news",
+                     SITE_URL + "/", SITE_URL + "/rss.xml", recent_rows, 60),
             encoding="utf-8")
-    print("  rss: /rss.xml + %d topic feeds" % len(by_topic))
+        rss_dir = OUT / "rss"
+        rss_dir.mkdir(parents=True, exist_ok=True)
+        by_topic = {}
+        for r in recent_rows:
+            tp = r.get("topic")
+            if tp:
+                by_topic.setdefault(tp, []).append(r)
+        for tp, trows in by_topic.items():
+            (rss_dir / ("%s.xml" % _rss_slug(tp))).write_text(
+                _rss_xml("Paksh: %s" % tp, "%s/topic/%s" % (SITE_URL, _q(tp, safe="")),
+                         "%s/rss/%s.xml" % (SITE_URL, _rss_slug(tp)), trows, 40),
+                encoding="utf-8")
+        print("  rss: /rss.xml + %d topic feeds" % len(by_topic))
+    except BaseException:
+        # the build failed (or was interrupted) - never touch the live _site; just
+        # clean up the scratch dir and let the original error/exit-code propagate.
+        OUT = final_dir
+        _rmtree_safe(build_dir)
+        raise
+
+    OUT = final_dir
+    _publish_build(build_dir, OUT)
 
     print(f"Built static site in {OUT}")
     print(f"  events: {len(events)}  |  one-sided: {len(get_blindspot_events())}  "

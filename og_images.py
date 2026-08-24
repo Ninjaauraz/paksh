@@ -12,8 +12,9 @@ image, before anyone even clicks.
 Design invariants kept
 -----------------------
 - The bias bar segment sizes come STRAIGHT from the real counts (never a
-  hardcoded ratio), same as the site. Textures match the site: Left solid,
-  Centre 45deg hatch, Right vertical rule, hairline ink frame, fixed centre axis.
+  hardcoded ratio), same as the site. Solid-fill rounded pill, matching the
+  client's BiasPill exactly (static/app.jsx, PILL_COLOR) - no hatch, no rule
+  texture, no percentage, no "n =".
 - Static export only: this runs at BUILD time (from export_static.py) and writes
   plain .png files. No server, no runtime, no external request.
 - Cards are ENGLISH. The crawlable /story/<id> page is English-canonical (its
@@ -47,12 +48,11 @@ LABEL = "#6B675C"
 LINE = "#D8D3C6"
 TRACK = "#EAE6DB"
 GAP = "#F4F1EA"
-# Bias colours + texture partners, matching _story_html()'s crawlable bar exactly.
-LEFT = "#4A6E80"
-CENTER = "#7E7768"
-CENTER_HATCH = "#8C857A"
-RIGHT = "#96603F"
-RIGHT_RULE = "#7C4E34"
+# Bias pill colours - the same PILL_COLOR values as the client's BiasPill
+# (static/app.jsx) and _story_html()'s crawlable pill.
+LEFT = "#587A91"
+CENTER = "#6F6B61"
+RIGHT = "#A46149"
 
 # Brand woff2 files (latin subsets) -> the four roles the card needs.
 _FONT_FILES = {
@@ -171,47 +171,33 @@ def render_og_card(ev, out_path):
     L = int(counts.get("left", 0) or 0)
     C = int(counts.get("center", 0) or 0)
     R = int(counts.get("right", 0) or 0)
-    n = L + C + R
 
-    bar_h = 46
-    bar_y = 470
-    # mono count label above the bar
-    lab = f"LEFT {L}   ·   CENTRE {C}   ·   RIGHT {R}      n = {n}"
+    bar_h = 26
+    bar_y = 480
+    # mono count label above the bar - no "n =", the three counts already say it
+    lab = f"LEFT {L}   ·   CENTRE {C}   ·   RIGHT {R}"
     d.text((x0, bar_y - 34), lab, font=_font("mono", 19), fill=LABEL)
 
-    # bar frame + track
-    d.rectangle([x0, bar_y, x1, bar_y + bar_h], fill=TRACK, outline=INK, width=2)
+    # solid-fill rounded pill - draw the segmented bar flat, then clip it through a
+    # rounded-rectangle mask, the same effect as the client's `overflow:hidden` +
+    # `border-radius:999` on BiasPill. Track colour shows through wherever a side
+    # is absent (0 count), so absence still reads as an even gap, not a void.
     present = [(k, v, col) for k, v, col in
                (("left", L, LEFT), ("center", C, CENTER), ("right", R, RIGHT)) if v > 0]
     total = sum(v for _, v, _ in present) or 1
-    inner_x0, inner_x1 = x0 + 2, x1 - 2
-    inner_w = inner_x1 - inner_x0
-    top, bot = bar_y + 2, bar_y + bar_h - 2
-    seg_h = bot - top
-    gap_px = 3
-    # widths proportional to counts, minus the paper gaps between segments
-    n_gaps = max(0, len(present) - 1)
-    usable = inner_w - n_gaps * gap_px
-    cx = inner_x0
+    bar_w = x1 - x0
+    flat = Image.new("RGB", (bar_w, bar_h), TRACK)
+    fd = ImageDraw.Draw(flat)
+    cx = 0
     for i, (k, v, col) in enumerate(present):
-        # last segment fills to the inner edge so rounding never leaves a sliver
-        seg_w = int(inner_x1 - cx) if i == len(present) - 1 else max(3, round(usable * v / total))
-        # draw each segment (base + texture) into its OWN tile so the hatch / rule
-        # is CLIPPED to the segment and can never bleed past the ink frame.
-        tile = Image.new("RGB", (max(3, seg_w), seg_h), col)
-        td = ImageDraw.Draw(tile)
-        if k == "center":                      # 45deg hatch
-            for xx in range(-seg_h, seg_w, 6):
-                td.line([(xx, seg_h), (xx + seg_h, 0)], fill=CENTER_HATCH, width=2)
-        elif k == "right":                     # vertical rule
-            for xx in range(2, seg_w, 5):
-                td.line([(xx, 0), (xx, seg_h)], fill=RIGHT_RULE, width=1)
-        img.paste(tile, (int(cx), int(top)))
-        cx += seg_w + gap_px                   # leave the track showing as the gap
-
-    # fixed centre axis (constant reference so skew is judged against a constant)
-    mid = (x0 + x1) // 2
-    d.line([(mid, bar_y - 4), (mid, bar_y + bar_h + 4)], fill=INK, width=1)
+        # last segment fills to the edge so rounding never leaves a sliver
+        seg_w = bar_w - cx if i == len(present) - 1 else max(1, round(bar_w * v / total))
+        fd.rectangle([cx, 0, cx + seg_w, bar_h], fill=col)
+        cx += seg_w
+    mask = Image.new("L", (bar_w, bar_h), 0)
+    md = ImageDraw.Draw(mask)
+    md.rounded_rectangle([0, 0, bar_w, bar_h], radius=bar_h // 2, fill=255)
+    img.paste(flat, (x0, bar_y), mask)
 
     # caption under the bar
     cap = "Distinct outlets on each side that covered this story · one publisher = one vote"

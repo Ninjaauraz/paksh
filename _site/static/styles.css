@@ -1,12 +1,12 @@
 /* ---- Paksh — "ink on paper" design system ---- */
 :root{
-  --paper:#F4F1EA; --paper-sunk:#EFEBE1; --paper-sunk2:#EAE6DB; --paper-deep:#E1DCCE;
+  --paper:#F4F1EA; --paper-sunk:#EFEBE1; --paper-sunk2:#F8F7F2; --paper-deep:#E1DCCE;
   --ink:#15140F; --ink-quiet:#6B675C; --ink-body:#26241E; --ink-body2:#3A372F;
   --hairline:#D8D3C6; --muted:#8A8371; --clay:#75442E;
 }
-  body{font-family:'IBM Plex Sans',system-ui,sans-serif;background-color:#EAE6DB;color:#26241E;}
-  /* dark background applied pre-hydration (see index.html theme script) so there's no flash */
-  .dark body{background-color:#1A1917;color:#B7B1A4;}
+  /* 6.3B.5: page background is now #F8F7F2 (was #EAE6DB) - a lighter, more restrained
+     paper-white, the primary canvas across the product. */
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;background-color:#F8F7F2;color:#26241E;}
   /* reading text is serif in BOTH scripts */
   .serif{font-family:'Source Serif 4',Georgia,serif;}
   .headline{font-family:'Source Serif 4',Georgia,serif;font-weight:600;letter-spacing:-0.014em;}
@@ -25,30 +25,14 @@
   /* chrome in Hindi = IBM Plex Sans Devanagari (labels/counts); no caps, light tracking */
   .deva,.deva *{font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif !important;letter-spacing:0 !important;}
 
-  /* ---- bias-bar + framing textures: hex fallback FIRST, oklch override SECOND ----
-     Old browsers keep the hex (they drop the oklch line as invalid); modern browsers
-     override with oklch. The gradient fallback keeps the TEXTURE on old browsers too,
-     preserving greyscale / colour-blind safety. Equal-lightness on all three sides. */
-  .seg-left{background:#4A6E80;background:oklch(0.52 0.055 230);}
-  .seg-center{background:repeating-linear-gradient(45deg,#7E7768 0 3px,#8C857A 3px 6px);
-              background:repeating-linear-gradient(45deg,oklch(0.52 0.02 85) 0 3px,oklch(0.62 0.02 85) 3px 6px);}
-  .seg-right{background:repeating-linear-gradient(90deg,#96603F 0 4px,#7C4E34 4px 5px);
-             background:repeating-linear-gradient(90deg,oklch(0.52 0.075 45) 0 4px,oklch(0.44 0.075 45) 4px 5px);}
-  /* Brief tier (bars <=6px): the 45deg hatch and 90deg rule would moiré at that height,
-     so centre uses a tighter 2px hatch and right goes solid; the printed count carries
-     the exact reading (design spec 2e). */
-  .seg-center-tight{background:repeating-linear-gradient(45deg,#7E7768 0 2px,#8C857A 2px 4px);
-              background:repeating-linear-gradient(45deg,oklch(0.52 0.02 85) 0 2px,oklch(0.62 0.02 85) 2px 4px);}
-  .seg-right-flat{background:#96603F;background:oklch(0.52 0.075 45);}
-  /* "too thin / absent side" hatch for coverage-gap columns */
-  .seg-absent{background:repeating-linear-gradient(45deg,#EAE6DB 0 4px,#E1DCCE 4px 8px);}
-  .dark .seg-absent{background:repeating-linear-gradient(45deg,#262420 0 4px,#201F1C 4px 8px);}
+  /* The old hatch/rule bias-bar textures (.seg-left/.seg-center/.seg-right/.seg-center-tight/
+     .seg-right-flat/.seg-absent) are retired along with BiasSegments/GapColumns/GapRateColumns,
+     their only consumers, which have zero live call sites - confirmed removed together. The
+     canonical bias mark everywhere live is now the solid-fill BiasPill. */
   /* gap-accent on the ink Coverage Gaps band */
   .gap-accent{color:#C98A66;}
-  /* theme-aware clay accent for kickers ("Most covered today"): the Right-lean #96603F
-     is only 3.4:1 on the dark bg, so darken it on paper, lighten it in dark -> AA both ways */
+  /* clay accent for kickers ("Most covered today") */
   .accent-clay{color:#8A4B2C;}
-  .dark .accent-clay{color:#C89170;}
 
   /* radius 0 everywhere — structure carried by hairlines + space, never by radii */
   #root [class*="rounded"]{border-radius:0 !important;}
@@ -56,26 +40,20 @@
   ::-webkit-scrollbar{width:10px;height:10px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:#cfccc4;}
-  .dark ::-webkit-scrollbar-thumb{background:#35322c;}
   .glass-nav-light{background:rgba(244,241,234,0.88);backdrop-filter:saturate(1.15) blur(10px);-webkit-backdrop-filter:saturate(1.15) blur(10px);}
-  .glass-nav-dark{background:rgba(26,25,23,0.88);backdrop-filter:saturate(1.15) blur(10px);-webkit-backdrop-filter:saturate(1.15) blur(10px);}
-  *:focus-visible{outline:2px solid #15140F;outline-offset:2px;}
-  .dark *:focus-visible{outline-color:#EDEAE2;}
+  *:focus-visible{outline:var(--pk-focus-ring-width,2px) solid var(--pk-focus-ring,#15140F);outline-offset:var(--pk-focus-ring-offset,2px);}
   @keyframes shimmer{0%{background-position:-520px 0}100%{background-position:520px 0}}
   .skel{background-color:#e3ddd0;background-image:linear-gradient(90deg,rgba(0,0,0,0) 0,rgba(255,255,255,.55) 50%,rgba(0,0,0,0) 100%);background-size:520px 100%;background-repeat:no-repeat;animation:shimmer 1.5s infinite linear;}
-  .dark .skel{background-color:#201f1c;background-image:linear-gradient(90deg,rgba(255,255,255,0) 0,rgba(255,255,255,.06) 50%,rgba(255,255,255,0) 100%);}
   /* screen-reader-only text (accessible headings) + a skip-link that appears on focus */
   .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
   .sr-only-focusable{position:absolute;left:8px;top:-48px;z-index:100;background:#15140F;color:#F4F1EA;padding:8px 14px;font:500 13px/1 'IBM Plex Sans',sans-serif;transition:top .15s ease;}
   .sr-only-focusable:focus{top:8px;}
-  .dark .sr-only-focusable{background:#EDEAE2;color:#1A1917;}
   .lc-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .lc-3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
   .lc-4{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
   html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:72px;}
   body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;-webkit-tap-highlight-color:transparent;}
   ::selection{background:#15140F;color:#F4F1EA;}
-  .dark ::selection{background:#EDEAE2;color:#15140F;}
   /* tactile feedback only — no shadows, no bar animation (the distribution is a fact) */
   button{transition:filter .15s ease,background-color .15s ease,color .15s ease,opacity .2s ease;}
   button:active:not(:disabled){transform:translateY(.5px);}
@@ -89,15 +67,10 @@
   html[data-pk-text="classic"]{zoom:1.30;}
   /* High contrast (light): near-black text, white surfaces, ink hairlines. */
   html.pk-hc body{background:#fff!important;color:#000!important;}
-  html.pk-hc .bg-\[\#F4F1EA\],html.pk-hc .bg-\[\#EFEBE1\],html.pk-hc .bg-\[\#EAE6DB\],html.pk-hc .bg-\[\#F9F7F1\]{background-color:#fff!important;}
+  html.pk-hc .bg-\[\#F4F1EA\],html.pk-hc .bg-\[\#EFEBE1\],html.pk-hc .bg-\[\#EAE6DB\],html.pk-hc .bg-\[\#F9F7F1\],html.pk-hc .bg-\[\#F8F7F2\]{background-color:#fff!important;}
   html.pk-hc .text-\[\#3A372F\],html.pk-hc .text-\[\#26241E\],html.pk-hc .text-\[\#3A4B54\],html.pk-hc .text-\[\#57503F\]{color:#000!important;}
   html.pk-hc .text-\[\#8A8371\]{color:#26241E!important;}
   html.pk-hc .border-\[\#D8D3C6\]{border-color:#15140F!important;}
-  /* High contrast (dark): pure-black surfaces, near-white text. */
-  html.pk-hc.dark body{background:#000!important;color:#fff!important;}
-  html.pk-hc.dark .bg-\[\#201F1C\],html.pk-hc.dark .bg-\[\#262420\],html.pk-hc.dark .bg-\[\#1A1917\]{background-color:#000!important;}
-  html.pk-hc.dark .text-\[\#B7B1A4\],html.pk-hc.dark .text-\[\#948E7E\]{color:#fff!important;}
-  html.pk-hc.dark .border-\[\#35322C\]{border-color:#EDEAE2!important;}
   /* Dyslexia-friendly reading font (Latin reading text only; Devanagari keeps its script font).
      Uses Atkinson Hyperlegible / OpenDyslexic if the reader has them, else Verdana/Tahoma. */
   html.pk-dys body,
@@ -108,7 +81,6 @@
      Paper-and-ink, not SaaS polish. Standard easing cubic-bezier(.2,.7,.2,1); micro 150-260ms,
      ambient reveals 280-700ms. EVERYTHING collapses instantly under prefers-reduced-motion (the
      global reduce rule above already forces animation:none) — counts/text never depend on motion. */
-  @keyframes pk-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   @keyframes pk-page{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @keyframes pk-rise{from{opacity:0;transform:translateY(10px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
   @keyframes pk-pop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -123,8 +95,6 @@
   @keyframes pk-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
   @media (prefers-reduced-motion:no-preference){.pk-marquee{animation:pk-scroll 60s linear infinite;}.pk-marquee:hover{animation-play-state:paused;}}
   @media (prefers-reduced-motion:no-preference){
-    /* bias-bar ink-fill: each segment grows from 0 to its counted width, ink settling to its mark */
-    .pk-seg{transform-origin:left center;animation:pk-fill .66s cubic-bezier(.2,.7,.2,1) both;}
     /* page transition: the view rises + resolves on each route change (keyed remount) */
     .pk-page{animation:pk-page .28s cubic-bezier(.2,.7,.2,1) both;}
     /* headline focus-in for the lead */
@@ -135,3 +105,129 @@
     a.group.cursor-pointer{transition:transform .18s cubic-bezier(.4,0,.2,1);}
     @media (hover:hover){a.group.cursor-pointer:hover{transform:translateY(-2px);}}
   }
+
+/* ============================================================================================
+   PHASE 6.2 — DESIGN FOUNDATION TOKENS
+   ============================================================================================
+   Purely additive. Nothing above this line was changed, and no existing component references
+   anything below it yet - this is the token/primitive layer the NEXT phases (homepage, StoryPage,
+   Search, Login redesigns) will build against. Every value here is copied verbatim from what the
+   app already renders today (static/app.jsx's TOKENS/BIAS/AXES objects, and the sizes/spacing/
+   widths already in use across the ~70 existing components) - nothing decorative was invented,
+   except the one genuinely-missing "success" slot noted below.
+
+   Two token layers exist by necessity, not duplication-by-accident: CSS custom properties here
+   (for anything styled in this file or in a future plain-CSS component), and the JS `TOKENS`/
+   `BIAS`/`AXES` objects in app.jsx (for the many components that need a hex value in an inline
+   `style={{}}` or a light/dark Tailwind class string, since this project has no build step that
+   could share one source between CSS and JS). The two are kept numerically identical by hand;
+   this file's colour values are the ones to update FIRST if the palette itself ever changes,
+   then mirror the same hex into app.jsx's TOKENS/BIAS/AXES.
+   ============================================================================================ */
+
+:root{
+  /* ---- 1. Colour — light theme (identical to app.jsx TOKENS.light) ---- */
+  --pk-bg:#F8F7F2;            /* page background — TOKENS.light.bg (6.3B.5: was #EAE6DB) */
+  --pk-surface:#F4F1EA;       /* card/panel surface — TOKENS.light.surface (= existing --paper) */
+  --pk-surface-soft:#EFEBE1;  /* sunken surface (rails, hover) — TOKENS.light.soft (= --paper-sunk) */
+  --pk-border:#D8D3C6;        /* hairline — TOKENS.light.border/line (= --hairline) */
+  --pk-fg:#15140F;            /* primary text/ink — TOKENS.light.tp/ink/cta (= --ink) */
+  --pk-fg-secondary:#3A372F;  /* secondary text — TOKENS.light.ts (= --ink-body2) */
+  --pk-fg-muted:#8A8371;      /* muted/faint text — TOKENS.light.tf (= --muted) */
+  --pk-cta-bg:#15140F;        /* primary button fill — TOKENS.light.cta */
+  --pk-cta-fg:#F4F1EA;        /* primary button text — TOKENS.light.ctaT */
+  --pk-chip-bg:#EAE6DB;       /* chip/pill background — TOKENS.light.chip */
+
+  /* ---- editorial accent (the warm clay used for blindspot/contested/warning states) ---- */
+  --pk-accent:#75442E;            /* TOKENS.light.blind (= --clay) */
+  --pk-accent-soft:#EFE3DB;       /* TOKENS.light.blindSoft */
+
+  /* ---- semantic states ---- */
+  --pk-state-error:#C0392B;       /* already used verbatim for auth-form errors in app.jsx */
+  --pk-state-warning:var(--pk-accent);   /* the existing clay accent already reads as "caution"
+                                              (Contested badges, Coverage Gap callouts) — reused,
+                                              not a new colour */
+  /* No "success" state exists anywhere in the product today (no confirmation banners/toasts) —
+     this is the one genuinely new value in this file, kept deliberately muted/low-saturation to
+     sit inside the existing earth-tone palette rather than read as a bright SaaS-green accent.
+     Revisit if/when a real success-state UI is designed. */
+  --pk-state-success:#4F7A52;
+
+  /* interactive / focus (formalizes the existing *:focus-visible rule below, same colour) */
+  --pk-interactive:#15140F;
+  --pk-focus-ring:#15140F;
+  --pk-focus-ring-width:2px;
+  --pk-focus-ring-offset:2px;
+
+  /* ---- bias + editorial-axis colours (identical to app.jsx's BIAS / AXES objects; same in
+     both themes today, so declared once, not repeated under .dark) ---- */
+  --pk-bias-left:#4A6E80; --pk-bias-center:#7E7768; --pk-bias-right:#96603F; --pk-bias-intl:#5E7E78;
+  --pk-axis-1:#4A6E80; --pk-axis-2:#7E7768; --pk-axis-3:#96603F; /* AXES[0..2].color */
+
+  /* ---- 3. Spacing — Tailwind's own default 4px-based scale is already the de facto system
+     (px-4, py-3, gap-6, mt-8... are used consistently throughout). These vars exist only for
+     the handful of places that need a raw pixel value outside a Tailwind class (inline
+     `style={{padding:...}}`), so those spots can reference a name instead of a bare number. */
+  --pk-space-1:4px; --pk-space-2:8px; --pk-space-3:12px; --pk-space-4:16px; --pk-space-5:20px;
+  --pk-space-6:24px; --pk-space-8:32px; --pk-space-10:40px; --pk-space-12:48px; --pk-space-16:64px;
+
+  /* ---- 4. Borders & geometry — the editorial "ink on paper" rule: zero radius everywhere
+     (already enforced globally by the `#root [class*="rounded"]` override further up this
+     file), 1px hairlines, no shadows. Formalized as tokens for anything written from here on. */
+  --pk-radius:0px;
+  --pk-border-width:1px;
+  --pk-border-width-strong:2px;   /* the heavier rules used under section headers / the bias bar */
+
+  /* ---- 6. Content widths — the max-widths already in recurring use across pages, named so
+     future components pick one of these instead of inventing a new arbitrary value. */
+  --pk-width-narrow:520px;    /* SignInGate / gate copy */
+  --pk-width-form:760px;      /* LoginPage card */
+  --pk-width-reading:840px;   /* StoryPage's inner reading column (headline, framing, coverage) */
+  --pk-width-story:1000px;    /* StoryPage's outer bound */
+  --pk-width-container:1280px;/* PageWrap — the default page container every non-home page uses */
+  --pk-width-wide:1800px;     /* HomeView / Header — the widest shell */
+
+  /* ---- 7. Motion — the durations/easing already used by the pk-* keyframes above; named so
+     any new animation reaches for one of these instead of a fresh guess. The keyframe rules
+     themselves are untouched (this just documents what they already use). */
+  --pk-ease-standard:cubic-bezier(.2,.7,.2,1);
+  --pk-duration-fast:180ms;    /* hover/tap feedback */
+  --pk-duration-base:280ms;    /* page-transition / clip-pop scale */
+  --pk-duration-slow:550ms;    /* headline focus-in (pk-rise) */
+}
+
+/* Dark mode is retired (paper-white only) - the `html.dark{...}` custom-property override that
+   used to live here, and the `document.documentElement.classList.toggle("dark", dark)` call
+   that was its only trigger, are both gone (the latter removed from app.jsx). Neither this
+   block nor its light-mode --pk-* counterparts above were ever consumed by a live rule, so
+   removing it changes nothing observable - it's cleanup, not a behavior change. */
+
+/* ---- 2. Typography hierarchy ----------------------------------------------------------------
+   Additive size/line-height tiers ONLY — they compose alongside the existing `.headline` /
+   `.serif` / `.eyebrow` / `.mono` classes (which still own font-family/weight/tracking and are
+   completely unchanged), not a replacement for them. A future component would combine e.g.
+   `className="headline pk-text-display"`. Devanagari support is unaffected: `.read-hi` (script
+   + line-height override) already takes priority via `!important` and keeps working exactly as
+   today when paired with any of these. */
+  .pk-text-display{font-size:30px;line-height:1.08;letter-spacing:-0.022em;}         /* page-level H1: Account/Saved/Lens/Login/Story */
+  @media (min-width:640px){.pk-text-display{font-size:40px;}}
+  .pk-text-headline{font-size:18px;line-height:1.24;letter-spacing:-0.01em;}         /* card/grid headline (GridCard, SectionCard) */
+  .pk-text-subhead{font-size:15px;line-height:1.3;}                                   /* secondary headline (DenseRow, BriefRow) */
+  .pk-text-compact{font-size:13px;line-height:1.28;}                                  /* compact/dense list rows */
+  .pk-text-body{font-size:15px;line-height:1.55;}                                     /* reading paragraphs; use with .serif/.read-hi */
+  .pk-text-meta{font-size:11px;line-height:1.4;}                                      /* timestamps, counts — pair with .mono */
+  .pk-text-source{font-size:16px;line-height:1.3;font-weight:700;}                    /* SourceCard outlet name — pair with .serif */
+  /* "Navigation" and "Labels" tiers are already fully served by the existing `.eyebrow` class
+     (10px uppercase, tracked) — no new class needed; it already handles both nav-bar items and
+     form/section labels throughout the app. */
+
+/* ---- 5. Breakpoints (reference only — CSS cannot use a custom property inside @media, and
+   this project has no PostCSS custom-media-query step, so these stay documented, not enforced
+   via a variable). tailwind.config.js declares no overrides, so these are Tailwind's own
+   defaults, confirmed unchanged: sm 640px · md 768px · lg 1024px · xl 1280px · 2xl 1536px.
+   `md` is the app's real navigation break (BottomNav ↔ Header's desktop nav row). */
+
+/* ---- 9. Focus states — the existing `*:focus-visible` rule near the top of this file reads
+   from --pk-focus-ring/--pk-focus-ring-width/--pk-focus-ring-offset above, with the original
+   hex/px values kept as inline `var()` fallbacks. (Dark mode retired 6.3B.10 - this used to be
+   tokenized against a light+`.dark` pair; now there's only one palette.) */

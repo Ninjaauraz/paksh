@@ -329,6 +329,31 @@ def get_event_articles(event_id):
     return [dict(r) for r in rows]
 
 
+def get_articles_for_events(event_ids):
+    """Batched form of get_event_articles: {event_id: [articles]} for MANY events in
+    one connection, chunked IN (...) queries - the same shape as embeddings_get(), used
+    where a caller would otherwise call get_event_articles() once per event in a loop
+    (e.g. storylines.py's _centroids(), which used to open one connection per event).
+    Every id in event_ids gets an entry (possibly []), so callers never need a
+    membership check for a zero-article event. Row shape and column set are identical
+    to get_event_articles(); only how they're fetched differs."""
+    event_ids = list(event_ids)
+    out = {eid: [] for eid in event_ids}
+    if not event_ids:
+        return out
+    conn = get_connection()
+    CH = 400  # keep the IN (...) list within SQLite's parameter limit
+    cols = ("id", "source", "language", "title", "url", "summary", "image_url")
+    for i in range(0, len(event_ids), CH):
+        chunk = event_ids[i:i + CH]
+        ph = ",".join("?" for _ in chunk)
+        for r in conn.execute(
+                f"SELECT event_id, {', '.join(cols)} FROM articles WHERE event_id IN ({ph})", chunk):
+            out[r["event_id"]].append({k: r[k] for k in cols})
+    conn.close()
+    return out
+
+
 def update_event(event_id, analysis, bump_created=True):
     """Rewrite an event's stored analysis after its membership changed. bump_created
     refreshes created_at so a continuing story resurfaces as recently-updated.

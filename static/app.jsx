@@ -6,8 +6,6 @@ const {useState,useEffect,useMemo}=React;
     let _adIntent = false;
     /* ---------------- icons ---------------- */
     const Search = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
-    const Sun = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
-    const Moon = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
     const ArrowLeft = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
     const Eye = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={p.strokeWidth||2} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
     const Sparkles = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>;
@@ -44,18 +42,19 @@ const {useState,useEffect,useMemo}=React;
         hi:{ name:"सत्ता के प्रति", lo:"आलोचनात्मक",    hi:"सत्ता-समर्थक" } },
     ];
     const TOKENS = {
-      light: { bg:"bg-[#EAE6DB]", surface:"bg-[#F4F1EA]", soft:"bg-[#EFEBE1]", border:"border-[#D8D3C6]",
+      light: { bg:"bg-[#F8F7F2]", surface:"bg-[#F4F1EA]", soft:"bg-[#EFEBE1]", border:"border-[#D8D3C6]",
         tp:"text-[#15140F]", ts:"text-[#3A372F]", tf:"text-[#8A8371]", brand:"text-[#15140F]", brandBg:"bg-[#15140F]",
         blind:"text-[#75442E]", blindSoft:"bg-[#EFE3DB]", nav:"glass-nav-light",
+        // dev — the one new accent (6.3B.3): muted indigo, ONE job only ("developing/ongoing"),
+        // so it never competes with blind's "gap/warning" meaning. Same light/dark AA-tuning
+        // pattern as blind above. Used ONLY by DevelopingRail's header + update marker.
+        dev:"text-[#2E3A52]",
         cta:"bg-[#15140F]", ctaT:"text-[#F4F1EA]", line:"#D8D3C6", ink:"#15140F", chip:"bg-[#EAE6DB]", centerSeg:"#8C8579",
         track:"#EAE6DB", gap:"#F4F1EA" },
-      dark: { bg:"bg-[#1A1917]", surface:"bg-[#201F1C]", soft:"bg-[#262420]", border:"border-[#35322C]",
-        // tf was #847E72 = 4.36:1 on the dark surface, just under WCAG AA (4.5). #948E7E clears
-        // AA (~5:1 on bg, ~4.7:1 on the soft card) while staying visibly "faint".
-        tp:"text-[#EDEAE2]", ts:"text-[#B7B1A4]", tf:"text-[#948E7E]", brand:"text-[#EDEAE2]", brandBg:"bg-[#EDEAE2]",
-        blind:"text-[#C89170]", blindSoft:"bg-[#2E2019]", nav:"glass-nav-dark",
-        cta:"bg-[#EDEAE2]", ctaT:"text-[#201F1C]", line:"#35322C", ink:"#EDEAE2", chip:"bg-[#2A2823]", centerSeg:"#8C8579",
-        track:"#2A2823", gap:"#1A1917" },
+      // 6.3B.10: dark mode retired - the approved direction is paper-white only, and the UI
+      // toggle to reach dark mode was already removed in 6.3B.4. TOKENS.dark, the `dark`/
+      // `setDark` state, and the dead UtilityStrip component that used to hold the toggle
+      // (never rendered by any route) are gone; `t` is now always TOKENS.light.
     };
     const TOPIC_HI = {Politics:"राजनीति", Economy:"अर्थव्यवस्था", International:"अंतरराष्ट्रीय", Sports:"खेल",
       "Crime & Law":"अपराध व कानून", "Science & Tech":"विज्ञान व तकनीक", Health:"स्वास्थ्य",
@@ -516,6 +515,26 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function MiniBar({ bias, t }) { return <BiasSegments bias={bias} t={t} h={10} />; }
+    // BiasPill (6.3B.6) — the homepage's one bias grammar: a single rounded pill, three flat
+    // solid segments (no hatch, no gradient, no border between them) proportional to the real
+    // L/C/R counts, then "L n C n R n" beneath - no "n =", no percentages, no "sources". Used
+    // by every homepage article (LeadStory, SectionCard, FeedRow, BriefRow) in place of
+    // BiasSegments/MiniBar + countLine()/covLine() text. BiasSegments/MiniBar themselves are
+    // untouched - StoryPage and other views still use them exactly as before.
+    const PILL_COLOR={left:"#587A91",center:"#6F6B61",right:"#A46149"};
+    function BiasPill({ counts, t, lang, h, className }) {
+      const L=counts.left||0,C=counts.center||0,R=counts.right||0;
+      return (
+        <div className={className||""}>
+          <div className="flex w-full overflow-hidden" style={{height:h||8,borderRadius:999,background:t.line}}>
+            {L>0 && <div style={{flexGrow:L,flexBasis:0,background:PILL_COLOR.left}}/>}
+            {C>0 && <div style={{flexGrow:C,flexBasis:0,background:PILL_COLOR.center}}/>}
+            {R>0 && <div style={{flexGrow:R,flexBasis:0,background:PILL_COLOR.right}}/>}
+          </div>
+          <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{(lang==="hi"?"वा":"L")} {L} {(lang==="hi"?"कें":"C")} {C} {(lang==="hi"?"द":"R")} {R}</div>
+        </div>
+      );
+    }
     // Larger bar. Pass `counts` (real L/C/R outlet counts) to print the label row + n above,
     // exactly like the design's story-page instrument.
     function BiasBar({ bias, t, lang, onPick, active, height, counts, showN, showScale }) {
@@ -609,7 +628,7 @@ const {useState,useEffect,useMemo}=React;
       const seq=items.concat(items);   // duplicated so the -50% keyframe loops seamlessly
       return (
         <div style={{background:"#15140F"}} className="overflow-hidden">
-          <div className="mx-auto flex max-w-[1800px] items-center gap-3 px-4 sm:px-10" style={{height:30}}>
+          <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 sm:px-10" style={{height:30}}>
             <span className="flex shrink-0 items-center gap-1.5" style={{zIndex:1}}>
               <span className="pk-pulse" style={{width:6,height:6,borderRadius:9,background:"#C0392B",display:"inline-block"}}/>
               <span className="mono" style={{fontSize:9.5,fontWeight:700,letterSpacing:".18em",color:"#C89170"}}>{lang==="hi"?"ताज़ा ख़बर":"DEVELOPING"}</span>
@@ -627,31 +646,10 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    // A dated masthead sub-strip: today's date + how many outlets Paksh tracks.
-    // The dated strip under the masthead: a 2px rule over a 1px rule (design 2a), carrying
-    // the edition toggle + today's date on the left, the live tally in the centre, and the
-    // freshness on the right. Every number is real (homeCards / sources / gaps / newest event).
-    function DateStrip({ t, lang, stats, regionFilter, setRegionFilter }) {
-      const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-      const ls=lang==="hi"?0:".14em";
-      const eb=`eyebrow ${lang==="hi"?"deva":""}`;
-      const region=(k,label)=>(
-        <button onClick={()=>setRegionFilter&&setRegionFilter(k)} className={`${eb} ${regionFilter===k?t.tp:`${t.tf} hover:${t.tp}`}`} style={{letterSpacing:ls}}>{label}</button>
-      );
-      const tally=lang==="hi"
-        ? `${stats.stories} ख़बरें · ${stats.outlets} स्रोत · ${stats.gaps} कवरेज गैप`
-        : `${stats.stories} stories · ${stats.outlets} outlets tracked · ${stats.gaps} coverage gaps`;
-      return (
-        <div className="flex items-center justify-between gap-4 py-[7px]" style={{borderBottom:`1px solid ${t.ink}`}}>
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            {region("National", ui("National",lang))}
-            {region("International", ui("International",lang))}
-            <span className={`hidden md:inline ${eb} ${t.tf}`} style={{letterSpacing:ls}}>{today}</span>
-          </div>
-          <span className={`hidden sm:inline ${eb} ${t.tf} truncate`} style={{letterSpacing:ls}}>{tally}</span>
-        </div>
-      );
-    }
+    // 6.3B.6: DateStrip retired - National/International + a short date now live inside
+    // Header's single nav rail (home view only), and the story/outlet/gap tally it used to
+    // print is gone entirely (masthead-area statistics, not journalism; the ink-band number
+    // near Coverage Gaps already carries the one count worth making prominent).
     // LEAD — the most-covered story of the moment, given the largest type + full bias
     // instrument with the printed scale. Text-forward; a single 2:1 image if one exists.
     // LEAD — the single most-covered story, at 54px on desktop / 31px on mobile: the one
@@ -660,25 +658,20 @@ const {useState,useEffect,useMemo}=React;
     // every count/width is live (BiasSegments flex-grow = bias%, computed from L/C/R owners).
     function LeadStory({ story, t, lang, onOpen }) {
       const c=story.counts||{left:0,center:0,right:0};
-      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
-      const b=story.bias||{left:0,center:0,right:0};
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
-            {n>0 && <span className={`shrink-0 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{n} {n===1?STR[lang].source:STR[lang].sources}</span>}
-          </div>
+          <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
           <h2 className={`headline pk-rise mt-3 text-[36px] sm:text-[44px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.12:1.04,letterSpacing:lang==="hi"?0:"-0.024em",textWrap:"balance"}}>{story.headline}</h2>
-          {story.img && <div className="mt-4 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="2 / 1" t={t} lang={lang} /></div>}
+          {/* image: rendered separately by HomeView above this whole section, contained
+              within the page's editorial shell (6.3B.4) - not inline here. story.img is
+              still read there, from the same `story` object. */}
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
             {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
             <div>
-              <div className={`mb-2 flex justify-between text-[10px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>
-                {["left","center","right"].map(k=>(<span key={k}>{lang==="hi"?BIAS[k].hi:BIAS[k].en.charAt(0)} <span className="mono" style={{letterSpacing:0}}>{c[k]||0}</span></span>))}
-              </div>
-              <BiasSegments bias={b} t={t} h={28} lang={lang} />
-              <div className={`mt-2 mono text-[10.5px] ${t.tf}`}>n = {n} · {b.left} / {b.center} / {b.right}%</div>
+              {/* 6.3B.6: one rounded BiasPill + "L n C n R n" - Paksh's one bias grammar,
+                  now used identically everywhere on the homepage. */}
+              <BiasPill counts={c} t={t} lang={lang} h={10} />
               <div className={`mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}><span style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"सभी पक्ष पढ़ें":"Read all sides"} →</span></div>
             </div>
           </div>
@@ -740,15 +733,15 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function FeedRow({ story, t, lang, onOpen }) {
+      // 6.3B.6: BiasPill instead of MiniBar (hatch-textured) + inline L/C/R text - covLine()
+      // stays untouched since GridCard on StoryPage also uses it and isn't in scope yet.
+      const c=story.counts||{left:0,center:0,right:0};
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`no-underline group flex cursor-pointer gap-4 border-b pb-6 ${t.border}`}>
           <div className="min-w-0 flex-1">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-lg sm:text-xl leading-[1.18] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
-            <div className="mt-2.5 flex items-center gap-3">
-              <div className="w-28 sm:w-36"><MiniBar bias={story.bias} t={t} /></div>
-              <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
-            </div>
+            <div className="mt-2.5 w-28 sm:w-36"><BiasPill counts={c} t={t} lang={lang} h={8} /></div>
           </div>
           {story.img && <div className="shrink-0"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="1 / 1" t={t} lang={lang} className="w-24 sm:w-32 rounded-md" /></div>}
         </a>
@@ -779,16 +772,19 @@ const {useState,useEffect,useMemo}=React;
         </a>
       );
     }
+    // 6.3B.8: BiasPill instead of MiniBar (hatch) + covLine's "58% Centre · 9 sources" text -
+    // same bias grammar as SectionCard/FeedRow/BriefRow, no legacy percentage anywhere on the
+    // three surfaces that reuse this card (StoryPage related stories, TopicPage, SearchPage).
     function GridCard({ story, t, lang, onOpen }) {
+      const c=story.counts||{left:0,center:0,right:0};
       return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden rounded-lg border ${t.surface} ${t.border}`}>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer overflow-hidden border ${t.surface} ${t.border}`}>
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
             <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)}`}>{story.headline}</h3>
-            <div className="mt-3"><MiniBar bias={story.bias} t={t} /></div>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <BiasPill counts={c} t={t} lang={lang} h={8} className="flex-1" />
               <CardClip story={story} t={t} lang={lang} />
             </div>
           </div>
@@ -815,23 +811,8 @@ const {useState,useEffect,useMemo}=React;
       );
     }
 
-    function UtilityStrip({ t, lang, setLang, dark, setDark }) {
-      const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-      return (
-        <div style={{backgroundColor:"#15140F"}} className="text-white/85">
-          <div className="mx-auto flex max-w-[1800px] items-center justify-between px-4 sm:px-10" style={{height:34}}>
-            <span className="mono text-[11px] tracking-wide text-white/55">{lang==="hi"?"भारत संस्करण":"India Edition"}</span>
-            <div className="flex items-center gap-4">
-              <span className={`hidden sm:inline mono text-[11px] text-white/55 ${lang==="hi"?"deva":""}`}>{today}</span>
-              <div className="flex items-center gap-1">
-                {["en","hi"].map(l=>(<button key={l} onClick={()=>setLang(l)} className={`px-1.5 mono text-[11px] font-semibold ${lang===l?"text-white underline underline-offset-4":"text-white/50 hover:text-white/80"} ${l==="hi"?"deva":""}`}>{l==="en"?"EN":"हिं"}</button>))}
-              </div>
-              <button onClick={()=>setDark(!dark)} className="text-white/55 hover:text-white" aria-label="Theme">{dark?<Sun size={15}/>:<Moon size={15}/>}</button>
-            </div>
-          </div>
-        </div>
-      );
-    }
+    // UtilityStrip (dark-mode toggle rail) retired 6.3B.10 - already unreachable from any
+    // live route since the toggle was pulled from Header back in 6.3B.4.
     // Language switch — the design's bordered EN/हिं toggle. Active side fills with ink,
     // inactive stays paper. 44px tap target on mobile. No caps on Devanagari.
     function LangToggle({ t, lang, setLang, dark }) {
@@ -852,55 +833,103 @@ const {useState,useEffect,useMemo}=React;
         </span>
       );
     }
-    // Masthead — recreated from the desktop prototype: a dateline strip, a CENTRED पक्ष Paksh
-    // wordmark flanked by ♥ Support (left) and Sign-in / avatar (right), then a bordered nav row
-    // with a right-aligned search. Theme-aware (token colours) and responsive (nav row is md+;
-    // mobile leans on the bottom tab bar). Clay (#75442E) via t.blind so it lifts in dark mode.
-    function Header({ t, lang, setLang, dark, setDark, go, view, auth, openHelp, savedCount }) {
-      const NAV=[["home",STR[lang].navTop,false],["blindspot",STR[lang].navOS,true],["search",ui("searchTab",lang),false],
+    // Masthead (6.3B.6) — one compact editorial header, not a UI toolbar. Masthead row:
+    // empty left (Support moved to a temporary floating control, see FloatingSupport) ·
+    // CENTRED पक्ष wordmark (true optical centre - the grid's two flanking [1fr] columns
+    // stay equal width regardless of what's in them, so the logo centres on the page even
+    // with an empty left side) · language/help/account on the right. Below it, ONE compact
+    // nav rail: the section links, then (home view only) National/International as an
+    // editorial section switch + a short date, then the one search affordance - not four
+    // separate stacked bands (nav / bias legend / date strip) like before 6.3B.6.
+    // Masthead (6.3B.8) — ONE publication masthead for every route, replacing the old
+    // Header/InteriorMasthead split. Never sticky (in normal document flow, so it scrolls
+    // away with the page — the only sticky rule anywhere in this codebase was Header's own
+    // `sticky top-0`, now gone). Background is the same paper-white token as the page body
+    // (`t.bg`, not the old glass-blur `t.nav`), so there's no visible seam between masthead
+    // and content.
+    //
+    // Three zones in the masthead row: context (left) · पक्ष wordmark (centre) · utility
+    // (right, generously spaced — language / help / Lens / Saved / account are each their
+    // own control, not one packed cluster).
+    //
+    // Below that row, AT MOST one further line: reading pages (story/blindspot) get NONE -
+    // their context (back, topic, save/share) already lives in the row itself, so the
+    // masthead is a single unit for them. Every other route gets one restrained contextual/
+    // navigation line (the 5 section links, National/International + date on home only, a
+    // quiet search icon) - this is the "masthead + one line" shape the design explicitly
+    // approves, not the old 4-band identity/nav/scope/search architecture.
+    function Masthead({ t, lang, setLang, go, view, auth, openHelp, savedCount, regionFilter, setRegionFilter, story, sectionLabel, openTopic, saved, onToggleSave }) {
+      const isReading = view==="story" || view==="blindspot" || view==="storyline";
+      const [copied,setCopied]=useState(false);
+      const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
+      const tp = story ? (lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic) : "";
+      const region = story ? (lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India")) : "";
+      const NAV=[["home",STR[lang].navTop,false],["blindspot",STR[lang].navOS,true],
         ["topics",ui("sections",lang),false],["sources",STR[lang].navSrc,false],["about",STR[lang].navMethod,false]];
       const initials=(email)=>{ const s=(email||"").trim(); return s?s[0].toUpperCase():"?"; };
-      const today=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+      const shortDate=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{month:"short",day:"numeric"});
       return (
-        <header className={`sticky top-0 z-40 ${t.nav}`} style={{borderBottom:`1px solid ${t.ink}`}}>
-          <div className="mx-auto max-w-[1800px]">
-            {/* dateline strip */}
-            <div className={`flex items-center justify-between gap-3 border-b px-4 py-2 sm:px-10 ${t.border}`}>
-              <span className={`mono truncate text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{today}</span>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className={`hidden md:inline mono text-[10px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"हर पक्ष, हर खबर":"Every side of the story"}</span>
-                <LangToggle t={t} lang={lang} setLang={setLang} dark={dark} />
-                <button onClick={()=>setDark(!dark)} className={`${t.tf} hover:${t.tp}`} aria-label="Theme">{dark?<Sun size={15}/>:<Moon size={15}/>}</button>
-                {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
-              </div>
-            </div>
-            {/* wordmark row: Support · wordmark · Sign in / account */}
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 sm:px-10">
-              <div className="flex items-center">
-                <button onClick={()=>go("support")} className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase ${t.blind}`} style={{border:"1px solid currentColor",padding:"7px 11px",letterSpacing:lang==="hi"?0:".06em"}} aria-label={lang==="hi"?"सहयोग":"Support"}><span aria-hidden="true">♥</span><span className={`hidden sm:inline ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सहयोग":"Support"}</span></button>
+        <div className={t.bg} style={{borderBottom:`1px solid ${t.ink}`}}>
+          <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-5">
+              <div className="min-w-0">
+                {isReading && (
+                  <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                    <button onClick={()=>go("home")} className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> <span className="hidden sm:inline">{STR[lang].back}</span></button>
+                    {(story||sectionLabel) && <span className={`hidden sm:inline truncate eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{story?`${tp} · ${region}`:sectionLabel}</span>}
+                  </div>
+                )}
               </div>
               <button onClick={()=>go("home")} className="flex items-baseline justify-center" aria-label="Paksh home">
-                <span className={`brand-hi leading-none ${t.tp}`} style={{fontSize:30}}>पक्ष</span>
+                <span className={`brand-hi leading-none ${t.tp}`} style={{fontSize:26}}>पक्ष</span>
               </button>
-              <div className="flex items-center justify-end gap-2.5">
-                {authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
-                {authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
+              <div className="flex items-center justify-end gap-4 sm:gap-6">
+                {isReading && story && (
+                  <div className="hidden shrink-0 items-center gap-3 sm:flex">
+                    {authOn() && onToggleSave && <SaveButton story={story} saved={saved||new Set()} onToggle={onToggleSave} t={t} lang={lang} />}
+                    <button onClick={copy} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
+                  </div>
+                )}
+                <LangToggle t={t} lang={lang} setLang={setLang} dark={false} />
+                {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
+                {!isReading && authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
+                {!isReading && authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
                 {authOn() && (auth
                   ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:34,height:34,border:`1px solid ${t.ink}`,fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</button>
                   : <button onClick={()=>go("login")} className={`text-[10px] font-semibold uppercase ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{border:`1px solid ${t.ink}`,padding:"9px 13px",letterSpacing:lang==="hi"?0:".05em"}}>{lang==="hi"?"साइन इन":"Sign in"}</button>)}
               </div>
             </div>
-            {/* nav row (desktop) */}
-            <nav className={`hidden items-stretch md:flex sm:px-5 ${t.surface}`} style={{borderTop:`1px solid ${t.ink}`}}>
-              {NAV.map(([k,label,clay])=>(
-                <button key={k} onClick={()=>go(k)} className={`relative text-[11px] font-semibold uppercase hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)} ${lang==="hi"?"deva":""}`} style={{padding:"11px 20px",borderRight:`1px solid ${t.line}`,letterSpacing:lang==="hi"?0:".04em"}}>
-                  {label}{view===k && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
-                </button>
-              ))}
-              <button onClick={()=>go("search")} className={`ml-auto flex items-center gap-2 ${t.tf} hover:${t.tp}`} style={{padding:"0 18px",borderLeft:`1px solid ${t.line}`}} aria-label="Search"><Search size={14}/><span className={`hidden lg:inline text-[12px] ${readCls(lang)}`}>{STR[lang].search}</span></button>
-            </nav>
+            {!isReading && (
+              <nav className="hidden items-stretch md:flex" style={{borderTop:`1px solid ${t.ink}`}}>
+                {NAV.map(([k,label,clay])=>(
+                  <button key={k} onClick={()=>go(k)} className={`relative text-[11px] font-semibold uppercase hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)} ${lang==="hi"?"deva":""}`} style={{padding:"11px 20px",borderRight:`1px solid ${t.line}`,letterSpacing:lang==="hi"?0:".04em"}}>
+                    {label}{view===k && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
+                  </button>
+                ))}
+                {view==="home" && (
+                  <div className="ml-auto flex items-center gap-3 px-4">
+                    <button onClick={()=>setRegionFilter&&setRegionFilter("National")} className={`mono text-[10px] uppercase hover:${t.tp} ${regionFilter!=="International"?t.tp:t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("National",lang)}</button>
+                    <span className={t.tf}>·</span>
+                    <button onClick={()=>setRegionFilter&&setRegionFilter("International")} className={`mono text-[10px] uppercase hover:${t.tp} ${regionFilter==="International"?t.tp:t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("International",lang)}</button>
+                    <span className={`hidden lg:inline mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{shortDate}</span>
+                  </div>
+                )}
+                <button onClick={()=>go("search")} className={`${view==="home"?"":"ml-auto "}flex items-center ${t.tf} hover:${t.tp}`} style={{padding:"0 18px",borderLeft:`1px solid ${t.line}`}} aria-label={STR[lang].search}><Search size={14}/></button>
+              </nav>
+            )}
           </div>
-        </header>
+        </div>
+      );
+    }
+    // Floating Support invitation (6.3B.6) — temporary, not a permanent masthead fixture.
+    // Sits above BottomNav (lower z-index, offset clear of it on mobile) and disappears
+    // ~3 minutes into the session via PakshApp's showFloatingSupport state. No modal, no
+    // animation beyond the app's existing hover/tap micro-interactions.
+    function FloatingSupport({ t, lang, go }) {
+      return (
+        <button onClick={()=>go("support")} className={`fixed z-30 bottom-20 right-4 md:bottom-6 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase ${t.blind} ${t.surface}`} style={{border:"1px solid currentColor",padding:"9px 14px",letterSpacing:lang==="hi"?0:".06em"}} aria-label={lang==="hi"?"सहयोग":"Support"}>
+          <span aria-hidden="true">♥</span><span className={lang==="hi"?"deva":""}>{lang==="hi"?"सहयोग":"Support"}</span>
+        </button>
       );
     }
     function BottomNav({ t, lang, view, go, auth }) {
@@ -920,7 +949,7 @@ const {useState,useEffect,useMemo}=React;
     function Footer({ t, lang, go }) {
       return (
         <footer className={`mt-12 border-t ${t.border} ${t.surface}`}>
-          <div className="mx-auto max-w-[1800px] px-4 sm:px-10 py-9">
+          <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-9">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div className="max-w-md">
                 <div className="flex items-baseline gap-1.5"><span className={`brand-hi text-xl ${t.tp}`}>पक्ष</span><span className={`text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`}>Paksh</span></div>
@@ -1009,16 +1038,15 @@ const {useState,useEffect,useMemo}=React;
     // SECTION tier — 4-up band: kicker + 19px headline + 10px bar + mono counts.
     function SectionCard({ story, t, lang, onOpen }) {
       const c=story.counts||{left:0,center:0,right:0};
-      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
           {story.img && <div className="mb-3 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} /></div>}
           <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp||"News"}</div>
           <h3 className={`headline mt-2 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.28,textWrap:"pretty"}}>{story.headline}</h3>
-          <div className="mt-3"><BiasSegments bias={story.bias} t={t} h={10} lang={lang} /></div>
-          <div className="mt-1.5 flex items-center justify-between gap-3">
-            <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{(lang==="hi"?["वा","कें","द"]:["L","C","R"])[0]} {L} · {(lang==="hi"?"कें":"C")} {C} · {(lang==="hi"?"द":"R")} {R} · n = {n}</span>
+          {/* 6.3B.6: one rounded BiasPill + "L n C n R n" - same grammar as LeadStory. */}
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <BiasPill counts={c} t={t} lang={lang} h={8} className="flex-1" />
             <CardClip story={story} t={t} lang={lang} />
           </div>
         </a>
@@ -1044,15 +1072,13 @@ const {useState,useEffect,useMemo}=React;
     }
     // BRIEF tier row — 15px, no summary; a 64px mini-bar to the left with the printed count.
     function BriefRow({ story, t, lang, onOpen, first }) {
+      // 6.3B.6: BiasPill at compact scale instead of BriefBar (hatch) + bare "4·8·2" counts -
+      // same grammar as every other homepage article, just small enough for a dense list.
       const c=story.counts||{left:0,center:0,right:0};
-      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
       return (
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }}
            className={`flex items-baseline gap-3 no-underline group cursor-pointer ${first?"":"border-t pt-2.5 mt-2.5"} ${t.border}`} style={{breakInside:"avoid",WebkitColumnBreakInside:"avoid"}}>
-          <div className="shrink-0" style={{width:64}}>
-            <BriefBar bias={story.bias} counts={c} t={t} />
-            <div className={`mt-1 mono text-[10px] ${t.tf}`}>{n<3?"n<3":`${L}·${C}·${R}`}</div>
-          </div>
+          <div className="shrink-0" style={{width:64}}><BiasPill counts={c} t={t} lang={lang} h={5} /></div>
           <h4 className={`text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.6:1.42,textWrap:"pretty"}}>{story.headline}</h4>
         </a>
       );
@@ -1117,7 +1143,7 @@ const {useState,useEffect,useMemo}=React;
             {pick && (
               <a href={"/story/"+encodeURIComponent(pick.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(pick.id); }} className="block no-underline group cursor-pointer mt-2">
                 <div className={`headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{pick.headline}</div>
-                <div className="mt-2"><BiasSegments bias={pick.bias} t={t} h={8} lang={lang} /></div>
+                <div className="mt-2 w-32"><BiasPill counts={pick.counts||{left:0,center:0,right:0}} t={t} lang={lang} h={8} /></div>
               </a>
             )}
             <button onClick={()=>go("lens")} className={`mt-3 eyebrow ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"मेरा रीडिंग लेंस →":"My Reading Lens →"}</button>
@@ -1148,12 +1174,14 @@ const {useState,useEffect,useMemo}=React;
       if(!items.length) return null;
       return (
         <div>
-          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{ui("developingStories",lang)}</div>
+          {/* 6.3B.3: the one new indigo accent, applied only here — "developing/ongoing" is
+              its single job, distinct from the clay accent's gap/warning meaning. */}
+          <div className={`eyebrow pb-2 ${t.dev} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{ui("developingStories",lang)}</div>
           {items.map((s,i)=>{ const title=(lang==="hi"&&s.title_hi)?s.title_hi:s.title;
             return (
               <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer py-3 ${i<items.length-1||all.length>items.length?"border-b":""} ${t.border}`}>
                 <div className={`headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3,textWrap:"pretty"}}>{title}</div>
-                <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}><span aria-hidden="true">◇</span> {s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
+                <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}><span aria-hidden="true" className={t.dev}>◇</span> {s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
               </a>
             );
           })}
@@ -1163,27 +1191,42 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    // Full discovery surface for developing storylines (Section 4/8's "view all" route) — same
-    // card-link pattern as the rail, just unlimited and newest-updated first. Reuses the existing
-    // routing architecture (a plain single-segment view, like TopicsHub) rather than new machinery.
+    // 6.3B.8 — the developing-storylines index as an editorial dossier list, not a repeated
+    // card grid: the most recently updated saga leads with real weight (topic, date span,
+    // update count), the rest read as a plain dated list. No ticker, no live/pulse language -
+    // "updated" is the only temporal claim, stated once per row, not animated.
     function StorylinesHub({ storylines, t, lang, goStoryline }) {
       const items=(storylines||[]).filter(s=>s.n_events>=2).sort((a,b)=>String(b.updated_at||"").localeCompare(String(a.updated_at||"")));
+      const [visible,setVisible]=useState(30);
+      const PAGE=30;
+      const lead=items[0], rest=items.slice(1,visible);
+      const row=(s,big)=>{ const title=(lang==="hi"&&s.title_hi)?s.title_hi:s.title;
+        const tp=lang==="hi"?(TOPIC_HI[s.topic]||s.topic):s.topic;
+        return (
+          <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer`}>
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{tp}{s.updated_at?` · ${timeAgo(s.updated_at,lang)}`:""}</div>
+            <div className={`headline mt-1.5 ${big?"text-[26px] sm:text-[32px]":"text-[16px]"} ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:big?1.18:1.32,textWrap:"pretty"}}>{title}</div>
+            <div className={`mt-1.5 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
+          </a>
+        );
+      };
       return (
-        <PageWrap>
-          <h1 className={`headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("developingStories",lang)}</h1>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("developingStories",lang)}</h1>
           {items.length ? (
-            <div className="grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map(s=>{ const title=(lang==="hi"&&s.title_hi)?s.title_hi:s.title;
-                return (
-                  <a key={s.id} href={"/storyline/"+encodeURIComponent(s.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); goStoryline&&goStoryline(s.id); }} className={`block no-underline group cursor-pointer border-b pb-4 ${t.border}`}>
-                    <div className={`headline text-[16px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.32,textWrap:"pretty"}}>{title}</div>
-                    <div className={`mt-1.5 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}><span aria-hidden="true">◇</span> {s.n_events} {lang==="hi"?"अपडेट":"updates"}</div>
-                  </a>
-                );
-              })}
-            </div>
+            <>
+              <div className="mt-8 max-w-[720px] pb-8" style={{borderBottom:`1px solid ${t.ink}`}}>{row(lead,true)}</div>
+              <div className="mt-8 grid gap-x-10 gap-y-7 sm:grid-cols-2">
+                {rest.map(s=>row(s,false))}
+              </div>
+              {items.length-1>rest.length && (
+                <div className="mt-8 flex justify-center">
+                  <button onClick={()=>setVisible(v=>v+PAGE)} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("showMore",lang)} ({items.length-1-rest.length})</button>
+                </div>
+              )}
+            </>
           ) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-        </PageWrap>
+        </div>
       );
     }
     function HomeView({ cards, gapLeft, gapRight, topics, counts, stats, t, lang, open, goTopic, go, auth, lens, openHelp, storylines, goStoryline, goStorylines }) {
@@ -1208,6 +1251,10 @@ const {useState,useEffect,useMemo}=React;
       notUsed(gapRight).slice(0,2).forEach(s=>{ const k=s.counts||{}; gapItems.push({story:s, label:(lang==="hi"?`ग़ायब: वाम · ${k.left||0}/${nOf(s)}`:`Missing: Left · ${k.left||0} of ${nOf(s)}`)}); });
       notUsed(gapLeft).slice(0,1).forEach(s=>{ const k=s.counts||{}; gapItems.push({story:s, label:(lang==="hi"?`ग़ायब: दक्षिण · ${k.right||0}/${nOf(s)}`:`Missing: Right · ${k.right||0} of ${nOf(s)}`)}); });
       gapItems.slice(0,3).forEach(g=>used.add(g.story.id));
+      // HORIZONTAL STORY BREAK (6.3B.3) — one deliberate compositional beat between the
+      // primary grid and the Coverage Gaps ink-reversal below. Same de-dup rule as every
+      // other tier: next unused top-ranked card, marked used, appears nowhere else.
+      const strip=take(cards,1)[0];
 
       const pad="px-4 sm:px-10";
       const browse=(
@@ -1217,22 +1264,27 @@ const {useState,useEffect,useMemo}=React;
       );
 
       return (
-        <div className="mx-auto max-w-[1800px]">
-          <div className={pad}><DateStrip t={t} lang={lang} stats={stats} regionFilter={stats.regionFilter} setRegionFilter={stats.setRegionFilter} /></div>
-          {/* one h1 for the page + an always-on legend so a first-time visitor knows what the
-              "3 · 9 · 4" bias counts mean, right where they see them */}
+        <div className="mx-auto max-w-[1280px]">
+          {/* 6.3B.6: the page-level aggregate bias legend (three big pills, plus the old
+              National/International/date DateStrip band above it) is gone - both were
+              masthead-area statistics, not journalism, and now live nowhere on the homepage.
+              National/International moved into Header's single nav rail (home view only,
+              see Header). The per-article bias instrument (BiasPill) below is what a reader
+              actually needs, on every story, not one extra aggregate at the top. */}
           <h1 className="sr-only">{lang==="hi"?"पक्ष, भारत की खबरों का हर पक्ष":"Paksh: every side of India's news"}</h1>
-          <div className={`${pad}`}>
-            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b py-2 ${t.border}`}>
-              <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"बायस बार":"The bias bar"}</span>
-              {["left","center","right"].map(k=>(
-                <span key={k} className="inline-flex items-center gap-1.5">
-                  <span className={`${BIAS[k].tex} inline-block`} style={{width:14,height:10,border:`1px solid ${t.ink}`}}/>
-                  <span className={`text-[11px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
-                </span>
-              ))}
+
+          {/* LEAD IMAGE (6.3B.4) — 6.3B.3's 100vw edge-to-edge treatment overpowered the page;
+              reversed. The photo stays large and above the 2-column grid (not demoted back into
+              the narrow lead column), but now contained within the same 1280px editorial shell
+              as everything else - a newspaper photo placed in the layout, not a website hero.
+              Headline/paragraph/bias instrument are unaffected, still in LeadStory below. */}
+          {lead && lead.img && (
+            <div className={pad}>
+              <a href={"/story/"+encodeURIComponent(lead.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(lead.id); }} className="block no-underline">
+                <Thumb src={lead.img} topic={lead.topic} title={lead.headline} ratio="3 / 1" t={t} lang={lang} />
+              </a>
             </div>
-          </div>
+          )}
 
           {/* FRONT PAGE — prototype 2.1fr / 1fr: a main well (Top Stories header + hero + a 2×2
               secondary grid) beside a rail (personalization / onboarding · Coverage Gaps · ad). */}
@@ -1256,34 +1308,47 @@ const {useState,useEffect,useMemo}=React;
               {/* right rail */}
               <div className="min-w-0 py-4 lg:py-6 lg:pl-7 space-y-7">
                 <RailPersonalize auth={auth} lens={lens} cards={cards} t={t} lang={lang} go={go} open={open} openHelp={openHelp} />
-                {gapItems.length>0 && (
-                  <div>
-                    <div className="pb-2" style={{borderBottom:`2px solid ${t.ink}`}}><span className={`text-[12px] font-bold uppercase ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{STR[lang].navOS}</span></div>
-                    {gapItems.slice(0,2).map((it,i)=>(
-                      <a key={it.story.id} href={"/story/"+encodeURIComponent(it.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(it.story.id); }} className={`block no-underline group cursor-pointer py-3 ${i===0?"border-b":""} ${t.border}`}>
-                        <div className={`headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.24,textWrap:"balance"}}>{it.story.headline}</div>
-                        {i===0
-                          ? <div className="mt-2 max-w-[180px]"><GapColumns counts={it.story.counts||{}} t={t} lang={lang} /></div>
-                          : <div className={`mt-1.5 text-[11px] ${t.blind} ${lang==="hi"?"deva":""}`}>{it.label}</div>}
-                      </a>
-                    ))}
-                  </div>
-                )}
+                {/* Coverage Gaps' rail teaser moved (6.3B.3) - it's now the full-width
+                    InkGapBand reversal below, not a narrow rail item. */}
                 <DevelopingRail storylines={storylines} t={t} lang={lang} goStoryline={goStoryline} goStorylines={goStorylines} />
                 <AdSlot t={t} lang={lang} />
               </div>
             </div>
           </div>
 
+          {/* HORIZONTAL STORY BREAK (6.3B.3) — one compositional beat between the primary grid
+              and the ink-reversal below: a wide row instead of another card, using the existing
+              FeedRow shape (previously built, never used) rather than a new visual system. */}
+          {strip && (
+            <div className={pad}>
+              <div className="py-6" style={{borderTop:`1px solid ${t.line}`}}>
+                <FeedRow story={strip} t={t} lang={lang} onOpen={open} />
+              </div>
+            </div>
+          )}
+
+          {/* COVERAGE GAPS — the page's one ink-reversal moment (6.3B.3). InkGapBand already
+              existed, fully built, unused; reused here as-is. The real daily gap count (same
+              stats.gaps DateStrip already shows) gets one oversized editorial number directly
+              above it, inside the same ink field, instead of staying a small tally line only. */}
+          {gapItems.length>0 && (
+            <div style={{background:"#15140F"}}>
+              <div className={`${pad} pt-7 pb-1`}>
+                <div className="headline" style={{color:"#F4F1EA", fontSize:"clamp(48px,7vw,88px)", lineHeight:1, letterSpacing:"-0.02em"}}>{stats.gaps}</div>
+                <div className={`mono text-[11px] uppercase tracking-[0.14em] mt-1 ${lang==="hi"?"deva":""}`} style={{color:"rgba(244,241,234,.55)"}}>{lang==="hi"?"आज ट्रैक किए गए कवरेज गैप":"coverage gaps tracked today"}</div>
+              </div>
+              <InkGapBand items={gapItems} t={t} lang={lang} go={go} open={open} />
+            </div>
+          )}
+
           {/* FOR YOU — additive personalization for signed-in readers; the arithmetic feed above
               is untouched (honours "we never hide stories"). Each card says why it's here. */}
           {forYou.length>0 && (
             <div className={pad}>
               <div className="py-7" style={{borderBottom:`1px solid ${t.ink}`}}>
-                <div className="mb-4 flex items-baseline justify-between gap-3 border-b pb-2" style={{borderColor:t.line}}>
-                  <h2 className={`headline text-[15px] font-bold uppercase tracking-[0.08em] ${t.tp} ${isHi(lang)}`}>{lang==="hi"?"आपके लिए":"For you"}</h2>
+                <SectionTitle t={t} lang={lang} right={
                   <button onClick={()=>go("lens")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा लेंस →":"My Reading Lens →"}</button>
-                </div>
+                }>{lang==="hi"?"आपके लिए":"For you"}</SectionTitle>
                 <div className="grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4">
                   {forYou.map((s,i)=>{ const tp=lang==="hi"?(TOPIC_HI[s.topic]||s.topic):s.topic;
                     return (
@@ -1298,14 +1363,21 @@ const {useState,useEffect,useMemo}=React;
             </div>
           )}
 
-          {/* AD — a single in-feed leaderboard at a natural break (calm, not cluttered) */}
-          <div className={pad}><div className="py-2"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div></div>
+          {/* AD — a single in-feed leaderboard at a natural break (calm, not cluttered). Skipped
+              when For You is absent (guests, most visitors): with no For You block between them,
+              this would otherwise land directly under the rail's own AdSlot - two identical ad
+              placeholders back to back reads as a mistake, not restraint. */}
+          {forYou.length>0 && (
+            <div className={pad}><div className="py-2"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div></div>
+          )}
 
           {/* IN BRIEF — everything else tracked today, in flowing columns */}
           {brief.length>0 && (
             <div className={pad}>
               <div className="py-7">
-                <div className="mb-3.5 flex items-baseline justify-between">
+                {/* 2px rule, matching Top Stories - both are top-level section headers, unlike
+                    the rail's sub-modules which now carry the lighter 1px rule */}
+                <div className="mb-3.5 flex items-baseline justify-between pb-2" style={{borderBottom:`2px solid ${t.ink}`}}>
                   <span className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"संक्षेप में · आज ट्रैक की गई बाक़ी सब":"In brief · everything else tracked today"}</span>
                 </div>
                 <div style={{columnGap:"2.25rem",columnRule:`1px solid ${t.line}`}} className="[column-count:1] sm:[column-count:2] lg:[column-count:3]">
@@ -1319,7 +1391,7 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     /* ---------------- STORY (tabbed) ---------------- */
-    function StoryPage({ story, t, lang, go, openTopic, related=[], open, saved, onToggleSave, a11y, auth, goStoryline }) {
+    function StoryPage({ story, t, lang, go, openTopic, related=[], open, a11y, auth, goStoryline }) {
       const fr=story.framing||{};
       const outlets=story.outlets||[];
       const counts={ left:outlets.filter(o=>o.lean==="left").length, center:outlets.filter(o=>o.lean==="center").length, right:outlets.filter(o=>o.lean==="right").length, international:outlets.filter(o=>o.lean==="international").length, unrated:outlets.filter(o=>o.lean==="unrated").length };
@@ -1332,12 +1404,9 @@ const {useState,useEffect,useMemo}=React;
       // The bias bar's widths come from the distinct-OWNER votes (vc); percentages are
       // derived from those, so the printed scale matches the segments exactly.
       const vc={left:voteRow("left").votes,center:voteRow("center").votes,right:voteRow("right").votes};
-      const nVotes=vc.left+vc.center+vc.right;
-      const bpct=biasPct(vc);
       const [atab,setAtab]=useState("all");
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
       const total=story.sources+(story.unrated||0)+(story.international||0);
-      const [copied,setCopied]=useState(false);
       // SWIPE L/C/R coverage (design mobile prototype): a horizontal swipe over the coverage
       // list cycles the side filter through the present sides. Keyboard/tab clicks still work.
       const _swipe=React.useRef({x:0,y:0});
@@ -1346,12 +1415,11 @@ const {useState,useEffect,useMemo}=React;
       const onTouchEnd=(e)=>{ const p=e.changedTouches&&e.changedTouches[0]; if(!p) return; const dx=p.clientX-_swipe.current.x, dy=p.clientY-_swipe.current.y;
         if(Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.4){ const ord=_tabsOrder(); let i=ord.indexOf(atab); if(i<0)i=0; i=(i+(dx<0?1:-1)+ord.length)%ord.length; setAtab(ord[i]);
           const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); } };
-      const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
       const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       const region=lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India");
-      const metaLine=lang==="hi"
-        ? `${total} स्रोत · वाम ${vc.left} · केंद्र ${vc.center} · दक्षिण ${vc.right} · ${timeAgo(story.created_at,lang)}`
-        : `${total} outlets · ${vc.left} left · ${vc.center} centre · ${vc.right} right · ${timeAgo(story.created_at,lang)}`;
+      // Just the total + time here — the left/centre/right breakdown now lives once, visually,
+      // in the BiasPill just below. Repeating it as text here would be the same fact twice.
+      const metaLine=lang==="hi" ? `${total} स्रोत · ${timeAgo(story.created_at,lang)}` : `${total} outlets · ${timeAgo(story.created_at,lang)}`;
       const ATab=({k,n})=>{ const on=atab===k;
         const lab=k==="all"?(lang==="hi"?"सभी":"All"):(k==="unrated"?(lang==="hi"?"बिना रेटिंग":"Unrated"):lbl(k,lang));
         return <button onClick={()=>setAtab(k)} className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-1 pb-2 text-[13.5px] font-semibold ${on?t.tp:`${t.tf} hover:${t.ts}`} ${lang==="hi"?"deva":""}`} style={{borderColor:on?(k==="all"||k==="center"?t.ink:((BIAS[k]&&BIAS[k].color)||"#B8B4AC")):"transparent"}}>{lab}<span className={`mono text-[11px] ${on?t.ts:t.tf}`}>{n}</span></button>; };
@@ -1362,16 +1430,6 @@ const {useState,useEffect,useMemo}=React;
       const anyFraming=sides.some(k=>frLen(fr[k])>0);
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-6">
-          {/* secondary bar: back · breadcrumb · share */}
-          <div className="mb-8 flex items-center justify-between gap-3 pb-3" style={{borderBottom:`1px solid ${t.ink}`}}>
-            <button onClick={()=>go("home")} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {STR[lang].back}</button>
-            <button onClick={()=>openTopic(story.topic)} className={`hidden sm:inline truncate eyebrow ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}</button>
-            <div className="flex shrink-0 items-center gap-4">
-              {authOn() && onToggleSave && <SaveButton story={story} saved={saved||new Set()} onToggle={onToggleSave} t={t} lang={lang} />}
-              <button onClick={copy} className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
-            </div>
-          </div>
-
           {/* headline block — left-aligned: kicker · region · time, 40px headline, 18px lead (prototype) */}
           <div className="mx-auto max-w-[840px]">
             <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</div>
@@ -1380,20 +1438,20 @@ const {useState,useEffect,useMemo}=React;
             <div className={`mt-4 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{metaLine}{story.auto && <> · <span className="uppercase">{STR[lang].autoTag}</span></>}{absDate(story.created_at,lang)?` · ${absDate(story.created_at,lang)}`:""}</div>
           </div>
 
-          {/* the bias instrument — border-y ink, printed scale; segments filter the article list */}
-          <div className="mx-auto mt-8 max-w-[840px] py-6" style={{borderTop:`1px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}>
-            <div className="mb-2.5 flex items-baseline justify-between gap-3">
-              <div className={`flex gap-5 sm:gap-6 text-[11px] font-medium uppercase tracking-[0.12em] ${t.tp} ${lang==="hi"?"deva":""}`}>
-                {["left","center","right"].map(k=>(vc[k]>0)?<span key={k}>{lbl(k,lang)} <span className="mono" style={{letterSpacing:0}}>{vc[k]}</span></span>:null)}
-              </div>
-              <span className={`mono text-[11px] shrink-0 ${t.tf}`}>n = {nVotes} · {bpct.left}/{bpct.center}/{bpct.right}%</span>
-            </div>
-            <BiasSegments bias={bpct} t={t} h={28} lang={lang} onPick={(k)=>{ track("bias_segment",{side:k}); setAtab(k); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} active={atab!=="all"?atab:null} />
-            <div className="relative" style={{height:15,marginTop:3}}>
-              {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,width:1,height:p===50?7:4,background:p===50?t.ink:t.line}}/>)}
-              <span className={`mono text-[10px] ${t.tf}`} style={{position:"absolute",left:"50%",top:7,transform:"translateX(-50%)",whiteSpace:"nowrap"}}>{lang==="hi"?"कवरेज का 50%":"50% of coverage"}</span>
-            </div>
+          {/* bias at a glance — the same solid-pill language as the homepage, no percentages,
+              no printed scale. Detailed per-owner arithmetic lives below, in Coverage Breakdown. */}
+          <div className="mx-auto mt-6 max-w-[840px]">
+            <BiasPill counts={vc} t={t} lang={lang} h={14} />
           </div>
+
+          {/* hero image — contained in the reading column, restrained crop. No image, no
+              placeholder banner: Thumb's own fallback only fires when it's actually rendered,
+              so a story with no image simply skips this block entirely. */}
+          {story.img && (
+            <div className="mx-auto mt-6 max-w-[840px]">
+              <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />
+            </div>
+          )}
 
           {/* Reading Lens margin-mark (member) / sign-in nudge (guest). Private; never affects the bar. */}
           {authOn() && (
@@ -1427,7 +1485,7 @@ const {useState,useEffect,useMemo}=React;
                 <div key={k} className="flex flex-col border md:border-0 md:border-r last:md:border-r-0" style={{borderColor:t.ink}}>
                   <div className={`flex items-center justify-between ${t.soft}`} style={{padding:"8px 12px",borderBottom:`1px solid ${t.line}`}}>
                     <span className={`text-[10.5px] font-bold uppercase tracking-[0.06em] ${lang==="hi"?"deva":""}`} style={{color:BIAS[k].color}}>{lbl(k,lang)} · {counts[k]}</span>
-                    <span className={BIAS[k].tex} style={{width:10,height:10,border:`1px solid ${t.ink}`}}/>
+                    <span style={{width:10,height:10,background:BIAS[k].color,border:`1px solid ${t.ink}`}}/>
                   </div>
                   <div className={`flex flex-1 flex-col p-4 ${t.surface}`}>
                     {/* Deterministic guardrail, independent of what the model wrote: a single
@@ -1463,7 +1521,7 @@ const {useState,useEffect,useMemo}=React;
               return (
               <div key={k} className={`border-b py-3 ${t.border}`}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2.5"><span className={`${BIAS[k].tex} shrink-0`} style={{width:14,height:14,border:`1px solid ${t.ink}`}}/><span className={`text-[13px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span></span>
+                  <span className="flex items-center gap-2.5"><span className="shrink-0" style={{width:14,height:14,background:BIAS[k].color,border:`1px solid ${t.ink}`}}/><span className={`text-[13px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span></span>
                   <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`प्रकाशक · ${oc} मास्टहेड`:`${votes===1?"publisher":"publishers"} · ${oc} mastheads`}</span>}</span>
                 </div>
                 {coOwned && <div className="mt-1.5 space-y-0.5 pl-6">{groups.filter(([o,ms])=>ms.length>1).map(([o,ms],j)=>(
@@ -1531,6 +1589,57 @@ const {useState,useEffect,useMemo}=React;
 
     /* ---------------- other pages ---------------- */
     function PageWrap({ children }) { return <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-8">{children}</div>; }
+
+    /* ================================================================================
+       PHASE 6.2 — DESIGN FOUNDATION PRIMITIVES
+       ================================================================================
+       Purely additive: not one existing page/route below references these yet, and
+       nothing above this block was changed. They exist so the NEXT phases (homepage,
+       StoryPage, Search, Login redesigns) have a shared Divider/TextLink/Button/Input
+       to build with instead of re-hand-styling each one per component, the way the
+       ~70 existing components above still do (left untouched, per that phase's scope).
+       `PageWrap` above and `SectionTitle` (defined earlier) already serve as this
+       app's Layout/Container and Section-header primitives — no new code needed for
+       either. All four below take the same `t` (theme tokens) / `lang` props every
+       other component already takes, so they drop into either theme with no extra
+       wiring, and follow static/styles.css's Phase 6.2 token block where useful. */
+
+    // Divider — one hairline rule. "Structure carried by hairlines + space, never by
+    // radii" (styles.css's own words) — this is that rule, extracted. `strong` gives
+    // the heavier 2px weight used under section headers / the bias bar.
+    function Divider({ t, strong, className }) {
+      return <div className={className||""} style={{borderTop:`${strong?2:1}px solid ${t.line}`}} />;
+    }
+
+    // TextLink — the eyebrow-styled interactive-text pattern already repeated for back
+    // links, share/copy actions and "see all →" CTAs across Header/StoryPage/LoginPage.
+    // Renders an <a> when `href` is given, a <button> otherwise; both look identical.
+    function TextLink({ children, onClick, href, t, lang, icon:Icon, className }) {
+      const cls = `inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""} ${className||""}`;
+      const style = { letterSpacing: lang==="hi"?0:".1em" };
+      return href
+        ? <a href={href} onClick={onClick} className={cls} style={style}>{Icon && <Icon size={14}/>} {children}</a>
+        : <button type="button" onClick={onClick} className={cls} style={style}>{Icon && <Icon size={14}/>} {children}</button>;
+    }
+
+    // Button — primary (ink-filled, matches LoginPage's submit button) / outline (matches
+    // AccountPage's sign-out button) variants. Two variants only, deliberately — this app
+    // has never needed a third.
+    function Button({ children, onClick, type="button", variant="primary", disabled, t, lang, className }) {
+      const base = `inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-[14px] font-semibold disabled:opacity-60 ${lang==="hi"?"deva":""}`;
+      const variants = {
+        primary: `rounded-full ${t.cta} ${t.ctaT}`,
+        outline: `border ${t.border} ${t.ts} hover:${t.tp}`,
+      };
+      return <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]||variants.primary} ${className||""}`}>{children}</button>;
+    }
+
+    // Input — matches the text-input styling already hand-duplicated across LoginPage,
+    // SearchPage and ContactPage. Spreads `...props` so it's a drop-in for a plain
+    // <input> (value/onChange/type/placeholder/etc.) with the theme wired through `t`.
+    function Input({ t, lang, className, ...props }) {
+      return <input {...props} className={`w-full border px-3.5 py-2.5 text-[15px] outline-none ${t.surface} ${t.border} ${t.tp} focus:border-current ${lang==="hi"?"deva":""} ${className||""}`} />;
+    }
     // Coverage-gap rate columns — three EQUAL-WIDTH slots; each fill's height is that side's
     // SHARE of its own tracked outlets that ran the story (a rate, not a raw count, so a
     // side with more tracked outlets is normalised, not penalised). The absent side is drawn
@@ -1554,10 +1663,12 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     // A single coverage-gap card: which side missed it (eyebrow, clay), the headline, a
-    // taste of the neutral summary, the rate columns, and a link into the story.
-    // Gap card (prototype): a bordered card — kicker · time + a clay "Gap" badge, headline, the
-    // three EQUAL-WIDTH count columns (absence drawn as hatch), then a plain-language note.
-    function GapCard({ story, gapSide, t, lang, onOpen }) {
+    // Gap card (6.3B.7) — no hatch, no bar chart, no bordered-card chrome. `lead` (the starkest
+    // story in a column, already sorted first) gets an optional image and larger type, resting
+    // on typography/whitespace, not a container; every other story is a compact typographic row
+    // with a hairline above it. Both share the same BiasPill grammar as the rest of the site and
+    // the same plain-language "covered / not yet covered" sentence, unchanged from before.
+    function GapCard({ story, gapSide, t, lang, onOpen, lead }) {
       const c=story.counts||{left:0,center:0,right:0};
       const gapN=c[gapSide]||0; const L=c.left||0,C=c.center||0,R=c.right||0;
       const sideLab=lbl(gapSide,lang);
@@ -1567,15 +1678,25 @@ const {useState,useEffect,useMemo}=React;
       const tail = gapN===0 ? (lang==="hi"?`— अभी ${sideLab} कवरेज नहीं।`:`— no ${sideLab} coverage yet.`)
                             : (lang==="hi"?`— ${sideLab} कम।`:`— ${sideLab} thin.`);
       const kick=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
-      return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`flex h-full flex-col no-underline group cursor-pointer border p-4 ${t.surface} ${t.border}`}>
-          <div className="flex items-baseline justify-between gap-2">
+      const onClick=e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); };
+      if (lead) {
+        return (
+          <a href={"/story/"+encodeURIComponent(story.id)} onClick={onClick} className="block no-underline group cursor-pointer">
+            {story.img && <div className="mb-4"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} /></div>}
             <span className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{kick}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</span>
-            <span className={`shrink-0 mono text-[9px] font-bold uppercase tracking-[0.06em] ${t.blind} ${t.blindSoft} ${lang==="hi"?"deva":""}`} style={{padding:"3px 6px"}}>{lang==="hi"?"गैप":"Gap"}</span>
+            <h3 className={`headline mt-2 text-[22px] sm:text-[25px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.2,textWrap:"balance"}}>{story.headline}</h3>
+            <div className="mt-3 w-36"><BiasPill counts={c} t={t} lang={lang} h={10} /></div>
+            <div className={`mt-2.5 text-[13px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:1.5}}>{covered} {tail}</div>
+          </a>
+        );
+      }
+      return (
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={onClick} className={`flex items-start gap-3.5 border-t pt-3.5 no-underline group cursor-pointer`} style={{borderColor:t.line}}>
+          <div className="mt-0.5 w-16 shrink-0"><BiasPill counts={c} t={t} lang={lang} h={5} /></div>
+          <div className="min-w-0 flex-1">
+            <h4 className={`text-[14.5px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.35,textWrap:"pretty"}}>{story.headline}</h4>
+            <div className={`mt-1 text-[11.5px] ${t.blind} ${readCls(lang)}`}>{covered} {tail}</div>
           </div>
-          <h3 className={`headline mt-2 text-[18px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.2,textWrap:"balance"}}>{story.headline}</h3>
-          <div className="mt-3.5"><GapColumns counts={c} t={t} lang={lang} /></div>
-          <div className={`mt-3 text-[12px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:1.45}}>{covered} {tail}</div>
         </a>
       );
     }
@@ -1586,17 +1707,16 @@ const {useState,useEffect,useMemo}=React;
       (left||[]).forEach(s=>cards.push({story:s, gapSide:"right"}));
       // Starkest first: the smallest under-covered count (0 = unreported) leads.
       cards.sort((a,b)=>((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0));
-      // ALL / LEFT MISSING / RIGHT MISSING — filters the already-loaded set (gapSide is the
-      // UNDER-covered side), it never re-fetches. Centre is deliberately not offered: a
-      // Centre-only story is "thinly covered", not a blindspot, in the current editorial model.
-      const [gapFilter,setGapFilter]=useState("all");
-      const filtered = gapFilter==="all" ? cards : cards.filter(c=>c.gapSide===gapFilter);
-      // Progressive reveal instead of a hard cutoff: show a first page, let the reader ask for
-      // more of what's already in memory — no second fetch, no arbitrary "only 15 exist" cap.
-      const PAGE=24;
-      const [visible,setVisible]=useState(PAGE);
-      useEffect(()=>{ setVisible(PAGE); },[gapFilter]);
-      const shown=filtered.slice(0,visible);
+      // 6.3B.7 — the two facing columns ARE the Left/Right split now, so no separate filter
+      // control is needed. Centre is still deliberately never a column: a Centre-only story is
+      // "thinly covered", not a blindspot, in the current editorial model.
+      const leftMissing = cards.filter(c=>c.gapSide==="left");   // what Left is not covering
+      const rightMissing = cards.filter(c=>c.gapSide==="right"); // what Right is not covering
+      // Progressive reveal per column instead of a hard cutoff — the lead item always shows;
+      // `visible` counts additional (non-lead) rows.
+      const PAGE=10;
+      const [visLeft,setVisLeft]=useState(PAGE);
+      const [visRight,setVisRight]=useState(PAGE);
       const gapsToday=(agg.total!=null?agg.total:cards.length);
       const pad="px-4 sm:px-10";
       // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
@@ -1606,114 +1726,211 @@ const {useState,useEffect,useMemo}=React;
       const tuned=(auth&&lens&&lens.total>0)
         ? cards.filter(c=>c.gapSide===leastSide).sort((a,b)=>{ const at=lens.topics.indexOf(a.story.topic), bt=lens.topics.indexOf(b.story.topic); return (at<0?99:at)-(bt<0?99:bt); }).slice(0,3)
         : [];
-      const explain=(head,body)=>(
-        <div>
-          <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{head}</div>
-          <p className={`mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.65}}>{body}</p>
-        </div>
-      );
       const methodNote = lang==="hi"
         ? "किसी खबर को कवरेज गैप उसी अंकगणित से चिह्नित किया जाता है जैसे बार: प्रति झुकाव अलग कवर करने वाले आउटलेट, एक स्वामी एक वोट। कोई लेख आँका नहीं जाता, केवल गिना जाता है।"
         : "A story is flagged a Coverage Gap by the same arithmetic as the bar: distinct covering outlets per lean, one vote per owner. No article is judged, only counted.";
+      // The fuller "why this isn't necessarily bias" explanation — same STR.m_gap template the
+      // About page already fills from the same agg fields, surfaced here where the claim is
+      // actually made, not only on a separate Method page.
+      const gapText = agg.total!=null ? (STR[lang].m_gap||"")
+        .replace("{total}",agg.total).replace("{rh}",agg.right_heavier).replace("{lh}",agg.left_heavier)
+        .replace("{lo}",agg.left_outlets).replace("{ro}",agg.right_outlets) : "";
+      // The opening editorial statement — grounded in the real daily count (never hardcoded),
+      // and careful to describe outlet coverage, not readership: Paksh counts outlets, not people.
+      const openingSentence = lang==="hi"
+        ? `आज ${gapsToday} ख़बरें लगभग पूरी तरह सिर्फ़ एक पक्ष से रिपोर्ट हुईं।`
+        : `${gapsToday} ${gapsToday===1?"story":"stories"} today were reported almost entirely from one side of the spectrum.`;
+      // One column, either side: lead item gets image + larger type and no card chrome; the
+      // rest are compact typographic rows; an empty column states its absence in prose, not 0/—.
+      const Column=({side,items,visible,setVisible,label})=>{
+        const rest=items.slice(1,1+visible);
+        const more=items.length-(1+visible);
+        return (
+          <div>
+            <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{label}</div>
+            {items.length===0
+              ? <p className={`headline mt-5 text-[20px] sm:text-[22px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:1.3}}>{lang==="hi"?`अभी ${lbl(side,lang)} कवरेज नहीं।`:`No ${lbl(side,lang)} coverage yet.`}</p>
+              : <>
+                  <div className="mt-5"><GapCard story={items[0].story} gapSide={items[0].gapSide} t={t} lang={lang} onOpen={open} lead /></div>
+                  {rest.length>0 && <div className="mt-7 space-y-3.5">{rest.map(g=><GapCard key={g.story.id} story={g.story} gapSide={g.gapSide} t={t} lang={lang} onOpen={open} />)}</div>}
+                  {more>0 && (
+                    <button onClick={()=>setVisible(v=>v+PAGE)} className={`mt-6 border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("showMore",lang)} ({more})</button>
+                  )}
+                </>}
+          </div>
+        );
+      };
       return (
         <div className="mx-auto max-w-[1280px]">
-          {/* header — clay eyebrow + title + sub, 2px ink rule (prototype) */}
-          <div className={`${pad} pt-6`}>
-            <div className="flex flex-wrap items-end justify-between gap-4 pb-5" style={{borderBottom:`2px solid ${t.ink}`}}>
-              <div className="max-w-[70ch]">
-                <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"कवरेज गैप · ब्लाइंडस्पॉट":"Coverage gaps · blindspots"}</div>
-                <h1 className={`headline mt-2.5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].osTitle}</h1>
-                <p className={`mt-3 text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{STR[lang].osSub}</p>
+          {/* the ink opening — the loud moment, constrained to the publication's own content
+              width (not the browser viewport), same ink language as the homepage's one reversal
+              moment, given room here to become a full editorial sentence instead of a bare
+              number. */}
+          <div style={{background:"#15140F"}}>
+            <div className={`${pad} py-10 sm:py-14`}>
+              <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:"rgba(244,241,234,.6)",letterSpacing:lang==="hi"?0:".16em"}}>{STR[lang].osTitle}</div>
+              <p className="headline mt-4 max-w-[720px]" style={{color:"#F4F1EA",fontSize:"clamp(26px,4vw,44px)",lineHeight:1.18,letterSpacing:lang==="hi"?0:"-0.015em",textWrap:"balance"}}>{openingSentence}</p>
+              <p className={`mt-5 max-w-[60ch] text-[13.5px] sm:text-[14px] ${readCls(lang)}`} style={{color:"rgba(244,241,234,.65)",lineHeight:lang==="hi"?1.75:1.6}}>{STR[lang].osSub}</p>
+            </div>
+          </div>
+
+          {/* facing columns — absence gets the same room as presence: a full editorial sentence,
+              not a smaller/greyed box, when a side has nothing to show. */}
+          <div className={`${pad} py-10 sm:py-14`}>
+            <div className="grid gap-10 lg:grid-cols-2 lg:gap-x-14">
+              <div className="lg:border-r lg:pr-14" style={{borderColor:t.line}}>
+                <Column side="left" items={leftMissing} visible={visLeft} setVisible={setVisLeft} label={lang==="hi"?"जो वाम नहीं दिखा रहा":"Not covering: Left"} />
               </div>
-              <div className={`mono text-[11px] leading-[1.7] text-right shrink-0 ${t.tf}`}>
-                {gapsToday} {lang==="hi"?"गैप आज":"gaps today"}<br/>{stats.stories} {lang==="hi"?"ख़बरें ट्रैक":"stories tracked"}
+              <div>
+                <Column side="right" items={rightMissing} visible={visRight} setVisible={setVisRight} label={lang==="hi"?"जो दक्षिण नहीं दिखा रहा":"Not covering: Right"} />
               </div>
             </div>
           </div>
-          {/* 2fr / 1fr — gap-card grid beside the rail (Tuned to your reading + method note) */}
-          <div className={pad}>
-            <div className="grid lg:grid-cols-[2fr_1fr]">
-              <div className="py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
-                <div className="mb-5">
-                  <SegChoice value={gapFilter} onChange={setGapFilter} lang={lang} t={t} options={[
-                    ["all", ui("gapAll",lang)], ["left", ui("gapLeftMissing",lang)], ["right", ui("gapRightMissing",lang)],
-                  ]} />
-                </div>
-                {shown.length
-                  ? <div className="grid gap-5 sm:grid-cols-2">{shown.map(g=>(<GapCard key={g.story.id} story={g.story} gapSide={g.gapSide} t={t} lang={lang} onOpen={open} />))}</div>
-                  : <div className={`border border-dashed p-10 text-center text-[13px] ${t.border} ${t.tf} ${readCls(lang)}`}>{STR[lang].noStories}</div>}
-                {filtered.length>shown.length && (
-                  <div className="mt-7 flex justify-center">
-                    <button onClick={()=>setVisible(v=>v+PAGE)} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("showMore",lang)} ({filtered.length-shown.length})</button>
+
+          {/* closing register — quieter: tuned-to-your-reading, the full methodology paragraph,
+              one ad. */}
+          <div className={`${pad} pb-14`}>
+            <div className="max-w-[840px] space-y-8">
+              {tuned.length>0 && (
+                <div style={{borderLeft:`2px solid ${BIAS.left.color}`}} className={`${t.soft} p-4`}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{lang==="hi"?"आपके पढ़ने के हिसाब से":"Tuned to your reading"}</div>
+                    <button onClick={()=>go("lens")} className={`mono text-[10px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"लेंस →":"Lens →"}</button>
                   </div>
-                )}
-              </div>
-              <div className="py-6 lg:pl-7 space-y-6">
-                {tuned.length>0 && (
-                  <div style={{borderLeft:`2px solid ${BIAS.left.color}`}} className={`${t.soft} p-4`}>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{lang==="hi"?"आपके पढ़ने के हिसाब से":"Tuned to your reading"}</div>
-                      <button onClick={()=>go("lens")} className={`mono text-[10px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"लेंस →":"Lens →"}</button>
-                    </div>
-                    <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.5}}>{lang==="hi"?`आप ${lbl(leastSide,lang)} की कवरेज सबसे कम पढ़ते हैं, ये उस पक्ष पर कम कवर हुई खबरें हैं।`:`You read ${lbl(leastSide,lang)} coverage the least, here are gaps where that side is under-covered.`}</p>
-                    <div className="mt-3 space-y-2.5">
-                      {tuned.map(g=>(
-                        <a key={g.story.id} href={"/story/"+encodeURIComponent(g.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(g.story.id); }} className={`block no-underline group cursor-pointer headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{g.story.headline}</a>
-                      ))}
-                    </div>
+                  <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.5}}>{lang==="hi"?`आप ${lbl(leastSide,lang)} की कवरेज सबसे कम पढ़ते हैं, ये उस पक्ष पर कम कवर हुई खबरें हैं।`:`You read ${lbl(leastSide,lang)} coverage the least, here are gaps where that side is under-covered.`}</p>
+                  <div className="mt-3 space-y-2.5">
+                    {tuned.map(g=>(
+                      <a key={g.story.id} href={"/story/"+encodeURIComponent(g.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(g.story.id); }} className={`block no-underline group cursor-pointer headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{g.story.headline}</a>
+                    ))}
                   </div>
-                )}
-                <div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`,borderLeft:`3px solid ${t.ink}`}}>
-                  <p className={`text-[12.5px] ${t.ts} ${isHi(lang)}`} style={{lineHeight:1.55}}>{methodNote}</p>
                 </div>
-                <AdSlot t={t} lang={lang} />
+              )}
+              <div className={`border-t pt-6 ${t.border}`}>
+                <h2 className={`headline text-[20px] ${t.tp} ${readCls(lang)} mb-2`}>{STR[lang].m_gapH}</h2>
+                <p className={`text-[15px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{gapText||methodNote}</p>
+                <div className={`mt-3 mono text-[11px] ${t.tf}`}>{stats.stories} {lang==="hi"?"ख़बरें ट्रैक":"stories tracked"}</div>
               </div>
+              <AdSlot t={t} lang={lang} />
             </div>
           </div>
         </div>
       );
     }
-    function TopicsHub({ topics, counts, t, lang, goTopic }) {
+    // 6.3B.8 — Discovery family: a newspaper contents page, not a grid of topic cards.
+    // `topics` is already ordered by story count (most active first, see topicsOrdered in
+    // PakshApp), so the top 4 lead with real weight (a representative recent headline pulled
+    // from `cards`); the rest read as a quiet multi-column index — name + count, no boxes.
+    function TopicsHub({ topics, counts, t, lang, goTopic, cards }) {
+      const LEAD_N=4;
+      const lead=topics.slice(0,LEAD_N), rest=topics.slice(LEAD_N);
+      const recentFor=(tp)=>(cards||[]).find(c=>c.topic===tp);
       return (
-        <PageWrap>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("sections",lang)}</h1>
-          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {topics.map(tp=>(<button key={tp} onClick={()=>goTopic(tp)} className={`flex items-center justify-between border p-5 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span><ChevronRight size={16} className={t.tf}/></button>))}
+          <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2" style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:32}}>
+            {lead.map(tp=>{ const rc=recentFor(tp); const label=lang==="hi"?(TOPIC_HI[tp]||tp):tp;
+              return (
+                <button key={tp} onClick={()=>goTopic(tp)} className="block text-left">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className={`headline text-[24px] sm:text-[28px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.014em"}}>{label}</span>
+                    <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{counts[tp]||0}</span>
+                  </div>
+                  {rc && <div className={`mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`}>{rc.headline}</div>}
+                </button>
+              );
+            })}
           </div>
-        </PageWrap>
+          {rest.length>0 && (
+            <div className="mt-8 columns-2 lg:columns-3" style={{columnGap:"2.25rem"}}>
+              {rest.map(tp=>(
+                <button key={tp} onClick={()=>goTopic(tp)} className={`mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`} style={{breakInside:"avoid"}}>
+                  <span className={`text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span>
+                  <span className={`mono text-[10.5px] shrink-0 ${t.tf}`}>{counts[tp]||0}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       );
     }
+    // 6.3B.8 — a section front, not a miniature homepage: one lead (typography + image, no
+    // card chrome), a small secondary tier (SectionCard, already BiasPill-based), then the
+    // rest as a dense BriefRow list with progressive reveal — the same tiering vocabulary
+    // HomeView already established, reused rather than reinvented, without HomeView's own
+    // masthead-style "Top Stories" header or right rail (this is a section, not the front page).
     function TopicPage({ topic, items, t, lang, open, go }) {
+      const label=lang==="hi"?(TOPIC_HI[topic]||topic):topic;
+      const [visible,setVisible]=useState(20);
+      const PAGE=20;
+      const lead=items[0], section=items.slice(1,5), rest=items.slice(5,5+visible);
+      const more=items.length-5-visible;
       return (
-        <PageWrap>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
-          <h1 className={`headline mb-7 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?(TOPIC_HI[topic]||topic):topic}</h1>
-          {items.length? <GridGrid items={items} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
-            : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>}
-          <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
-        </PageWrap>
+          <div className="flex items-baseline justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
+            <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{items.length}</span>
+          </div>
+          {!items.length ? (
+            <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+          ) : (
+            <>
+              <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+                <a href={"/story/"+encodeURIComponent(lead.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(lead.id); }} className="block no-underline group cursor-pointer">
+                  {lead.img && <div className="mb-4"><Thumb src={lead.img} topic={lead.topic} title={lead.headline} ratio="16 / 9" t={t} lang={lang} /></div>}
+                  <h2 className={`headline text-[26px] sm:text-[32px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.2:1.1,letterSpacing:lang==="hi"?0:"-0.016em",textWrap:"balance"}}>{lead.headline}</h2>
+                  {lead.lead && <p className={`mt-3 text-[15px] ${t.ts} ${readCls(lang)} lc-3`} style={{lineHeight:lang==="hi"?1.8:1.6}}>{lead.lead}</p>}
+                  <div className="mt-3 w-40"><BiasPill counts={lead.counts||{left:0,center:0,right:0}} t={t} lang={lang} h={9} /></div>
+                </a>
+                {section.length>0 && (
+                  <div className="space-y-5 lg:border-l lg:pl-8" style={{borderColor:t.line}}>
+                    {section.map((s,i)=>(
+                      <div key={s.id} className={i<section.length-1?"pb-5 border-b":""} style={{borderColor:t.line}}><SectionCard story={s} t={t} lang={lang} onOpen={open} /></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {rest.length>0 && (
+                <div className="mt-10 pt-6" style={{borderTop:`1px solid ${t.ink}`}}>
+                  <div style={{columnGap:"2.25rem",columnRule:`1px solid ${t.line}`}} className="[column-count:1] sm:[column-count:2] lg:[column-count:3]">
+                    {rest.map((s,i)=><BriefRow key={s.id} story={s} t={t} lang={lang} onOpen={open} first={i===0} />)}
+                  </div>
+                </div>
+              )}
+              {more>0 && (
+                <div className="mt-7 flex justify-center">
+                  <button onClick={()=>setVisible(v=>v+PAGE)} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("showMore",lang)} ({more})</button>
+                </div>
+              )}
+            </>
+          )}
+          <div className="mt-10"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
+        </div>
       );
     }
-    // AxisBars — the 3 editorial tonality axes as labelled position markers. A dot sits
-    // at value% between the two poles; purely a display of the per-publisher `axes` set by
-    // editors. Does not touch, replace or feed the arithmetic bias bar.
-    function AxisBars({ axes, t, lang }) {
+    // 6.3B.9 — the 3 editorial tonality axes as a quiet annotation, not a slider/meter/gauge:
+    // one hairline per axis with a single ink tick at the real position, poles labelled in
+    // small mono type. No rounded track, no floating dot, no drop-shadow, no per-axis colour
+    // fill - reads like a small printed scale attached to the entry, not a UI control. Purely
+    // a display of the per-publisher `axes` set by editors; does not touch or feed the bias bar.
+    function AxisAnnotation({ axes, t, lang }) {
       if(!axes) return null;
+      const present=AXES.filter(ax=>axes[ax.key]!=null);
+      if(!present.length) return null;
       return (
-        <div className="mt-3 space-y-2.5">
-          {AXES.map(ax=>{
-            const raw=axes[ax.key]; if(raw==null) return null;
-            const v=Math.max(0,Math.min(100,raw));
+        <div className="mt-2 space-y-2">
+          {present.map(ax=>{
+            const v=Math.max(0,Math.min(100,axes[ax.key]));
             const L=ax[lang]||ax.en;
             return (
               <div key={ax.key}>
-                <div className={`flex items-baseline justify-between mono text-[9px] uppercase tracking-wide ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>
-                  <span className={t.tf}>{L.lo}</span>
-                  <span className={`${t.ts} font-bold`}>{L.name}</span>
-                  <span className={t.tf}>{L.hi}</span>
-                </div>
-                <div className="relative mt-1 h-1.5 rounded-full" style={{background:"rgba(120,119,104,0.20)"}}>
-                  <div className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{left:`${v}%`,backgroundColor:ax.color,boxShadow:"0 0 0 2px rgba(255,255,255,0.85)"}} title={`${L.name}: ${v}/100`}/>
+                <div className={`mono text-[9px] font-semibold uppercase ${t.ts} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".05em"}}>{L.name}</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={`w-16 shrink-0 text-right mono text-[9px] ${t.tf} ${lang==="hi"?"deva":""}`}>{L.lo}</span>
+                  <span className="relative flex-1" style={{height:1,background:t.line}}>
+                    <span className="absolute" style={{left:`${v}%`,top:-3,width:1,height:7,background:t.ink}} title={`${L.name}: ${v}/100`}/>
+                  </span>
+                  <span className={`w-16 shrink-0 mono text-[9px] ${t.tf} ${lang==="hi"?"deva":""}`}>{L.hi}</span>
                 </div>
               </div>
             );
@@ -1721,39 +1938,41 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    function SourceCard({ s, t, lang }) {
+    // 6.3B.9 — a registry entry, not a card: no border/box around the whole thing, just a
+    // hairline below (added by the caller, which also groups entries by lean). Wide zone (name,
+    // rationale, ownership, six-signal rubric) carries the weight; narrow zone (confidence,
+    // contested, axes, region) stays quiet. The lean badge is dropped here on purpose - within
+    // a lean-grouped section it would just repeat the section heading; it only reappears for a
+    // source `side` couldn't resolve to left/centre/right, where it's the only place that fact
+    // is stated at all.
+    function SourceRow({ s, t, lang }) {
       const side=["left","center","right"].includes(s.lean)?s.lean:null;
-      const badge = side
-        ? (side==="center"?lbl("center",lang):(lang==="hi"?lbl(side,lang):`${lbl(side,lang)}`))
-        : (s.label||"-");
-      const conf = s.confidence ? (lang==="hi"?`${confName(s.confidence,lang)} विश्वास`:`${confName(s.confidence,lang)} confidence`) : "";
+      const conf = s.confidence ? confName(s.confidence,lang) : "";
       return (
-        <div className={`border p-4 ${t.surface} ${t.border}`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className={`flex flex-wrap items-baseline gap-2`}>
-                <span className={`text-[16px] font-bold ${t.tp}`} style={{fontFamily:"'Source Serif 4',Georgia,serif"}}>{s.name}</span>
-                <span className={`mono text-[9px] uppercase ${t.tf}`} style={{border:`1px solid ${t.line}`,padding:"1px 4px"}}>{(s.language||"en").toUpperCase()}</span>
+        <div className="grid gap-x-6 gap-y-3 py-5 border-b sm:grid-cols-[1fr_240px]" style={{borderColor:t.line}}>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className={`text-[17px] font-bold ${t.tp}`} style={{fontFamily:"'Source Serif 4',Georgia,serif"}}>{s.name}</span>
+              <span className={`mono text-[9px] uppercase ${t.tf}`}>{(s.language||"en").toUpperCase()}</span>
+              {s.region && <span className={`mono text-[9px] uppercase ${t.tf}`}>· {s.region}</span>}
+              {!side && <span className={`mono text-[9px] font-bold uppercase ${t.chip} ${t.tf}`} style={{padding:"2px 6px"}}>{s.label||"-"}</span>}
+              {s.website && <a href={s.website} target="_blank" rel="nofollow noopener noreferrer" className={`text-[11px] font-semibold ${t.blind} hover:underline`}>{(s.website||"").replace(/^https?:\/\//,"").replace(/\/$/,"")}</a>}
+            </div>
+            {(s.ownership||s.rationale) && (
+              <div className={`mt-1.5 text-[13px] leading-[1.55] ${t.ts} ${readCls(lang)}`}>
+                {s.rationale && <span>{s.rationale}</span>}
+                {s.ownership && <span className={`block mt-1 text-[11.5px] ${t.tf} ${readCls(lang)}`}><span className={`font-semibold ${t.ts}`}>{STR[lang].ownership}:</span> {s.ownership}</span>}
               </div>
-              {s.website && <a href={s.website} target="_blank" rel="nofollow noopener noreferrer" className={`mt-1 block text-[11.5px] font-semibold ${t.blind} hover:underline`}>{(s.website||"").replace(/^https?:\/\//,"").replace(/\/$/,"")}</a>}
-            </div>
-            <div className="shrink-0 text-right">
-              {side
-                ? <span className="mono text-[11px] font-bold uppercase text-white" style={{backgroundColor:BIAS[side].color,padding:"4px 9px",letterSpacing:".04em"}}>{badge}</span>
-                : <span className={`mono text-[10px] font-bold uppercase ${t.chip} ${t.tf}`} style={{padding:"4px 9px"}}>{badge}</span>}
-              {conf && <div className={`mt-1.5 text-[10px] font-medium ${t.tf} ${isHi(lang)}`}>{conf}</div>}
-            </div>
+            )}
+            <SignalChips subscores={s.subscores} t={t} lang={lang} />
           </div>
-          {s.contested && <div className="mt-2.5"><span className={`mono text-[9.5px] font-bold uppercase ${t.blind} ${t.blindSoft} ${lang==="hi"?"deva":""}`} style={{border:`1px solid #E0CBB9`,padding:"3px 8px",letterSpacing:".06em"}}>{STR[lang].contested}</span></div>}
-          {(s.ownership||s.rationale) && (
-            <div className={`mt-2.5 text-[12.5px] leading-[1.5] ${t.ts} ${readCls(lang)}`}>
-              {s.ownership && <><span className={`font-semibold ${t.tp}`}>{STR[lang].ownership}:</span> {s.ownership}</>}
-              {s.ownership && s.rationale && " · "}
-              {s.rationale && <><span className={`font-semibold ${t.tp}`}>{STR[lang].whyRated}:</span> {s.rationale}</>}
+          <div className="space-y-1.5 sm:text-right">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              {conf && <span className={`text-[10px] font-medium ${t.tf} ${isHi(lang)}`}>{conf}</span>}
+              {s.contested && <span className={`mono text-[9px] font-bold uppercase ${t.blind} ${t.blindSoft} ${lang==="hi"?"deva":""}`} style={{border:"1px solid #E0CBB9",padding:"2px 6px"}}>{STR[lang].contested}</span>}
             </div>
-          )}
-          <SignalChips subscores={s.subscores} t={t} lang={lang} />
-          <AxisBars axes={s.axes} t={t} lang={lang} />
+            <AxisAnnotation axes={s.axes} t={t} lang={lang} />
+          </div>
         </div>
       );
     }
@@ -1775,27 +1994,51 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
+    // 6.3B.9 — a reference desk, not a filtered card grid: grouped by lean (the same L/C/R
+    // vocabulary as the bias pill and Coverage Gaps' columns, so the registry reads as the same
+    // publication rather than a fourth grouping scheme), each source a hairline row via
+    // SourceRow. The old "All/Left/Centre/Right" chip filter is replaced by a text jump line -
+    // with 124 sources across 3 uneven groups (the Centre group alone runs to ~90), a reader
+    // still needs a way in, but it's three underlined labels, not a button cluster. Every
+    // group actually present in the data gets its own section; a lean with zero sources simply
+    // doesn't render (there is no "unrated" bucket in this dataset - every real source here has
+    // a resolved lean - so region is shown as inline metadata per entry instead of a 4th section).
     function SourcesPage({ t, lang, sources }) {
-      const [f,setF]=useState("all");
-      const list=(sources||[]).filter(s=>f==="all"||s.lean===f);
-      const filters=[["all",lang==="hi"?"सभी":"All"],["left",lbl("left",lang)],["center",lbl("center",lang)],["right",lbl("right",lang)]];
+      const list=sources||[];
+      const groups=["left","center","right"].map(k=>({k, items:list.filter(s=>s.lean===k)})).filter(g=>g.items.length>0);
+      const jump=(k)=>{ const el=document.getElementById("src-"+k); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); };
       return (
-        <PageWrap>
-          <div className="mx-auto max-w-[1180px]">
-            <div className="flex flex-wrap items-end justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
-              <div>
-                <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"रेटिंग रजिस्ट्री":"Ratings registry"}</div>
-                <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{STR[lang].srcTitle}</h1>
-              </div>
-              <div className="flex flex-wrap gap-1.5">{filters.map(([k,label])=>{ const on=f===k;
-                return <button key={k} onClick={()=>setF(k)} className={`text-[10px] font-semibold uppercase ${on?t.ctaT:t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{border:`1px solid ${t.ink}`,padding:"8px 12px",background:on?t.ink:"transparent",letterSpacing:lang==="hi"?0:".04em"}}>{label}</button>;
-              })}</div>
-            </div>
-            <p className={`mt-3 mb-5 max-w-[74ch] text-[13.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
-            <div className="grid gap-4 sm:grid-cols-2">{list.map(s=><SourceCard key={s.id||s.name} s={s} t={t} lang={lang}/>)}</div>
-            <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+          <div className="pb-3.5" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"रेटिंग रजिस्ट्री":"Ratings registry"}</div>
+            <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{STR[lang].srcTitle}</h1>
           </div>
-        </PageWrap>
+          <p className={`mt-3 max-w-[74ch] text-[13.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`}>{STR[lang].srcDisclaimer}</p>
+          {groups.length===0 ? (
+            <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+          ) : (
+            <>
+              {groups.length>1 && (
+                <div className={`mt-5 flex flex-wrap gap-x-5 gap-y-1.5 mono text-[11px] uppercase ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>
+                  {groups.map(g=>(
+                    <button key={g.k} onClick={()=>jump(g.k)} className={`hover:underline`} style={{color:BIAS[g.k].color}}>{lbl(g.k,lang)} <span className={t.tf}>({g.items.length})</span></button>
+                  ))}
+                </div>
+              )}
+              {groups.map(g=>(
+                <div key={g.k} id={"src-"+g.k} className="mt-9">
+                  <div className="flex items-baseline justify-between gap-3 pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
+                    <h2 className={`headline text-[21px] sm:text-[23px] ${readCls(lang)}`} style={{color:BIAS[g.k].color}}>{lbl(g.k,lang)}</h2>
+                    <span className={`mono text-[11px] ${t.tf}`}>{g.items.length}</span>
+                  </div>
+                  <div>{g.items.map(s=><SourceRow key={s.id||s.name} s={s} t={t} lang={lang}/>)}</div>
+                </div>
+              ))}
+              <p className={`mt-8 text-[11.5px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
+            </>
+          )}
+          <div className="mt-8"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
+        </div>
       );
     }
     function AboutPage({ t, lang, agg, go }) {
@@ -1824,10 +2067,15 @@ const {useState,useEffect,useMemo}=React;
                 <p className={`mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.62,maxWidth:"62ch"}}>{STR[lang].m_ai}</p>
                 <div className={`mt-7 eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{STR[lang].m_rateH}</div>
                 <p className={`mt-2.5 mb-3 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.55}}>{STR[lang].m_rateLede}</p>
-                <div className="grid sm:grid-cols-2" style={{border:`1px solid ${t.line}`}}>
+                {/* 6.3B.9: a typographic methodology list, not a bordered stat-tile grid - these
+                    are rubric weights (how much each signal counts toward a rating), not a
+                    coverage/bias percentage, so the real numbers stay; only the dashboard-tile
+                    presentation goes, replaced by a plain dot-leader list. */}
+                <div>
                   {SIGNALS.map((sig,i)=>(
-                    <div key={i} className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${i<SIGNALS.length-(SIGNALS.length%2===0?2:1)?"border-b":""} ${i%2===0?"sm:border-r":""}`} style={{borderColor:t.line}}>
-                      <span className={`text-[13px] ${t.ts} ${readCls(lang)}`}>{sig[lang]||sig.en}</span>
+                    <div key={i} className="flex items-baseline gap-2 py-1.5">
+                      <span className={`text-[13.5px] ${t.ts} ${readCls(lang)}`}>{sig[lang]||sig.en}</span>
+                      <span className="flex-1" style={{borderBottom:`1px dotted ${t.line}`,marginBottom:4}}/>
                       <span className={`mono text-[12px] font-semibold ${t.blind}`}>{sig.w}%</span>
                     </div>
                   ))}
@@ -1898,57 +2146,60 @@ const {useState,useEffect,useMemo}=React;
           else{ const j=await r.json().catch(()=>({})); setErr((j.errors&&j.errors.map(x=>x.message).join(", "))||L.err); setStatus("error"); }
         }catch(_){ setErr(L.err); setStatus("error"); }
       }
-      const inp=`w-full rounded-lg border px-3.5 py-2.5 text-[14.5px] outline-none transition-colors ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
+      // 6.3B.10: underline inputs (border-b, no fill, no radius) instead of rounded bordered
+      // boxes - correspondence stationery, not an admin console. The submit button drops the
+      // rounded-full pill for the same plain bordered button used everywhere else on Paksh. The
+      // rail keeps exactly one accent (the existing clay-left-border "disputing a rating"
+      // callout, already an established Paksh pattern) but the page itself is no longer wrapped
+      // in bordered panels - a hairline divides the form column from the rail instead.
+      const inp=`w-full border-b bg-transparent px-0.5 py-2 text-[14.5px] outline-none transition-colors ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
       const lbl=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
       return (
-        <PageWrap>
-          <div className="mx-auto max-w-[1180px]">
-            {/* header */}
-            <div className="pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
-              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"संपर्क व सुधार":"Contact & corrections"}</div>
-              <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{lang==="hi"?"डेस्क को लिखें":"Write to the desk"}</h1>
-            </div>
-            <div className="mt-6 grid lg:grid-cols-[1.4fr_1fr]">
-            <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
-              {status==="ok" ? (
-                <div className={`border p-5 ${t.border} ${t.surface}`}><p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p></div>
-              ) : (
-                <form onSubmit={submit} className="space-y-4">
-                  <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
-                  <input type="hidden" name="_subject" value="New Paksh contact message" />
-                  <input type="hidden" name="topic" value={L.chips[topic]} />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
-                    <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
-                  </div>
-                  <div><label className={lbl}>{lang==="hi"?"यह किस बारे में है?":"What's this about?"}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {["rating","outlet","advertise","general"].map(k=>(
-                        <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.surface} ${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" placeholder={L.ph[topic]} className={inp} /></div>
-                  {status==="error" && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
-                  <button type="submit" disabled={status==="sending"} className={`rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
-                  <div className={`text-[11px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"Formspree द्वारा वितरित · हम असली इनबॉक्स से जवाब देते हैं।":"Delivered by Formspree · we reply from a real inbox, usually within a few days."}</div>
-                </form>
-              )}
-            </div>
-            <aside className="mt-6 lg:mt-0 lg:pl-8 space-y-6">
-              <div className={`border p-5 ${t.surface} ${t.border}`} style={{borderLeft:`3px solid #75442E`}}>
-                <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.railH}</div>
-                <p className={`mt-2 text-[13.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.rail}</p>
-              </div>
-              <div className={`border p-5 ${t.surface} ${t.border}`}>
-                <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.emailH}</div>
-                <a href="mailto:hello@paksh.news" className={`mt-2 block mono text-[13px] ${t.ts} hover:${t.tp}`}>hello@paksh.news</a>
-              </div>
-              <p className={`text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.indep}</p>
-            </aside>
-            </div>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+          <div className="pb-3.5" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"संपर्क व सुधार":"Contact & corrections"}</div>
+            <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{lang==="hi"?"डेस्क को लिखें":"Write to the desk"}</h1>
           </div>
-        </PageWrap>
+          <div className="mt-7 grid lg:grid-cols-[1.4fr_1fr]">
+          <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+            {status==="ok" ? (
+              <p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p>
+            ) : (
+              <form onSubmit={submit} className="space-y-5">
+                <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
+                <input type="hidden" name="_subject" value="New Paksh contact message" />
+                <input type="hidden" name="topic" value={L.chips[topic]} />
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
+                  <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
+                </div>
+                <div><label className={lbl}>{lang==="hi"?"यह किस बारे में है?":"What's this about?"}</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["rating","outlet","advertise","general"].map(k=>(
+                      <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.ts} ${t.border} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
+                    ))}
+                  </div>
+                </div>
+                <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" placeholder={L.ph[topic]} className={inp} /></div>
+                {status==="error" && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
+                <button type="submit" disabled={status==="sending"} className={`border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
+                <div className={`text-[11px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"Formspree द्वारा वितरित · हम असली इनबॉक्स से जवाब देते हैं।":"Delivered by Formspree · we reply from a real inbox, usually within a few days."}</div>
+              </form>
+            )}
+          </div>
+          <aside className="mt-7 lg:mt-0 lg:pl-8 space-y-6">
+            <div className="pl-3" style={{borderLeft:"2px solid #75442E"}}>
+              <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.railH}</div>
+              <p className={`mt-2 text-[13.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.rail}</p>
+            </div>
+            <div>
+              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.emailH}</div>
+              <a href="mailto:hello@paksh.news" className={`mt-2 block mono text-[13px] ${t.ts} hover:${t.tp}`}>hello@paksh.news</a>
+            </div>
+            <p className={`text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.indep}</p>
+          </aside>
+          </div>
+        </div>
       );
     }
     // Sponsor slot: renders NOTHING until SPONSOR.name is set (an empty "supported by" looks
@@ -1990,49 +2241,52 @@ const {useState,useEffect,useMemo}=React;
         soon:"We're setting up a secure way to contribute. Until then, please reach out to cheer us on or discuss a partnership.",
         contact:"Contact us →", noStrings:"No membership required · nothing hidden behind a paywall · give whatever you like."
       };
-      const btn=`inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`;
-      const btn2=`inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[14px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
+      // 6.3B.10: no boxed panel around the whole appeal, no rounded-pill CTAs - a hairline
+      // separates each section (lede / UPI-or-coming-soon / why it matters), matching the same
+      // document rhythm as Sources/About, so a reader's appeal page still reads as the same
+      // publication instead of a donation-checkout panel.
+      const btn=`inline-flex items-center justify-center border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`;
+      const btn2=`inline-flex items-center justify-center border px-5 py-2.5 text-[12px] font-semibold uppercase ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
       return (
-        <PageWrap>
-          <div className="max-w-2xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
-            <p className={`mt-4 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{L.lede}</p>
+        <div className="mx-auto max-w-[720px] px-4 sm:px-8 py-10">
+          <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"सहयोग":"Support"}</div>
+          <h1 className={`headline mt-2.5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          <p className={`mt-4 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{L.lede}</p>
 
-            {supportReady() ? (
-              <div className={`mt-8 border p-6 ${t.surface} ${t.border}`}>
-                {SUPPORT.upi && (
-                  <div className="mb-5">
-                    <div className={`eyebrow mb-2 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.upiH}</div>
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {[99,299,999].map(a=>(
-                        <a key={a} href={upiLink(a)} className={`inline-flex items-center justify-center border px-4 py-2 text-[15px] font-semibold ${t.border} ${t.ts} hover:${t.cta} hover:${t.ctaT}`}>₹{a}</a>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <a href={upiLink()} className={btn}>{L.upiPay}</a>
-                      <button onClick={copyUpi} className={btn2}>{copied?L.copied:L.copy}</button>
-                      <span className={`mono text-[13px] ${t.ts}`}>{SUPPORT.upi}</span>
-                    </div>
-                    <p className={`mt-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"एक-बार UPI · कोई खाता या आवर्ती शुल्क नहीं · भुगतान आपके बैंक से होता है, पक्ष इसे संग्रहीत नहीं करता।":"One-time UPI · no account or recurring charge · handled by your bank, never stored by Paksh."}</p>
+          {supportReady() ? (
+            <div className="mt-8 pt-6" style={{borderTop:`1px solid ${t.ink}`}}>
+              {SUPPORT.upi && (
+                <div className="mb-5">
+                  <div className={`eyebrow mb-2 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.upiH}</div>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {[99,299,999].map(a=>(
+                      <a key={a} href={upiLink(a)} className={`inline-flex items-center justify-center border px-4 py-2 text-[15px] font-semibold ${t.border} ${t.ts} hover:${t.cta} hover:${t.ctaT}`}>₹{a}</a>
+                    ))}
                   </div>
-                )}
-                {SUPPORT.url && <a href={SUPPORT.url} target="_blank" rel="noopener noreferrer" className={btn}>{L.linkBtn}</a>}
-                <p className={`mt-5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{L.noStrings}</p>
-              </div>
-            ) : (
-              <div className={`mt-8 border p-6 ${t.surface} ${t.border}`}>
-                <div className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{L.soonH}</div>
-                <p className={`mt-2 text-[14px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.soon}</p>
-                <button onClick={()=>go("contact")} className={`mt-4 ${btn2}`}>{L.contact}</button>
-              </div>
-            )}
-
-            <div className={`mt-8 border-t pt-6 ${t.border}`}>
-              <div className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{L.whyH}</div>
-              <p className={`mt-2 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{L.why}</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <a href={upiLink()} className={btn}>{L.upiPay}</a>
+                    <button onClick={copyUpi} className={btn2}>{copied?L.copied:L.copy}</button>
+                    <span className={`mono text-[13px] ${t.ts}`}>{SUPPORT.upi}</span>
+                  </div>
+                  <p className={`mt-3 text-[12px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"एक-बार UPI · कोई खाता या आवर्ती शुल्क नहीं · भुगतान आपके बैंक से होता है, पक्ष इसे संग्रहीत नहीं करता।":"One-time UPI · no account or recurring charge · handled by your bank, never stored by Paksh."}</p>
+                </div>
+              )}
+              {SUPPORT.url && <a href={SUPPORT.url} target="_blank" rel="noopener noreferrer" className={btn}>{L.linkBtn}</a>}
+              <p className={`mt-5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{L.noStrings}</p>
             </div>
+          ) : (
+            <div className="mt-8 pt-6" style={{borderTop:`1px solid ${t.ink}`}}>
+              <div className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{L.soonH}</div>
+              <p className={`mt-2 text-[14px] leading-[1.6] ${t.ts} ${readCls(lang)}`}>{L.soon}</p>
+              <button onClick={()=>go("contact")} className={`mt-4 ${btn2}`}>{L.contact}</button>
+            </div>
+          )}
+
+          <div className={`mt-8 border-t pt-6 ${t.border}`}>
+            <div className={`headline text-[18px] ${t.tp} ${readCls(lang)}`}>{L.whyH}</div>
+            <p className={`mt-2 text-[14.5px] leading-[1.62] ${t.ts} ${readCls(lang)}`}>{L.why}</p>
           </div>
-        </PageWrap>
+        </div>
       );
     }
     function PrivacyPage({ t, lang, consent, setConsent }) {
@@ -2056,71 +2310,89 @@ const {useState,useEffect,useMemo}=React;
         note1:"You can switch analytics off and still use every feature. Turning it off stops all aggregate measurement of your visit.",
         note2:"Questions about your data? Write to"
       };
-      const card=(h,body)=>(<div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`}}><div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{h}</div><p className={`mt-2 text-[13.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.55}}>{body}</p></div>);
+      // 6.3B.10: the three explainer blocks (fonts/ads/reading lens) are static information,
+      // not controls - a plain hairline-separated list, same document rhythm as the legal Row
+      // sections below, instead of three bordered cards. The consent toggle is the one genuine
+      // interactive control here, so it keeps a light border - "restrained controls where
+      // interaction is genuinely required" - everything else drops the box.
+      const explainer=(h,body)=>(<div className="py-3.5 border-b" style={{borderColor:t.line}}><div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em"}}>{h}</div><p className={`mt-1.5 text-[13.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.55}}>{body}</p></div>);
       return (
-        <PageWrap>
-          <div className="mx-auto max-w-[1180px]">
-            {/* header */}
-            <div className="pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
-              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{P.eyebrow}</div>
-              <h1 className={`headline mt-2.5 text-[30px] sm:text-[36px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{P.title}</h1>
+        <div className="mx-auto max-w-[1180px] px-4 sm:px-8 py-10">
+          <div className="pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{P.eyebrow}</div>
+            <h1 className={`headline mt-2.5 text-[30px] sm:text-[36px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{P.title}</h1>
+          </div>
+          {/* 1.6fr / 1fr explainer */}
+          <div className="mt-7 grid lg:grid-cols-[1.6fr_1fr]">
+            <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+              <p className={`text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.62,maxWidth:"62ch"}}>{P.lede}</p>
+              <div className="mt-5">{explainer(P.c1H,P.c1)}{explainer(P.c2H,P.c2)}{explainer(P.c3H,P.c3)}</div>
             </div>
-            {/* 1.6fr / 1fr explainer */}
-            <div className="mt-6 grid lg:grid-cols-[1.6fr_1fr]">
-              <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
-                <p className={`text-[16px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:1.62,maxWidth:"62ch"}}>{P.lede}</p>
-                <div className="mt-5 space-y-3.5">{card(P.c1H,P.c1)}{card(P.c2H,P.c2)}{card(P.c3H,P.c3)}</div>
-              </div>
-              <div className="mt-6 lg:mt-0 lg:pl-8 space-y-4">
-                {setConsent && (
-                  <div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`}}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0"><div className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{P.anH}</div><div className={`mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`}>{P.anSub}</div></div>
-                      <Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={P.anH} t={t} />
-                    </div>
+            <div className="mt-7 lg:mt-0 lg:pl-8 space-y-4">
+              {setConsent && (
+                <div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`}}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0"><div className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{P.anH}</div><div className={`mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`}>{P.anSub}</div></div>
+                    <Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={P.anH} t={t} />
                   </div>
-                )}
-                <p className={`text-[12.5px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:1.55}}>{P.note1}</p>
-                <p className={`text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{P.note2} <a href="mailto:hello@paksh.news" className={`font-semibold ${t.ts} hover:${t.tp}`}>hello@paksh.news</a>.</p>
-              </div>
-            </div>
-            {/* full legal policy */}
-            <div className="mt-10 max-w-3xl">
-            <h2 className={`headline text-[20px] ${t.tp} serif`}>Privacy Policy</h2>
-            <p className={`mb-1 mt-2 text-[13px] ${t.tf}`}>Last updated: 9 August 2026 · Operated by Redstocks Technology LLP</p>
-            {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>पूरी गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
-            <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
-            <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel’s privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected.</Row>
-            <Row h="Cookies and tracking">Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
-            <Row h="How we use information">To respond to your messages, to keep the site secure and reliable, and, from consented, aggregate, non-identifying usage, to understand how readers engage with coverage, improve Paksh, and inform Redstocks Technology’s research. We do not sell your personal information, and we do not build a profile of you or track you across your devices.</Row>
-            <Row h="Third parties">We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site and provides its cookieless Web Analytics). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
-            <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
-            <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
-            <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
+                </div>
+              )}
+              <p className={`text-[12.5px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:1.55}}>{P.note1}</p>
+              <p className={`text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{P.note2} <a href="mailto:hello@paksh.news" className={`font-semibold ${t.ts} hover:${t.tp}`}>hello@paksh.news</a>.</p>
             </div>
           </div>
-        </PageWrap>
+          {/* full legal policy */}
+          <div className="mt-10 max-w-3xl">
+          <h2 className={`headline text-[20px] ${t.tp} serif`}>Privacy Policy</h2>
+          <p className={`mb-1 mt-2 text-[13px] ${t.tf}`}>Last updated: 9 August 2026 · Operated by Redstocks Technology LLP</p>
+          {lang==="hi" && <p className={`mb-2 text-[12.5px] deva ${t.tf}`}>पूरी गोपनीयता नीति अंग्रेज़ी में उपलब्ध है।</p>}
+          <Row h="Who we are">Paksh (पक्ष) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum.</Row>
+          <Row h="What we collect">When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel’s privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected.</Row>
+          <Row h="Cookies and tracking">Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set.</Row>
+          <Row h="How we use information">To respond to your messages, to keep the site secure and reliable, and, from consented, aggregate, non-identifying usage, to understand how readers engage with coverage, improve Paksh, and inform Redstocks Technology’s research. We do not sell your personal information, and we do not build a profile of you or track you across your devices.</Row>
+          <Row h="Third parties">We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site and provides its cookieless Web Analytics). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens.</Row>
+          <Row h="Your choices">You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page.</Row>
+          <Row h="Children">Paksh is a general news service and is not directed at children.</Row>
+          <Row h="Changes">We may update this policy from time to time; material changes will be reflected by the date shown above.</Row>
+          </div>
+        </div>
       );
     }
+    // 6.3B.8 — an index/archive desk: results read as a plain dated list (FeedRow, already
+    // BiasPill-based), not a grid of boxed cards. Every meaningful state is handled explicitly:
+    // initial browse (no query), active results, no results. There is no separate loading or
+    // error state here - search filters the catalogue already held in memory client-side, so a
+    // keystroke never triggers a network request; the one real async gap (the initial catalogue
+    // load, before this route can render at all) is covered by PakshApp's route-level PageSkeleton.
     function SearchPage({ t, lang, query, setQuery, results, browseCards, open }) {
       const browsing = !query.trim();
+      const list = browsing ? (browseCards||[]) : results;
       return (
-        <PageWrap>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <h1 className={`headline mb-5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("searchTab",lang)}</h1>
-          <div className="mb-8 max-w-xl">
+          <div className="max-w-xl">
             <div className="relative">
               <Search size={17} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`} />
               <input autoFocus value={query||""} onChange={e=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang==="hi"?"deva":""}`} />
             </div>
           </div>
-          {browsing ? (
-            (browseCards||[]).length ? (<>
-              <div className={`mb-4 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{ui("latestCoverage",lang)}</div>
-              <GridGrid items={browseCards} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
-            </>) : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
-          ) : results.length ? <GridGrid items={results} t={t} lang={lang} render={(s)=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open}/>} />
-            : <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}><p className={`text-lg font-bold ${t.ts}`}>{STR[lang].noResults}</p><p className="mt-1 text-sm">{STR[lang].noResultsSub}</p></div>}
-        </PageWrap>
+          {browsing && (browseCards||[]).length===0 ? (
+            <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
+          ) : !browsing && results.length===0 ? (
+            <div className="py-24 text-center">
+              <p className={`headline text-[19px] ${t.ts} ${readCls(lang)}`}>{STR[lang].noResults}</p>
+              <p className={`mt-1 text-[13px] ${t.tf} ${readCls(lang)}`}>{STR[lang].noResultsSub}</p>
+            </div>
+          ) : (
+            <>
+              <div className={`mt-8 mb-3 flex items-baseline justify-between gap-3 pb-2 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>
+                <span>{browsing?ui("latestCoverage",lang):`${STR[lang].resultsFor} "${query}"`}</span>
+                <span className="mono">{list.length}</span>
+              </div>
+              <div>{list.map(s=><FeedRow key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}</div>
+            </>
+          )}
+        </div>
       );
     }
     function FeedSkeleton({ t }) {
@@ -2135,6 +2407,50 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
+    // 6.3B.8 — a route-neutral loading placeholder for pages that are neither the home feed
+    // nor a shape with its own dedicated skeleton. Deliberately NOT FeedSkeleton's 3-column
+    // hero shape: showing that homepage layout under e.g. /topics or /sources while data
+    // loads is exactly the "old shell under the new page" problem this phase fixes.
+    function PageSkeleton({ t }) {
+      return (
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-10">
+          <div className="skel h-3 w-40 mb-4"/>
+          <div className="skel h-9 w-1/2 mb-6"/>
+          <div className="max-w-[640px] space-y-3">
+            <div className="skel h-4 w-full"/>
+            <div className="skel h-4 w-5/6"/>
+            <div className="skel h-4 w-3/4"/>
+          </div>
+        </div>
+      );
+    }
+    // Shape-matched placeholder for BlindspotPage (6.3B.8) — mirrors its real block order (ink
+    // opening, then two facing columns) so the swap to real content is a fade, not a jump; same
+    // reasoning as StorySkeleton below. Blindspot's content depends on the full data load
+    // (`ready`), unlike StoryPage's per-id detail fetch, so it still needs its own gate.
+    function BlindspotSkeleton({ t }) {
+      return (
+        <div className="mx-auto max-w-[1280px]">
+          <div style={{background:"#15140F"}}>
+            <div className="px-4 sm:px-10 py-10 sm:py-14">
+              <div className="skel h-3 w-24 mb-4"/>
+              <div className="skel h-10 w-2/3 mb-3"/>
+              <div className="skel h-3 w-1/2"/>
+            </div>
+          </div>
+          <div className="px-4 sm:px-10 py-10 sm:py-14 grid gap-10 lg:grid-cols-2 lg:gap-x-14">
+            {[0,1].map(i=>(
+              <div key={i}>
+                <div className="skel h-3 w-32 mb-5"/>
+                <div className="skel h-40 w-full mb-3"/>
+                <div className="skel h-4 w-3/4 mb-2"/>
+                <div className="skel h-4 w-2/3"/>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     // PAKSH 3.3: a shape-matched placeholder for StoryPage's single-column ~1000px layout,
     // used ONLY while an individual event is loading. Previously this fell back to
     // FeedSkeleton (the homepage's 3-column grid), which then popped into a completely
@@ -2143,9 +2459,11 @@ const {useState,useEffect,useMemo}=React;
     // bias instrument, framing table, coverage list) so the swap is a content fade, not a
     // structural jump.
     function StorySkeleton({ t }) {
+      // No top-bar row here — InteriorMasthead already renders above this (it degrades to
+      // wordmark+back on its own while `story` is still null), so this only needs to mirror
+      // the reading column: headline, dek, pill, hero image, framing columns.
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-6">
-          <div className="mb-8 flex items-center justify-between pb-3" style={{borderBottom:`1px solid ${t.ink}`}}><div className="skel h-3 w-16"/><div className="skel h-3 w-20"/></div>
           <div className="mx-auto max-w-[840px]">
             <div className="skel h-3 w-32 mb-3"/>
             <div className="skel h-9 w-full mb-2"/>
@@ -2153,7 +2471,8 @@ const {useState,useEffect,useMemo}=React;
             <div className="skel h-4 w-full mb-1.5"/>
             <div className="skel h-4 w-5/6"/>
           </div>
-          <div className="mx-auto mt-8 max-w-[840px] py-6" style={{borderTop:`1px solid ${t.ink}`,borderBottom:`1px solid ${t.ink}`}}><div className="skel h-7 w-full"/></div>
+          <div className="mx-auto mt-6 max-w-[840px]"><div className="skel h-3.5 w-full"/></div>
+          <div className="mx-auto mt-6 max-w-[840px]"><div className="skel w-full" style={{aspectRatio:"16 / 9"}}/></div>
           <div className="mx-auto mt-10 max-w-[840px] grid grid-cols-1 gap-4 md:grid-cols-3">{[0,1,2].map(i=><div key={i} className="skel h-32 w-full"/>)}</div>
         </div>
       );
@@ -2218,7 +2537,7 @@ const {useState,useEffect,useMemo}=React;
         emailL:"ईमेल", emailP:"you@example.com", pwL:"पासवर्ड", pwP:"कम से कम 8 अक्षर",
         signinBtn:"साइन इन करें", createBtn:"खाता बनाएँ", working:"हो रहा है…",
         sendBtn:"मुझे साइन-इन कोड ईमेल करें", sending:"भेजा जा रहा है…",
-        codeL:"ईमेल पर आया साइन-इन कोड", codeP:"कोड", verifyBtn:"साइन इन करें", verifying:"जाँच हो रही है…",
+        codeL:"अपना 8 अंकों का साइन-इन कोड डालें", codeP:"8 अंकों का कोड", verifyBtn:"साइन इन करें", verifying:"जाँच हो रही है…",
         sentTo:"कोड भेजा गया", change:"ईमेल बदलें", resend:"कोड फिर भेजें", resent:"नया कोड भेज दिया।", resendIn:"फिर भेजें",
         useCode:"पासवर्ड के बजाय ईमेल कोड इस्तेमाल करें", usePw:"पासवर्ड इस्तेमाल करें",
         confirm:"पुष्टि करने के लिए अपना ईमेल देखें, फिर साइन इन करें।",
@@ -2237,7 +2556,7 @@ const {useState,useEffect,useMemo}=React;
         emailL:"Email", emailP:"you@example.com", pwL:"Password", pwP:"At least 8 characters",
         signinBtn:"Sign in", createBtn:"Create account", working:"Working…",
         sendBtn:"Email me a sign-in code", sending:"Sending…",
-        codeL:"Sign-in code from your email", codeP:"Sign-in code", verifyBtn:"Sign in", verifying:"Checking…",
+        codeL:"Enter your 8-digit verification code", codeP:"8-digit code", verifyBtn:"Sign in", verifying:"Checking…",
         sentTo:"Code sent to", change:"Change email", resend:"Resend code", resent:"New code sent.", resendIn:"Resend in",
         useCode:"Use an email code instead", usePw:"Use a password",
         confirm:"Check your email to confirm, then sign in.",
@@ -2264,9 +2583,9 @@ const {useState,useEffect,useMemo}=React;
         try{ await authSendCode(email.trim()); setStep("code"); setNote(L.resent); setCool(30); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
       async function verify(e){ e.preventDefault(); if(!code.trim())return; setErr(""); setBusy(true);
         try{ const s=await authVerifyCode(email.trim(), code.trim()); onAuthed(s); }catch(ex){ setErr(prettyAuthErr(ex,L)); }finally{ setBusy(false); } }
-      const inp=`w-full border px-3.5 py-2.5 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp}`;
+      const inp=`w-full border-b bg-transparent px-0.5 py-2.5 text-[15px] outline-none ${t.border} focus:border-[#15140F] ${t.tp}`;
       const lblc=`mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
-      const btn=`w-full rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`;
+      const btn=`w-full border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`;
       const link=`text-[12.5px] underline underline-offset-2 ${t.tf} hover:${t.tp} ${isHi(lang)}`;
       const props=(
         <div>
@@ -2316,17 +2635,21 @@ const {useState,useEffect,useMemo}=React;
           )}
         </div>
       );
+      // 6.3B.11: the entrance to the publication, not a floating SaaS auth card - no enclosing
+      // border around the whole thing. The form is the main column; "what an account adds" is a
+      // quiet rail separated by one hairline (desktop only), the same 1.4fr/1fr rhythm already
+      // used on Contact.
       return (
-        <PageWrap>
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <button onClick={()=>go("home")} className={`mb-6 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {L.back}</button>
-          <div className={`mx-auto max-w-[760px] border md:grid md:grid-cols-2 ${t.border}`}>
-            <div className="p-6 sm:p-8">
-              <h1 className={`headline text-[26px] sm:text-[30px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{mode==="signup"?L.signup:L.signin}</h1>
-              <div className="mt-6">{form}</div>
+          <div className="grid md:grid-cols-[1.3fr_1fr]">
+            <div className="md:border-r md:pr-8" style={{borderColor:t.line}}>
+              <h1 className={`headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{mode==="signup"?L.signup:L.signin}</h1>
+              <div className="mt-6 max-w-[420px]">{form}</div>
             </div>
-            <div className={`hidden md:block p-6 sm:p-8 border-l ${t.border} ${t.surface}`}>{props}</div>
+            <div className="mt-8 md:mt-0 md:pl-8">{props}</div>
           </div>
-        </PageWrap>
+        </div>
       );
     }
 
@@ -2354,7 +2677,10 @@ const {useState,useEffect,useMemo}=React;
         prevH:"Preview", prevBody:"This sample text re-renders with the settings above so you can see the effect immediately. Paksh shows every side of every story."
       };
       const set=(k,v)=>setA11y(Object.assign({},a11y,{[k]:v}));
-      const card=`border ${t.border} ${t.surface}`;
+      // 6.3B.11: the reader's desk - a publication-style list, not three SETTING CARDs. Each
+      // section is a heading + hairline rows; only the section boundary itself (a top rule) and
+      // the live-preview sample carry any border, since a sample needs a visible edge to read as
+      // "this is a preview," not a fourth settings card.
       const row=(label,sub,ctrl)=>(
         <div className={`flex items-center justify-between gap-4 border-b py-4 ${t.border} last:border-b-0`}>
           <div className="min-w-0"><div className={`text-[14px] font-semibold ${t.tp} ${isHi(lang)}`}>{label}</div>{sub&&<div className={`mt-0.5 text-[12.5px] ${t.tf} ${isHi(lang)}`}>{sub}</div>}</div>
@@ -2363,58 +2689,54 @@ const {useState,useEffect,useMemo}=React;
       );
       const sample={ standard:{h:20,b:15,lh:1.62}, large:{h:24,b:18,lh:1.7}, classic:{h:29,b:22,lh:1.8} }[a11y.textSize]||{h:20,b:15,lh:1.62};
       return (
-        <PageWrap>
-          <div className="max-w-2xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+        <div className="mx-auto max-w-[720px] px-4 sm:px-8 py-10">
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
 
-            {/* Account */}
-            <div className="mt-7">
-              <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.acc}</div>
-              {auth ? (
-                <div className={`p-5 ${card}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><div className={`mono text-[10px] uppercase tracking-wide ${t.tf}`}>{L.email}</div><div className={`truncate text-[15px] font-semibold ${t.tp}`}>{(auth.user&&auth.user.email)||""}</div></div>
-                    <span className={`shrink-0 rounded mono px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${t.chip} ${t.ts}`}>{L.free}</span>
-                  </div>
-                  <div className={`mt-4 border-t pt-4 ${t.border}`}>{row(L.readLang,null,
-                    <SegChoice value={lang} options={[["en","EN"],["hi","हिं"]]} onChange={setLang} t={t} lang={lang} />)}</div>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <button onClick={()=>go("support")} className={`text-[13px] font-semibold ${t.blind} hover:underline ${isHi(lang)}`}>{L.support}</button>
-                    <button onClick={onSignOut} className={`ml-auto border px-4 py-2 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.signout}</button>
-                  </div>
+          {/* Account */}
+          <div className="mt-8 pt-6" style={{borderTop:`2px solid ${t.ink}`}}>
+            <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.acc}</div>
+            {auth ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0"><div className={`mono text-[10px] uppercase tracking-wide ${t.tf}`}>{L.email}</div><div className={`truncate text-[15px] font-semibold ${t.tp}`}>{(auth.user&&auth.user.email)||""}</div></div>
+                  <span className={`shrink-0 mono px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${t.chip} ${t.ts}`}>{L.free}</span>
                 </div>
-              ) : (
-                <div className={`p-5 ${card}`}>
-                  <div className={`text-[15px] font-semibold ${t.tp} ${isHi(lang)}`}>{L.guestH}</div>
-                  <p className={`mt-1.5 text-[13px] ${t.tf} ${isHi(lang)}`}>{L.guestP}</p>
-                  {authOn() && <button onClick={()=>go("login")} className={`mt-4 rounded-full px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.signin}</button>}
+                {row(L.readLang,null,<SegChoice value={lang} options={[["en","EN"],["hi","हिं"]]} onChange={setLang} t={t} lang={lang} />)}
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button onClick={()=>go("support")} className={`text-[13px] font-semibold ${t.blind} hover:underline ${isHi(lang)}`}>{L.support}</button>
+                  <button onClick={onSignOut} className={`ml-auto border px-4 py-2 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.signout}</button>
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                <div className={`text-[15px] font-semibold ${t.tp} ${isHi(lang)}`}>{L.guestH}</div>
+                <p className={`mt-1.5 text-[13px] ${t.tf} ${isHi(lang)}`}>{L.guestP}</p>
+                {authOn() && <button onClick={()=>go("login")} className={`mt-4 border px-5 py-2 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.signin}</button>}
+              </>
+            )}
+          </div>
 
-            {/* Accessibility */}
-            <div className="mt-8">
-              <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.a11yH}</div>
-              <div className={`px-5 ${card}`}>
-                {row(L.tSize,null,<SegChoice value={a11y.textSize} options={[["standard",L.tStd],["large",L.tLg],["classic",L.tCl]]} onChange={v=>set("textSize",v)} t={t} lang={lang} />)}
-                {row(L.hc,L.hcS,<Toggle on={a11y.highContrast} onChange={v=>set("highContrast",v)} label={L.hc} t={t} />)}
-                {row(L.dys,L.dysS,<Toggle on={a11y.dyslexiaFont} onChange={v=>set("dyslexiaFont",v)} label={L.dys} t={t} />)}
-                {row(L.aloud,L.aloudS,<Toggle on={a11y.readAloud} onChange={v=>set("readAloud",v)} label={L.aloud} t={t} />)}
-                {row(L.anon,L.anonS,<Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={L.anon} t={t} />)}
-              </div>
-            </div>
+          {/* Accessibility */}
+          <div className="mt-8 pt-6" style={{borderTop:`2px solid ${t.ink}`}}>
+            <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.a11yH}</div>
+            {row(L.tSize,null,<SegChoice value={a11y.textSize} options={[["standard",L.tStd],["large",L.tLg],["classic",L.tCl]]} onChange={v=>set("textSize",v)} t={t} lang={lang} />)}
+            {row(L.hc,L.hcS,<Toggle on={a11y.highContrast} onChange={v=>set("highContrast",v)} label={L.hc} t={t} />)}
+            {row(L.dys,L.dysS,<Toggle on={a11y.dyslexiaFont} onChange={v=>set("dyslexiaFont",v)} label={L.dys} t={t} />)}
+            {row(L.aloud,L.aloudS,<Toggle on={a11y.readAloud} onChange={v=>set("readAloud",v)} label={L.aloud} t={t} />)}
+            {row(L.anon,L.anonS,<Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={L.anon} t={t} />)}
+          </div>
 
-            {/* Live preview */}
-            <div className="mt-8">
-              <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.prevH}</div>
-              <div className={`p-5 ${card}`}>
-                <h3 className={`headline ${t.tp} ${readCls(lang)}`} style={{fontSize:sample.h,lineHeight:1.2}}>{lang==="hi"?"हर खबर, हर पक्ष":"Every story, every side"}</h3>
-                <p className={`mt-2 ${t.ts} ${readCls(lang)}`} style={{fontSize:sample.b,lineHeight:sample.lh}}>{L.prevBody}</p>
-                {a11y.readAloud && <div className="mt-3"><ListenButton text={(lang==="hi"?"हर खबर, हर पक्ष। ":"Every story, every side. ")+L.prevBody} lang={lang} t={t} /></div>}
-              </div>
+          {/* Live preview - the one place a border earns its keep: a sample needs a visible
+              edge to read as "preview," not settings. */}
+          <div className="mt-8 pt-6" style={{borderTop:`2px solid ${t.ink}`}}>
+            <div className={`eyebrow mb-3 ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.prevH}</div>
+            <div className={`p-5 ${t.surface}`} style={{border:`1px solid ${t.line}`}}>
+              <h3 className={`headline ${t.tp} ${readCls(lang)}`} style={{fontSize:sample.h,lineHeight:1.2}}>{lang==="hi"?"हर खबर, हर पक्ष":"Every story, every side"}</h3>
+              <p className={`mt-2 ${t.ts} ${readCls(lang)}`} style={{fontSize:sample.b,lineHeight:sample.lh}}>{L.prevBody}</p>
+              {a11y.readAloud && <div className="mt-3"><ListenButton text={(lang==="hi"?"हर खबर, हर पक्ष। ":"Every story, every side. ")+L.prevBody} lang={lang} t={t} /></div>}
             </div>
           </div>
-        </PageWrap>
+        </div>
       );
     }
 
@@ -2424,30 +2746,30 @@ const {useState,useEffect,useMemo}=React;
         guestP:"अपना रीडिंग लेंस और सहेजी खबरें देखने के लिए साइन इन करें।", signin:"साइन इन" }
         : { title:"My account", hi:"Hello", lens:"My Reading Lens", saved:"Saved", settings:"Settings & accessibility", support:"Support Paksh", signout:"Sign out",
         guestP:"Sign in to see your Reading Lens and saved stories.", signin:"Sign in" };
-      const item=(label,onClick)=>(<button onClick={onClick} className={`flex w-full items-center justify-between border p-4 text-left ${t.surface} ${t.border} hover:${t.soft}`}><span className={`text-[14.5px] font-semibold ${t.tp} ${isHi(lang)}`}>{label}</span><ChevronRight size={16} className={t.tf}/></button>);
+      // 6.3B.11: a quiet personal record, not a menu of nav-cards - hairline rows instead of
+      // bordered boxes.
+      const item=(label,onClick)=>(<button onClick={onClick} className={`flex w-full items-center justify-between border-b py-3.5 text-left ${t.border} hover:${t.tp}`}><span className={`text-[14.5px] font-semibold ${t.tp} ${isHi(lang)}`}>{label}</span><ChevronRight size={16} className={t.tf}/></button>);
       return (
-        <PageWrap>
-          <div className="max-w-xl">
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
-            {auth ? (
-              <>
-                <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.hi}, <span className="font-semibold">{(auth.user&&auth.user.email)||""}</span></p>
-                <div className="mt-6 grid gap-3">
-                  {item(L.lens,()=>go("lens"))}
-                  {item(L.saved,()=>go("saved"))}
-                  {item(L.settings,()=>go("settings"))}
-                  {item(L.support,()=>go("support"))}
-                </div>
-                <button onClick={onSignOut} className={`mt-6 border px-4 py-2 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.signout}</button>
-              </>
-            ) : (
-              <>
-                <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.guestP}</p>
-                {authOn() && <button onClick={()=>go("login")} className={`mt-5 rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.signin}</button>}
-              </>
-            )}
-          </div>
-        </PageWrap>
+        <div className="mx-auto max-w-[640px] px-4 sm:px-8 py-10">
+          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          {auth ? (
+            <>
+              <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.hi}, <span className="font-semibold">{(auth.user&&auth.user.email)||""}</span></p>
+              <div className="mt-6" style={{borderTop:`1px solid ${t.line}`}}>
+                {item(L.lens,()=>go("lens"))}
+                {item(L.saved,()=>go("saved"))}
+                {item(L.settings,()=>go("settings"))}
+                {item(L.support,()=>go("support"))}
+              </div>
+              <button onClick={onSignOut} className={`mt-6 border px-4 py-2 text-[13px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.signout}</button>
+            </>
+          ) : (
+            <>
+              <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.guestP}</p>
+              {authOn() && <button onClick={()=>go("login")} className={`mt-5 border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.signin}</button>}
+            </>
+          )}
+        </div>
       );
     }
 
@@ -2464,7 +2786,7 @@ const {useState,useEffect,useMemo}=React;
               <h1 className={`headline text-[30px] sm:text-[42px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{L.h}</h1>
             </div>
             <p className={`mx-auto max-w-[52ch] text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.p}</p>
-            <button onClick={()=>go("home")} className={`mt-7 rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.home}</button>
+            <button onClick={()=>go("home")} className={`mt-7 border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.home}</button>
             <div className={`mt-9 border-t pt-5 ${t.border}`}>
               <div className={`eyebrow mb-3 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.links}</div>
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
@@ -2505,7 +2827,7 @@ const {useState,useEffect,useMemo}=React;
           <div className="mx-auto max-w-[520px] py-10 text-center">
             <h1 className={`headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{title}</h1>
             <p className={`mx-auto mt-3 max-w-[44ch] text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{body}</p>
-            {authOn() && <button onClick={()=>go("login")} className={`mt-6 rounded-full px-5 py-2.5 text-[14px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{lang==="hi"?"साइन इन":"Sign in"}</button>}
+            {authOn() && <button onClick={()=>go("login")} className={`mt-6 border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{lang==="hi"?"साइन इन":"Sign in"}</button>}
           </div>
         </PageWrap>
       );
@@ -2539,7 +2861,6 @@ const {useState,useEffect,useMemo}=React;
       const list=rows||[];
       const agg={left:0,center:0,right:0}; list.forEach(r=>{ if(agg[r.side]!=null) agg[r.side]++; });
       const total=list.length;
-      const bpct=biasPct(agg);
       const least=["left","center","right"].reduce((a,b)=>agg[b]<agg[a]?b:a,"left");
       const topics=new Set(list.map(r=>r.topic).filter(Boolean)).size;
       const hi=agg.left>=agg.right?"left":"right", lo=agg.left>=agg.right?"right":"left";
@@ -2548,64 +2869,60 @@ const {useState,useEffect,useMemo}=React;
         : (lang==="hi"
           ? `आप ${lbl(hi,lang)} की ओर झुकते हैं, ${lbl(lo,lang)}-कवर खबरों से ${ratio>=2?`लगभग ${Math.round(ratio)} गुना`:"कुछ"} ज़्यादा ${lbl(hi,lang)}-कवर खबरें खोलते हैं।`
           : `You lean ${lbl(hi,lang)} in what you open, ${ratio>=2?`about ${Math.round(ratio)}x`:"somewhat"} as many ${lbl(hi,lang)}-covered stories as ${lbl(lo,lang)}-covered ones.`));
-      const statCell=(n,label,clay,i)=>(
-        <div className={`text-center ${i>0?"border-l":""} ${t.border}`} style={{padding:"14px 8px"}}>
-          <div className={`text-[24px] font-semibold ${clay?t.blind:t.tp}`} style={{fontFamily:"'Source Serif 4',Georgia,serif",lineHeight:1}}>{n}</div>
-          <div className={`mt-1.5 mono text-[8.5px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".06em",lineHeight:1.2}}>{label}</div>
-        </div>
-      );
+      // 6.3B.11: a plain three-stat line instead of a bordered grid of tiles - this is a
+      // personal record, not an analytics panel.
+      const statLine=(n,label,clay)=>(<span><span className={`text-[15px] font-semibold ${clay?t.blind:t.tp}`}>{n}</span> <span className={`text-[12px] ${t.tf} ${isHi(lang)}`}>{label}</span></span>);
       const balSub = lang==="hi"?"कोई फ़ैसला नहीं, आपने जो खबरें खोलीं उनके प्रकाशक-झुकाव की गिनती।":"Not a judgement, the arithmetic of the stories you opened, by each source's publisher lean.";
       return (
-        <PageWrap>
-          <div className="mx-auto max-w-[1180px]">
-            {/* header: eyebrow + title + N stories · 30 days */}
-            <div className="flex flex-wrap items-end justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
-              <div>
-                <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"मेरा रीडिंग लेंस":"My reading lens"}</div>
-                <h1 className={`headline mt-2 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?"मेरा न्यूज़ झुकाव":"My news bias"}</h1>
-              </div>
-              {total>0 && <span className={`shrink-0 text-[13px] ${t.tf} ${readCls(lang)}`}>{total} {lang==="hi"?"खबरें · 30 दिन":"stories · 30 days"}</span>}
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+          {/* header: eyebrow + title + N stories · 30 days */}
+          <div className="flex flex-wrap items-end justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <div>
+              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"मेरा रीडिंग लेंस":"My reading lens"}</div>
+              <h1 className={`headline mt-2 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{lang==="hi"?"मेरा न्यूज़ झुकाव":"My news bias"}</h1>
             </div>
-            {rows===null ? <div className={`py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{L.loading}</div>
-            : total===0 ? <div className={`mt-8 border border-dashed p-10 text-center text-[14px] ${t.border} ${t.tf} ${readCls(lang)}`}>{L.empty}</div>
-            : (
-              <div className="mt-6 grid lg:grid-cols-[1.6fr_1fr]">
-                {/* main: balance bar + verdict + recently read */}
-                <div className="min-w-0 lg:border-r lg:pr-8" style={{borderColor:t.line}}>
-                  <div className={`text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"आप क्या पढ़ते हैं, उसका संतुलन":"The balance of what you read"}</div>
-                  <div className={`mt-1.5 text-[13px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{balSub}</div>
-                  <div className={`mt-4 mb-2 mono text-[11px] uppercase ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lbl("left",lang)} {agg.left} · {lbl("center",lang)} {agg.center} · {lbl("right",lang)} {agg.right}</div>
-                  <BiasSegments bias={bpct} t={t} h={30} lang={lang} />
-                  {verdict && <div className="mt-4 flex items-start gap-2.5 p-3" style={{background:BIAS.left.soft,borderLeft:`2px solid ${BIAS.left.color}`}}><span style={{color:BIAS.left.color,fontSize:13}} aria-hidden="true">◪</span><span className={`text-[13.5px] ${readCls(lang)}`} style={{color:"#3A4B54",lineHeight:lang==="hi"?1.6:1.5}}>{verdict}</span></div>}
-                  <p className={`mt-3 text-[11px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{lang==="hi"?"गिनती वैसी ही जैसी खबर की पट्टी में, एक प्रकाशक एक वोट। सिर्फ़ आपको दिखती है।":"Counted the same way a story's bar is: one publisher, one vote. Visible to no one but you."}</p>
-                  <div className={`mt-6 mb-3 text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.recent}</div>
-                  <div style={{border:`1px solid ${t.line}`}}>
-                    {list.slice(0,8).map((r,i)=>(
-                      <button key={i} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left ${i<Math.min(8,list.length)-1?"border-b":""} ${t.border}`}>
-                        <span className={`min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</span>
-                        {r.side&&BIAS[r.side] && <span className="shrink-0 mono text-[9px] font-semibold uppercase" style={{backgroundColor:BIAS[r.side].soft,color:BIAS[r.side].color,padding:"3px 6px",letterSpacing:".04em"}}>{lbl(r.side,lang)}</span>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {/* rail: stat row + blindspot nudge + privacy foot */}
-                <div className="min-w-0 lg:pl-8 mt-6 lg:mt-0 space-y-5">
-                  <div className="grid grid-cols-3" style={{border:`1px solid ${t.line}`}}>
-                    {statCell(total,L.read,false,0)}
-                    {statCell(agg[least],lang==="hi"?`कम पढ़ा: ${lbl(least,lang)}`:`Least: ${lbl(least,lang)}`,true,1)}
-                    {statCell(topics,L.topics,false,2)}
-                  </div>
-                  <div style={{border:`1px solid #E0CBB9`}} className={`${t.blindSoft} p-4`}>
-                    <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.nudgeH}</div>
-                    <div className={`mt-1.5 text-[13.5px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{L.nudgeB}</div>
-                    <button onClick={()=>go("blindspot")} className={`mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang==="hi"?"deva":""}`} style={{border:"1px solid currentColor",padding:"8px 12px",letterSpacing:lang==="hi"?0:".05em"}}>{L.nudgeBtn}</button>
-                  </div>
-                  <p className={`pt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{borderTop:`1px dashed ${t.line}`,lineHeight:1.55}}>{L.privacy}</p>
+            {total>0 && <span className={`shrink-0 text-[13px] ${t.tf} ${readCls(lang)}`}>{total} {lang==="hi"?"खबरें · 30 दिन":"stories · 30 days"}</span>}
+          </div>
+          {rows===null ? <div className={`py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`}>{L.loading}</div>
+          : total===0 ? <div className={`mt-8 border border-dashed p-10 text-center text-[14px] ${t.border} ${t.tf} ${readCls(lang)}`}>{L.empty}</div>
+          : (
+            <div className="mt-6 grid lg:grid-cols-[1.6fr_1fr]">
+              {/* main: balance pill + verdict + recently read */}
+              <div className="min-w-0 lg:border-r lg:pr-8" style={{borderColor:t.line}}>
+                <div className={`text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"आप क्या पढ़ते हैं, उसका संतुलन":"The balance of what you read"}</div>
+                <div className={`mt-1.5 text-[13px] ${t.tf} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{balSub}</div>
+                {/* 6.3B.11: BiasPill instead of BiasSegments (hatch) - same coverage grammar as
+                    everywhere else on Paksh, just describing what YOU read instead of a story. */}
+                <div className="mt-4 w-56"><BiasPill counts={agg} t={t} lang={lang} h={14} /></div>
+                {verdict && <div className="mt-4 flex items-start gap-2.5 p-3" style={{background:BIAS.left.soft,borderLeft:`2px solid ${BIAS.left.color}`}}><span style={{color:BIAS.left.color,fontSize:13}} aria-hidden="true">◪</span><span className={`text-[13.5px] ${readCls(lang)}`} style={{color:"#3A4B54",lineHeight:lang==="hi"?1.6:1.5}}>{verdict}</span></div>}
+                <p className={`mt-3 text-[11px] ${t.tf} ${isHi(lang)}`} style={{lineHeight:1.5}}>{lang==="hi"?"गिनती वैसी ही जैसी खबर की पट्टी में, एक प्रकाशक एक वोट। सिर्फ़ आपको दिखती है।":"Counted the same way a story's bar is: one publisher, one vote. Visible to no one but you."}</p>
+                <div className={`mt-6 mb-1 text-[11px] font-semibold uppercase ${t.tp} ${isHi(lang)}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.recent}</div>
+                <div>
+                  {list.slice(0,8).map((r,i)=>(
+                    <button key={i} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`}>
+                      <span className={`min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</span>
+                      {r.side&&BIAS[r.side] && <span className="shrink-0 mono text-[9px] font-semibold uppercase" style={{backgroundColor:BIAS[r.side].soft,color:BIAS[r.side].color,padding:"3px 6px",letterSpacing:".04em"}}>{lbl(r.side,lang)}</span>}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
-        </PageWrap>
+              {/* rail: stat line + blindspot nudge + privacy foot */}
+              <div className="min-w-0 lg:pl-8 mt-6 lg:mt-0 space-y-5">
+                <div className="flex flex-wrap gap-x-5 gap-y-1.5 pb-4 border-b" style={{borderColor:t.line}}>
+                  {statLine(total,L.read,false)}
+                  {statLine(agg[least],lang==="hi"?`कम पढ़ा: ${lbl(least,lang)}`:`Least: ${lbl(least,lang)}`,true)}
+                  {statLine(topics,L.topics,false)}
+                </div>
+                <div style={{border:`1px solid #E0CBB9`}} className={`${t.blindSoft} p-4`}>
+                  <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.nudgeH}</div>
+                  <div className={`mt-1.5 text-[13.5px] ${t.blind} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.6:1.5}}>{L.nudgeB}</div>
+                  <button onClick={()=>go("blindspot")} className={`mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang==="hi"?"deva":""}`} style={{border:"1px solid currentColor",padding:"8px 12px",letterSpacing:lang==="hi"?0:".05em"}}>{L.nudgeBtn}</button>
+                </div>
+                <p className={`pt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`} style={{borderTop:`1px dashed ${t.line}`,lineHeight:1.55}}>{L.privacy}</p>
+              </div>
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -2656,7 +2973,7 @@ const {useState,useEffect,useMemo}=React;
         <ol className="relative mt-4" style={{marginLeft:6}}>
           <span style={{position:"absolute",left:0,top:4,bottom:4,width:2,background:t.line}}/>
           {evs.map((ev)=>{ const cur=String(ev.id)===String(currentId);
-            const lc=ev.lean_counts||{}; const b=biasPct(lc);
+            const lc=ev.lean_counts||{left:0,center:0,right:0};
             const title=(lang==="hi"&&ev.title_hi)?ev.title_hi:ev.title;
             return (
               <li key={ev.id} className="relative pb-5" style={{paddingLeft:22}}>
@@ -2665,7 +2982,9 @@ const {useState,useEffect,useMemo}=React;
                 {cur
                   ? <div className={`headline mt-1 text-[15px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:1.3}}>{title} <span className={`mono text-[9px] uppercase tracking-wide ${t.blind}`}>· {lang==="hi"?"यह खबर":"this story"}</span></div>
                   : <a href={"/story/"+encodeURIComponent(ev.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open&&open(ev.id); }} className={`block no-underline group cursor-pointer mt-1 headline text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.3}}>{title}</a>}
-                {!compact && (lc.left+lc.center+lc.right)>0 && <div className="mt-2 w-40"><BiasSegments bias={b} t={t} h={8} lang={lang} /></div>}
+                {/* 6.3B.8: BiasPill instead of BiasSegments (hatch) - shared with StoryPage's
+                    "How this developed" section, so this fix reaches both surfaces. */}
+                {!compact && (lc.left+lc.center+lc.right)>0 && <div className="mt-2 w-36"><BiasPill counts={lc} t={t} lang={lang} h={6} /></div>}
               </li>
             );
           })}
@@ -2677,26 +2996,38 @@ const {useState,useEffect,useMemo}=React;
     // instant header while it loads.
     function StorylinePage({ id, lean, t, lang, open, go }) {
       const [storyline,setStoryline]=useState(lean||null);
-      useEffect(()=>{ let live=true; if(!id) return; apiGet("storylines/"+id).then(s=>{ if(live) setStoryline(s); }).catch(()=>{ if(live&&!lean) setStoryline(null); }); return ()=>{live=false;}; },[id]);
+      const [loaded,setLoaded]=useState(!!lean);
+      useEffect(()=>{ let live=true; if(!id) return; setStoryline(lean||null); setLoaded(!!lean);
+        apiGet("storylines/"+id).then(s=>{ if(live){ setStoryline(s); setLoaded(true); } }).catch(()=>{ if(live){ setLoaded(true); if(!lean) setStoryline(null); } });
+        return ()=>{live=false;}; },[id]);
       const L = lang==="hi"
-        ? { back:"वापस", eyebrow:"विकसित होती खबर", updates:"अपडेट", note:"यह एक ‘स्टोरीलाइन’ है, समय के साथ इसी घटनाक्रम पर आई अलग-अलग खबरों की कड़ी। हर कड़ी अपनी अलग बायस बार रखती है, स्टोरीलाइन सिर्फ़ क्रम दिखाती है, कोई गिनती दोबारा नहीं जोड़ती।", missing:"यह स्टोरीलाइन नहीं मिली।" }
-        : { back:"Back", eyebrow:"Developing story", updates:"updates", note:"A storyline is a thread of separate stories about the same developing saga over time. Each entry keeps its own bias bar; the storyline only orders them, it never re-counts anything.", missing:"That storyline wasn't found." };
-      if(!storyline) return (<PageWrap><div className={`py-16 text-center ${t.tf} ${isHi(lang)}`}>{L.missing}</div></PageWrap>);
+        ? { eyebrow:"विकसित होती खबर", updates:"अपडेट", note:"यह एक ‘स्टोरीलाइन’ है, समय के साथ इसी घटनाक्रम पर आई अलग-अलग खबरों की कड़ी। हर कड़ी अपनी अलग बायस बार रखती है, स्टोरीलाइन सिर्फ़ क्रम दिखाती है, कोई गिनती दोबारा नहीं जोड़ती।", missing:"यह स्टोरीलाइन नहीं मिली।" }
+        : { eyebrow:"Developing story", updates:"updates", note:"A storyline is a thread of separate stories about the same developing saga over time. Each entry keeps its own bias bar; the storyline only orders them, it never re-counts anything.", missing:"That storyline wasn't found." };
+      // 6.3B.8: back/eyebrow moved to the masthead (Masthead treats "storyline" as a reading
+      // route now, same as story/blindspot) - this body starts directly with the headline.
+      // Distinguishes genuinely-not-found (loaded, no data) from still-fetching (no `lean` and
+      // the per-saga file hasn't resolved yet), so a real 404 never flashes during a normal load.
+      if(!storyline) {
+        if(!loaded) return (
+          <div className="mx-auto max-w-[840px] px-4 sm:px-8 py-10">
+            <div className="skel h-3 w-32 mb-3"/><div className="skel h-9 w-full mb-2"/><div className="skel h-9 w-2/3 mb-6"/>
+            <div className="skel h-16 w-full"/>
+          </div>
+        );
+        return <div className={`mx-auto max-w-[840px] px-4 sm:px-8 py-16 text-center ${t.tf} ${isHi(lang)}`}>{L.missing}</div>;
+      }
       const title=(lang==="hi"&&storyline.title_hi)?storyline.title_hi:storyline.title;
       const tp=lang==="hi"?(TOPIC_HI[storyline.topic]||storyline.topic):storyline.topic;
       return (
-        <PageWrap>
-          <div className="mx-auto max-w-[840px]">
-            <button onClick={()=>go("home")} className={`mb-5 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {L.back}</button>
-            <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{L.eyebrow}{tp?` · ${tp}`:""}</div>
-            <h1 className={`headline mt-2 text-[26px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{title}</h1>
-            <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{storyline.n_events} {L.updates} · {absDate(storyline.start,lang)} → {absDate(storyline.end,lang)}</div>
-            {/* PAKSH 3.3: moved above the timeline (was below it) - a first-time reader should
-                know what a storyline IS before parsing a dated list of entries, not after. */}
-            <p className={`mt-4 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.note}</p>
-            <div className="mt-6"><StorylineTimeline storyline={storyline} t={t} lang={lang} open={open} /></div>
-          </div>
-        </PageWrap>
+        <div className="mx-auto max-w-[840px] px-4 sm:px-8 py-10">
+          <div className={`eyebrow ${t.blind} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{L.eyebrow}{tp?` · ${tp}`:""}</div>
+          <h1 className={`headline mt-2 text-[26px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{title}</h1>
+          <div className={`mt-2 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{storyline.n_events} {L.updates} · {absDate(storyline.start,lang)} → {absDate(storyline.end,lang)}</div>
+          {/* PAKSH 3.3: moved above the timeline (was below it) - a first-time reader should
+              know what a storyline IS before parsing a dated list of entries, not after. */}
+          <p className={`mt-4 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.note}</p>
+          <div className="mt-6"><StorylineTimeline storyline={storyline} t={t} lang={lang} open={open} /></div>
+        </div>
       );
     }
     // "Developing" chip — marks a story that belongs to a saga thread (Eyebrow + story header).
@@ -2761,7 +3092,7 @@ const {useState,useEffect,useMemo}=React;
             )}
             <div className={`flex items-center justify-between border-t px-5 py-3 ${t.border}`}>
               <div className="flex gap-1.5">{[0,1,2,3,4].map(i=><span key={i} style={{width:6,height:6,borderRadius:0,background:i===step?t.ink:t.line}}/>)}</div>
-              <button onClick={()=> step<4?setStep(step+1):done()} className={`rounded-full px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<4?L.next:L.start}</button>
+              <button onClick={()=> step<4?setStep(step+1):done()} className={`border border-transparent px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<4?L.next:L.start}</button>
             </div>
           </div>
         </div>
@@ -2803,9 +3134,13 @@ const {useState,useEffect,useMemo}=React;
       const [savedRows,setSavedRows]=useState(null);          // full saved list for the Saved page
       const [lensStats,setLensStats]=useState({topics:[],sides:{left:0,center:0,right:0},total:0}); // reading summary → feed/gaps personalization
       const [onboard,setOnboard]=useState(()=>{ try{ return !localStorage.getItem("paksh-onboarded"); }catch(e){ return false; } });
-      // Honour a remembered choice first, else the OS preference (prefers-color-scheme),
-      // else light. Previously it always started light, ignoring a device set to dark.
-      const [dark,setDark]=useState(()=>{ try{ const s=localStorage.getItem("paksh-theme"); if(s==="dark")return true; if(s==="light")return false; return !!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches); }catch(e){ return false; } });
+      // Floating Support invitation (6.3B.6): Support no longer occupies permanent masthead
+      // space. Shown for the first ~3 minutes of a session, then gone - not persisted across
+      // visits (a fresh session sees it again), no popup/modal, nothing else on the page
+      // reacts to it. The permanent way to reach Support stays exactly as before: Footer's
+      // own Support link, plus /support itself (route.view==="support").
+      const [showFloatingSupport,setShowFloatingSupport]=useState(true);
+      useEffect(()=>{ const id=setTimeout(()=>setShowFloatingSupport(false),180000); return ()=>clearTimeout(id); },[]);
       const [query,setQuery]=useState("");
       const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]});
       const [detail,setDetail]=useState({});
@@ -2818,7 +3153,11 @@ const {useState,useEffect,useMemo}=React;
       // visitors get zero analytics script and zero beacons.
       useEffect(()=>{ if(consent==="granted") loadVercelAnalytics(); },[consent]);
       useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
-      useEffect(()=>{ document.documentElement.classList.toggle("dark",dark); document.body.style.backgroundColor=dark?"#1A1917":"#EAE6DB"; try{ localStorage.setItem("paksh-theme",dark?"dark":"light"); }catch(e){} },[dark]);
+      // 6.3B.5/6.3B.10: light-mode background hardcoded here (independent of TOKENS.light.bg /
+      // styles.css's own body{} rule - this JS inline style wins over both). Dark mode is
+      // retired, so this now just sets the paper-white canvas once, no theme branching, no
+      // `.dark` class, no localStorage theme write.
+      useEffect(()=>{ document.body.style.backgroundColor="#F8F7F2"; },[]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
       // events.json is capped to recent stories for a light first paint; the older tail lives in
       // events-archive.json and is fetched ONCE, the first time the user browses beyond the feed
@@ -2850,7 +3189,7 @@ const {useState,useEffect,useMemo}=React;
       // Record every opened story into the Reading Lens (signed-in only; best-effort).
       useEffect(()=>{ if(route.view==="story"&&route.id&&auth&&detail[route.id]){ recordRead(toCard(detail[route.id],lang)); } },[route.view,route.id,auth,detail]);
 
-      const t=dark?TOKENS.dark:TOKENS.light;
+      const t=TOKENS.light;
       const nav=(path)=>{ if(window.location.pathname!==path){ window.history.pushState(null,"",path); } setRoute(parsePath()); };
       const go=(v)=> nav(v==="home"?"/":"/"+v);
       const open=(id)=>{ track("story_open",{device:deviceClass()}); nav("/story/"+encodeURIComponent(id)); };
@@ -2964,8 +3303,11 @@ const {useState,useEffect,useMemo}=React;
         <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn(), go }}>
         <div className={`min-h-screen font-sans ${t.bg} ${t.tp}`}>
           <a href="#main" className="sr-only-focusable">{lang==="hi"?"मुख्य सामग्री पर जाएँ":"Skip to content"}</a>
-          {ready && homeCards.length>0 && <BreakingTicker cards={homeCards} t={t} lang={lang} open={open} />}
-          <Header t={t} lang={lang} setLang={chooseLang} dark={dark} setDark={setDark} go={go} view={headerView} auth={auth} openHelp={()=>setOnboard(true)} savedCount={savedIds.size} />
+          {/* 6.3B.6: the DEVELOPING ticker is gone - too noisy, made the site feel like a
+              news terminal. BreakingTicker itself is untouched (dormant), not deleted, in
+              case a future breaking-news treatment wants it. */}
+          <Masthead t={t} lang={lang} setLang={chooseLang} go={go} view={route.view} auth={auth} openHelp={()=>setOnboard(true)} savedCount={savedIds.size} regionFilter={regionFilter} setRegionFilter={setRegionFilter} story={story} sectionLabel={route.view==="blindspot"?STR[lang].osTitle:(route.view==="storyline"?ui("developingStories",lang):undefined)} openTopic={goTopic} saved={savedIds} onToggleSave={toggleSave} />
+          {showFloatingSupport && <FloatingSupport t={t} lang={lang} go={go} />}
           <main id="main" className="pb-24 md:pb-10">
             <div className="pk-page" key={route.view+(route.id||route.topic||"")}>
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
@@ -2976,10 +3318,18 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="lens" ? <LensPage t={t} lang={lang} auth={auth} go={go} open={open} />
             : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
             : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
-            : !ready ? <FeedSkeleton t={t} />
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} saved={savedIds} onToggleSave={toggleSave} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <StorySkeleton t={t} />)
-            : route.view==="blindspot" ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} />
-            : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} t={t} lang={lang} goTopic={goTopic} />
+            /* 6.3B.8 — story and blindspot resolve their OWN loading state, each with a
+               shape-matched skeleton, instead of sharing the homepage's FeedSkeleton behind
+               a single `!ready` gate placed before every route branch (the actual mechanism
+               that was putting the homepage's 3-column shape under /blindspot and /story
+               while data was still loading — see the 6.3B.8 architecture audit). story's
+               detail fetch is independent of the catalogue's `ready` flag, so it only needs
+               `story` itself; blindspot's data comes from the same catalogue load as home,
+               so it still gates on `ready`. */
+            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <StorySkeleton t={t} />)
+            : route.view==="blindspot" ? (ready ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} /> : <BlindspotSkeleton t={t} />)
+            : !ready ? (route.view==="home" ? <FeedSkeleton t={t} /> : <PageSkeleton t={t} />)
+            : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} cards={baseCards} t={t} lang={lang} goTopic={goTopic} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} go={go} />
