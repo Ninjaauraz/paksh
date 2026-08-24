@@ -2445,7 +2445,7 @@ function Masthead({
     className: "grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-5"
   }, /*#__PURE__*/React.createElement("div", {
     className: "min-w-0"
-  }, isReading && /*#__PURE__*/React.createElement("div", {
+  }, isReading ? /*#__PURE__*/React.createElement("div", {
     className: "flex min-w-0 items-center gap-3 sm:gap-4"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
@@ -2462,7 +2462,14 @@ function Masthead({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, story ? `${tp} · ${region}` : sectionLabel))), /*#__PURE__*/React.createElement("button", {
+  }, story ? `${tp} · ${region}` : sectionLabel)) : /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center"
+  }, /*#__PURE__*/React.createElement(LangToggle, {
+    t: t,
+    lang: lang,
+    setLang: setLang,
+    dark: false
+  }))), /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
     className: "flex items-baseline justify-center",
     "aria-label": "Paksh home"
@@ -2491,7 +2498,7 @@ function Masthead({
     size: 13
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
-  }), " ", lang === "hi" ? "शेयर" : "Share"))), /*#__PURE__*/React.createElement(LangToggle, {
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), isReading && /*#__PURE__*/React.createElement(LangToggle, {
     t: t,
     lang: lang,
     setLang: setLang,

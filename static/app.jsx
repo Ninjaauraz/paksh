@@ -874,10 +874,14 @@ const {useState,useEffect,useMemo}=React;
           <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-5">
               <div className="min-w-0">
-                {isReading && (
+                {isReading ? (
                   <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                     <button onClick={()=>go("home")} className={`inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> <span className="hidden sm:inline">{STR[lang].back}</span></button>
                     {(story||sectionLabel) && <span className={`hidden sm:inline truncate eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{story?`${tp} · ${region}`:sectionLabel}</span>}
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <LangToggle t={t} lang={lang} setLang={setLang} dark={false} />
                   </div>
                 )}
               </div>
@@ -891,7 +895,7 @@ const {useState,useEffect,useMemo}=React;
                     <button onClick={copy} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
                   </div>
                 )}
-                <LangToggle t={t} lang={lang} setLang={setLang} dark={false} />
+                {isReading && <LangToggle t={t} lang={lang} setLang={setLang} dark={false} />}
                 {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
                 {!isReading && authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
                 {!isReading && authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
