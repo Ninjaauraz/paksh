@@ -238,7 +238,7 @@ def get_events(limit: int = 1500) -> dict:
     )
     now = datetime.utcnow()  # one instant shared across the whole response, so every
                               # event's rank/importance decay is computed consistently
-    return {"events": [_event_summary_row(e, now) for e in rows]}
+    return {"events": [_lighten(_event_summary_row(e, now)) for e in rows]}
 
 
 def get_event(event_id: int) -> dict | None:
@@ -400,7 +400,7 @@ def get_blindspots() -> dict:
                 f"&order=created_at.desc,id.desc", timeout=10.0)
     left_heavier, right_heavier = [], []
     for e in rows:
-        row = _event_summary_row(e)
+        row = _lighten(_event_summary_row(e))
         row["counts"] = row["lean_counts"]
         (left_heavier if e["blindspot_side"] == "right" else right_heavier).append(row)
     return {"events": left_heavier + right_heavier, "left_heavier": left_heavier,
