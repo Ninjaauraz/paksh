@@ -377,9 +377,38 @@ const {useState,useEffect,useMemo}=React;
     const API_BASE = (typeof window!=="undefined" && window.PAKSH_API_BASE)
       || (typeof localStorage!=="undefined" && localStorage.getItem("paksh_api_base"))
       || "";
+    // Paksh perf phase 1: _mode is a memoized Promise, resolved exactly once and reused by
+    // every apiGet() call (no re-probing). The probe itself is bounded to 3s via
+    // AbortController so a slow/sleeping backend can never hold the whole app hostage - a
+    // timeout or any failure falls through to "static" exactly like the old unbounded catch
+    // did. The probe's own /api/topics response body is kept in _topicsProbe and handed to
+    // the FIRST real apiGet("topics") call instead of being fetched a second time - the only
+    // change in observable behaviour is that topics is no longer requested twice.
     let _mode;
-    function detectMode(){ if(!_mode) _mode=(async()=>{ try{ const r=await fetch(API_BASE+"/api/topics"); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return "api"; }catch(e){} return "static"; })(); return _mode; }
-    async function apiGet(res){ if(await detectMode()==="api"){ const r=await fetch(API_BASE+"/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json(); } const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json(); }
+    let _topicsProbe;
+    function detectMode(){
+      if(!_mode) _mode=(async()=>{
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),3000);
+        try{
+          const r=await fetch(API_BASE+"/api/topics",{signal:ctrl.signal});
+          if(r.ok && (r.headers.get("content-type")||"").includes("json")){
+            _topicsProbe=await r.json().catch(()=>undefined);
+            return "api";
+          }
+        }catch(e){}
+        finally{ clearTimeout(timer); }
+        return "static";
+      })();
+      return _mode;
+    }
+    async function apiGet(res){
+      if(await detectMode()==="api"){
+        if(res==="topics" && _topicsProbe!==undefined){ const d=_topicsProbe; _topicsProbe=undefined; return d; }
+        const r=await fetch(API_BASE+"/api/"+res); if(r.ok && (r.headers.get("content-type")||"").includes("json")) return r.json();
+      }
+      const r=await fetch("/data/"+res+".json?t="+Date.now()); if(!r.ok) throw new Error(res); const ct=(r.headers.get("content-type")||""); if(!ct.includes("json")) throw new Error("not-json:"+res); return r.json();
+    }
     async function loadAll(){
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
         // Storylines are derived + secondary — load them best-effort so a failure never blocks the feed.
