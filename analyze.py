@@ -50,6 +50,8 @@ from database import (
     assign_articles_to_event, insert_event,
     get_event, get_event_articles, update_event, get_recent_events_for_merge,
 )
+import sources
+sources._load_verified_registry()   # perf phase 4A: registry is lazy now - see sources.py
 from sources import LEAN_BY_SOURCE, INTERNATIONAL_SOURCES, OWNER_BY_SOURCE
 try:
     from sources import VERIFIED_BY_NAME

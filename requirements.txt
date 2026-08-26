@@ -4,6 +4,9 @@ google-genai>=0.8
 python-dotenv>=1.0
 feedparser>=6.0
 numpy>=1.26
+requests>=2.31       # supabase_content.py's pooled Session (perf phase 4D) -
+                      # already a real transitive dep via google-genai, declared
+                      # directly here since we now import it ourselves too
 # per-story social share cards (og_images.py, called by export_static.py):
 Pillow>=10.0        # draws the 1200x630 card
 fonttools>=4.40     # converts the brand woff2 fonts -> ttf in memory

@@ -4,9 +4,12 @@ content tables (public.events/articles/outlets/storylines/topics).
 
 Deliberately minimal, per the Phase 1 brief's "thinnest safe server layer"
 requirement:
-  * No new dependency - uses stdlib `urllib.request` against Supabase's
+  * No new dependency - uses `requests` (already a real, declared transitive
+    dependency via google-genai in requirements.txt) against Supabase's
     PostgREST REST API (the SAME `/rest/v1/...` surface app.jsx already talks
-    to for accounts, just a different table set).
+    to for accounts, just a different table set). A single shared, pooled
+    Session (perf phase 4D) avoids paying a fresh TCP+TLS handshake on every
+    call - see `_session` below.
   * No service-role key anywhere. Content tables are PUBLIC-READ (RLS policy
     "public read <table>" applied in the paksh_content_schema_v1 migration)
     and have NO write policy for anon/authenticated - verified live: an
@@ -24,8 +27,8 @@ Supabase content mirror.
 """
 import json
 import os
-import urllib.request
 import urllib.parse
+import requests
 from datetime import datetime
 
 # Reused, not reimplemented (Phase 1.5 objective 3): _importance/_feed_rank/_civic_mult
@@ -59,6 +62,17 @@ request_count = 0  # Paksh 2.7: diagnostic-only counter (never read by request-
                     # serving code) - lets tests PROVE a cache hit makes zero
                     # Supabase calls, rather than infer it from timing alone.
 
+# Paksh perf phase 4D: one shared, connection-pooled Session per process instead
+# of a fresh TCP+TLS handshake on every _get()/_count() call - measured ~260-320ms
+# for a cold connection vs ~120ms for a reused one. `requests` is already a real
+# (transitive) dependency here - it's declared by google-genai in requirements.txt
+# - so this adds no new package. Session's pooling goes through urllib3's
+# connection pool, which is thread-safe by design; every call here is a simple
+# stateless GET with no per-call mutation of session state (headers are passed
+# per-request, not set on the session), so sharing one Session across FastAPI's
+# threadpool is safe.
+_session = requests.Session()
+
 
 def _get(path: str, timeout: float = 5.0, max_retries: int = 2):
     """Paksh 2.1: a multi-page pagination fetch (see _get_paginated below) makes
@@ -73,25 +87,28 @@ def _get(path: str, timeout: float = 5.0, max_retries: int = 2):
     -> SQLite fallback is still the backstop if retries are exhausted."""
     import time
     url = SUPABASE_URL + "/rest/v1" + path
-    req = urllib.request.Request(url, headers={
-        "apikey": SUPABASE_ANON_KEY,
-        "Accept": "application/json",
-    })
+    headers = {"apikey": SUPABASE_ANON_KEY, "Accept": "application/json"}
     global request_count
     attempt = 0
     while True:
         attempt += 1
         request_count += 1
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code >= 500 and attempt <= max_retries:
+            resp = _session.get(url, headers=headers, timeout=timeout)
+        except requests.exceptions.RequestException as e:
+            if attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
             raise SupabaseUnavailable(str(e)) from e
-        except Exception as e:
-            if attempt <= max_retries:
+        if resp.status_code >= 400:
+            if resp.status_code >= 500 and attempt <= max_retries:
+                time.sleep(0.3 * attempt)
+                continue
+            raise SupabaseUnavailable(f"HTTP Error {resp.status_code}: {url}")
+        try:
+            return resp.json()
+        except ValueError as e:   # malformed JSON body on an otherwise-200 response -
+            if attempt <= max_retries:   # same fail-safe treatment as any other bad read
                 time.sleep(0.3 * attempt)
                 continue
             raise SupabaseUnavailable(str(e)) from e
@@ -106,29 +123,25 @@ def _count(path: str, timeout: float = 5.0, max_retries: int = 2) -> int:
     import time
     sep = "&" if "?" in path else "?"
     url = SUPABASE_URL + "/rest/v1" + path + f"{sep}limit=0"
-    req = urllib.request.Request(url, headers={
-        "apikey": SUPABASE_ANON_KEY,
-        "Accept": "application/json",
-        "Prefer": "count=exact",
-    })
+    headers = {"apikey": SUPABASE_ANON_KEY, "Accept": "application/json", "Prefer": "count=exact"}
     global request_count
     attempt = 0
     while True:
         attempt += 1
         request_count += 1
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return int(r.headers.get("Content-Range", "*/0").split("/")[-1])
-        except urllib.error.HTTPError as e:
-            if e.code >= 500 and attempt <= max_retries:
-                time.sleep(0.3 * attempt)
-                continue
-            raise SupabaseUnavailable(str(e)) from e
-        except Exception as e:
+            resp = _session.get(url, headers=headers, timeout=timeout)
+        except requests.exceptions.RequestException as e:
             if attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
             raise SupabaseUnavailable(str(e)) from e
+        if resp.status_code >= 400:
+            if resp.status_code >= 500 and attempt <= max_retries:
+                time.sleep(0.3 * attempt)
+                continue
+            raise SupabaseUnavailable(f"HTTP Error {resp.status_code}: {url}")
+        return int(resp.headers.get("Content-Range", "*/0").split("/")[-1])
 
 
 # Paksh 2.1 objective 1: PostgREST's platform default caps any single response at

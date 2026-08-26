@@ -49,10 +49,24 @@ from export_static import feed_row, RECENT_FEED_N
 import supabase_content as sb
 import content_cache
 
-try:
-    from storylines import build_storylines
-except ImportError:
-    build_storylines = None
+# Paksh perf phase 4B: storylines (and the numpy/cluster imports it pulls in)
+# is only needed by the SQLite-fallback storyline routes below, never by the
+# Supabase-mode happy path - deferred so importing main.py doesn't pay for it.
+# Cached after the first attempt (success or failure) so it's a no-op after that.
+_build_storylines_fn = None
+_build_storylines_loaded = False
+
+
+def _get_build_storylines():
+    global _build_storylines_fn, _build_storylines_loaded
+    if not _build_storylines_loaded:
+        try:
+            from storylines import build_storylines as _bs
+        except ImportError:
+            _bs = None
+        _build_storylines_fn = _bs
+        _build_storylines_loaded = True
+    return _build_storylines_fn
 
 CONTENT_BACKEND = os.environ.get("PAKSH_CONTENT_BACKEND", "sqlite").lower()
 
@@ -72,7 +86,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    # Paksh perf phase 4C: Supabase mode never reads SQLite on its happy path, so
+    # don't pay for opening/migrating paksh.db at every boot. database.get_connection()
+    # guarantees init_db() still runs, exactly once, before any real SQLite access -
+    # so if Supabase ever fails and a route falls back to SQLite, the schema is
+    # created on that first fallback read instead of having been skipped entirely.
+    if CONTENT_BACKEND != "supabase":
+        init_db()
     if CONTENT_BACKEND == "supabase":
         # Paksh 2.7: best-effort, non-blocking warm of the two expensive homepage
         # caches, so the first real visitor doesn't pay the cold-build cost. Never
@@ -110,6 +130,7 @@ def events_archive():
     archive = events[RECENT_FEED_N:]
     now = datetime.utcnow()
     story_map = {}
+    build_storylines = _get_build_storylines()
     if build_storylines is not None:
         try:
             _, story_map = build_storylines(events)
@@ -131,6 +152,7 @@ def storyline_detail(storyline_id: str):
             return sl
         except sb.SupabaseUnavailable:
             pass
+    build_storylines = _get_build_storylines()
     if build_storylines is None:
         raise HTTPException(status_code=404, detail="Storyline not found")
     storylines, _ = build_storylines(get_all_events())
@@ -176,6 +198,7 @@ def list_storylines():
             return sb.get_storylines()
         except sb.SupabaseUnavailable:
             pass
+    build_storylines = _get_build_storylines()
     if build_storylines is None:
         return {"storylines": []}
     storylines, _ = build_storylines(get_all_events())

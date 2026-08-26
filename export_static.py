@@ -34,10 +34,11 @@ from database import (
     init_db, get_all_events, get_blindspot_events, get_topics, get_event,
 )
 from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
-try:
-    from storylines import build_storylines
-except Exception:                       # storyline linking is non-fatal: the site builds without it
-    build_storylines = None
+# Paksh perf phase 4B: storylines (and its own numpy/cluster imports) is only
+# ever used by build() below, not by feed_row()/_lighten()/_importance()/
+# _feed_rank()/_civic_mult() - the functions supabase_content.py imports this
+# module for. Deferred into build() itself so importing export_static.py (as
+# the FastAPI/Supabase-mode process does, transitively) never pays for it.
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
@@ -794,6 +795,10 @@ def main():
         # Storylines: stitch separate events into sagas tracked across days (derived only; never
         # touches a bias count). story_map: event_id -> storyline_id; story_by_id: the full thread.
         storylines, story_map, story_by_id = [], {}, {}
+        try:
+            from storylines import build_storylines
+        except Exception:                   # storyline linking is non-fatal: the site builds without it
+            build_storylines = None
         if build_storylines is not None:
             try:
                 storylines, story_map = build_storylines(events)

@@ -15,8 +15,18 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent / "paksh.db"
 LEAN_ORDER = ["left", "center", "right"]
 
+# Paksh perf phase 4C: main.py no longer calls init_db() eagerly at startup when
+# PAKSH_CONTENT_BACKEND=supabase (that mode never reads SQLite on its happy path).
+# This flag guarantees init_db() still runs, exactly once, before any real SQLite
+# access - whether that's the SQLite-mode startup call or the first fallback read
+# after Supabase fails. get_connection() is the one chokepoint every function in
+# this file already goes through, so guarding it here covers every caller without
+# needing a change at each fallback call site in main.py.
+_db_initialized = False
+
 
 def get_connection():
+    global _db_initialized
     # timeout=30: without a busy-timeout, the moment ANOTHER process holds the write lock
     # (reframe/analyze/live all touch paksh.db), the very next commit raises
     # "database is locked" instantly. This makes a would-be writer WAIT up to 30s instead.
@@ -31,6 +41,10 @@ def get_connection():
         conn.execute("PRAGMA synchronous=NORMAL")
     except sqlite3.OperationalError:
         pass
+    if not _db_initialized:
+        _db_initialized = True   # set before calling init_db() - it also calls
+                                  # get_connection(), so this prevents recursion
+        init_db()
     return conn
 
 
@@ -185,6 +199,8 @@ def get_unclustered_articles(limit=3000, per_source=60, rated_first=True):
     Hindi — crowds rated articles out of the window and their events stop forming
     (which is exactly how the English feed went stale while Hindi kept working).
     """
+    import sources
+    sources._load_verified_registry()   # perf phase 4A: registry is lazy now - see sources.py
     from sources import LEAN_BY_SOURCE
     conn = get_connection()
     # ~60% of articles sit unclustered, so ORDER BY fetched_at over that set is the pipeline's

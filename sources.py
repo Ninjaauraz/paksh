@@ -1412,28 +1412,57 @@ for _alias_domain, _alias_name in MANUAL_DOMAIN_ALIASES.items():
 #                   it adds coverage + framing but never moves the India bar.
 # Curated SOURCES ALWAYS win: setdefault() never overrides a hand-curated name or
 # lean, and the generator already skips any domain a curated outlet owns.
-try:
-    from verified_registry import VERIFIED_SOURCES
-except ImportError:                                    # generator not yet run
-    VERIFIED_SOURCES = []
+# Paksh perf phase 4A: loading this file (6,534 rows) and merging it into
+# DOMAIN_TO_SOURCE/LEAN_BY_SOURCE/INTERNATIONAL_SOURCES measured ~211ms at
+# import time - pure waste for the FastAPI/Supabase-mode process, which never
+# calls resolve_source() or coverage_summary(). Deferred to first real use
+# instead. Every consumer of the merged registry now calls
+# _load_verified_registry() before reading these names: resolve_source() and
+# coverage_summary() below, plus database.py (rated/unrated article split),
+# analyze.py (lean_of()/_international_lean()), and audit.py (INTERNATIONAL_
+# SOURCES check) - it's a cheap no-op after the first call (see the guard
+# below). DOMAIN_TO_SOURCE/LEAN_BY_SOURCE/INTERNATIONAL_SOURCES are mutated
+# IN PLACE here (never reassigned), so a reference captured via
+# `from sources import LEAN_BY_SOURCE` before this has run still sees the
+# merge once it happens - only VERIFIED_SOURCES/VERIFIED_BY_NAME/REFERENCE_*
+# (which don't exist in useful form until loaded) need the placeholders below.
+_verified_registry_loaded = False
+VERIFIED_SOURCES = []
+VERIFIED_BY_NAME = {}
+REFERENCE_SOURCE_COUNT = 0
+REFERENCE_VOTING_COUNT = 0
+REFERENCE_INTL_COUNT = 0
 
-_ref_voting = _ref_intl = 0
-for _ref in VERIFIED_SOURCES:
-    DOMAIN_TO_SOURCE.setdefault(_ref["domain"], _ref["name"])
-    if _ref.get("vote"):
-        # India outlet -> voter. setdefault so a curated lean is never overridden.
-        LEAN_BY_SOURCE.setdefault(_ref["name"], _ref["lean"])
-        _ref_voting += 1
-    else:
-        # Foreign outlet -> non-voting international tier (carries lean as metadata).
-        INTERNATIONAL_SOURCES.add(_ref["name"])
-        _ref_intl += 1
 
-REFERENCE_SOURCE_COUNT = len(VERIFIED_SOURCES)
-REFERENCE_VOTING_COUNT = _ref_voting          # India reference outlets that vote
-REFERENCE_INTL_COUNT = _ref_intl              # foreign reference outlets (non-voting)
-# {outlet name -> full verified-registry entry} for lookups (lean/label/country).
-VERIFIED_BY_NAME = {v["name"]: v for v in VERIFIED_SOURCES}
+def _load_verified_registry():
+    global _verified_registry_loaded, VERIFIED_SOURCES, VERIFIED_BY_NAME
+    global REFERENCE_SOURCE_COUNT, REFERENCE_VOTING_COUNT, REFERENCE_INTL_COUNT
+    if _verified_registry_loaded:
+        return
+    try:
+        from verified_registry import VERIFIED_SOURCES as _vs
+    except ImportError:                                    # generator not yet run
+        _vs = []
+
+    _ref_voting = _ref_intl = 0
+    for _ref in _vs:
+        DOMAIN_TO_SOURCE.setdefault(_ref["domain"], _ref["name"])
+        if _ref.get("vote"):
+            # India outlet -> voter. setdefault so a curated lean is never overridden.
+            LEAN_BY_SOURCE.setdefault(_ref["name"], _ref["lean"])
+            _ref_voting += 1
+        else:
+            # Foreign outlet -> non-voting international tier (carries lean as metadata).
+            INTERNATIONAL_SOURCES.add(_ref["name"])
+            _ref_intl += 1
+
+    VERIFIED_SOURCES = _vs
+    REFERENCE_SOURCE_COUNT = len(_vs)             # reference outlets in the registry
+    REFERENCE_VOTING_COUNT = _ref_voting          # India reference outlets that vote
+    REFERENCE_INTL_COUNT = _ref_intl              # foreign reference outlets (non-voting)
+    # {outlet name -> full verified-registry entry} for lookups (lean/label/country).
+    VERIFIED_BY_NAME = {v["name"]: v for v in _vs}
+    _verified_registry_loaded = True
 
 def resolve_source(domain: str):
     """Map an article's domain to a RATED registry outlet, or mark it UNRATED.
@@ -1443,6 +1472,7 @@ def resolve_source(domain: str):
     consistently and its subdomains collapse to one, but it never votes in the
     Left/Centre/Right bias bar.
     """
+    _load_verified_registry()
     d = (domain or "").lower().strip()
     if d.startswith("www."):
         d = d[4:]
@@ -1466,6 +1496,7 @@ def get_source(name: str):
 
 def coverage_summary() -> dict:
     """Quick registry stats - handy for a methodology/transparency page."""
+    _load_verified_registry()
     out = {"total": len(SOURCES), "by_language": {}, "by_lean": {},
            "contested": sum(1 for s in SOURCES if s.get("contested")),
            # curated editorial roster vs. the editor-verified reference registry

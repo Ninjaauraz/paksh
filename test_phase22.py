@@ -21,12 +21,13 @@ let alone written, by this file. This is also OBJECTIVE 2's required dry-run
 verification path: it proves release+delete behaves correctly using synthetic
 data shaped like the real 2459/3523/3521/3287 case, WITHOUT touching those ids.
 
-F/G/H mock urllib.request.urlopen - no real Supabase network calls, so this file
-is safe to run repeatedly with no cost and no chance of touching production data.
+F/G/H mock supabase_content._session.get() (perf phase 4D: the shared requests
+Session that replaced urllib.request.urlopen) - no real Supabase network calls,
+so this file is safe to run repeatedly with no cost and no chance of touching
+production data.
 
 Run:  py test_phase22.py
 """
-import json
 import sys
 import tempfile
 from pathlib import Path
@@ -184,12 +185,16 @@ import supabase_content as sbc
 
 
 def _mock_response(payload, status=200):
-    body = json.dumps(payload).encode("utf-8")
+    # Paksh perf phase 4D: supabase_content._get()/_count() now call the shared
+    # requests.Session (sbc._session) instead of urllib.request.urlopen, so the
+    # mock target moved from urllib.request.urlopen to sbc._session.get - same
+    # test intent (verify pagination/retry logic with zero live Supabase calls),
+    # same assertions, just matching the new HTTP mechanism. A requests response
+    # exposes .status_code and .json(), not urllib's .read()/.status.
     m = mock.MagicMock()
-    m.read.return_value = body
-    m.__enter__.return_value = m
-    m.__exit__.return_value = False
-    m.status = status
+    m.status_code = status
+    m.json.return_value = payload
+    m.headers = {}
     return m
 
 
@@ -198,15 +203,15 @@ def test_pagination_stitches_pages():
     total = 2350
     all_rows = [{"id": i, "created_at": f"2026-01-01T00:00:{i%60:02d}"} for i in range(total, 0, -1)]
 
-    def fake_urlopen(req, timeout=None):
-        qs = req.full_url.split("?", 1)[1]
+    def fake_get(url, headers=None, timeout=None):
+        qs = url.split("?", 1)[1]
         params = dict(p.split("=") for p in qs.split("&") if "=" in p)
         limit = int(params.get("limit", 1000))
         offset = int(params.get("offset", 0))
         page = all_rows[offset:offset + limit]
         return _mock_response(page)
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+    with mock.patch.object(sbc._session, "get", side_effect=fake_get):
         rows = sbc._get_paginated("/events?select=*", total)
     check("F: paginated fetch across 3 pages returns exact total (2350)", len(rows) == total)
     ids = [r["id"] for r in rows]
@@ -216,14 +221,14 @@ def test_pagination_stitches_pages():
 def test_pagination_stops_at_short_page():
     all_rows = [{"id": i} for i in range(500, 0, -1)]  # only 500 rows exist
 
-    def fake_urlopen(req, timeout=None):
-        qs = req.full_url.split("?", 1)[1]
+    def fake_get(url, headers=None, timeout=None):
+        qs = url.split("?", 1)[1]
         params = dict(p.split("=") for p in qs.split("&") if "=" in p)
         limit = int(params.get("limit", 1000))
         offset = int(params.get("offset", 0))
         return _mock_response(all_rows[offset:offset + limit])
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+    with mock.patch.object(sbc._session, "get", side_effect=fake_get):
         rows = sbc._get_paginated("/events?select=*", 20000)  # ask for far more than exists
     check("F: requesting more than available returns all available (500), no error", len(rows) == 500)
 
@@ -236,14 +241,13 @@ def test_ordering_key_present():
 def test_retry_recovers_from_5xx():
     calls = {"n": 0}
 
-    def fake_urlopen(req, timeout=None):
+    def fake_get(url, headers=None, timeout=None):
         calls["n"] += 1
         if calls["n"] < 2:
-            import urllib.error
-            raise urllib.error.HTTPError(req.full_url, 500, "err", {}, None)
+            return _mock_response(None, status=500)
         return _mock_response([{"id": 1}])
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen), \
+    with mock.patch.object(sbc._session, "get", side_effect=fake_get), \
          mock.patch("time.sleep"):
         result = sbc._get("/events?id=eq.1")
     check("H: a transient 500 is retried and eventually succeeds", result == [{"id": 1}])
@@ -253,12 +257,11 @@ def test_retry_recovers_from_5xx():
 def test_retry_gives_up_after_max():
     calls = {"n": 0}
 
-    def fake_urlopen(req, timeout=None):
+    def fake_get(url, headers=None, timeout=None):
         calls["n"] += 1
-        import urllib.error
-        raise urllib.error.HTTPError(req.full_url, 503, "err", {}, None)
+        return _mock_response(None, status=503)
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen), \
+    with mock.patch.object(sbc._session, "get", side_effect=fake_get), \
          mock.patch("time.sleep"):
         try:
             sbc._get("/events?id=eq.1")
@@ -272,12 +275,11 @@ def test_retry_gives_up_after_max():
 def test_4xx_not_retried():
     calls = {"n": 0}
 
-    def fake_urlopen(req, timeout=None):
+    def fake_get(url, headers=None, timeout=None):
         calls["n"] += 1
-        import urllib.error
-        raise urllib.error.HTTPError(req.full_url, 400, "bad request", {}, None)
+        return _mock_response(None, status=400)
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen), \
+    with mock.patch.object(sbc._session, "get", side_effect=fake_get), \
          mock.patch("time.sleep"):
         try:
             sbc._get("/events?id=eq.1")
