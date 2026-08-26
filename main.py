@@ -42,12 +42,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import (
     init_db, get_all_events, get_blindspot_events, get_topics,
-    get_event, count_articles,
+    get_event, count_articles, has_content,
 )
 from sources import SOURCES, coverage_summary
 from export_static import feed_row, RECENT_FEED_N
 import supabase_content as sb
 import content_cache
+import static_fallback
 
 # Paksh perf phase 4B: storylines (and the numpy/cluster imports it pulls in)
 # is only needed by the SQLite-fallback storyline routes below, never by the
@@ -130,12 +131,19 @@ def events_archive():
     archive = events[RECENT_FEED_N:]
     now = datetime.utcnow()
     story_map = {}
-    build_storylines = _get_build_storylines()
-    if build_storylines is not None:
-        try:
-            _, story_map = build_storylines(events)
-        except Exception:
-            pass  # storyline_id annotation is best-effort, never blocks the archive itself
+    # Paksh phase 5.1: only run live clustering against real SQLite rows -
+    # get_all_events() may now return static_fallback's (lightened) shape when
+    # SQLite has no usable content, and that hasn't been verified to interact
+    # correctly with build_storylines(). Skipping it here just means no
+    # storyline_id annotation during that degraded tier - already best-effort,
+    # never blocks the archive itself either way.
+    if has_content():
+        build_storylines = _get_build_storylines()
+        if build_storylines is not None:
+            try:
+                _, story_map = build_storylines(events)
+            except Exception:
+                pass  # storyline_id annotation is best-effort, never blocks the archive itself
     return {"events": [feed_row(e, story_map, now) for e in archive]}
 
 
@@ -152,6 +160,14 @@ def storyline_detail(storyline_id: str):
             return sl
         except sb.SupabaseUnavailable:
             pass
+    if not has_content():
+        # Paksh phase 5.1: same reasoning as list_storylines() above - serve
+        # the pre-built per-storyline file directly, don't run build_storylines()
+        # against static_fallback's event shape.
+        snapshot = static_fallback.get_storyline(storyline_id)
+        if snapshot is not None:
+            return snapshot
+        raise HTTPException(status_code=404, detail="Storyline not found")
     build_storylines = _get_build_storylines()
     if build_storylines is None:
         raise HTTPException(status_code=404, detail="Storyline not found")
@@ -171,6 +187,16 @@ def list_blindspots():
             return data
         except sb.SupabaseUnavailable:
             pass
+    if not has_content():
+        # Paksh phase 5.1: the static snapshot's blindspots.json carries the
+        # richer {events, left_heavier, right_heavier, aggregate} shape (the
+        # SAME field names app.jsx already reads from the Supabase path) -
+        # deliberately used here rather than the narrower SQLite-mode shape
+        # below, so Coverage Gaps stays meaningful during an outage instead
+        # of rendering empty. See the Phase 5.1 report for the reasoning.
+        snapshot = static_fallback.get_blindspots()
+        if snapshot is not None:
+            return snapshot
     return {"events": get_blindspot_events()}
 
 
@@ -198,6 +224,16 @@ def list_storylines():
             return sb.get_storylines()
         except sb.SupabaseUnavailable:
             pass
+    if not has_content():
+        # Paksh phase 5.1: serve the pre-built storylines.json directly rather
+        # than feeding static_fallback's (lightened) events into
+        # build_storylines() - the two haven't been verified to interact
+        # correctly, and the pre-built file already matches this route's
+        # exact output shape (traced field-by-field, see the Phase 5.1 report).
+        snapshot = static_fallback.get_storylines()
+        if snapshot is not None:
+            return snapshot
+        return {"storylines": []}
     build_storylines = _get_build_storylines()
     if build_storylines is None:
         return {"storylines": []}
@@ -255,6 +291,40 @@ def list_sources():
               "rationale", "axes")
     rows = [{k: s.get(k) for k in fields} for s in SOURCES]
     return {"sources": rows, "summary": coverage_summary()}
+
+
+@app.get("/health")
+def health():
+    """Paksh phase 5C/5.1F: liveness/readiness signal, deliberately cheap -
+    never touches the 13k-event dataset. If a 200 response comes back at all,
+    the process is up (that's the process-health signal). In Supabase mode,
+    also reports the full fallback ladder's state:
+      - supabase_reachable: one small count query (supabase_content.is_reachable())
+      - sqlite_fallback_available: phase 5.1 upgrade - now a real content check
+        (database.has_content()), not just DB_PATH.exists(). A freshly-created
+        empty paksh.db (Render's ephemeral-disk case) satisfies .exists() but
+        has zero usable rows - that used to read as "available" when it wasn't.
+      - static_snapshot_available: the committed _site/data/*.json emergency tier
+      - content_tier: which of the three would actually serve a request right
+        now - "supabase" / "sqlite" / "static_snapshot" / "unavailable"."""
+    info = {"status": "ok", "content_backend": CONTENT_BACKEND}
+    if CONTENT_BACKEND == "supabase":
+        supabase_ok = sb.is_reachable()
+        sqlite_ok = has_content()
+        snapshot_ok = static_fallback.is_available()
+        info["supabase_reachable"] = supabase_ok
+        info["sqlite_fallback_available"] = sqlite_ok
+        info["static_snapshot_available"] = snapshot_ok
+        if supabase_ok:
+            info["content_tier"] = "supabase"
+        elif sqlite_ok:
+            info["content_tier"] = "sqlite"
+        elif snapshot_ok:
+            info["content_tier"] = "static_snapshot"
+            info["static_snapshot_built_at"] = static_fallback.snapshot_built_at()
+        else:
+            info["content_tier"] = "unavailable"
+    return info
 
 
 @app.get("/")

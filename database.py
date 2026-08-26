@@ -48,6 +48,20 @@ def get_connection():
     return conn
 
 
+def has_content() -> bool:
+    """Paksh phase 5.1C: cheap, CORRECT check for "does SQLite have real
+    content" - a row-existence probe against the raw events table, not an
+    inference from an empty get_all_events() result. get_all_events() also
+    drops events with fewer than 2 rated outlets, which could legitimately
+    zero out its result for a real-but-early corpus; checking the raw table
+    directly avoids treating that as "SQLite is empty". LIMIT 1 makes this a
+    single-row existence check, not a full-table scan."""
+    conn = get_connection()
+    row = conn.execute("SELECT 1 FROM events LIMIT 1").fetchone()
+    conn.close()
+    return row is not None
+
+
 def init_db():
     """Create tables if missing, and migrate older databases safely."""
     conn = get_connection()
@@ -530,6 +544,15 @@ def _event_summary_row(r):
 
 
 def get_all_events():
+    if not has_content():
+        # Paksh phase 5.1: SQLite has no usable content (e.g. a fresh Render
+        # deploy with no paksh.db - see the Phase 5.1 report). Fall back to
+        # the committed static snapshot rather than silently returning an
+        # empty, apparently-healthy result. Read-only: never writes back into
+        # SQLite, never treated as a new source of truth.
+        import static_fallback
+        snapshot = static_fallback.get_events()
+        return snapshot["events"] if snapshot else []
     conn = get_connection()
     rows = conn.execute("SELECT * FROM events ORDER BY created_at DESC").fetchall()
     conn.close()
@@ -586,6 +609,13 @@ def get_event_ids_updated_since(since_iso: str):
 
 
 def get_event(event_id):
+    if not has_content():
+        # Paksh phase 5.1: only reached when SQLite as a whole has no usable
+        # content - a genuine per-id miss against a POPULATED database still
+        # falls through to `if not r: return None` below (a real 404), not
+        # here. Read-only, never written back into SQLite.
+        import static_fallback
+        return static_fallback.get_event(event_id)
     conn = get_connection()
     r = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
     conn.close()

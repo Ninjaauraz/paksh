@@ -173,8 +173,22 @@ try:
     sb_result = sb.get_storylines()
     sb_keys = set(sb_result["storylines"][0].keys()) if sb_result["storylines"] else expected_keys
     check("E: Supabase storyline row has the SAME key set as SQLite", sb_keys == sql_keys)
-    check("E: SQLite and Supabase storyline COUNTS match (both mirror the same corpus)",
-          len(sql_result["storylines"]) == len(sb_result["storylines"]))
+    # Paksh phase 5E: exact count equality is not a valid invariant here and was
+    # dropped. SQLite's build_storylines() recomputes live from get_all_events()
+    # on every call; Supabase's `storylines` table is a periodic snapshot written
+    # by sync_to_supabase.py (a standalone, manually-invoked script - confirmed by
+    # grepping live.py/refresh.py for any reference to it: none exists). Investigated
+    # directly: of 420 SQLite / 437 Supabase storylines, 398 ids are shared, 22 exist
+    # only in SQLite (ingested since the last sync) and 39 only in Supabase (synced
+    # from an earlier SQLite state, since pruned/merged locally) - genuine structural
+    # drift from two different computation strategies, not a bug and not sync lag
+    # that will ever fully resolve on its own. What's still worth protecting: neither
+    # side should go silently empty or wildly diverge in order of magnitude.
+    check("E: Supabase storylines non-empty (sync hasn't silently gone stale/empty)",
+          len(sb_result["storylines"]) > 0)
+    check("E: SQLite and Supabase storyline counts are the same order of magnitude "
+          "(catches a broken sync, not the expected day-to-day drift)",
+          0.5 <= len(sb_result["storylines"]) / max(1, len(sql_result["storylines"])) <= 2.0)
 except Exception as e:
     print(f"  E: SKIPPED (Supabase unreachable from this environment: {e})")
 

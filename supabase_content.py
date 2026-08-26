@@ -26,6 +26,7 @@ ADDITIVE read path over the (currently partial - see the Phase 1 report)
 Supabase content mirror.
 """
 import json
+import logging
 import os
 import urllib.parse
 import requests
@@ -61,6 +62,29 @@ class SupabaseUnavailable(Exception):
 request_count = 0  # Paksh 2.7: diagnostic-only counter (never read by request-
                     # serving code) - lets tests PROVE a cache hit makes zero
                     # Supabase calls, rather than infer it from timing alone.
+
+# Paksh phase 5D (observability): every route in main.py already catches
+# SupabaseUnavailable and silently falls back to SQLite - correct, but until
+# now that transition was invisible in production logs. _note_supabase_result()
+# logs ONLY the NORMAL<->DEGRADED edge, never on every request (an outage would
+# otherwise spam the log once per request for as long as it lasts). Uses
+# logging.warning() for BOTH directions, not just the failure: nothing in this
+# codebase configures a logging handler, and Python's logging module only writes
+# WARNING-and-above to stderr by default (verified empirically) - INFO here
+# would be silently dropped in production, not just quieter.
+logger = logging.getLogger("paksh.supabase")
+_supabase_ok = True  # assume healthy at import time so the first real check
+                      # doesn't log a spurious "recovered" transition
+
+
+def _note_supabase_result(ok: bool, detail: str = ""):
+    global _supabase_ok
+    if ok and not _supabase_ok:
+        logger.warning("Supabase reachable again - resuming Supabase-backed responses")
+        _supabase_ok = True
+    elif not ok and _supabase_ok:
+        logger.warning("Supabase unavailable (%s) - falling back to SQLite", detail)
+        _supabase_ok = False
 
 # Paksh perf phase 4D: one shared, connection-pooled Session per process instead
 # of a fresh TCP+TLS handshake on every _get()/_count() call - measured ~260-320ms
@@ -99,19 +123,24 @@ def _get(path: str, timeout: float = 5.0, max_retries: int = 2):
             if attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
+            _note_supabase_result(False, str(e))
             raise SupabaseUnavailable(str(e)) from e
         if resp.status_code >= 400:
             if resp.status_code >= 500 and attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
+            _note_supabase_result(False, f"HTTP {resp.status_code}")
             raise SupabaseUnavailable(f"HTTP Error {resp.status_code}: {url}")
         try:
-            return resp.json()
+            result = resp.json()
         except ValueError as e:   # malformed JSON body on an otherwise-200 response -
             if attempt <= max_retries:   # same fail-safe treatment as any other bad read
                 time.sleep(0.3 * attempt)
                 continue
+            _note_supabase_result(False, str(e))
             raise SupabaseUnavailable(str(e)) from e
+        _note_supabase_result(True)
+        return result
 
 
 def _count(path: str, timeout: float = 5.0, max_retries: int = 2) -> int:
@@ -135,12 +164,15 @@ def _count(path: str, timeout: float = 5.0, max_retries: int = 2) -> int:
             if attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
+            _note_supabase_result(False, str(e))
             raise SupabaseUnavailable(str(e)) from e
         if resp.status_code >= 400:
             if resp.status_code >= 500 and attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
+            _note_supabase_result(False, f"HTTP {resp.status_code}")
             raise SupabaseUnavailable(f"HTTP Error {resp.status_code}: {url}")
+        _note_supabase_result(True)
         return int(resp.headers.get("Content-Range", "*/0").split("/")[-1])
 
 
@@ -354,6 +386,19 @@ def get_sources() -> dict:
     for s in sources:
         by_lean[s["lean"]] = by_lean.get(s["lean"], 0) + 1
     return {"sources": sources, "summary": {"total": len(sources), "by_lean": by_lean}}
+
+
+def is_reachable() -> bool:
+    """Paksh phase 5C: cheap reachability probe for /health - a single
+    count=exact&limit=0 query against the smallest content table (topics,
+    ~10 rows), so it costs one connection-reused round trip and transfers
+    zero content rows. Never raises: SupabaseUnavailable means unreachable,
+    anything else propagates as a genuine bug rather than a false 'down'."""
+    try:
+        _count("/topics")
+        return True
+    except SupabaseUnavailable:
+        return False
 
 
 def get_stats() -> dict:

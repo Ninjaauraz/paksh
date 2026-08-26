@@ -157,13 +157,24 @@ try:
     created = [e["created_at"] for e in r1["events"]]
     check("ordering: created_at remains non-increasing (DESC)",
           all(created[i] >= created[i + 1] for i in range(len(created) - 1)))
-    expected_keys = {"id", "title", "summary", "summary_points", "title_hi", "summary_hi",
-                      "summary_points_hi", "topic", "region", "lang", "image_url", "is_demo",
+    # Paksh phase 5E: this assertion predates Phase 2's payload trim and still
+    # asserted the OLD, pre-_lighten() field set (summary_points/summary_points_hi
+    # included) - stale, not a real regression, since get_events() now intentionally
+    # applies _lighten() (see supabase_content.get_events()). Updated to the CURRENT
+    # intended contract: the field set Phase 2 shipped and phase 4's production
+    # deploy verified live (summary_points/summary_points_hi absent, summary/
+    # summary_hi truncated to a snippet). The test's real purpose - proving caching
+    # itself never silently alters the row shape - is unchanged and still enforced.
+    expected_keys = {"id", "title", "summary", "title_hi", "summary_hi",
+                      "topic", "region", "lang", "image_url", "is_demo",
                       "source_count", "summary_method", "lean_counts", "international",
                       "dominant", "blindspot", "created_at", "published_at", "storyline_id",
                       "importance", "feed_rank"}
     check("SUCCESS CRITERION F: cached event row has the same field set as before caching",
           set(r1["events"][0].keys()) == expected_keys)
+    check("SUCCESS CRITERION G: summary_points/summary_points_hi do not silently "
+          "return (Phase 2 contract)",
+          "summary_points" not in r1["events"][0] and "summary_points_hi" not in r1["events"][0])
 except sb.SupabaseUnavailable as e:
     print(f"  SKIPPED (Supabase unreachable from this environment: {e})")
 
