@@ -18,13 +18,20 @@ const {useState,useEffect,useMemo}=React;
     const Grid = (p) => <svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
 
     /* ---------------- config ---------------- */
-    // Each side carries a COLOUR (mid-tone hex, for dots/badges) and a TEXTURE class
-    // (seg-*, defined in styles.css with an oklch value + hex fallback). All three
-    // sit at equal lightness; only hue + texture separate them, so no side reads louder.
+    // Each side carries a COLOUR (mid-tone hex, used everywhere - dots, badges, BiasPill).
+    // `tex` (a seg-* class name) is now unread data - the textured hatch/rule instrument it
+    // fed (BiasSegments/GapColumns/GapRateColumns/BriefBar) was confirmed dead code and
+    // removed in Paksh 7; left as-is rather than pruned, since it's inert and harmless.
+    // Paksh 7: left/center/right now match BiasPill's PILL_COLOR values exactly (was a
+    // second, slightly different triad - #4A6E80/#7E7768/#96603F). BiasPill is what a
+    // reader sees most often (every card, every day); every other lean-coloured element
+    // in the product (StoryPage tabs, SourcesPage legend/headers, the Method page) now
+    // reads the same "left" as the card grammar does, rather than a visibly different
+    // blue. PILL_COLOR itself is retired below - BiasPill reads BIAS[k].color directly.
     const BIAS = {
-      left:   { color:"#4A6E80", tex:"seg-left",   soft:"#E3E8EA", en:"Left",   hi:"वाम" },
-      center: { color:"#7E7768", tex:"seg-center", soft:"#ECE9E1", en:"Centre", hi:"केंद्र" },
-      right:  { color:"#96603F", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
+      left:   { color:"#587A91", tex:"seg-left",   soft:"#E3E8EA", en:"Left",   hi:"वाम" },
+      center: { color:"#6F6B61", tex:"seg-center", soft:"#ECE9E1", en:"Centre", hi:"केंद्र" },
+      right:  { color:"#A46149", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
       international: { color:"#5E7E78", tex:"", soft:"#E3EAE8", en:"International", hi:"अंतरराष्ट्रीय" },
     };
     // Editorial tonality axes (0-100), set per PUBLISHER by editors in sources.py -
@@ -540,98 +547,34 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- bias bars ---------------- */
-    // The signature instrument. Segment sizes come STRAIGHT from live counts
-    // (flexGrow = bias%, itself computed from the distinct-outlet L/C/R totals) — never
-    // hardcoded. Each side is textured (solid / 45deg hatch / vertical rule), separated by
-    // a 1px paper gap, inside a hairline ink frame, with a fixed centre axis so skew is
-    // judged against a constant. min-width 2px keeps a lone outlet visible. No animation.
-    function BiasSegments({ bias, t, h, onPick, active, lang }) {
-      const present=["left","center","right"].filter(k=>(bias[k]||0)>0);
-      return (
-        <div className="relative flex w-full" style={{height:h,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}>
-          {present.map((k,i)=>(
-            <React.Fragment key={k}>
-              {i>0 && <div style={{flex:"0 0 1px",background:t.gap||"#F4F1EA"}}/>}
-              {onPick
-                ? <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onPick(k);}} aria-label={lbl(k,lang||"en")}
-                    className={`${BIAS[k].tex} pk-seg cursor-pointer hover:brightness-110 ${active&&active!==k?"opacity-40":""}`}
-                    style={{flexGrow:bias[k],flexBasis:0,minWidth:2,border:0,padding:0}}/>
-                : <div className={`${BIAS[k].tex} pk-seg`} style={{flexGrow:bias[k],flexBasis:0,minWidth:2}}/>}
-            </React.Fragment>
-          ))}
-          <div style={{position:"absolute",left:"50%",top:-3,bottom:-3,width:1,background:t.ink}}/>
-        </div>
-      );
-    }
-    function MiniBar({ bias, t }) { return <BiasSegments bias={bias} t={t} h={10} />; }
+    // Paksh 7: BiasSegments/MiniBar (the textured hatch/rule instrument) and their sole
+    // callers (SecondaryStory, AlsoLeadingItem, WidestAgreement, DenseRow, BriefItem) were
+    // removed as confirmed dead code - traced every call site and found each one only ever
+    // reachable from another component that is itself never mounted from any live route.
     // BiasPill (6.3B.6) — the homepage's one bias grammar: a single rounded pill, three flat
     // solid segments (no hatch, no gradient, no border between them) proportional to the real
     // L/C/R counts, then "L n C n R n" beneath - no "n =", no percentages, no "sources". Used
-    // by every homepage article (LeadStory, SectionCard, FeedRow, BriefRow) in place of
-    // BiasSegments/MiniBar + countLine()/covLine() text. BiasSegments/MiniBar themselves are
-    // untouched - StoryPage and other views still use them exactly as before.
-    const PILL_COLOR={left:"#587A91",center:"#6F6B61",right:"#A46149"};
+    // by every card in the product (LeadStory, SectionCard, FeedRow, BriefRow, GridCard) -
+    // the textured BiasSegments/MiniBar instrument it replaced is gone (see above).
+    // Paksh 7: reads BIAS[k].color directly - the formerly-separate PILL_COLOR triad is
+    // retired now that BIAS itself carries the same values (see the BIAS definition above).
     function BiasPill({ counts, t, lang, h, className }) {
       const L=counts.left||0,C=counts.center||0,R=counts.right||0;
       return (
         <div className={className||""}>
           <div className="flex w-full overflow-hidden" style={{height:h||8,borderRadius:999,background:t.line}}>
-            {L>0 && <div style={{flexGrow:L,flexBasis:0,background:PILL_COLOR.left}}/>}
-            {C>0 && <div style={{flexGrow:C,flexBasis:0,background:PILL_COLOR.center}}/>}
-            {R>0 && <div style={{flexGrow:R,flexBasis:0,background:PILL_COLOR.right}}/>}
+            {L>0 && <div style={{flexGrow:L,flexBasis:0,background:BIAS.left.color}}/>}
+            {C>0 && <div style={{flexGrow:C,flexBasis:0,background:BIAS.center.color}}/>}
+            {R>0 && <div style={{flexGrow:R,flexBasis:0,background:BIAS.right.color}}/>}
           </div>
           <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{(lang==="hi"?"वा":"L")} {L} {(lang==="hi"?"कें":"C")} {C} {(lang==="hi"?"द":"R")} {R}</div>
         </div>
       );
     }
-    // Larger bar. Pass `counts` (real L/C/R outlet counts) to print the label row + n above,
-    // exactly like the design's story-page instrument.
-    function BiasBar({ bias, t, lang, onPick, active, height, counts, showN, showScale }) {
-      const h=height||26;
-      const total=counts?["left","center","right"].reduce((s,k)=>s+(counts[k]||0),0):0;
-      return (
-        <div>
-          {counts && (
-            <div className="mb-2 flex items-baseline justify-between gap-3">
-              <div className={`flex flex-wrap gap-x-4 gap-y-1 text-[10.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>
-                {["left","center","right"].map(k=>(counts[k]||0)>0 && <span key={k}>{lbl(k,lang)} <span className="mono" style={{letterSpacing:0}}>{counts[k]}</span></span>)}
-              </div>
-              {showN!==false && total>0 && <span className={`mono text-[10.5px] ${t.tf}`}>n = {total}</span>}
-            </div>
-          )}
-          <BiasSegments bias={bias} t={t} h={h} onPick={onPick} active={active} lang={lang} />
-          {showScale && (
-            <div className="relative" style={{height:14,marginTop:3}}>
-              {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,width:1,height:p===50?6:4,background:p===50?t.ink:t.line}}/>)}
-              <span className={`mono text-[9px] ${t.tf}`} style={{position:"absolute",left:"50%",top:6,transform:"translateX(-50%)",whiteSpace:"nowrap"}}>{lang==="hi"?"कवरेज का 50%":"50% of coverage"}</span>
-            </div>
-          )}
-        </div>
-      );
-    }
-    // Coverage-gap viz: three EQUAL-WIDTH columns, bar height proportional to that side's
-    // count, an absent side drawn as the dashed hatch — so absence takes as much room as
-    // presence. Driven only by the same L/C/R distinct-outlet counts as the bias bar.
-    function GapColumns({ counts, t, lang }) {
-      const ks=["left","center","right"];
-      const mx=Math.max(1,...ks.map(k=>counts[k]||0));
-      return (
-        <div className="grid grid-cols-3 gap-1.5">
-          {ks.map(k=>{ const n=counts[k]||0; const pct=Math.round(n/mx*100);
-            return (
-              <div key={k}>
-                <div className="flex items-end" style={{height:34,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}>
-                  {n>0 ? <div className={`w-full ${BIAS[k].tex}`} style={{height:`${Math.max(8,pct)}%`}}/>
-                       : <div className="seg-absent w-full h-full"/>}
-                </div>
-                <div className={`mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</div>
-                <div className="mono text-[10.5px]" style={{color:n>0?t.ink:"#75442E"}}>{n}</div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
+    // Paksh 7: BiasBar and GapColumns removed as confirmed dead code (§A of the Phase 7
+    // blueprint corrected the prior research here - both were only ever reachable through
+    // SecondaryStory/BlindspotCard, which are themselves never mounted from any live route;
+    // the CSS's own retirement comment for BiasSegments/GapColumns was accurate, not stale).
     const LeanBadge=({ side, lang, t })=> side==="unrated"
       ? <span className={`shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${t.chip} ${t.tf}`}>{lang==="hi"?"अनरेटेड":"Unrated"}</span>
       : <span className="shrink-0 rounded mono px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white" style={{backgroundColor:BIAS[side].color}}>{lbl(side,lang)}</span>;
@@ -712,8 +655,14 @@ const {useState,useEffect,useMemo}=React;
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
           {/* the lead photo lives inside the lead-story composition itself, not as a
               standalone masthead-adjacent banner - same Thumb component every other
-              card uses, editorial 16:9 crop, bounded by the main well's own column. */}
-          {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} className="mb-5" />}
+              card uses, editorial 16:9 crop, bounded by the main well's own column.
+              Paksh 7: when there is no real photo, the Lead tier (and only the Lead
+              tier - see toSearchCard/other cards, which stay on story.img alone) falls
+              back to the generated topic-hued gradient (story.image, from imgFor/hueOf
+              in toCard()) rather than the plain muted-label placeholder every other
+              tier still uses - a photo-less lead would otherwise be the single most
+              visually costly empty slot on the homepage. */}
+          <Thumb src={story.img||story.image} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} className="mb-5" />
           <div className={`eyebrow accent-clay ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज सबसे ज़्यादा कवरेज":"Most covered today"}{tp?` · ${tp}`:""}</div>
           <h2 className={`headline pk-rise mt-3 text-[36px] sm:text-[44px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`} style={{lineHeight:lang==="hi"?1.12:1.04,letterSpacing:lang==="hi"?0:"-0.024em",textWrap:"balance"}}>{story.headline}</h2>
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
@@ -728,60 +677,9 @@ const {useState,useEffect,useMemo}=React;
         </a>
       );
     }
-    // SECONDARY — the middle tier: a real headline + a taste of the lead + a compact bias bar.
-    function SecondaryStory({ story, t, lang, onOpen }) {
-      return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer border-b py-5 ${t.border}`}>
-          <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
-          <h3 className={`headline mt-1.5 text-[20px] sm:text-[21px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
-          {story.lead && <p className={`mt-2 text-[14px] leading-[1.55] lc-2 ${t.ts} ${readCls(lang)}`}>{story.lead}</p>}
-          <div className="mt-3"><BiasBar bias={story.bias} t={t} lang={lang} height={11} /></div>
-          <div className="mt-1.5 flex items-center justify-between gap-3">
-            <span className={`mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{countLine(story,lang)}</span>
-            <CardClip story={story} t={t} lang={lang} />
-          </div>
-        </a>
-      );
-    }
-    // DENSE — the tail: a compact headline row with a mini bias bar. High information density.
-    function DenseRow({ story, t, lang, onOpen, last }) {
-      return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer ${last?"":"border-b"} py-3.5 ${t.border}`}>
-          <h4 className={`headline text-[16px] sm:text-[17.5px] leading-[1.24] lc-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h4>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="w-24 sm:w-28 shrink-0"><MiniBar bias={story.bias} t={t} /></div>
-            <span className={`mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>{countLine(story,lang)}</span>
-          </div>
-        </a>
-      );
-    }
-    // SPECTRUM RAIL — an aggregate of the visible feed: total distinct-outlet coverage by
-    // side. Pure arithmetic over the same per-lean counts; never a hardcoded ratio.
-    // SPECTRUM RAIL — an aggregate of the visible feed: each side's SHARE of total
-    // distinct-outlet coverage today. Pure arithmetic over the same per-lean counts as
-    // the bias bars; never a hardcoded ratio. Rail-style (no card) per design 2a.
-    function SpectrumRail({ cards, t, lang }) {
-      const agg={left:0,center:0,right:0};
-      cards.forEach(c=>{ const k=c.counts||{}; agg.left+=k.left||0; agg.center+=k.center||0; agg.right+=k.right||0; });
-      const sum=Math.max(1,agg.left+agg.center+agg.right);
-      return (
-        <div>
-          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"आज का स्पेक्ट्रम":"The spectrum today"}</div>
-          <div className="mt-3.5 flex flex-col gap-2.5">
-            {["left","center","right"].map(k=>(
-              <div key={k}>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className={`text-[10px] font-medium uppercase tracking-[0.1em] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span>
-                  <span className="mono text-[11px]" style={{color:t.ink}}>{agg[k]}</span>
-                </div>
-                <div style={{height:7,background:t.track||"#E1DCCE",border:`1px solid ${t.line}`}}><div className={BIAS[k].tex} style={{width:`${Math.round(agg[k]/sum*100)}%`,height:"100%"}}/></div>
-              </div>
-            ))}
-          </div>
-          <div className={`mt-2.5 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"आज प्रति पक्ष ख़बरें":"Stories run per side, today"}</div>
-        </div>
-      );
-    }
+    // Paksh 7: SecondaryStory, DenseRow, and SpectrumRail removed as confirmed dead code -
+    // none had a live call site (SecondaryStory/DenseRow) or any call site at all
+    // (SpectrumRail) anywhere reachable from the routed app.
     function FeedRow({ story, t, lang, onOpen }) {
       // 6.3B.6: BiasPill instead of MiniBar (hatch-textured) + inline L/C/R text - covLine()
       // stays untouched since GridCard on StoryPage also uses it and isn't in scope yet.
@@ -797,31 +695,12 @@ const {useState,useEffect,useMemo}=React;
         </a>
       );
     }
-    function BriefItem({ story, t, lang, onOpen, last }) {
-      return (
-        <button onClick={()=>onOpen(story.id)} className={`block w-full text-left ${last?"":"border-b"} py-3 ${t.border}`}>
-          <h4 className={`headline text-[15px] font-semibold leading-[1.2] lc-2 ${t.tp} ${readCls(lang)} hover:underline decoration-1 underline-offset-2`}>{story.headline}</h4>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="w-16"><MiniBar bias={story.bias} t={t} /></div>
-            <span className={`mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{covLine(story,lang)}</span>
-          </div>
-        </button>
-      );
-    }
-    function BlindspotCard({ story, t, lang, onOpen }) {
-      const c=story.counts||{left:0,center:0,right:0}; const L=c.left||0, C=c.center||0, R=c.right||0;
-      const covered = lang==="hi" ? `${L} वाम · ${C} केंद्र · ${R} दक्षिण` : `${L} Left · ${C} Centre · ${R} Right`;
-      return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer border ${t.surface} ${t.border}`} style={{borderLeft:"3px solid #8D5B44"}}>
-          <div className="p-4">
-            <div className={`mono text-[10px] font-medium uppercase tracking-[0.14em] ${t.blind} ${lang==="hi"?"deva":""}`}>{STR[lang].navOS}</div>
-            <h3 className={`headline mt-2 text-[17px] leading-[1.24] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`}>{story.headline}</h3>
-            <div className="mt-3"><GapColumns counts={c} t={t} lang={lang} /></div>
-            <div className={`mt-2.5 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].gapCovered} {covered}</div>
-          </div>
-        </a>
-      );
-    }
+    // Paksh 7: BriefItem and BlindspotCard removed as confirmed dead code - neither had a
+    // live call site anywhere reachable from the routed app (see styles.css's own retirement
+    // comment for BiasSegments/GapColumns, confirmed accurate). BriefRow (below, unrelated
+    // despite the similar name) remains the live compact-row component; the stand-alone
+    // blindspot treatment BlindspotCard offered is not currently replicated anywhere -
+    // flagged as an open item in the Phase 7 report rather than guessed at here.
     // 6.3B.8: BiasPill instead of MiniBar (hatch) + covLine's "58% Centre · 9 sources" text -
     // same bias grammar as SectionCard/FeedRow/BriefRow, no legacy percentage anywhere on the
     // three surfaces that reuse this card (StoryPage related stories, TopicPage, SearchPage).
@@ -832,7 +711,10 @@ const {useState,useEffect,useMemo}=React;
           {story.img && <Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} />}
           <div className="p-4">
             <Eyebrow topic={story.topic} created_at={story.created_at} blindspot={story.blindspot} storyline={story.storyline_id} t={t} lang={lang} />
-            <h3 className={`headline mt-1.5 text-[17px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)}`}>{story.headline}</h3>
+            {/* Paksh 7: adopts pk-text-headline (18px/1.24) - was text-[17px] leading-[1.2],
+                a 1px consolidation with SectionCard below, per the type scale's own
+                documented intent ("card/grid headline (GridCard, SectionCard)"). */}
+            <h3 className={`headline pk-text-headline mt-1.5 lc-3 ${t.tp} ${readCls(lang)}`}>{story.headline}</h3>
             <div className="mt-3 flex items-end justify-between gap-3">
               <BiasPill counts={c} t={t} lang={lang} h={8} className="flex-1" />
               <CardClip story={story} t={t} lang={lang} />
@@ -843,23 +725,12 @@ const {useState,useEffect,useMemo}=React;
     }
 
     /* ---------------- shell ---------------- */
-    function RegionSelect({ region, setRegion, t, lang }) {
-      const states = ["Maharashtra", "Uttar Pradesh", "Karnataka", "Tamil Nadu", "Delhi", "Gujarat", "West Bengal"];
-      return (
-        <div className="relative shrink-0">
-          <select value={region} onChange={e=>setRegion(e.target.value)} className={`appearance-none rounded-full border px-3 py-1 pl-3 pr-7 text-[12.5px] font-medium ${t.border} ${t.ts} hover:${t.soft} bg-transparent outline-none cursor-pointer ${lang==="hi"?"deva":""} transition-all duration-200`}>
-            <option value="National">{ui("National", lang)}</option>
-            <option value="International">{ui("International", lang)}</option>
-            <optgroup label={lang==="hi"?"राज्य (जल्द आ रहे हैं)":"States (Pending)"}>
-              {states.map(s=><option key={s} value={s} disabled>{s}</option>)}
-            </optgroup>
-          </select>
-          <div className={`pointer-events-none absolute inset-y-0 right-2 flex items-center ${t.tf}`}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          </div>
-        </div>
-      );
-    }
+    // Paksh 7: RegionSelect removed as confirmed dead code - never mounted from any live
+    // route. It was a redundant, unmounted duplicate of the National/International toggle
+    // already live in Masthead (below) - its seven-state dropdown was permanently disabled
+    // (no backing state-level data exists anywhere in the pipeline, see database.py's event
+    // `region` field, which is strictly binary India/World). Do not revive this shell for a
+    // future state-level selector; build one fresh once real state data exists.
 
     // UtilityStrip (dark-mode toggle rail) retired 6.3B.10 - already unreachable from any
     // live route since the toggle was pulled from Header back in 6.3B.4.
@@ -1073,20 +944,8 @@ const {useState,useEffect,useMemo}=React;
     function GridGrid({ items, render, t, lang, cols, gap }) {
       return <div className={`grid ${gap||"gap-5"} ${cols||"sm:grid-cols-2 lg:grid-cols-3"}`}>{items.map((it,i)=>render(it,i))}</div>;
     }
-    // SECOND tier — the "Also leading" rail: 22px headline, a taste of the lead, a 12px
-    // bias bar, mono counts. Data-driven like everything else.
-    function AlsoLeadingItem({ story, t, lang, onOpen, last }) {
-      const c=story.counts||{left:0,center:0,right:0};
-      const L=c.left||0,C=c.center||0,R=c.right||0,n=L+C+R;
-      return (
-        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className={`block no-underline group cursor-pointer py-4 ${last?"":"border-b"} ${t.border}`}>
-          <h3 className={`headline text-[20px] sm:text-[22px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.34:1.24,letterSpacing:lang==="hi"?0:"-0.01em",textWrap:"pretty"}}>{story.headline}</h3>
-          {story.lead && <p className={`mt-2 text-[13.5px] lc-2 ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{story.lead}</p>}
-          <div className="mt-3"><BiasSegments bias={story.bias} t={t} h={12} lang={lang} /></div>
-          <div className={`mt-2 mono text-[10.5px] ${t.tf}`}>{L} · {C} · {R} &nbsp;<span style={{color:t.ink,opacity:.55}}>n = {n}</span></div>
-        </a>
-      );
-    }
+    // Paksh 7: AlsoLeadingItem removed as confirmed dead code - no live call site, and its
+    // BiasSegments (textured hatch) instrument was already superseded sitewide by BiasPill.
     // SECTION tier — 4-up band: kicker + 19px headline + 10px bar + mono counts.
     function SectionCard({ story, t, lang, onOpen }) {
       const c=story.counts||{left:0,center:0,right:0};
@@ -1095,7 +954,9 @@ const {useState,useEffect,useMemo}=React;
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }} className="block no-underline group cursor-pointer">
           {story.img && <div className="mb-3 overflow-hidden"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="16 / 9" t={t} lang={lang} /></div>}
           <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp||"News"}</div>
-          <h3 className={`headline mt-2 text-[18px] sm:text-[19px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.28,textWrap:"pretty"}}>{story.headline}</h3>
+          {/* Paksh 7: adopts pk-text-headline (18px/1.24) - was text-[18px] sm:text-[19px]
+              with a 1.28 line-height; consolidates with GridCard's identical headline tier. */}
+          <h3 className={`headline pk-text-headline mt-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{textWrap:"pretty"}}>{story.headline}</h3>
           {/* 6.3B.6: one rounded BiasPill + "L n C n R n" - same grammar as LeadStory. */}
           <div className="mt-3 flex items-end justify-between gap-3">
             <BiasPill counts={c} t={t} lang={lang} h={8} className="flex-1" />
@@ -1104,24 +965,42 @@ const {useState,useEffect,useMemo}=React;
         </a>
       );
     }
-    // BRIEF tier bar — 6px, FLAT fills (hatch would moiré this small), no centre axis; the
-    // printed count carries the exact reading. Under 3 outlets: the hatched "too thin" state.
-    function BriefBar({ bias, counts, t }) {
-      const L=(counts.left||0),C=(counts.center||0),R=(counts.right||0),n=L+C+R;
-      if(n<3) return <div style={{height:6,border:`1px dashed ${t.tf}`,background:"repeating-linear-gradient(45deg,#EAE6DB 0 3px,#E1DCCE 3px 6px)"}}/>;
-      const clsOf={left:"seg-left",center:"seg-center-tight",right:"seg-right-flat"};
-      const present=["left","center","right"].filter(k=>(bias[k]||0)>0);
+    // MAJOR — Paksh 7 blueprint §C: a fourth register between Lead and the 2x2 Standard
+    // grid. Importance is expressed by BREAKING the surrounding grid to run full-width
+    // (image beside the headline, not above it, plus a one-line dek) rather than by any
+    // new colour or background field - per the brief's own "importance should have a
+    // visual language... but do not overuse emphasis" instruction, and the blueprint's
+    // explicit rule that the grid interruption itself is the signal, not a tint.
+    //
+    // Paksh 7A: mounted in HomeView as the #2-ranked story (next in `cards`' own existing
+    // rank order after Lead takes #1) - the SAME arithmetic ranking (distinct-outlet
+    // breadth, recency-decayed) that already assigns Lead/Section/Brief/Strip, just
+    // extended one more tier. No new selection rule invented: HomeView's own comment
+    // already states "the rest fall into the tier ladder in ranked order," so Major is
+    // that ladder's next rung, not a guessed editorial pick.
+    function MajorStory({ story, t, lang, onOpen }) {
+      const c=story.counts||{left:0,center:0,right:0};
+      const tp=lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic;
       return (
-        <div className="relative flex" style={{height:6,border:`1px solid ${t.ink}`,background:t.track||"#EAE6DB"}}>
-          {present.map((k,i)=>(
-            <React.Fragment key={k}>
-              {i>0 && <div style={{flex:"0 0 1px",background:t.gap||"#F4F1EA"}}/>}
-              <div className={clsOf[k]} style={{flexGrow:bias[k],flexBasis:0,minWidth:2}}/>
-            </React.Fragment>
-          ))}
-        </div>
+        <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }}
+           className="block no-underline group cursor-pointer" style={{borderTop:`2px solid ${t.ink}`,paddingTop:20,marginTop:28,marginBottom:28}}>
+          <div className="flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-7">
+            {story.img && <div className="sm:w-[42%] shrink-0"><Thumb src={story.img} topic={story.topic} title={story.headline} ratio="7 / 4" t={t} lang={lang} /></div>}
+            <div className="min-w-0 flex-1">
+              <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp||"News"}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</div>
+              <h3 className={`headline pk-text-headline mt-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{fontSize:"22px",lineHeight:1.22,textWrap:"balance"}}>{story.headline}</h3>
+              {story.lead && <p className={`mt-2 text-[14.5px] lc-2 ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.55,textWrap:"pretty"}}>{story.lead}</p>}
+              <div className="mt-3.5 flex items-end justify-between gap-3">
+                <BiasPill counts={c} t={t} lang={lang} h={8} className="w-40" />
+                <CardClip story={story} t={t} lang={lang} />
+              </div>
+            </div>
+          </div>
+        </a>
       );
     }
+    // Paksh 7: BriefBar removed as confirmed dead code - BriefRow's own comment below
+    // already documented that it replaced BriefBar with BiasPill; no call site remained.
     // BRIEF tier row — 15px, no summary; a 64px mini-bar to the left with the printed count.
     function BriefRow({ story, t, lang, onOpen, first }) {
       // 6.3B.6: BiasPill at compact scale instead of BriefBar (hatch) + bare "4·8·2" counts -
@@ -1131,7 +1010,10 @@ const {useState,useEffect,useMemo}=React;
         <a href={"/story/"+encodeURIComponent(story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(story.id); }}
            className={`flex items-baseline gap-3 no-underline group cursor-pointer ${first?"":"border-t pt-2.5 mt-2.5"} ${t.border}`} style={{breakInside:"avoid",WebkitColumnBreakInside:"avoid"}}>
           <div className="shrink-0" style={{width:64}}><BiasPill counts={c} t={t} lang={lang} h={5} /></div>
-          <h4 className={`text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.6:1.42,textWrap:"pretty"}}>{story.headline}</h4>
+          {/* Paksh 7: adopts pk-text-subhead (15px) - already this exact size; the class's own
+              line-height is overridden by the language-dependent inline value below either
+              way, so this is a pure, zero-visual-change consolidation. */}
+          <h4 className={`pk-text-subhead ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.6:1.42,textWrap:"pretty"}}>{story.headline}</h4>
         </a>
       );
     }
@@ -1159,28 +1041,8 @@ const {useState,useEffect,useMemo}=React;
         </div>
       );
     }
-    // Right-rail companion to the spectrum: the stories where the spectrum agrees most —
-    // 2+ sides present, smallest skew. Derived arithmetic over the same live counts.
-    function WidestAgreement({ cards, t, lang, onOpen }) {
-      const scored=cards.filter(c=>{ const k=c.counts||{}; return ((k.left>0?1:0)+(k.center>0?1:0)+(k.right>0?1:0))>=2; })
-        .map(c=>{ const b=c.bias; const skew=Math.max(b.left,b.center,b.right)-Math.min(b.left,b.center,b.right); return {c,skew,n:c.sources}; })
-        .sort((a,b)=>(a.skew-b.skew)||(b.n-a.n)).slice(0,2);
-      if(!scored.length) return null;
-      return (
-        <div>
-          <div className={`eyebrow pb-2 ${t.tp} ${lang==="hi"?"deva":""}`} style={{borderBottom:`1px solid ${t.ink}`,letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"सबसे ज़्यादा सहमति":"Widest agreement"}</div>
-          {scored.map(({c},i)=>{ const k=c.counts||{}; const L=k.left||0,C=k.center||0,R=k.right||0,n=L+C+R;
-            return (
-              <a key={c.id} href={"/story/"+encodeURIComponent(c.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); onOpen(c.id); }} className={`block no-underline group cursor-pointer py-3 ${i<scored.length-1?"border-b":""} ${t.border}`}>
-                <div className={`headline text-[14.5px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.35,textWrap:"pretty"}}>{c.headline}</div>
-                <div className="mt-2"><BiasSegments bias={c.bias} t={t} h={8} lang={lang} /></div>
-                <div className={`mt-1.5 mono text-[10px] ${t.tf}`}>{L} · {C} · {R} · n = {n}</div>
-              </a>
-            );
-          })}
-        </div>
-      );
-    }
+    // Paksh 7: WidestAgreement removed as confirmed dead code - no call site anywhere in
+    // the routed app, and its BiasSegments instrument was already superseded by BiasPill.
     // Right-rail auth-aware card (Direction B, transparent personalization). Member: a "Because
     // you read {topic}" pointer to a story on the topic they read most. Guest: a "New to Paksh?"
     // explainer with a How-it-works link. Never reorders the feed; ranking stays arithmetic.
@@ -1264,7 +1126,7 @@ const {useState,useEffect,useMemo}=React;
       };
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("developingStories",lang)}</h1>
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("developingStories",lang)}</h1>
           {items.length ? (
             <>
               <div className="mt-8 max-w-[720px] pb-8" style={{borderBottom:`1px solid ${t.ink}`}}>{row(lead,true)}</div>
@@ -1288,6 +1150,7 @@ const {useState,useEffect,useMemo}=React;
       const used=new Set();
       const take=(arr,n)=>{ const out=[]; for(const c of arr){ if(out.length>=n) break; if(!used.has(c.id)){ out.push(c); used.add(c.id);} } return out; };
       const lead=cards[0]; if(lead) used.add(lead.id);
+      const major=take(cards,1)[0];          // Paksh 7A: MAJOR tier - next-ranked story after Lead
       const section=take(cards,4);          // the 2×2 secondary grid in the main well
       // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
       // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
@@ -1336,6 +1199,7 @@ const {useState,useEffect,useMemo}=React;
                   {stats.updated && <span className={`mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?`${timeAgo(stats.updated,lang)} अपडेट`:`Updated ${timeAgo(stats.updated,lang)}`}</span>}
                 </div>
                 {lead && <div className="py-5" style={{borderBottom:`1px solid ${t.line}`}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
+                {major && <MajorStory story={major} t={t} lang={lang} onOpen={open} />}
                 <div className="grid sm:grid-cols-2">
                   {section.map((s,i)=>(
                     <div key={s.id} className={`py-5 ${i<section.length-1?"border-b":""} ${i%2===1?"sm:border-l sm:pl-5":"sm:pr-5"} ${i>=2?"sm:border-b-0":""}`} style={{borderColor:t.line}}>
@@ -1472,7 +1336,11 @@ const {useState,useEffect,useMemo}=React;
           {/* headline block — left-aligned: kicker · region · time, 40px headline, 18px lead (prototype) */}
           <div className="mx-auto max-w-[840px]">
             <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</div>
-            <h1 className={`headline mt-3 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.16:1.08,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h1>
+            {/* Paksh 7: adopts the pk-text-display scale (styles.css) - already matched this
+                page's own 30/40px values exactly, so this is a pure consolidation, not a
+                size change. Hindi's line-height/letter-spacing overrides stay inline (more
+                specific than the class, so they still win). */}
+            <h1 className={`headline pk-text-display mt-3 ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.16:1.08,letterSpacing:lang==="hi"?0:"-0.022em",textWrap:"balance"}}>{story.headline}</h1>
             {story.lead && <p className={`mt-4 text-[17px] sm:text-[18px] ${t.tp} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.85:1.62,maxWidth:"62ch",textWrap:"pretty"}}>{story.lead}</p>}
             <div className={`mt-4 mono text-[11px] ${t.tf} ${lang==="hi"?"deva":""}`}>{metaLine}{story.auto && <> · <span className="uppercase">{STR[lang].autoTag}</span></>}{absDate(story.created_at,lang)?` · ${absDate(story.created_at,lang)}`:""}</div>
           </div>
@@ -1679,28 +1547,10 @@ const {useState,useEffect,useMemo}=React;
     function Input({ t, lang, className, ...props }) {
       return <input {...props} className={`w-full border px-3.5 py-2.5 text-[15px] outline-none ${t.surface} ${t.border} ${t.tp} focus:border-current ${lang==="hi"?"deva":""} ${className||""}`} />;
     }
-    // Coverage-gap rate columns — three EQUAL-WIDTH slots; each fill's height is that side's
-    // SHARE of its own tracked outlets that ran the story (a rate, not a raw count, so a
-    // side with more tracked outlets is normalised, not penalised). The absent side is drawn
-    // as a hatch so absence occupies space. Driven by live per-lean counts + the roster.
-    function GapRateColumns({ counts, roster, gapSide, t, lang }) {
-      const ks=["left","center","right"];
-      return (
-        <div className="grid grid-cols-3 gap-2">
-          {ks.map(k=>{ const n=counts[k]||0; const m=roster[k]||0; const rate=m>0?Math.min(100,Math.round(n/m*100)):0; const isGap=k===gapSide;
-            return (
-              <div key={k}>
-                <div className={`flex items-end ${n>0?"":"seg-absent"}`} style={{height:56,border:n>0?`1px solid ${t.ink}`:`1px dashed ${t.tf}`,background:n>0?(t.track||"#EAE6DB"):undefined}}>
-                  {n>0 && <div className={`w-full ${BIAS[k].tex}`} style={{height:`${Math.max(8,rate)}%`}}/>}
-                </div>
-                <div className={`mt-1.5 text-[9.5px] font-medium uppercase tracking-[0.1em] ${t.tp} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</div>
-                <div className={`mono text-[10.5px] ${isGap?t.blind:t.tf}`}>{n} / {m}</div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
+    // Paksh 7: GapRateColumns removed as confirmed dead code - no call site anywhere in the
+    // file. The live blindspot treatment is GapCard below: BiasPill (the same grammar as
+    // every other card) plus a clay-coloured plain-language sentence ("— no Left coverage
+    // yet."), not a hatch/column visualization.
     // A single coverage-gap card: which side missed it (eyebrow, clay), the headline, a
     // Gap card (6.3B.7) — no hatch, no bar chart, no bordered-card chrome. `lead` (the starkest
     // story in a column, already sorted first) gets an optional image and larger type, resting
@@ -1865,7 +1715,7 @@ const {useState,useEffect,useMemo}=React;
       const recentFor=(tp)=>(cards||[]).find(c=>c.topic===tp);
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("sections",lang)}</h1>
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("sections",lang)}</h1>
           <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2" style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:32}}>
             {lead.map(tp=>{ const rc=recentFor(tp); const label=lang==="hi"?(TOPIC_HI[tp]||tp):tp;
               return (
@@ -1907,7 +1757,7 @@ const {useState,useEffect,useMemo}=React;
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
           <div className="flex items-baseline justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
-            <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
+            <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
             <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{items.length}</span>
           </div>
           {!items.length ? (
@@ -2729,7 +2579,7 @@ const {useState,useEffect,useMemo}=React;
       const sample={ standard:{h:20,b:15,lh:1.62}, large:{h:24,b:18,lh:1.7}, classic:{h:29,b:22,lh:1.8} }[a11y.textSize]||{h:20,b:15,lh:1.62};
       return (
         <div className="mx-auto max-w-[720px] px-4 sm:px-8 py-10">
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
 
           {/* Account */}
           <div className="mt-8 pt-6" style={{borderTop:`2px solid ${t.ink}`}}>
@@ -2790,7 +2640,7 @@ const {useState,useEffect,useMemo}=React;
       const item=(label,onClick)=>(<button onClick={onClick} className={`flex w-full items-center justify-between border-b py-3.5 text-left ${t.border} hover:${t.tp}`}><span className={`text-[14.5px] font-semibold ${t.tp} ${isHi(lang)}`}>{label}</span><ChevronRight size={16} className={t.tf}/></button>);
       return (
         <div className="mx-auto max-w-[640px] px-4 sm:px-8 py-10">
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
           {auth ? (
             <>
               <p className={`mt-3 text-[15px] ${t.ts} ${isHi(lang)}`}>{L.hi}, <span className="font-semibold">{(auth.user&&auth.user.email)||""}</span></p>
@@ -2975,7 +2825,7 @@ const {useState,useEffect,useMemo}=React;
       const rows=savedRows||[];
       return (
         <PageWrap>
-          <h1 className={`headline text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
           {savedRows===null ? <div className={`mt-8 py-10 text-center text-[13px] ${t.tf}`}>…</div>
           : rows.length===0 ? (
             <div className={`mt-8 border border-dashed p-12 text-center ${t.border}`}>
@@ -3070,8 +2920,11 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     // "Developing" chip — marks a story that belongs to a saga thread (Eyebrow + story header).
+    // Paksh 7A: the ◇ marker now carries t.dev (the indigo "developing/ongoing" accent) instead
+    // of the generic muted tone - same colour-the-marker-only pattern DevelopingRail already
+    // uses one component away (its own ◇ update marker), just not previously applied here too.
     function DevelopingChip({ t, lang }) {
-      return <span className={`inline-flex items-center gap-1 mono text-[9px] font-bold uppercase tracking-[0.12em] ${t.ts}`} style={{padding:"2px 6px",border:`1px solid ${t.line}`}}><span aria-hidden="true">◇</span>{lang==="hi"?"विकसित होती":"Developing"}</span>;
+      return <span className={`inline-flex items-center gap-1 mono text-[9px] font-bold uppercase tracking-[0.12em] ${t.ts}`} style={{padding:"2px 6px",border:`1px solid ${t.line}`}}><span aria-hidden="true" className={t.dev}>◇</span>{lang==="hi"?"विकसित होती":"Developing"}</span>;
     }
 
     /* ---------------- routing + app ---------------- */
