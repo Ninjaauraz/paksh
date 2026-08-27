@@ -42,7 +42,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import (
     init_db, get_all_events, get_blindspot_events, get_topics,
-    get_event, count_articles, has_content,
+    get_event, count_articles, has_content, search_events as sqlite_search_events,
 )
 from sources import SOURCES, coverage_summary
 from export_static import feed_row, RECENT_FEED_N
@@ -291,6 +291,29 @@ def list_sources():
               "rationale", "axes")
     rows = [{k: s.get(k) for k in fields} for s in SOURCES]
     return {"sources": rows, "summary": coverage_summary()}
+
+
+@app.get("/api/search")
+def search(q: str = ""):
+    """Paksh 6A: full-corpus search over events.title/title_hi/summary/summary_hi
+    via supabase_content.search_events() (the search_events() Postgres RPC) - reads
+    the Supabase events table directly, so it is NOT limited by /api/events' 1500-row
+    window or /api/events-archive's 3000-row cap (together <=33% of the ~13.7k-row
+    corpus).
+
+    Paksh 6B: on SupabaseUnavailable (or when CONTENT_BACKEND != "supabase"), falls
+    through to database.search_events() - the SAME SQLite-backed full-corpus search,
+    following the identical try/except-then-fall-through shape every sibling route in
+    this file already uses (e.g. list_events() above). database.search_events()
+    itself returns the same empty-but-200 shape when SQLite has no usable content
+    (has_content() is False) - no separate "final empty" branch is needed here, and
+    no static-snapshot search tier exists yet (that's Phase 6C, out of scope)."""
+    if CONTENT_BACKEND == "supabase":
+        try:
+            return sb.search_events(q)
+        except sb.SupabaseUnavailable:
+            pass  # fall through to SQLite below - Paksh 6B
+    return sqlite_search_events(q)
 
 
 @app.get("/health")

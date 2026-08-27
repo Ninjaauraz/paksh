@@ -1140,19 +1140,41 @@ const confName = (c, lang) => (({
 //      staging locally: localStorage.setItem("paksh_api_base","https://paksh-staging-api.onrender.com")
 //      then reload; localStorage.removeItem("paksh_api_base") to go back to relative /api/*.
 const API_BASE = typeof window !== "undefined" && window.PAKSH_API_BASE || typeof localStorage !== "undefined" && localStorage.getItem("paksh_api_base") || "";
+// Paksh perf phase 1: _mode is a memoized Promise, resolved exactly once and reused by
+// every apiGet() call (no re-probing). The probe itself is bounded to 3s via
+// AbortController so a slow/sleeping backend can never hold the whole app hostage - a
+// timeout or any failure falls through to "static" exactly like the old unbounded catch
+// did. The probe's own /api/topics response body is kept in _topicsProbe and handed to
+// the FIRST real apiGet("topics") call instead of being fetched a second time - the only
+// change in observable behaviour is that topics is no longer requested twice.
 let _mode;
+let _topicsProbe;
 function detectMode() {
   if (!_mode) _mode = (async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
     try {
-      const r = await fetch(API_BASE + "/api/topics");
-      if (r.ok && (r.headers.get("content-type") || "").includes("json")) return "api";
-    } catch (e) {}
+      const r = await fetch(API_BASE + "/api/topics", {
+        signal: ctrl.signal
+      });
+      if (r.ok && (r.headers.get("content-type") || "").includes("json")) {
+        _topicsProbe = await r.json().catch(() => undefined);
+        return "api";
+      }
+    } catch (e) {} finally {
+      clearTimeout(timer);
+    }
     return "static";
   })();
   return _mode;
 }
 async function apiGet(res) {
   if ((await detectMode()) === "api") {
+    if (res === "topics" && _topicsProbe !== undefined) {
+      const d = _topicsProbe;
+      _topicsProbe = undefined;
+      return d;
+    }
     const r = await fetch(API_BASE + "/api/" + res);
     if (r.ok && (r.headers.get("content-type") || "").includes("json")) return r.json();
   }
@@ -1233,6 +1255,32 @@ const toCard = (e, lang) => {
     image: e.image_url || imgFor(hueOf(e.topic || e.title))
   };
 };
+
+// Paksh 6D: shapes one /api/search result row into the minimal subset of toCard()'s
+// fields FeedRow/Eyebrow/BiasPill actually read (id, topic, created_at, headline,
+// counts, storyline_id) - NOT the full toCard(), since /api/search's contract
+// (id/title/title_hi/summary/summary_hi/topic/lean_counts/sources/storyline_id/
+// created_at/published_at) is a narrower shape than a raw event and has no
+// summary_points/international/image_url/summary_method to build the rest of
+// toCard()'s output from. Same headline language-selection rule as toCard()
+// (lang==="hi" && title_hi present -> title_hi, else title) - not reinvented.
+// blindspot is always null: /api/search does not compute it, and this must not
+// fabricate one. img is left unset: /api/search has no image_url, so search
+// results render without a thumbnail (FeedRow's `story.img &&` guard handles
+// this the same way an event that legitimately has no image already does).
+const toSearchCard = (r, lang) => ({
+  id: r.id,
+  topic: r.topic,
+  created_at: r.published_at || r.created_at,
+  headline: lang === "hi" && r.title_hi ? r.title_hi : r.title || "",
+  counts: r.lean_counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  },
+  storyline_id: r.storyline_id || null,
+  blindspot: null
+});
 // Keep each language view free of the OTHER language's script. The summary
 // engine occasionally writes a framing note in the wrong language; this drops
 // any bullet whose script doesn't match the active language, so the English
@@ -1956,7 +2004,15 @@ function LeadStory({
       onOpen(story.id);
     },
     className: "block no-underline group cursor-pointer"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, story.img && /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "16 / 9",
+    t: t,
+    lang: lang,
+    className: "mb-5"
+  }), /*#__PURE__*/React.createElement("div", {
     className: `eyebrow accent-clay ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -2437,9 +2493,9 @@ function Masthead({
     className: "grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-5"
   }, /*#__PURE__*/React.createElement("div", {
     className: "min-w-0"
-  }, isReading && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     className: "flex min-w-0 items-center gap-3 sm:gap-4"
-  }, /*#__PURE__*/React.createElement("button", {
+  }, isReading && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
     className: `inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
     style: {
@@ -2454,7 +2510,12 @@ function Masthead({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, story ? `${tp} · ${region}` : sectionLabel))), /*#__PURE__*/React.createElement("button", {
+  }, story ? `${tp} · ${region}` : sectionLabel)), /*#__PURE__*/React.createElement(LangToggle, {
+    t: t,
+    lang: lang,
+    setLang: setLang,
+    dark: false
+  }))), /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
     className: "flex items-baseline justify-center",
     "aria-label": "Paksh home"
@@ -2483,12 +2544,7 @@ function Masthead({
     size: 13
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
-  }), " ", lang === "hi" ? "शेयर" : "Share"))), /*#__PURE__*/React.createElement(LangToggle, {
-    t: t,
-    lang: lang,
-    setLang: setLang,
-    dark: false
-  }), openHelp && /*#__PURE__*/React.createElement("button", {
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), openHelp && /*#__PURE__*/React.createElement("button", {
     onClick: openHelp,
     className: `hidden sm:inline ${t.tf} hover:${t.tp}`,
     "aria-label": lang === "hi" ? "पक्ष कैसे पढ़ें" : "How Paksh works"
@@ -3392,24 +3448,7 @@ function HomeView({
     className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("h1", {
     className: "sr-only"
-  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), lead && lead.img && /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("a", {
-    href: "/story/" + encodeURIComponent(lead.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      open(lead.id);
-    },
-    className: "block no-underline"
-  }, /*#__PURE__*/React.createElement(Thumb, {
-    src: lead.img,
-    topic: lead.topic,
-    title: lead.headline,
-    ratio: "3 / 1",
-    t: t,
-    lang: lang
-  }))), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-[2.1fr_1fr]"
@@ -7520,14 +7559,56 @@ function PakshApp() {
   }, [route, data]);
   // events.json is capped to recent stories for a light first paint; the older tail lives in
   // events-archive.json and is fetched ONCE, the first time the user browses beyond the feed
-  // (Search / a Topic / Sections). Home + story pages never need it. Set to [] up front so the
-  // fetch fires only once even if it fails (then search/topic just cover recent stories).
+  // (a Topic / Sections/Topics index). Home + story pages never need it. Set to [] up front
+  // so the fetch fires only once even if it fails (then topic/topics just cover recent stories).
+  // Paksh 6D: "search" removed from this trigger list - search is now served by /api/search
+  // (full corpus, server-side), so entering Search no longer downloads the archive. If the
+  // archive is ALREADY loaded (the user visited a Topic page first, in the same session),
+  // SearchPage's pre-query browse view (browseCards, below) still benefits from it for free -
+  // nothing here blocks that, it just no longer fetches it on search's account.
   useEffect(() => {
     if (archive !== null) return;
-    if (!["search", "topic", "topics"].includes(route.view)) return;
+    if (!["topic", "topics"].includes(route.view)) return;
     setArchive([]);
     apiGet("events-archive").then(a => setArchive(a.events || [])).catch(() => {});
   }, [route.view, archive]);
+
+  // Paksh 6D: SearchPage's actual results now come from GET /api/search (full corpus,
+  // every content tier - Supabase/SQLite/static-snapshot - already handled server-side;
+  // this component never needs to know which one served the response). Raw result ROWS
+  // are kept in state (not toSearchCard()-shaped here) so a language switch re-renders
+  // instantly via the SAME render-time shaping toCard()/baseCards already use below,
+  // rather than needing a second fetch just to relabel the same results.
+  //
+  // Debounced (300ms) so rapid typing does not fire one request per keystroke - a plain
+  // setTimeout + effect cleanup (clearTimeout on the next keystroke), no added dependency.
+  // Stale-response protection via a generation counter (searchSeq, React.useRef - the
+  // same ref pattern already used elsewhere in this file, e.g. _swipe above): each
+  // request captures the counter's value when it STARTS; if the counter has moved on by
+  // the time it resolves, a newer query has since begun and the response is discarded.
+  // This is what stops an old response for "india" from overwriting a later one for
+  // "india supreme court" if they resolve out of order.
+  const [searchRows, setSearchRows] = useState([]);
+  const searchSeq = React.useRef(0);
+  useEffect(() => {
+    const q = (query || "").trim();
+    if (!q) {
+      searchSeq.current++;
+      setSearchRows([]);
+      return;
+    } // no request for an empty/whitespace query
+    const mySeq = ++searchSeq.current;
+    const timer = setTimeout(() => {
+      apiGet("search?q=" + encodeURIComponent(q)).then(r => {
+        if (searchSeq.current !== mySeq) return; // a newer query started - discard this response
+        setSearchRows(r.results || []);
+      }).catch(() => {
+        if (searchSeq.current !== mySeq) return;
+        setSearchRows([]); // genuine fetch/network failure - empty results, no crash, no fake data
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // Apply accessibility to <html> immediately and whenever it changes (so every page reflects it).
   useEffect(() => {
@@ -7777,16 +7858,13 @@ function PakshApp() {
   (data.sources || []).forEach(s => {
     if (rosterByLean[s.lean] != null) rosterByLean[s.lean]++;
   });
-  // Token-AND search: every word in the query must appear SOMEWHERE in the card's
-  // headline, summary snippet or topic. The old code required the whole query as one
-  // contiguous substring of the headline, so "supreme court neet" matched nothing even
-  // when all three words were present. Matches the localised (EN/HI) fields on the card.
-  const qTokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const _hay = c => `${c.headline || ""} ${c.lead || ""} ${(c.summary || []).join(" ")} ${c.topic || ""}`.toLowerCase();
-  const results = qTokens.length ? baseCards.filter(c => {
-    const h = _hay(c);
-    return qTokens.every(tok => h.includes(tok));
-  }) : [];
+  // Paksh 6D: results now come from the backend (searchRows, populated by the debounced
+  // /api/search effect above) - shaped at render time via toSearchCard() so a language
+  // toggle re-labels existing results instantly, same idiom as baseCards/toCard() above.
+  // No client-side token-AND filtering of the corpus happens here any more; the backend
+  // (Supabase/SQLite/static-snapshot, whichever tier is live) already applied that exact
+  // token-AND semantic before this component ever sees a result.
+  const results = searchRows.map(r => toSearchCard(r, lang));
   // Pre-query browse view: baseCards is already the full loaded catalogue, newest-first
   // (see the sort above) — reuse it in place rather than a second fetch or an empty state.
   const browseCards = baseCards.slice(0, 24);

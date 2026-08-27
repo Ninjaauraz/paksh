@@ -41,7 +41,7 @@ from datetime import datetime
 # the "as of right now" value on every call, using the identical formulas, imported
 # directly rather than re-derived, so results can never drift from what the static
 # export/production site already does.
-from export_static import _importance, _feed_rank, _civic_mult, _lighten, RECENT_FEED_N
+from export_static import _importance, _feed_rank, _civic_mult, _lighten, _snippet, RECENT_FEED_N
 from database import event_language
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://zzjsjqqcpyyodatlmcux.supabase.co")
@@ -135,6 +135,49 @@ def _get(path: str, timeout: float = 5.0, max_retries: int = 2):
             result = resp.json()
         except ValueError as e:   # malformed JSON body on an otherwise-200 response -
             if attempt <= max_retries:   # same fail-safe treatment as any other bad read
+                time.sleep(0.3 * attempt)
+                continue
+            _note_supabase_result(False, str(e))
+            raise SupabaseUnavailable(str(e)) from e
+        _note_supabase_result(True)
+        return result
+
+
+def _post(path: str, json_body: dict, timeout: float = 5.0, max_retries: int = 2):
+    """Paksh 6A: POST+JSON-body counterpart to _get(), for PostgREST RPC calls -
+    search_events() below is the first (and, as of this phase, only) caller.
+    Kept as a separate function rather than folding a method param into _get()
+    itself: _get() is GET-only and already has dedicated test coverage in
+    test_phase22.py that mocks `sb._session.get` directly - changing its shape
+    would touch tests unrelated to search. Same retry/error/_note_supabase_result
+    semantics as _get(), so a search request is exactly as robust as every
+    other Supabase-backed read here, never a second competing convention."""
+    import time
+    url = SUPABASE_URL + "/rest/v1" + path
+    headers = {"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json", "Accept": "application/json"}
+    global request_count
+    attempt = 0
+    while True:
+        attempt += 1
+        request_count += 1
+        try:
+            resp = _session.post(url, headers=headers, json=json_body, timeout=timeout)
+        except requests.exceptions.RequestException as e:
+            if attempt <= max_retries:
+                time.sleep(0.3 * attempt)
+                continue
+            _note_supabase_result(False, str(e))
+            raise SupabaseUnavailable(str(e)) from e
+        if resp.status_code >= 400:
+            if resp.status_code >= 500 and attempt <= max_retries:
+                time.sleep(0.3 * attempt)
+                continue
+            _note_supabase_result(False, f"HTTP {resp.status_code}")
+            raise SupabaseUnavailable(f"HTTP Error {resp.status_code}: {url}")
+        try:
+            result = resp.json()
+        except ValueError as e:
+            if attempt <= max_retries:
                 time.sleep(0.3 * attempt)
                 continue
             _note_supabase_result(False, str(e))
@@ -465,3 +508,80 @@ def get_blindspots() -> dict:
             "right_heavier": right_heavier,
             "aggregate": {"total": len(rows), "left_heavier": len(left_heavier),
                           "right_heavier": len(right_heavier)}}
+
+
+# Paksh 6A (search foundation): the corpus is India-heavy news text and a common
+# single word (e.g. "india"/"भारत") matches roughly a quarter of all ~13.7k rows -
+# EXPLAIN ANALYZE showed the trigram index scan itself stays cheap (~1-2ms) but the
+# Bitmap Heap Scan then has to visit every matching heap page before the ORDER BY
+# similarity()+LIMIT can trim it down, which is what actually costs the ~700ms-1s
+# seen for a single broad token (measured, documented in the Phase 6A report - not
+# a missing index, this is expected Postgres behavior for a low-selectivity ILIKE
+# predicate). Capping tokens bounds the OTHER failure mode - a pathological query
+# with dozens of "words" would otherwise generate a matching number of ANDed ILIKE
+# clauses inside the search_events() SQL function.
+MAX_SEARCH_QUERY_LEN = 200   # no existing length convention elsewhere in this
+                             # codebase to match - chosen as a generous bound for
+                             # a real headline/topic search, small enough that a
+                             # pathological huge string is truncated, not 500'd.
+MAX_SEARCH_TOKENS = 8       # matches search_events()'s own internal max_tokens cap
+                             # (see the fix_search_events_index_usage migration) -
+                             # kept in sync here defensively, though the SQL side
+                             # already stops accepting more even if this were higher.
+DEFAULT_SEARCH_LIMIT = 20
+MAX_SEARCH_LIMIT = 50
+
+
+def search_events(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict:
+    """Paksh 6A: full-corpus search across events.title/title_hi/summary/summary_hi
+    via the search_events() Postgres RPC (public.search_events, applied by the
+    add_events_search_trgm + fix_search_events_* migrations) - queries the Supabase
+    events table directly, NOT get_events()/get_events_archive(), so it is not
+    limited by their 1500/3000-row caps.
+
+    Whitespace is normalised (stripped, internal runs collapsed to one space) so
+    "  india   supreme  " and "india supreme" behave identically. An empty/
+    whitespace-only query short-circuits to an empty result with no Supabase call.
+    A query over MAX_SEARCH_QUERY_LEN is truncated rather than rejected with an
+    error - this codebase has no existing 400-style validation-error convention on
+    any route (every other route either succeeds or 404s), so truncating keeps this
+    endpoint inside that same "always 200 with a well-formed body" shape rather
+    than inventing a new error convention for search alone.
+
+    Ranking: search_events() returns match_rank (summed pg_trgm similarity() of the
+    full query string against title/title_hi/summary/summary_hi), already sorted
+    match_rank DESC, id DESC (id DESC used as the sole tiebreaker - a real Postgres
+    ORDER BY column, not implicit table order - see the migration for detail);
+    match_rank itself is not returned to the caller since app.jsx has no use for it
+    and returning it would add a field the frontend doesn't consume."""
+    q = " ".join((query or "").split())
+    if not q:
+        return {"query": "", "count": 0, "limit": int(limit), "results": []}
+    if len(q) > MAX_SEARCH_QUERY_LEN:
+        q = q[:MAX_SEARCH_QUERY_LEN].rstrip()
+    lim = max(1, min(int(limit), MAX_SEARCH_LIMIT))
+    tokens = [t for t in q.split(" ") if t][:MAX_SEARCH_TOKENS]
+    if not tokens:
+        return {"query": q, "count": 0, "limit": lim, "results": []}
+
+    rows = _post("/rpc/search_events", {
+        "search_tokens": tokens, "full_query": q, "result_limit": lim,
+    })
+
+    results = []
+    for r in rows:
+        lean_counts = {
+            "left": r.get("lean_left", 0), "center": r.get("lean_center", 0),
+            "right": r.get("lean_right", 0),
+        }
+        results.append({
+            "id": r["id"],
+            "title": r.get("title") or "", "title_hi": r.get("title_hi") or "",
+            "summary": _snippet(r.get("summary")), "summary_hi": _snippet(r.get("summary_hi")),
+            "topic": r.get("topic") or "Society",
+            "lean_counts": lean_counts, "sources": sum(lean_counts.values()),
+            "storyline_id": r.get("storyline_id"),
+            "created_at": _naive_iso(r.get("created_at")),
+            "published_at": _naive_iso(r.get("published_at")),
+        })
+    return {"query": q, "count": len(results), "limit": lim, "results": results}

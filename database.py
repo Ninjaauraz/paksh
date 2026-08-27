@@ -631,3 +631,140 @@ def get_event(event_id):
     data["dominant"] = dominant_lean(counts)
     data["blindspot"] = compute_blindspot(counts)
     return data
+
+
+# Paksh 6B: SQLite-backed fallback for GET /api/search, reached when Supabase is
+# unavailable (see main.py's /api/search route) or CONTENT_BACKEND=="sqlite".
+# Same normalization contract as supabase_content.search_events() (Phase 6A):
+# strip/collapse whitespace, cap query length, cap token count, clamp limit.
+# Redeclared here (not imported) because supabase_content.py already imports
+# FROM this module (event_language) - importing back would be circular. Values
+# must be kept in sync by hand with supabase_content.py's Phase 6A constants.
+MAX_SEARCH_QUERY_LEN = 200
+MAX_SEARCH_TOKENS = 8
+DEFAULT_SEARCH_LIMIT = 20
+MAX_SEARCH_LIMIT = 50
+
+
+def _like_escape(s: str) -> str:
+    """Escape a search token's own literal backslash/%/_ so it is matched as
+    literal text inside a LIKE pattern, not interpreted as a wildcard - order
+    matters (backslash first, or escaping % / _ would introduce a fresh,
+    un-escaped backslash). Same technique as the Postgres search_events()
+    migration (fix_search_events_escape_wildcards), applied here because SQLite's
+    LIKE has the identical wildcard-injection concern, not because of a shared
+    performance problem - SQLite has no trigram index either way, so every
+    search here is already a full scan (see the Phase 6B report)."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def search_events(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict:
+    """Paksh 6B: full-corpus search across events.title/summary (real columns)
+    and title_hi/summary_hi (inside analysis_json - see _event_summary_row()
+    above; SQLite's JSON1 extension, confirmed present in this environment,
+    lets json_extract() reach them in the same parameterized WHERE clause as
+    the two real columns). Reads the whole `events` table directly - NOT
+    get_all_events()'s already-materialized list, and NOT limited to any
+    recent-feed window - so an old event far outside the 1,500/3,000-row
+    windows main.py's other routes use is still reachable here.
+
+    Matching: token-AND (every token must appear in at least one of the four
+    fields, mirroring both Phase 6A and the existing client-side search's
+    qTokens.every(...) semantics), via parameterized SQL LIKE - every
+    user-controlled value goes through a `?` placeholder, never string-
+    interpolated into the SQL text. No SQLite FTS5 - this is a fallback tier
+    over a ~13.7k-row table, not a new search engine.
+
+    Ranking (simple, deterministic, no invented scoring formula): 1) the full
+    query string appears verbatim in the title, 2) every token appears in the
+    title, 3) every token appears in the summary, 4) matched only via
+    title_hi/summary_hi. Within each tier, SQL's own `ORDER BY created_at DESC`
+    is preserved as the tiebreak (Python's sort is stable, so re-sorting only
+    by score keeps that relative order) - reusing the existing recency
+    convention rather than inventing a new one.
+
+    Applies the same "<2 rated outlets" content-quality gate get_all_events()
+    already applies (a quality filter, not a feed-window limit - the brief
+    asks to keep this, not drop it). storyline_id is always None here: SQLite
+    mode has no per-row storyline_id column (real events built via
+    _event_summary_row() never carry one either - see /api/blindspots in
+    SQLite mode); attaching one would mean running build_storylines() (a real
+    clustering-adjacent computation) on every search request, which is out of
+    scope for a degraded fallback tier."""
+    q = " ".join((query or "").split())
+    if not q:
+        return {"query": "", "count": 0, "limit": int(limit), "results": []}
+    if len(q) > MAX_SEARCH_QUERY_LEN:
+        q = q[:MAX_SEARCH_QUERY_LEN].rstrip()
+    lim = max(1, min(int(limit), MAX_SEARCH_LIMIT))
+    tokens = [t for t in q.split(" ") if t][:MAX_SEARCH_TOKENS]
+    if not tokens:
+        return {"query": q, "count": 0, "limit": lim, "results": []}
+    if not has_content():
+        # Paksh 6C: same fallback shape get_all_events()/get_event() already use -
+        # SQLite has no usable content, so fall through to the static snapshot's
+        # own search (full corpus: events.json + events-archive.json together, NOT
+        # just the recent window - see static_fallback.search_events()'s docstring).
+        # static_fallback functions never raise; a None here means the snapshot
+        # itself is unavailable/malformed, so fall through to the same
+        # empty-but-200 shape this function already returns in every other
+        # empty case - never a 500, never a fabricated result.
+        import static_fallback
+        snapshot = static_fallback.search_events(q, lim)
+        return snapshot if snapshot is not None else {"query": q, "count": 0, "limit": lim, "results": []}
+
+    where_clauses = []
+    params = []
+    for tok in tokens:
+        pattern = "%" + _like_escape(tok) + "%"
+        where_clauses.append(
+            "(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' "
+            "OR json_extract(analysis_json,'$.title_hi') LIKE ? ESCAPE '\\' "
+            "OR json_extract(analysis_json,'$.summary_hi') LIKE ? ESCAPE '\\')"
+        )
+        params.extend([pattern, pattern, pattern, pattern])
+    sql = (
+        "SELECT * FROM events WHERE COALESCE(is_demo,0)=0 AND "
+        + " AND ".join(where_clauses)
+        + " ORDER BY created_at DESC"
+    )
+    conn = get_connection()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    q_lower = q.lower()
+    tok_lower = [t.lower() for t in tokens]
+    scored = []
+    for r in rows:
+        e = _event_summary_row(r)
+        if sum(e["lean_counts"].values()) < 2:
+            continue  # same content-quality gate get_all_events() applies
+        title_l = (e["title"] or "").lower()
+        summary_l = (e["summary"] or "").lower()
+        if q_lower in title_l:
+            score = 3
+        elif all(t in title_l for t in tok_lower):
+            score = 2
+        elif all(t in summary_l for t in tok_lower):
+            score = 1
+        else:
+            score = 0   # matched only via title_hi/summary_hi
+        scored.append((score, e))
+    scored.sort(key=lambda pair: -pair[0])   # stable sort: preserves the SQL
+                                              # created_at-DESC order within a tier
+
+    from export_static import _snippet   # local import: export_static.py imports
+                                          # FROM database.py at module level, so a
+                                          # module-level import here would be circular
+                                          # (same reasoning as the static_fallback
+                                          # imports elsewhere in this file)
+    results = []
+    for _score, e in scored[:lim]:
+        results.append({
+            "id": e["id"], "title": e["title"] or "", "title_hi": e["title_hi"] or "",
+            "summary": _snippet(e["summary"]), "summary_hi": _snippet(e["summary_hi"]),
+            "topic": e["topic"], "lean_counts": e["lean_counts"],
+            "sources": sum(e["lean_counts"].values()), "storyline_id": None,
+            "created_at": e["created_at"], "published_at": e.get("published_at"),
+        })
+    return {"query": q, "count": len(results), "limit": lim, "results": results}
