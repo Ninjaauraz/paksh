@@ -655,6 +655,55 @@ def get_event(event_id):
     return data
 
 
+def get_events_by_ids(event_ids) -> dict:
+    """Batched form of get_event(): {id: event_dict_or_None} for MANY ids in one
+    connection, chunked IN (...) queries - same pattern as get_articles_for_events()
+    above, used where a caller would otherwise call get_event() once per id in a
+    loop (Phase 7B F3: reframe.py::_collect() used to do exactly that across the
+    whole catalog - measured at ~30ms/call, dominated by json.loads() of the full
+    analysis_json blob plus the same derived-field computation done below, not by
+    connection overhead alone; batching into one connection removes the per-call
+    connect/close cost entirely). Every id in event_ids gets an entry - None for a
+    genuine miss - so callers never need a membership check, matching get_event()'s
+    own "not found -> None" contract exactly.
+
+    Produces the SAME fields, in the SAME way, as get_event() per row (json.loads
+    of analysis_json, then id/is_demo/created_at/lean_counts/lang/dominant/blindspot)
+    - deliberately not a new shape. No demo filtering here, exactly like get_event()
+    itself (callers that need is_demo=0 filtering already do it themselves, e.g. via
+    get_all_events()).
+
+    Falls through to get_event() per id (which itself falls through to
+    static_fallback.get_event()) when SQLite has no usable content - the same rare
+    empty-database condition get_event() already handles; not worth a bulk fast
+    path since it only matters when the corpus is small/absent, never the case
+    this function exists to speed up."""
+    event_ids = list(event_ids)
+    if not has_content():
+        return {eid: get_event(eid) for eid in event_ids}
+    out = {eid: None for eid in event_ids}
+    if not event_ids:
+        return out
+    conn = get_connection()
+    CH = 400  # keep the IN (...) list within SQLite's parameter limit
+    for i in range(0, len(event_ids), CH):
+        chunk = event_ids[i:i + CH]
+        ph = ",".join("?" for _ in chunk)
+        for r in conn.execute(f"SELECT * FROM events WHERE id IN ({ph})", chunk):
+            data = json.loads(r["analysis_json"])
+            counts = lean_counts_from(data)
+            data["id"] = r["id"]
+            data["is_demo"] = bool(r["is_demo"])
+            data["created_at"] = r["created_at"]
+            data["lean_counts"] = counts
+            data["lang"] = event_language(data)
+            data["dominant"] = dominant_lean(counts)
+            data["blindspot"] = compute_blindspot(counts)
+            out[r["id"]] = data
+    conn.close()
+    return out
+
+
 # Paksh 6B: SQLite-backed fallback for GET /api/search, reached when Supabase is
 # unavailable (see main.py's /api/search route) or CONTENT_BACKEND=="sqlite".
 # Same normalization contract as supabase_content.search_events() (Phase 6A):

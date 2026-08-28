@@ -35,9 +35,11 @@ After --apply, rebuild and deploy as usual:
 import argparse
 
 from database import (
-    init_db, get_all_events, get_event, get_event_articles, update_event,
+    init_db, get_all_events, get_events_by_ids, get_event_articles, update_event,
 )
-from analyze import analyze_event, has_framing, MIN_SIDE_OWNERS
+from analyze import (
+    analyze_event, has_framing, MIN_SIDE_OWNERS, reset_retry_stats, get_retry_stats,
+)
 
 SIDES = ("left", "center", "right")
 
@@ -92,20 +94,25 @@ def _rank_key(ev):
 
 
 def _collect(ids):
-    """Full events that need re-framing (or the explicit --ids set)."""
+    """Full events that need re-framing (or the explicit --ids set).
+
+    Paksh 7B (F3): batches the id->full-event lookup via get_events_by_ids() instead
+    of calling get_event() once per candidate (measured at ~30ms/call across the
+    whole catalog - see the Phase 7B F3 investigation). Iteration order and the
+    missing-vs-found/missing-sides filtering are unchanged from the previous
+    per-id-get_event() version - only how the rows are fetched changed, not which
+    ones are returned or in what order."""
     if ids:
-        out = []
-        for i in ids:
-            ev = get_event(i)
-            if ev:
-                out.append(ev)
-        return out
-    out = []
+        by_id = get_events_by_ids(ids)
+        return [by_id[i] for i in ids if by_id.get(i)]
     # Paksh 7B: include_incomplete=True - reframe's whole job is to find and repair
     # events the publication gate is currently hiding, so it must see them, unlike
     # every public-facing caller of get_all_events().
-    for row in get_all_events(include_incomplete=True):
-        ev = get_event(row["id"])
+    rows = get_all_events(include_incomplete=True)
+    by_id = get_events_by_ids([row["id"] for row in rows])
+    out = []
+    for row in rows:
+        ev = by_id.get(row["id"])
         if ev and _missing_sides(ev):
             out.append(ev)
     return out
@@ -121,6 +128,7 @@ def main():
                          "(2+ different leans) + a covered-but-unframed side")
     args = ap.parse_args()
 
+    reset_retry_stats()   # Paksh 7B (F2): fresh counters for this run, not a prior one
     init_db()
 
     ids = [int(x) for x in args.ids.split(",") if x.strip()]
@@ -184,6 +192,14 @@ def main():
         print(f"  ok    #{eid}  filled: {','.join(filled)}")
 
     print(f"\nDone. re-framed {done}, skipped {skipped}.")
+    # Paksh 7B (F2): retry-observability summary - see analyze._RETRY_STATS.
+    stats = get_retry_stats()
+    llm_calls = stats["first_pass_complete"] + stats["retry_attempted"]
+    if llm_calls:
+        print(f"Retry: {stats['first_pass_complete']}/{llm_calls} first-pass complete, "
+              f"{stats['retry_attempted']} retried "
+              f"({stats['retry_rescued']} rescued, {stats['retry_not_rescued']} not rescued, "
+              f"{stats['retry_failed']} failed).")
     if done:
         print("Next: py export_static.py   then push via GitHub Desktop.")
 

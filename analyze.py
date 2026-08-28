@@ -27,6 +27,7 @@ import json
 import re
 import os
 import sys
+import threading
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
@@ -800,6 +801,45 @@ def _run_summaries(rows_list, workers, backend=None):
     return [one(r) for r in rows_list]
 
 
+# Paksh 7B (F2): retry-observability counters ONLY - never persisted, never part of
+# the returned analysis dict, never affects content_complete/publication. Purely a
+# module-level tally so a run's stdout summary can report retry economics without
+# reconstructing them from individual event log lines. analyze_event() runs on up to
+# LLM_CONCURRENCY worker threads (see _run_summaries()'s ThreadPoolExecutor above),
+# so every increment goes through this lock - an unguarded dict += under threads can
+# silently lose updates. reset_retry_stats() must be called once at the start of each
+# top-level run (analyze.py/reframe.py main()); the counters are module-level state
+# and would otherwise leak between runs sharing a process.
+_RETRY_STATS_LOCK = threading.Lock()
+_RETRY_STATS = {
+    "first_pass_complete": 0,   # first postprocess() was already content_complete=True
+    "retry_attempted": 0,       # first result incomplete -> execution entered the retry call
+    "retry_rescued": 0,         # retry (or the kept first result) ended up content_complete=True
+    "retry_not_rescued": 0,     # retry call completed (no exception) but result stayed incomplete
+    "retry_failed": 0,          # the retry call itself raised; first attempt's result was kept
+}
+
+
+def reset_retry_stats():
+    """Zero the retry-observability counters. Call once at the start of each
+    top-level run (analyze.py::main() / reframe.py::main()) - see the block
+    comment above _RETRY_STATS for why this matters."""
+    with _RETRY_STATS_LOCK:
+        for k in _RETRY_STATS:
+            _RETRY_STATS[k] = 0
+
+
+def get_retry_stats() -> dict:
+    """A point-in-time snapshot copy, safe to read/print after a run completes."""
+    with _RETRY_STATS_LOCK:
+        return dict(_RETRY_STATS)
+
+
+def _record_retry_stat(key: str):
+    with _RETRY_STATS_LOCK:
+        _RETRY_STATS[key] += 1
+
+
 def analyze_event(articles, backend=None) -> dict:
     """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
     unavailable or returns nothing usable, falls back to an extractive headline
@@ -824,13 +864,18 @@ def analyze_event(articles, backend=None) -> dict:
         return postprocess(_extractive_raw(articles), articles)
 
     result = postprocess(raw, articles)
-    if not result["content_complete"]:
+    if result["content_complete"]:
+        _record_retry_stat("first_pass_complete")
+    else:
+        _record_retry_stat("retry_attempted")
         try:
             retry_raw = _call_json(build_prompt(articles), backend=backend)
             if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
                 result = postprocess(retry_raw, articles)
+            _record_retry_stat("retry_rescued" if result["content_complete"] else "retry_not_rescued")
         except Exception as e:
             print(f"    framing retry failed, keeping first attempt ({e})")
+            _record_retry_stat("retry_failed")
     return result
 
 
@@ -934,6 +979,7 @@ def main():
         print("\n=== Paksh analysis (provider POOL: %s) ===" % names)
     else:
         print("\n=== Paksh analysis (Gemini: %s) ===" % MODEL)
+    reset_retry_stats()   # Paksh 7B (F2): fresh counters for this run, not a prior one
     init_db()
     from ingest import is_junk
     articles = get_unclustered_articles()
@@ -1032,6 +1078,14 @@ def main():
     print("-" * 40)
     print(f"Published {llm_n + ext_n} event(s): {llm_n} LLM brief(s), "
           f"{ext_n} extractive.")
+    # Paksh 7B (F2): retry-observability summary - see _RETRY_STATS above.
+    stats = get_retry_stats()
+    llm_calls = stats["first_pass_complete"] + stats["retry_attempted"]
+    if llm_calls:
+        print(f"Retry: {stats['first_pass_complete']}/{llm_calls} first-pass complete, "
+              f"{stats['retry_attempted']} retried "
+              f"({stats['retry_rescued']} rescued, {stats['retry_not_rescued']} not rescued, "
+              f"{stats['retry_failed']} failed).")
     print("\nNext:  python export_static.py\n")
 
 
