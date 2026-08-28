@@ -165,9 +165,12 @@ try:
     # deploy verified live (summary_points/summary_points_hi absent, summary/
     # summary_hi truncated to a snippet). The test's real purpose - proving caching
     # itself never silently alters the row shape - is unchanged and still enforced.
+    # Paksh 7B: content_complete added - the publication-completeness flag every
+    # row now intentionally carries (see supabase_content._event_summary_row()).
     expected_keys = {"id", "title", "summary", "title_hi", "summary_hi",
                       "topic", "region", "lang", "image_url", "is_demo",
-                      "source_count", "summary_method", "lean_counts", "international",
+                      "source_count", "summary_method", "content_complete",
+                      "lean_counts", "international",
                       "dominant", "blindspot", "created_at", "published_at", "storyline_id",
                       "importance", "feed_rank"}
     check("SUCCESS CRITERION F: cached event row has the same field set as before caching",

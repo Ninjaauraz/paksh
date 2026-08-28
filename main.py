@@ -248,16 +248,21 @@ def list_storylines():
 
 @app.get("/api/events/{event_id}")
 def event_detail(event_id: int):
+    # Paksh 7B: content_complete is False ONLY for a newly-generated event the
+    # publication gate has explicitly decided not to show (see analyze.py::
+    # compute_content_complete). None (grandfathered/pre-gate) and True both pass -
+    # same "not is False" rule get_all_events()/database._is_publishable() apply.
+    # A direct /api/events/{id} request must not be able to bypass that decision.
     if CONTENT_BACKEND == "supabase":
         try:
             event = sb.get_event(event_id)
-            if event is None:
+            if event is None or event.get("content_complete") is False:
                 raise HTTPException(status_code=404, detail="Event not found")
             return event
         except sb.SupabaseUnavailable:
             pass
     event = get_event(event_id)
-    if event is None:
+    if event is None or event.get("content_complete") is False:
         raise HTTPException(status_code=404, detail="Event not found")
     return event
 

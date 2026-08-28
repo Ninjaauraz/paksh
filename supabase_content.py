@@ -290,6 +290,9 @@ def _event_summary_row(e: dict, now: datetime = None) -> dict:
         "is_demo": bool(e.get("is_demo")),
         "source_count": e.get("total_sources", 0),
         "summary_method": e.get("summary_method") or "llm",
+        # Paksh 7B: mirrors database.py's field of the same name - see
+        # analyze.py::compute_content_complete(). None means pre-gate/grandfathered.
+        "content_complete": e.get("content_complete"),
         "lean_counts": lean_counts,
         "international": e.get("international_count", 0),
         "dominant": {"side": e["dominant_lean"], "pct": e["dominant_pct"],
@@ -321,7 +324,8 @@ def get_events(limit: int = 1500) -> dict:
     # shipping the full row including analysis_json/coverage/framing/framing_hi, none
     # of which _event_summary_row() reads.
     rows = _get_paginated(
-        f"/events?select={SUMMARY_ROW_COLUMNS}&is_demo=eq.false&order=created_at.desc,id.desc",
+        f"/events?select={SUMMARY_ROW_COLUMNS}&is_demo=eq.false&{_PUBLISHABLE_FILTER}"
+        f"&order=created_at.desc,id.desc",
         int(limit),
     )
     now = datetime.utcnow()  # one instant shared across the whole response, so every
@@ -359,7 +363,8 @@ def get_events_archive(limit: int = 3000) -> dict:
     weight - _lighten() strips summary_points/summary_points_hi afterward
     anyway, so this endpoint needed the full row even less than get_events())."""
     rows = _get_paginated(
-        f"/events?select={SUMMARY_ROW_COLUMNS}&is_demo=eq.false&order=created_at.desc,id.desc",
+        f"/events?select={SUMMARY_ROW_COLUMNS}&is_demo=eq.false&{_PUBLISHABLE_FILTER}"
+        f"&order=created_at.desc,id.desc",
         int(limit), start_offset=int(RECENT_FEED_N),
     )
     now = datetime.utcnow()
@@ -481,10 +486,16 @@ def get_storylines() -> dict:
 SUMMARY_ROW_COLUMNS = (
     "id,title,summary,summary_points,summary_points_hi,title_hi,summary_hi,"
     "topic,region,sources,image_url,is_demo,total_sources,summary_method,"
+    "content_complete,"
     "lean_left,lean_center,lean_right,international_count,"
     "dominant_lean,dominant_pct,blindspot_side,blindspot_pct,"
     "created_at,published_at,storyline_id"
 )
+
+# Paksh 7B: appended to a PostgREST query string alongside other &key=value filters.
+# NULL (pre-gate/grandfathered) or true both pass; only an explicit false is excluded -
+# the identical "not is False" rule database.py's _is_publishable() applies in Python.
+_PUBLISHABLE_FILTER = "or=(content_complete.is.null,content_complete.eq.true)"
 
 
 def get_blindspots() -> dict:
@@ -498,7 +509,7 @@ def get_blindspots() -> dict:
     to SUMMARY_ROW_COLUMNS, the same fields _event_summary_row() actually reads -
     same response shape, same _event_summary_row() reuse, just less bytes moved."""
     rows = _get(f"/events?select={SUMMARY_ROW_COLUMNS}&blindspot_side=not.is.null"
-                f"&order=created_at.desc,id.desc", timeout=10.0)
+                f"&{_PUBLISHABLE_FILTER}&order=created_at.desc,id.desc", timeout=10.0)
     left_heavier, right_heavier = [], []
     for e in rows:
         row = _lighten(_event_summary_row(e))

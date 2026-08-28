@@ -85,6 +85,16 @@ def _b(v):
     return "TRUE" if v else "FALSE"
 
 
+def _nb(v):
+    """Nullable SQL boolean literal. Unlike _b() (which treats None as falsy -
+    correct for degraded, always a real bool), content_complete's None is a
+    distinct, meaningful 'grandfathered/pre-gate' state and must stay SQL NULL,
+    never collapse to FALSE (which would wrongly hide the row)."""
+    if v is None:
+        return "NULL"
+    return "TRUE" if v else "FALSE"
+
+
 def _n(v):
     return "NULL" if v is None else str(v)
 
@@ -234,6 +244,12 @@ def _event_row(row):
         "analysis_json": data, "image_url": data.get("image_url") or None,
         "is_demo": bool(row["is_demo"]), "degraded": bool(data.get("degraded")),
         "summary_method": data.get("summary_method"),
+        # Paksh 7B: pass through AS-IS, never recomputed here. None (an event whose
+        # local analysis_json predates this field) stays None on sync - it must NOT
+        # be resolved to a fresh True/False at sync time, or a re-sync of an already-
+        # visible grandfathered row could silently flip it incomplete based on a
+        # local-only re-derivation this migration script has no business making.
+        "content_complete": data.get("content_complete"),
         "storyline_id": None,   # filled in after storyline linking, see main()
         "published_at": data.get("published_at"), "created_at": row["created_at"],
     }
@@ -245,8 +261,8 @@ def build_events_sql(rows):
             "lean_right", "international_count", "unrated_count", "total_sources",
             "dominant_lean", "dominant_pct", "blindspot_side", "blindspot_pct",
             "coverage", "framing", "framing_hi", "sources", "analysis_json",
-            "image_url", "is_demo", "degraded", "summary_method", "storyline_id",
-            "published_at", "created_at")
+            "image_url", "is_demo", "degraded", "summary_method", "content_complete",
+            "storyline_id", "published_at", "created_at")
     out = []
     for r in rows:
         vals = (
@@ -258,6 +274,7 @@ def build_events_sql(rows):
             _s(r["blindspot_side"]), _n(r["blindspot_pct"]), _j(r["coverage"]),
             _j(r["framing"]), _j(r["framing_hi"]), _j(r["sources"]), _j(r["analysis_json"]),
             _s(r["image_url"]), _b(r["is_demo"]), _b(r["degraded"]), _s(r["summary_method"]),
+            _nb(r["content_complete"]),
             _s(r["storyline_id"]), _ts(r["published_at"]), _ts(r["created_at"]),
         )
         set_clause = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != "id")

@@ -41,6 +41,17 @@ from analyze import analyze_event, has_framing, MIN_SIDE_OWNERS
 
 SIDES = ("left", "center", "right")
 
+# Paksh 7B: of a capped run's --limit, this many slots are reserved for single-lane
+# events (only one side covered) regardless of rank. _rank_key() always sorts
+# multi-lean/top-tier events first, so without this reservation a single-lane event
+# is NEVER reached by any realistic cap - the local backlog audit found 7,504
+# multi-lean gap events ahead of every single-lane one in the sort order, versus a
+# 300/event daily cap. Bounded and small on purpose: repairs the existing ~1,602
+# single-lane backlog in ~32 daily runs at this rate while leaving the bulk of the
+# cap for the higher-value multi-lean/top-tier backlog, which was already
+# comfortably keeping pace with new gaps at the full 300/day.
+SINGLE_LANE_RESERVE = 50
+
 
 def _missing_sides(ev):
     """Leans with ENOUGH unique coverage (>= MIN_SIDE_OWNERS distinct owners) but no
@@ -90,7 +101,10 @@ def _collect(ids):
                 out.append(ev)
         return out
     out = []
-    for row in get_all_events():
+    # Paksh 7B: include_incomplete=True - reframe's whole job is to find and repair
+    # events the publication gate is currently hiding, so it must see them, unlike
+    # every public-facing caller of get_all_events().
+    for row in get_all_events(include_incomplete=True):
         ev = get_event(row["id"])
         if ev and _missing_sides(ev):
             out.append(ev)
@@ -119,7 +133,18 @@ def main():
     if args.top_tier:
         targets = top
     if args.limit:
-        targets = targets[:args.limit]
+        if args.top_tier or ids:
+            # --top-tier already excludes every single-lane event by definition, so
+            # there's nothing to reserve for; an explicit --ids run is a forced,
+            # manual selection and should not be reshuffled.
+            targets = targets[:args.limit]
+        else:
+            # Paksh 7B: guarantee single-lane events a bounded slice of the cap - see
+            # SINGLE_LANE_RESERVE above for why this is necessary, not optional.
+            single_lane = [ev for ev in targets if not _is_top_tier(ev)]
+            multi = [ev for ev in targets if _is_top_tier(ev)]
+            reserve = min(SINGLE_LANE_RESERVE, args.limit, len(single_lane))
+            targets = multi[:args.limit - reserve] + single_lane[:reserve]
 
     tag = "" if args.apply else "  (dry run)"
     print(f"{len(targets)} event(s) to re-frame{tag}   |  "

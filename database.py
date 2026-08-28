@@ -531,6 +531,9 @@ def _event_summary_row(r):
         "is_demo": bool(r["is_demo"]),
         "source_count": len(data.get("sources", [])),
         "summary_method": data.get("summary_method", "llm"),
+        # Paksh 7B: publication-completeness flag (see analyze.py::compute_content_complete).
+        # None means the event predates this field - see _is_publishable() below.
+        "content_complete": data.get("content_complete"),
         "lean_counts": counts,
         "international": data.get("coverage", {}).get("international", {}).get("count", 0),
         "dominant": dominant_lean(counts),
@@ -543,7 +546,22 @@ def _event_summary_row(r):
     }
 
 
-def get_all_events():
+# Paksh 7B: the publication-completeness gate. content_complete is written by
+# analyze.py::postprocess() going forward; an event with NO such key (every event
+# generated before this field existed) is grandfathered - it was never evaluated by
+# this rule and stays visible unless/until it's naturally re-analysed (backfill.py/
+# reframe.py/recount_migrate.py), at which point postprocess() writes a real value.
+# Only an EXPLICIT False hides an event. This is the one place the predicate is
+# read from a stored value - the CALCULATION lives only in compute_content_complete().
+def _is_publishable(e: dict) -> bool:
+    return e.get("content_complete") is not False
+
+
+def get_all_events(include_incomplete: bool = False):
+    """include_incomplete=True is for INTERNAL repair tooling only (reframe.py's own
+    candidate discovery) - it must still see newly-incomplete events to find and fix
+    them. Every public-facing caller (main.py's routes, export_static.py) uses the
+    default False and never sees a non-grandfathered incomplete event."""
     if not has_content():
         # Paksh phase 5.1: SQLite has no usable content (e.g. a fresh Render
         # deploy with no paksh.db - see the Phase 5.1 report). Fall back to
@@ -552,7 +570,8 @@ def get_all_events():
         # SQLite, never treated as a new source of truth.
         import static_fallback
         snapshot = static_fallback.get_events()
-        return snapshot["events"] if snapshot else []
+        out = snapshot["events"] if snapshot else []
+        return out if include_incomplete else [e for e in out if _is_publishable(e)]
     conn = get_connection()
     rows = conn.execute("SELECT * FROM events ORDER BY created_at DESC").fetchall()
     conn.close()
@@ -560,7 +579,10 @@ def get_all_events():
     # Hide events that lack a real bias comparison (<2 rated outlets) -- e.g.
     # all-unrated GDELT/syndication events saved before the rated-gate existed.
     # Non-destructive: rows stay in the DB, they're just not published.
-    return [e for e in out if sum(e["lean_counts"].values()) >= 2]
+    out = [e for e in out if sum(e["lean_counts"].values()) >= 2]
+    if include_incomplete:
+        return out
+    return [e for e in out if _is_publishable(e)]
 
 
 def get_blindspot_events():
@@ -739,6 +761,8 @@ def search_events(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> dict:
         e = _event_summary_row(r)
         if sum(e["lean_counts"].values()) < 2:
             continue  # same content-quality gate get_all_events() applies
+        if not _is_publishable(e):
+            continue  # Paksh 7B: same publication-completeness gate get_all_events() applies
         title_l = (e["title"] or "").lower()
         summary_l = (e["summary"] or "").lower()
         if q_lower in title_l:

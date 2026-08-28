@@ -517,6 +517,22 @@ def has_framing(value) -> bool:
     return bool(isinstance(value, str) and value.strip())
 
 
+# Paksh 7B: the publication-completeness predicate. Reuses has_framing()/MIN_SIDE_OWNERS
+# unchanged - this promotes reframe.py's existing "which sides are missing" selection
+# logic to a publication gate, rather than inventing a second, subtly different rule.
+# Extractive events (Option A, approved) are ALWAYS complete: they never claim to have
+# framing (the frontend already discloses them as "Auto-summary"), so the gate protects
+# the LLM tier specifically, where framing is contractually expected but can silently
+# come back empty for a side that has real coverage.
+def compute_content_complete(coverage: dict, framing: dict, summary_method: str) -> bool:
+    if summary_method != "llm":
+        return True
+    for side in LEAN_ORDER:
+        if (coverage.get(side) or {}).get("count", 0) >= MIN_SIDE_OWNERS and not has_framing(framing.get(side)):
+            return False
+    return True
+
+
 def postprocess(raw, articles) -> dict:
     """Turn the model's (parsed) output + the articles into the stored event.
     Pure function - no network - so it is unit-testable. The neutral brief comes
@@ -574,6 +590,8 @@ def postprocess(raw, articles) -> dict:
     points = raw.get("summary_points") or []
     degraded = not (raw.get("title") or raw.get("summary") or points)
     title = raw.get("title") or (articles[0]["title"] if articles else "Untitled event")
+    summary_method = raw.get("summary_method", "llm")
+    framing_clean = _clean_framing(raw.get("framing"), coverage_out)
 
     return {
         "title": title,
@@ -582,7 +600,7 @@ def postprocess(raw, articles) -> dict:
         "title_hi": raw.get("title_hi", ""),
         "summary_hi": raw.get("summary_hi", ""),
         "summary_points_hi": raw.get("summary_points_hi", []) or [],
-        "framing": _clean_framing(raw.get("framing"), coverage_out),
+        "framing": framing_clean,
         "framing_hi": _clean_framing(raw.get("framing_hi"), coverage_out),
         "topic": topic,
         "region": region,
@@ -596,7 +614,12 @@ def postprocess(raw, articles) -> dict:
         "coverage": coverage_out,
         "total_sources": len({s["source"] for s in sources_out}),
         "degraded": degraded,
-        "summary_method": raw.get("summary_method", "llm"),
+        "summary_method": summary_method,
+        # Paksh 7B: persisted publication-completeness gate (see compute_content_complete).
+        # Absence of this key (any event written before this field existed) is the
+        # grandfather signal every reader (database.py/supabase_content.py/the Supabase
+        # search RPC) treats as publishable - only an explicit False hides an event.
+        "content_complete": compute_content_complete(coverage_out, framing_clean, summary_method),
     }
 
 
@@ -780,7 +803,16 @@ def _run_summaries(rows_list, workers, backend=None):
 def analyze_event(articles, backend=None) -> dict:
     """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
     unavailable or returns nothing usable, falls back to an extractive headline
-    so the event still renders (coverage + bias bar are unaffected either way)."""
+    so the event still renders (coverage + bias bar are unaffected either way).
+
+    Paksh 7B: if the LLM succeeds but the result comes back with a covered side
+    missing framing (content_complete is False), makes exactly ONE additional
+    attempt with the identical prompt before accepting the result - not a loop,
+    no prompt change, no fabricated framing. This reduces how often a new event
+    enters the backlog reframe.py would otherwise have to repair later. If the
+    retry doesn't help, the first attempt's result is kept as-is; content_complete
+    stays False and the publication gate (not this function) is what keeps the
+    event from being shown, rather than it silently passing as complete."""
     try:
         raw = _call_json(build_prompt(articles), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
@@ -789,8 +821,17 @@ def analyze_event(articles, backend=None) -> dict:
             raise ValueError("generic placeholder title")
     except Exception as e:
         print(f"    summary -> extractive fallback ({e})")
-        raw = _extractive_raw(articles)
-    return postprocess(raw, articles)
+        return postprocess(_extractive_raw(articles), articles)
+
+    result = postprocess(raw, articles)
+    if not result["content_complete"]:
+        try:
+            retry_raw = _call_json(build_prompt(articles), backend=backend)
+            if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
+                result = postprocess(retry_raw, articles)
+        except Exception as e:
+            print(f"    framing retry failed, keeping first attempt ({e})")
+    return result
 
 
 # ------------------------------ entrypoint ------------------------------
