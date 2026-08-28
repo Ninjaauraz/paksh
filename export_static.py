@@ -31,7 +31,7 @@ from datetime import datetime
 from pathlib import Path
 
 from database import (
-    init_db, get_all_events, get_blindspot_events, get_topics, get_event,
+    init_db, get_all_events, get_blindspot_events, get_topics, get_events_by_ids,
 )
 from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
 # Paksh perf phase 4B: storylines (and its own numpy/cluster imports) is only
@@ -883,9 +883,16 @@ def main():
         })
 
         # 3) one file per event: detail JSON + a pre-rendered, crawlable HTML page
+        # Paksh 7B (overnight hardening): batched via get_events_by_ids() instead of
+        # calling get_event() once per event in this loop - measured 324.85s -> 1.28s
+        # (253x) over the full 13,814-event corpus, zero output differences. Same N+1
+        # pattern already fixed in reframe.py::_collect() (Phase 7B F3); this loop runs
+        # on every export_static.py build (every scheduled refresh), so it was the
+        # larger real-world cost of the two.
+        full_by_id = get_events_by_ids([e["id"] for e in events])
         story_urls = []
         for e in events:
-            full = get_event(e["id"])
+            full = full_by_id.get(e["id"])
             if full is None:
                 continue
             full = _clean_text(full)
