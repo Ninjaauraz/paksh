@@ -196,6 +196,20 @@ def list_blindspots():
         # of rendering empty. See the Phase 5.1 report for the reasoning.
         snapshot = static_fallback.get_blindspots()
         if snapshot is not None:
+            # Paksh 7B (P3-A hardening): the same "not explicitly incomplete" check
+            # database.get_all_events()'s own static-fallback branch already applies
+            # (content_complete is not False) - export_static.py writes this file from
+            # a single already-gated get_all_events() call, so this is a no-op on real
+            # data today, but it closes the same defense-in-depth gap for this direct
+            # read route, matching the pattern already used elsewhere.
+            def _pub(e):
+                return e.get("content_complete") is not False
+            snapshot = {
+                **snapshot,
+                "events": [e for e in snapshot.get("events", []) if _pub(e)],
+                "left_heavier": [e for e in snapshot.get("left_heavier", []) if _pub(e)],
+                "right_heavier": [e for e in snapshot.get("right_heavier", []) if _pub(e)],
+            }
             return snapshot
     return {"events": get_blindspot_events()}
 

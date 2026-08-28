@@ -386,7 +386,8 @@ def get_storyline(storyline_id: str) -> dict | None:
         f"/events?select=id,title,title_hi,created_at,published_at,topic,"
         f"dominant_lean,dominant_pct,blindspot_side,blindspot_pct,"
         f"lean_left,lean_center,lean_right"
-        f"&storyline_id=eq.{urllib.parse.quote(str(storyline_id))}&order=created_at.asc"
+        f"&storyline_id=eq.{urllib.parse.quote(str(storyline_id))}&{_PUBLISHABLE_FILTER}"
+        f"&order=created_at.asc"
     )
     ev_list = []
     for m in members:
