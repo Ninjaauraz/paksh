@@ -276,8 +276,13 @@ _JUNK_TITLE_RE = __import__("re").compile(
 
 def get_recent_events_for_merge(days=5, limit=400):
     """READ-ONLY. Recent non-demo events with their member articles, for cross-cycle
-    merge matching. Returns [{event_id, created_at, title, topic, source_count,
-    articles:[{title, summary, language, source}]}]."""
+    merge matching. Returns [{event_id, created_at, title, topic, region, source_count,
+    articles:[{title, summary, language, source}]}].
+
+    Paksh 10: region added alongside the existing topic extraction, for the
+    cross-cycle merge topic-guard in analyze.py::_merge_into_existing() - both are
+    read-only lookups of the event's OWN already-stored classification, never
+    computed here."""
     import json
     from datetime import datetime, timedelta
     cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
@@ -301,12 +306,13 @@ def get_recent_events_for_merge(days=5, limit=400):
         try:
             _aj = json.loads(e["analysis_json"])
             topic = _aj.get("topic")
+            region = _aj.get("region")
             smethod = _aj.get("summary_method", "llm")
         except Exception:
-            topic, smethod = None, "llm"
+            topic, region, smethod = None, None, "llm"
         out.append({
             "event_id": e["id"], "created_at": e["created_at"], "title": e["title"],
-            "topic": topic, "summary_method": smethod,
+            "topic": topic, "region": region, "summary_method": smethod,
             "source_count": len({a["source"] for a in arts}),
             "articles": [dict(a) for a in arts],
         })

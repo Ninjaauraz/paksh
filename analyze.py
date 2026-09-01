@@ -919,10 +919,66 @@ def recount_event(event_id, resummarise=False):
     update_event(event_id, analysis, bump_created=True)
 
 
-def _merge_into_existing(details):
+def _topic_mismatch_veto(cluster_detail, event, articles_by_id, sim):
+    """Paksh 10: post-match topic-consistency veto for the cross-cycle merge.
+
+    Investigation (Phase 10 forensic report) found match_clusters_to_events()'s
+    embedding+keyword gate can, over many cross-cycle merges, glue a genuinely
+    different-topic cluster into an existing event when the two share a magnet
+    keyword or template-similar phrasing (confirmed: event #13344, "Manitoba and
+    Minnesota Weather Updates", absorbed unrelated ABC Australia politics/court
+    articles this way). Topic - unlike region - is available on the EXISTING
+    event (already LLM/heuristic-classified) but never on the brand-new cluster
+    (which has no analysis yet); the cheapest available signal for the cluster
+    side is analyze.py's own _guess_topic() heuristic, reused read-only here.
+
+    This is intentionally NOT a hard "topic must match" gate (see the Phase 10
+    report's design rationale): it only fires when ALL of the following hold,
+    so it narrows an already-passed match rather than replacing the existing
+    similarity/keyword logic:
+      - the event's own stored topic is a real, non-legacy TOPICS value
+      - the cheap heuristic guess for the cluster is NOT its own no-signal
+        default ("Society" - see _guess_topic()'s docstring), i.e. it found a
+        real keyword signal, not just an absence of one
+      - the guess actually disagrees with the event's topic
+      - the match's own centroid similarity is BELOW HIGH_SIM - an extremely
+        confident semantic match is trusted over a cheap regex guess (Phase 10
+        report's "extreme-similarity exception"), so genuinely continuing
+        stories are never blocked by this guard.
+    Region was investigated too (Phase 10 report) but found unreliable as a
+    veto signal on the 3 known bleed events (_guess_region() defaults to
+    "India" whenever neither its India nor foreign pattern matches, and shares
+    real false-positive risk via ambiguous acronyms like "GST") - deliberately
+    NOT used as an independent veto trigger, only topic is."""
+    event_topic = event.get("topic")
+    if event_topic not in TOPICS:
+        return False                      # missing/legacy event topic - nothing to compare
+    if sim >= cluster.HIGH_SIM:
+        return False                      # extreme-similarity exception
+    ids = cluster_detail.get("ids") or []
+    text = " ".join(_text_of_by_id(i, articles_by_id) for i in ids if i in articles_by_id)
+    if not text.strip():
+        return False
+    guessed = _guess_topic(text)
+    if guessed == "Society":
+        return False                      # heuristic's own no-signal default - not confident
+    return guessed != event_topic
+
+
+def _text_of_by_id(article_id, articles_by_id):
+    a = articles_by_id.get(article_id)
+    return f"{a.get('title', '')} {(a.get('summary') or '')}" if a else ""
+
+
+def _merge_into_existing(details, articles):
     """Fold each new cluster that continues a RECENT event into that event (assign its
     articles + recount), and return the id-lists of the UNMATCHED clusters (>=2 outlets)
-    so they go on to become new events through the normal path."""
+    so they go on to become new events through the normal path.
+
+    Paksh 10: `articles` (the full unclustered-articles list `details` was built
+    from) is now required, so a cluster's own combined text is reconstructable for
+    the topic-consistency veto below - `details` entries only ever carried a single
+    `sample_title`, not enough text for a meaningful topic guess."""
     if not details:
         return []
     events = get_recent_events_for_merge(days=cluster.MERGE_WINDOW_DAYS)
@@ -938,7 +994,14 @@ def _merge_into_existing(details):
         langs = [x["language"] for x in arts]
         ev_clusters.append({**e, "centroid": centroid, "keywords": kw,
                             "lang": max(set(langs), key=langs.count) if langs else "en"})
-    matches = cluster.match_clusters_to_events(details, ev_clusters) if ev_clusters else []
+    raw_matches = cluster.match_clusters_to_events(details, ev_clusters) if ev_clusters else []
+    articles_by_id = {a["id"]: a for a in articles}
+    matches, vetoed = [], 0
+    for m in raw_matches:
+        if _topic_mismatch_veto(m["cluster"], m["event"], articles_by_id, m["sim"]):
+            vetoed += 1
+            continue
+        matches.append(m)
     matched = {id(m["cluster"]) for m in matches}
     for m in matches:
         assign_articles_to_event(m["cluster"]["ids"], m["event"]["event_id"])
@@ -946,6 +1009,9 @@ def _merge_into_existing(details):
     if matches:
         print(f"Cross-cycle merge: folded {len(matches)} continuing cluster(s) "
               f"into existing events (no duplicates created).")
+    if vetoed:
+        print(f"Cross-cycle merge: vetoed {vetoed} candidate merge(s) on a confident "
+              f"topic mismatch (became new event(s) instead).")
     return [d["ids"] for d in details
             if id(d) not in matched and d["source_count"] >= MIN_SOURCES_PER_EVENT]
 
@@ -1015,7 +1081,7 @@ def main():
         except Exception as e:
             print(f"    embedding clustering unavailable ({e}); using LLM fallback")
             details = None
-        clusters = (_merge_into_existing(details) if details is not None
+        clusters = (_merge_into_existing(details, articles) if details is not None
                     else _cluster_articles_llm(articles))
     else:
         clusters = cluster_articles(articles)
