@@ -15,6 +15,14 @@ REM  single-lane events a bounded slice of the same 300/day cap.
 REM  Now EXITS WITH THE REAL RESULT (no trailing echo masking a
 REM  failure). No article-grow check here: reframe fills framing,
 REM  it never ingests, so "articles didn't grow" is expected.
+REM  Paksh 8.5: added verify_fresh.py deploy-check after the pipeline - a
+REM  deploy-sync-only ground-truth gate (git HEAD vs origin/main). This job
+REM  previously had NO ground-truth check at all (only its own exit code,
+REM  which Task Scheduler records but nothing surfaces proactively) - a
+REM  push failure here (network/DNS outage, or the whole chain dying before
+REM  it ever committed, as happened 2026-09-01) went unflagged to the
+REM  Desktop-alert mechanism Sameer actually watches. See verify_fresh.py's
+REM  docstring for the exact gap this closes.
 REM  Logs to reframe_log.txt.
 REM ============================================================
 cd /d "C:\paksh_project\paksh"
@@ -27,5 +35,9 @@ echo ===================================================== >> reframe_log.txt
 echo Run started:  %date% %time% >> reframe_log.txt
 py runlocked.py reframe -- cmd /c "py reframe.py --apply --limit 300 && py export_static.py && py safe_autopush.py reframe" >> reframe_log.txt 2>&1
 set RC=%ERRORLEVEL%
-echo Run finished (exit %RC%): %date% %time% >> reframe_log.txt
-endlocal & exit /b %RC%
+py verify_fresh.py deploy-check >> reframe_log.txt 2>&1
+set VRC=%ERRORLEVEL%
+set FINAL=%RC%
+if not "%VRC%"=="0" set FINAL=%VRC%
+echo Run finished (exit %FINAL%): %date% %time% >> reframe_log.txt
+endlocal & exit /b %FINAL%
