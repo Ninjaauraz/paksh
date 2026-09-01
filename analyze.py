@@ -344,7 +344,7 @@ def _looks_generic(title) -> bool:
     return bool(t) and bool(_GENERIC_TITLE.search(t))
 
 
-def build_prompt(articles) -> str:
+def build_prompt(articles, region=None) -> str:
     _LEANWORD = {"left": "left-leaning", "center": "centrist",
                  "right": "right-leaning", "unrated": "unrated",
                  "international": "international wire"}
@@ -378,9 +378,17 @@ def build_prompt(articles) -> str:
     # infer the count itself from the OUTLET blocks below. (This is a wording hint only; the
     # authoritative count that gates what actually gets stored is computed later, in
     # postprocess, from the story's finalized region.)
+    #
+    # `region` is None on the first call (the story's region isn't known yet - it's the
+    # model's OWN output, so passing it here would be circular; see lean_of()'s docstring).
+    # On analyze_event()'s bounded retry, the first attempt's resolved region IS known and
+    # is passed in, so a World story's international-tier outlet with a KNOWN underlying
+    # lean (see lean_of) is correctly counted as a voting owner here too - matching what
+    # postprocess() will authoritatively compute, instead of always showing the model
+    # "0 owners" for a side that postprocess() will end up voting in.
     owner_counts = {
         side: len({OWNER_BY_SOURCE.get(a["source"], a["source"])
-                   for a in articles if lean_of(a["source"]) == side})
+                   for a in articles if lean_of(a["source"], region) == side})
         for side in LEAN_ORDER
     }
     counts_line = "LEFT: %d owner(s) - CENTRE: %d owner(s) - RIGHT: %d owner(s)" % (
@@ -847,12 +855,20 @@ def analyze_event(articles, backend=None) -> dict:
 
     Paksh 7B: if the LLM succeeds but the result comes back with a covered side
     missing framing (content_complete is False), makes exactly ONE additional
-    attempt with the identical prompt before accepting the result - not a loop,
-    no prompt change, no fabricated framing. This reduces how often a new event
-    enters the backlog reframe.py would otherwise have to repair later. If the
-    retry doesn't help, the first attempt's result is kept as-is; content_complete
-    stays False and the publication gate (not this function) is what keeps the
-    event from being shown, rather than it silently passing as complete."""
+    attempt before accepting the result - not a loop, no fabricated framing. This
+    reduces how often a new event enters the backlog reframe.py would otherwise
+    have to repair later. If the retry doesn't help, the first attempt's result
+    is kept as-is; content_complete stays False and the publication gate (not
+    this function) is what keeps the event from being shown, rather than it
+    silently passing as complete.
+
+    Paksh 7B (retry region fix): the retry's prompt is the SAME as the first
+    attempt except that, by the retry, the first attempt's resolved region is
+    now known and is passed to build_prompt() - so a World story's international
+    outlet with a known underlying lean is correctly shown as a voting owner on
+    the retry (it can't be on the first attempt, since region is the model's OWN
+    output there - see build_prompt()'s and lean_of()'s docstrings). Everything
+    else about the retry - no loop, no invented framing - is unchanged."""
     try:
         raw = _call_json(build_prompt(articles), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
@@ -869,7 +885,7 @@ def analyze_event(articles, backend=None) -> dict:
     else:
         _record_retry_stat("retry_attempted")
         try:
-            retry_raw = _call_json(build_prompt(articles), backend=backend)
+            retry_raw = _call_json(build_prompt(articles, region=result.get("region")), backend=backend)
             if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
                 result = postprocess(retry_raw, articles)
             _record_retry_stat("retry_rescued" if result["content_complete"] else "retry_not_rescued")

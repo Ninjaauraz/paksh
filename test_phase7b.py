@@ -19,6 +19,10 @@ Covers, in order:
   E. reframe.py - the single-lane reservation policy (Case 18).
   F. static_fallback.py - defense-in-depth: an explicitly-incomplete row in the
      snapshot is still excluded by database.get_all_events()'s own filter.
+  G. build_prompt()'s owner_counts region-consistency (Sep 1 remediation audit):
+     the retry path now shows the LLM an accurate owner count for a World
+     story's international outlet with a known underlying lean, instead of
+     always displaying 0 owners for that side.
 
 NOT covered here (documented, not faked - see the Phase 7B report):
   - The Supabase `search_events` RPC and the `content_complete` column/backfill
@@ -354,6 +358,35 @@ finally:
     static_fallback._DATA_DIR = _orig_data_dir
     static_fallback._cache.clear()
     static_fallback._cache.update(_orig_cache)
+
+
+# ============================================================ G: build_prompt() region consistency
+print("\n=== G: build_prompt() - owner_counts matches postprocess()'s region-aware voting ===")
+_orig_lean_of_g = analyze.lean_of
+try:
+    # A known-lean international outlet ("FakeWire") votes "center" on World stories only -
+    # mirrors the real lean_of()/postprocess() contract (region resolved first, never guessed
+    # from source composition).
+    def _fake_lean_of(name, region=None):
+        if name == "FakeWire":
+            return "center" if region == "World" else "international"
+        return "unrated"
+    analyze.lean_of = _fake_lean_of
+
+    _articles = [
+        {"id": 1, "source": "FakeWire", "language": "en", "title": "t1", "summary": "s1", "url": "u1"},
+        {"id": 2, "source": "OtherOutlet", "language": "en", "title": "t2", "summary": "s2", "url": "u2"},
+    ]
+    check("20: first-attempt prompt (region unknown) shows 0 owners for the international side "
+          "(unavoidable - region isn't known until the model responds)",
+          "CENTRE: 0 owner(s)" in analyze.build_prompt(_articles))
+    check("20: retry prompt (region='World', now known) correctly counts the known-lean "
+          "international outlet as a voting owner",
+          "CENTRE: 1 owner(s)" in analyze.build_prompt(_articles, region="World"))
+    check("20: region='India' never votes the international outlet in (matches lean_of())",
+          "CENTRE: 0 owner(s)" in analyze.build_prompt(_articles, region="India"))
+finally:
+    analyze.lean_of = _orig_lean_of_g
 
 
 print("\n" + "=" * 60)
