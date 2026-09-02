@@ -400,12 +400,41 @@ Produce (1) a DIRECT, substantive neutral account, and (2) a CONCRETE, attribute
 description of how each side is framing the story.
 
 WRITE WITH SUBSTANCE, NOT HEDGING:
+- Read every OUTLET block below before writing anything. Synthesize ACROSS all of them:
+  combine complementary details, include a concrete fact even if only one credible
+  outlet reports it, and merge duplicate wording without losing information. Do not
+  simply rewrite one article and ignore the rest.
 - State plainly what actually happened. Lead with the concrete facts: who did what,
   when, where, and the specific numbers, names, claims and decisions in the coverage.
+- Identify what KIND of story this is and extract the details that actually matter for
+  it - for example: a crime story calls for the victim/accused/suspect, what allegedly
+  happened, and any arrest/charge/investigation status; a policy or political story
+  calls for who announced what, which body is involved, who is affected, and what
+  opposing/supporting voices said; a court case calls for the court, the parties, what
+  was decided or challenged, and what happens next; a disaster/accident calls for
+  location, casualties, scale, cause, and response; sport calls for the competition,
+  result, venue and decisive stats; business/economy calls for the company, the
+  deal/amount, the parties, and the stated reason. These are examples of the KIND of
+  detail worth looking for, not a checklist to force - include only what THIS coverage
+  actually supports, and skip whatever doesn't apply to this story.
 - Strip filler, PR language and empty hedging ("sources say", "it is believed",
   "in a significant development"). Strip jargon; use plain words.
 - Do NOT pad with vague abstractions ("various developments", "the situation
   continues to evolve"). Every sentence must carry a specific fact.
+
+ATTRIBUTION - keep these registers distinct, never blur one into another:
+  FACT: something the coverage reports as established ("The man was arrested on Tuesday.")
+  ALLEGATION: something authorities/a party claims but that isn't established fact
+    ("Police alleged he was involved.")
+  CLAIM: a stated position, not independently verified ("The minister said the policy
+    would reduce costs.")
+  DISPUTED CLAIM: the coverage itself disagrees ("The government said X, while the
+    opposition disputed the claim" / "One report said X while another said Y.") Never
+    silently pick a side when outlets conflict.
+Use whichever the coverage actually supports: accused, alleged, suspected, police said,
+prosecutors said, investigators said, according to court documents, the government said.
+Never convert an allegation into a stated fact. Never infer guilt, motive, cause, or a
+future consequence the coverage itself does not state.
 
 STRICT NEUTRALITY - never cross these:
 - Use ONLY facts and claims present in the coverage below. Never invent facts,
@@ -462,8 +491,8 @@ any Hindi field, or with an English value in a _hi field, is INVALID.
 Return ONLY a JSON object with these keys:
 {{
   "title": "neutral English headline IN ENGLISH ONLY (never Hindi/Devanagari), max ~12 words, no loaded words, no publication named",
-  "summary": "a direct neutral account IN ENGLISH ONLY, in 4-6 sentences: exactly what happened, the specific facts and figures, the key attributed claims, and the concrete context - no filler, no hedging, no publication named",
-  "summary_points": ["4-6 short, specific neutral points IN ENGLISH ONLY, each a concrete fact"],
+  "summary": "a direct, information-dense neutral account IN ENGLISH ONLY, approximately 5-8 sentences where the coverage supports that much: what happened, who/what is directly involved, when and where, the concrete facts and figures, what authorities/officials said or did, any disputed claims properly attributed, and current status ONLY if the coverage states it - every sentence must add a fact (quality over length; never pad to reach a sentence count, never cut a real fact to stay short), no filler, no hedging, no publication named",
+  "summary_points": ["4-6 concrete, specific factual points IN ENGLISH ONLY, each a standalone fact - e.g. 'Police said they arrested two people and are investigating the motive', NOT the generic 'Authorities are investigating the incident'; complement the summary rather than mechanically re-splitting its sentences"],
   "title_hi": "REQUIRED - Hindi (Devanagari) translation of the title, never empty, Hindi script only",
   "summary_hi": "REQUIRED - Hindi (Devanagari) translation of the summary, never empty, Hindi script only",
   "summary_points_hi": ["REQUIRED - Hindi (Devanagari) translations of the points, same order, never empty, Hindi script only"],
