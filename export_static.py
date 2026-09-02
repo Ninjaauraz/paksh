@@ -940,7 +940,7 @@ def main():
             "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
             # Supabase Auth (GoTrue) + PostgREST for accounts / Reading Lens / Saved (direct REST,
             # no SDK). Publishable anon key only; RLS guards every table. Formspree = contact form.
-            "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co https://paksh-staging-api.onrender.com; "
+            "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co; "
             "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
             "base-uri 'self'; form-action 'self' https://formspree.io; "
             "manifest-src 'self'; worker-src 'self'"

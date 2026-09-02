@@ -18,18 +18,23 @@ Endpoints:
 PAKSH 2.0 PHASE 1 — content backend toggle
 -------------------------------------------
 Set PAKSH_CONTENT_BACKEND=supabase to read events/topics/sources/storylines
-from the new Supabase content tables (supabase_content.py) instead of the
-local paksh.db. Default is unchanged: PAKSH_CONTENT_BACKEND unset (or any
-value other than "supabase") reads SQLite exactly as before - this file's
-behavior does not change unless you explicitly opt in, per the Phase 1 brief
-(goal G: existing production behavior remains unchanged unless the live API
-is explicitly enabled). If Supabase is unreachable while the backend is set to
+from Supabase content tables (supabase_content.py) instead of the local
+paksh.db. Default is unchanged: PAKSH_CONTENT_BACKEND unset (or any value
+other than "supabase") reads SQLite exactly as before - this file's behavior
+does not change unless you explicitly opt in, per the Phase 1 brief (goal G:
+existing production behavior remains unchanged unless the live API is
+explicitly enabled). If Supabase is unreachable while the backend is set to
 "supabase", each route falls back to SQLite automatically rather than 500ing -
 "fail safely", per the brief's API design requirement. Static JSON remains a
 separate, independent fallback for the Vercel-deployed static site (see
-export_static.py) - this toggle affects every deployment of `main.py`,
-including the Render-hosted production API (PAKSH_CONTENT_BACKEND=supabase)
-that paksh.news's frontend calls directly since Phase 3.8, not just local runs.
+export_static.py).
+
+Historical note: this file was briefly deployed to Render as a live content
+API (2026-08-21 to 2026-09-01), with the Supabase content tables it reads
+mirrored from paksh.db for that purpose. That deployment was retired and the
+mirrored tables were dropped; production (paksh.vercel.app) now serves only
+the static JSON export and never calls this file. It remains here for local
+development and as the read layer this toggle exercises.
 """
 
 import os

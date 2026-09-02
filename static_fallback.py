@@ -5,9 +5,9 @@ Fallback hierarchy:  Supabase  ->  SQLite (real content)  ->  this module  ->  e
 
 Reads the SAME committed `_site/data/*.json` files export_static.py already
 produces for the Vercel-deployed static site (see .gitignore's own note:
-"_site/ IS committed on purpose"). These files are already present on every
-Render deploy today - this module is simply the first thing that reads them
-server-side, from the API process, as an emergency source.
+"_site/ IS committed on purpose"). These files ship with the repository -
+this module is simply the first thing that reads them server-side, from the
+API process, as an emergency source, when main.py is run.
 
 Shapes were traced field-by-field against database.py's current SQLite-mode
 output before writing this (see the Phase 5.1 report): topics, storylines,
