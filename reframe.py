@@ -38,10 +38,56 @@ from database import (
     init_db, get_all_events, get_events_by_ids, get_event_articles, update_event,
 )
 from analyze import (
-    analyze_event, has_framing, MIN_SIDE_OWNERS, reset_retry_stats, get_retry_stats,
+    analyze_event, has_framing, postprocess, MIN_SIDE_OWNERS, reset_retry_stats, get_retry_stats,
 )
 
 SIDES = ("left", "center", "right")
+
+# Paksh 20D: analyze_event() is the SAME full-fresh-analysis pipeline used for a
+# brand-new cluster - it always re-derives title/summary/summary_points/topic/region
+# from the model's own fresh output, and _clean_framing() rebuilds EVERY covered
+# side's framing from that fresh output, not just the ones that were missing. Left
+# unguarded, a "fill the gaps" reframe call can silently rewrite an already-complete
+# event's region (which cascades into lean_of() -> coverage -> the published bias
+# bar - see the Phase 20C regression on event #11940) and can silently replace
+# already-good framing on sides that were never missing. PRESERVE_FIELDS is exactly
+# recount_migrate.py's own _PRESERVE set (Paksh 3.x) - the already-established "these
+# fields are not this operation's to touch" list - reused here rather than inventing
+# a second, subtly different one.
+PRESERVE_FIELDS = ("title", "summary", "summary_points", "title_hi", "summary_hi",
+                    "summary_points_hi", "topic", "region", "summary_method")
+
+
+def _merge_reframe_result(ev, fresh, want, articles):
+    """Combine the EXISTING event (ev) with a fresh analyze_event() result, keeping
+    everything except the specific `want` sides' framing exactly as it was. Returns
+    the same shape update_event() already expects (a postprocess() output), so the
+    caller's write path is unchanged.
+
+    - title/summary/summary_points/topic/region/summary_method (+Hindi) come from the
+      EXISTING event, never the fresh call - see PRESERVE_FIELDS above.
+    - framing/framing_hi start from the EXISTING event's values; only a side in `want`
+      whose fresh value actually has_framing() gets replaced. A side that was already
+      complete, or a side the fresh call didn't manage to fill, is untouched.
+    - Passing the preserved region back through postprocess() (the SAME function
+      recount_migrate.py already trusts for this exact purpose) is what keeps
+      coverage/lean_counts/sources correctly stable: same (region, articles) in ->
+      same deterministic arithmetic out, every time. `articles` must be the SAME
+      member-article rows the caller fetched for this event (get_event_articles(eid)).
+    """
+    raw = {k: ev.get(k) for k in PRESERVE_FIELDS}
+    fresh_fr = fresh.get("framing") or {}
+    fresh_fr_hi = fresh.get("framing_hi") or {}
+    merged_fr = dict(ev.get("framing") or {})
+    merged_fr_hi = dict(ev.get("framing_hi") or {})
+    for s in want:
+        if has_framing(fresh_fr.get(s)):
+            merged_fr[s] = fresh_fr[s]
+        if has_framing(fresh_fr_hi.get(s)):
+            merged_fr_hi[s] = fresh_fr_hi[s]
+    raw["framing"] = merged_fr
+    raw["framing_hi"] = merged_fr_hi
+    return postprocess(raw, articles)
 
 # Paksh 7B: of a capped run's --limit, this many slots are reserved for single-lane
 # events (only one side covered) regardless of rank. _rank_key() always sorts
@@ -113,7 +159,7 @@ def _collect(ids):
     out = []
     for row in rows:
         ev = by_id.get(row["id"])
-        if ev and _missing_sides(ev):
+        if ev and ev.get("content_complete") is False and _missing_sides(ev):
             out.append(ev)
     return out
 
@@ -178,15 +224,20 @@ def main():
         if not rows:
             skipped += 1
             continue
-        analysis = analyze_event(rows)             # fixed build_prompt + framing prompt
-        new_fr = analysis.get("framing") or {}
-        filled = [s for s in want if has_framing(new_fr.get(s))]
+        fresh = analyze_event(rows)                 # fixed build_prompt + framing prompt
+        fresh_fr = fresh.get("framing") or {}
+        filled = [s for s in want if has_framing(fresh_fr.get(s))]
         if not filled:
             # LLM produced no framing for the missing side(s) - do NOT overwrite a good
             # brief with an empty/extractive one. Most common cause: backend not running.
             print(f"  skip  #{eid}  (no framing produced - is the LLM backend up?)")
             skipped += 1
             continue
+        # Paksh 20D: write only the merged result (existing title/summary/topic/region/
+        # already-complete framing preserved, only `filled` sides' framing replaced) -
+        # never the raw fresh analysis, which would silently reclassify region/topic
+        # and rewrite every side's framing, not just the missing ones.
+        analysis = _merge_reframe_result(ev, fresh, want, rows)
         update_event(eid, analysis, bump_created=False)   # keep original timestamp
         done += 1
         print(f"  ok    #{eid}  filled: {','.join(filled)}")
