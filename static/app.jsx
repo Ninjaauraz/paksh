@@ -214,6 +214,8 @@ const {useState,useEffect,useMemo}=React;
       sections:{en:"Sections", hi:"खंड"}, oneSided:{en:"One-Sided", hi:"एकतरफ़ा"},
       searchTab:{en:"Search", hi:"खोज"}, browse:{en:"Browse by topic", hi:"विषय से देखें"},
       searchHint:{en:"Search across all coverage", hi:"सभी कवरेज में खोजें"},
+      searchLoading:{en:"Loading the full archive to search…", hi:"खोज के लिए पूरा संग्रह लोड हो रहा है…"},
+      searchUnavailable:{en:"Search data couldn't be loaded. Please try again.", hi:"खोज डेटा लोड नहीं हो सका। कृपया फिर से प्रयास करें।"},
       latestCoverage:{en:"Latest coverage", hi:"ताज़ा कवरेज"},
       gapAll:{en:"All", hi:"सभी"}, gapLeftMissing:{en:"Left missing", hi:"वाम ग़ायब"},
       gapRightMissing:{en:"Right missing", hi:"दक्षिण ग़ायब"}, showMore:{en:"Show more", hi:"और दिखाएँ"},
@@ -445,25 +447,6 @@ const {useState,useEffect,useMemo}=React;
         image:e.image_url||imgFor(hueOf(e.topic||e.title)) };
     };
 
-    // Paksh 6D: shapes one /api/search result row into the minimal subset of toCard()'s
-    // fields FeedRow/Eyebrow/BiasPill actually read (id, topic, created_at, headline,
-    // counts, storyline_id) - NOT the full toCard(), since /api/search's contract
-    // (id/title/title_hi/summary/summary_hi/topic/lean_counts/sources/storyline_id/
-    // created_at/published_at) is a narrower shape than a raw event and has no
-    // summary_points/international/image_url/summary_method to build the rest of
-    // toCard()'s output from. Same headline language-selection rule as toCard()
-    // (lang==="hi" && title_hi present -> title_hi, else title) - not reinvented.
-    // blindspot is always null: /api/search does not compute it, and this must not
-    // fabricate one. img is left unset: /api/search has no image_url, so search
-    // results render without a thumbnail (FeedRow's `story.img &&` guard handles
-    // this the same way an event that legitimately has no image already does).
-    const toSearchCard = (r, lang) => ({
-      id: r.id, topic: r.topic, created_at: r.published_at || r.created_at,
-      headline: (lang === "hi" && r.title_hi) ? r.title_hi : (r.title || ""),
-      counts: r.lean_counts || {left:0,center:0,right:0},
-      storyline_id: r.storyline_id || null,
-      blindspot: null,
-    });
     // Keep each language view free of the OTHER language's script. The summary
     // engine occasionally writes a framing note in the wrong language; this drops
     // any bullet whose script doesn't match the active language, so the English
@@ -657,7 +640,7 @@ const {useState,useEffect,useMemo}=React;
               standalone masthead-adjacent banner - same Thumb component every other
               card uses, editorial 16:9 crop, bounded by the main well's own column.
               Paksh 7: when there is no real photo, the Lead tier (and only the Lead
-              tier - see toSearchCard/other cards, which stay on story.img alone) falls
+              tier - see search/other cards, which stay on story.img alone) falls
               back to the generated topic-hued gradient (story.image, from imgFor/hueOf
               in toCard()) rather than the plain muted-label placeholder every other
               tier still uses - a photo-less lead would otherwise be the single most
@@ -2253,8 +2236,8 @@ const {useState,useEffect,useMemo}=React;
     // error state here - search filters the catalogue already held in memory client-side, so a
     // keystroke never triggers a network request; the one real async gap (the initial catalogue
     // load, before this route can render at all) is covered by PakshApp's route-level PageSkeleton.
-    function SearchPage({ t, lang, query, setQuery, results, browseCards, open }) {
-      const browsing = !query.trim();
+    function SearchPage({ t, lang, query, setQuery, results, browseCards, searchStatus, open }) {
+      const browsing = searchStatus==="browsing";
       const list = browsing ? (browseCards||[]) : results;
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
@@ -2267,6 +2250,14 @@ const {useState,useEffect,useMemo}=React;
           </div>
           {browsing && (browseCards||[]).length===0 ? (
             <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
+          ) : searchStatus==="loading" ? (
+            <div className="py-24 text-center">
+              <p className={`headline text-[19px] ${t.ts} ${readCls(lang)}`}>{ui("searchLoading",lang)}</p>
+            </div>
+          ) : searchStatus==="error" ? (
+            <div className="py-24 text-center">
+              <p className={`headline text-[19px] ${t.ts} ${readCls(lang)}`}>{ui("searchUnavailable",lang)}</p>
+            </div>
           ) : !browsing && results.length===0 ? (
             <div className="py-24 text-center">
               <p className={`headline text-[19px] ${t.ts} ${readCls(lang)}`}>{STR[lang].noResults}</p>
@@ -3052,48 +3043,22 @@ const {useState,useEffect,useMemo}=React;
       useEffect(()=>{ document.body.style.backgroundColor="#F8F7F2"; },[]);
       useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
       // events.json is capped to recent stories for a light first paint; the older tail lives in
-      // events-archive.json and is fetched ONCE, the first time the user browses beyond the feed
-      // (a Topic / Sections/Topics index). Home + story pages never need it. Set to [] up front
-      // so the fetch fires only once even if it fails (then topic/topics just cover recent stories).
-      // Paksh 6D: "search" removed from this trigger list - search is now served by /api/search
-      // (full corpus, server-side), so entering Search no longer downloads the archive. If the
-      // archive is ALREADY loaded (the user visited a Topic page first, in the same session),
-      // SearchPage's pre-query browse view (browseCards, below) still benefits from it for free -
-      // nothing here blocks that, it just no longer fetches it on search's account.
-      useEffect(()=>{ if(archive!==null) return; if(!["topic","topics"].includes(route.view)) return; setArchive([]); apiGet("events-archive").then(a=>setArchive(a.events||[])).catch(()=>{}); },[route.view,archive]);
-
-      // Paksh 6D: SearchPage's actual results now come from GET /api/search (full corpus,
-      // every content tier - Supabase/SQLite/static-snapshot - already handled server-side;
-      // this component never needs to know which one served the response). Raw result ROWS
-      // are kept in state (not toSearchCard()-shaped here) so a language switch re-renders
-      // instantly via the SAME render-time shaping toCard()/baseCards already use below,
-      // rather than needing a second fetch just to relabel the same results.
-      //
-      // Debounced (300ms) so rapid typing does not fire one request per keystroke - a plain
-      // setTimeout + effect cleanup (clearTimeout on the next keystroke), no added dependency.
-      // Stale-response protection via a generation counter (searchSeq, React.useRef - the
-      // same ref pattern already used elsewhere in this file, e.g. _swipe above): each
-      // request captures the counter's value when it STARTS; if the counter has moved on by
-      // the time it resolves, a newer query has since begun and the response is discarded.
-      // This is what stops an old response for "india" from overwriting a later one for
-      // "india supreme court" if they resolve out of order.
-      const [searchRows,setSearchRows]=useState([]);
-      const searchSeq=React.useRef(0);
+      // events-archive.json and is fetched ONCE, either the first time the user browses beyond
+      // the feed (a Topic / Sections/Topics index) or the first time they actually type a search
+      // query - landing on /search with an empty box does NOT fetch it (Paksh 18B). "loading"/
+      // "error" string sentinels (instead of leaving archive silently stuck at [] forever on
+      // failure) let both the archive-consumers below and SearchPage tell "still fetching" and
+      // "fetch failed" apart from "fetched, genuinely nothing more" - see allEvents below and
+      // searchStatus further down.
       useEffect(()=>{
-        const q=(query||"").trim();
-        if(!q){ searchSeq.current++; setSearchRows([]); return; }   // no request for an empty/whitespace query
-        const mySeq=++searchSeq.current;
-        const timer=setTimeout(()=>{
-          apiGet("search?q="+encodeURIComponent(q)).then(r=>{
-            if(searchSeq.current!==mySeq) return;   // a newer query started - discard this response
-            setSearchRows(r.results||[]);
-          }).catch(()=>{
-            if(searchSeq.current!==mySeq) return;
-            setSearchRows([]);   // genuine fetch/network failure - empty results, no crash, no fake data
-          });
-        },300);
-        return ()=>clearTimeout(timer);
-      },[query]);
+        if(archive!==null) return;
+        const wantsArchive=["topic","topics"].includes(route.view) || (route.view==="search" && (query||"").trim());
+        if(!wantsArchive) return;
+        setArchive("loading");
+        apiGet("events-archive").then(a=>setArchive(a.events||[])).catch(()=>setArchive("error"));
+      },[route.view,archive,query]);
+      // debouncedQuery/searchStatus/searchRows (client-side search over allEvents) are defined
+      // further below, once allEvents itself exists - see the Paksh 18B comment there.
 
       // Apply accessibility to <html> immediately and whenever it changes (so every page reflects it).
       useEffect(()=>{ applyA11y(a11y); },[a11y]);
@@ -3142,7 +3107,7 @@ const {useState,useEffect,useMemo}=React;
       // Combine recent (always loaded) with the lazy archive once it arrives, so Search / Topic /
       // Sections cover the FULL catalogue while the home feed's first paint stayed small. The two
       // lists are disjoint (recent = events[:N], archive = events[N:]), so there are no duplicates.
-      const allEvents=(archive&&archive.length)?data.events.concat(archive):data.events;
+      const allEvents=(Array.isArray(archive)&&archive.length)?data.events.concat(archive):data.events;
       const baseCards=allEvents.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const baseOne=data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const gapL=(data.gaps.left||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
@@ -3180,13 +3145,43 @@ const {useState,useEffect,useMemo}=React;
       // Roster size per lean (distinct outlets tracked), for the Coverage-Gaps rate columns.
       const rosterByLean={left:0,center:0,right:0};
       (data.sources||[]).forEach(s=>{ if(rosterByLean[s.lean]!=null) rosterByLean[s.lean]++; });
-      // Paksh 6D: results now come from the backend (searchRows, populated by the debounced
-      // /api/search effect above) - shaped at render time via toSearchCard() so a language
-      // toggle re-labels existing results instantly, same idiom as baseCards/toCard() above.
-      // No client-side token-AND filtering of the corpus happens here any more; the backend
-      // (Supabase/SQLite/static-snapshot, whichever tier is live) already applied that exact
-      // token-AND semantic before this component ever sees a result.
-      const results=searchRows.map(r=>toSearchCard(r,lang));
+      // Paksh 18B: search is client-side over the same static event data every other view
+      // already uses (Render/`/api/search` are retired; there is no server to ask). Matches
+      // the ORIGINAL event fields (title/title_hi/summary/summary_hi), not the render-time
+      // toCard() headline/lead, so a match in either language is found regardless of which
+      // language the UI is currently showing - matched events are then shaped via toCard()
+      // for display, same as every other card list here, so no separate toSearchCard() shape
+      // is needed any more. AND semantics across whitespace-split tokens (every token must
+      // hit at least one field), same shape the old search_events() RPC used.
+      //
+      // query -> debouncedQuery stays debounced 300ms so fast typing doesn't recompute the
+      // filter (or thrash which query "wins" while the archive fetch above is still in
+      // flight) on every keystroke. Once debouncedQuery settles, filtering ~14k plain objects
+      // is a synchronous, sub-millisecond operation, so - unlike the old async fetch - there
+      // is nothing to race: useMemo always recomputes fresh from the LATEST debouncedQuery/
+      // allEvents/lang, so there is no stale response to discard and no generation-counter
+      // guard is needed. searchStatus distinguishes "still fetching the archive" and "archive
+      // fetch failed" from "no matches", so SearchPage never has to pretend a load failure is
+      // zero results.
+      const [debouncedQuery,setDebouncedQuery]=useState("");
+      useEffect(()=>{
+        const timer=setTimeout(()=>setDebouncedQuery((query||"").trim()),300);
+        return ()=>clearTimeout(timer);
+      },[query]);
+      const searchStatus = !debouncedQuery ? "browsing"
+        : archive==="error" ? "error"
+        : !Array.isArray(archive) ? "loading"
+        : "ready";
+      const searchRows = useMemo(()=>{
+        if(searchStatus!=="ready") return [];
+        const tokens=debouncedQuery.toLowerCase().split(/\s+/).filter(Boolean);
+        if(!tokens.length) return [];
+        return allEvents.filter(e=>{
+          const hay=[e.title,e.title_hi,e.summary,e.summary_hi].filter(Boolean).join(" \n ").toLowerCase();
+          return tokens.every(tok=>hay.includes(tok));
+        }).map(e=>toCard(e,lang));
+      },[searchStatus,debouncedQuery,allEvents,lang]);
+      const results=searchRows;
       // Pre-query browse view: baseCards is already the full loaded catalogue, newest-first
       // (see the sort above) — reuse it in place rather than a second fetch or an empty state.
       const browseCards=baseCards.slice(0,24);
@@ -3266,7 +3261,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
             : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} consent={consent} setConsent={setConsentChoice} />
             : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />
-            : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} browseCards={browseCards} open={open} />
+            : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} browseCards={browseCards} searchStatus={searchStatus} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
                : <HomeView cards={homeCards} gapLeft={gapL} gapRight={gapR} topics={topicsOrdered} counts={countsByTopic} stats={stats} t={t} lang={lang} open={open} goTopic={goTopic} go={go} auth={auth} lens={lensStats} openHelp={()=>setOnboard(true)} storylines={data.storylines} goStoryline={goStoryline} goStorylines={goStorylines} />)}
             </div>
