@@ -169,26 +169,40 @@ HARD RULES - violating any of these makes your answer unusable:
    common, and successful answer - not a failure.
 7. Judge each candidate INDEPENDENTLY. Do not let one candidate's
    relatedness make you more or less likely to accept another.
-8. RECURRING MARKET / COMMODITY / CURRENCY REPORTS: gold, silver, oil, crude,
-   the rupee-dollar rate, and similar instruments get a fresh, INDEPENDENT
-   report every trading day. The DEFAULT for two such reports is N1 (topical
-   similarity only) - REJECT - even when they track the exact same
-   instrument, mention the same boilerplate driver ("geopolitical tensions",
-   "global economic factors", a named conflict), or contain numbers that
-   happen to differ in a way that LOOKS like a trend. Do not construct a
-   narrative arc by pattern-matching numbers across two independent reports -
-   a "12% decline" in one report and a "sharp decline" in another is NOT a
-   match unless the text itself ties them to the same specific move; two
-   different closing levels on two different days are NOT evidence one
-   continues the other just because they are the same currency pair. Several
-   of these reports are themselves aggregations of conflicting source
-   figures (e.g. "some reports say decline, others say rise") - never
-   cherry-pick whichever number happens to align with the current report;
-   that conflict is a reason for MORE caution, not corroboration. Only
-   override this REJECT default and accept R1/R3 if the CURRENT event's OWN
-   text explicitly identifies itself as following, extending, or resuming
-   the SPECIFIC prior report or level the CANDIDATE describes - not merely
-   "another report about the same instrument, with different numbers".
+8. RECURRING MARKET / COMMODITY / CURRENCY / GLOBAL-MACRO REPORTS: this
+   covers TWO related but equally dangerous shapes. (a) gold, silver, oil,
+   crude, the rupee-dollar rate, and similar instruments get a fresh,
+   INDEPENDENT report every trading day. (b) "global markets react to
+   [geopolitical tensions / a conflict / oil prices]" is ALSO a recurring
+   report TEMPLATE, re-filed every time the SAME ongoing tension produces a
+   new day's market move - "Middle East tensions push oil higher, markets
+   fall" on one date and a materially identical headline weeks later are
+   normally TWO SEPARATE market reactions to a SLOWLY EVOLVING situation,
+   not one continuing event, even though the underlying geopolitical
+   situation genuinely is continuous. The DEFAULT for two such reports
+   (either shape) is N1 (topical similarity only) - REJECT - even when they
+   track the exact same instrument or conflict, mention the same boilerplate
+   driver ("geopolitical tensions", "global economic factors", a named
+   conflict), or contain numbers that happen to differ in a way that LOOKS
+   like a trend. Do not construct a narrative arc by pattern-matching numbers
+   or boilerplate phrasing across two independent reports - a "12% decline"
+   in one report and a "sharp decline" in another is NOT a match unless the
+   text itself ties them to the same specific move; "markets fell amid
+   Middle East tensions" in one report and "markets fell amid Middle East
+   tensions" in a later report is NOT a match just because the wording
+   recurs - check whether the CURRENT report names a SPECIFIC NEW trigger
+   (a specific strike, a specific policy move, a specific data release) that
+   is DIFFERENT from the candidate's specific trigger; if so, that is
+   evidence of two SEPARATE reactions, not one continuing one. Several of
+   these reports are themselves aggregations of conflicting source figures
+   (e.g. "some reports say decline, others say rise") - never cherry-pick
+   whichever number happens to align with the current report; that conflict
+   is a reason for MORE caution, not corroboration. Only override this
+   REJECT default and accept R1/R3 if the CURRENT event's OWN text explicitly
+   identifies itself as following, extending, or resuming the SPECIFIC prior
+   report, level, or trigger the CANDIDATE describes - not merely "another
+   report about the same instrument or the same broad tension, with
+   different specifics".
 
    WORKED COUNTER-EXAMPLE - read this carefully, it is a real mistake a
    previous version of this system made: CURRENT says gold fell 12% in June
@@ -421,26 +435,38 @@ def _evidence_is_specific(evidence: list, current_text: str, candidate_text: str
 # production caller) gets the new backstop applied. Each should be the
 # event's title+summary combined, not title alone - see _evidence_is_specific.
 #
-# Gate AA4 (overnight Stage-2 hardening): Politics-topic R3/R4 requires
-# same_storyline corroboration. Live validation on the real #11371/#8807
-# canary showed the failure is CONCENTRATED in R3/R4 (the two vaguer
-# categories - "materially escalates" / "materially explains" - that most
-# invite rationalization) and that neither further prompt refinement (Hard
-# Rule 9) nor independent two-pass confirmation reliably suppressed it: 8/8
-# two-pass-confirmed live trials still agreed on a false R3/high accept, and
-# the pair's genuinely shared vocabulary (rahul, gandhi, narendra, prime,
-# parliament, students - 9 tokens) is rich enough that no token-count
-# threshold safely separates it from a real case either. Stage 1's
-# same_storyline flag is an independent, already-computed, real signal (built
-# from semantic clustering, not this module's own reasoning) - requiring it
-# for the two riskiest categories in the one topic where this was measured is
+# Gate AA4 (overnight Stage-2 hardening): Politics/Economy-topic R3/R4
+# requires same_storyline corroboration. Live validation on the real
+# #11371/#8807 canary (Politics) showed the failure is CONCENTRATED in R3/R4
+# (the two vaguer categories - "materially escalates" / "materially
+# explains" - that most invite rationalization) and that neither further
+# prompt refinement (Hard Rule 9) nor independent two-pass confirmation
+# reliably suppressed it: 8/8 two-pass-confirmed live trials still agreed on
+# a false R3/high accept, and the pair's genuinely shared vocabulary (rahul,
+# gandhi, narendra, prime, parliament, students - 9 tokens) is rich enough
+# that no token-count threshold safely separates it from a real case either.
+# Shadow replay against real, unseen recent events (2026-09-03) then
+# surfaced the SAME pattern in Economy: two independent market reactions to
+# an ongoing Middle East conflict (#12833/#17453, #15445/#17453), each
+# citing a genuinely DIFFERENT specific trigger, both still accepted R3/high
+# 6/6 across two rounds of live testing even after Hard Rule 8 was
+# explicitly broadened to name this exact "recurring macro-narrative, new
+# specific trigger each time" shape - prompt refinement alone did not
+# generalize across topics either. Stage 1's same_storyline flag is an
+# independent, already-computed, real signal (built from semantic
+# clustering, not this module's own reasoning) - requiring it for the two
+# riskiest categories in the two topics where this was actually measured is
 # a genuine, structural risk reduction, not a claimed fix. R1/R2 (which
-# already require explicit continuation/response language) are unaffected -
-# this narrows only the two categories and the one topic actually implicated.
+# already require explicit continuation/response language) are unaffected,
+# and every OTHER topic is unaffected - this narrows only the two categories
+# and the two topics actually implicated by real, live-tested evidence.
 # same_storyline is OPTIONAL (default None) and, like current_text/
 # candidate_text, this check is SKIPPED unless the caller supplies both
 # current_topic and candidate_topic - old call sites are unaffected.
 # --------------------------------------------------------------------------
+
+_GATE_AA4_TOPICS = {"Politics", "Economy"}
+
 
 def accept(result: JudgeResult, *, current_text: Optional[str] = None,
            candidate_text: Optional[str] = None, current_topic: Optional[str] = None,
@@ -457,7 +483,8 @@ def accept(result: JudgeResult, *, current_text: Optional[str] = None,
         if not _evidence_is_specific(result.evidence, current_text, candidate_text):
             return False
     if current_topic is not None and candidate_topic is not None:
-        if (current_topic == "Politics" and candidate_topic == "Politics"
+        if (current_topic in _GATE_AA4_TOPICS and candidate_topic in _GATE_AA4_TOPICS
+                and current_topic == candidate_topic
                 and result.relationship_type in ("R3", "R4") and not same_storyline):
             return False
     return True

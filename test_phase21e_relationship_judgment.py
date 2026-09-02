@@ -420,6 +420,43 @@ check("T36a: recurring market/commodity rule present", "RECURRING MARKET" in pro
 check("T36b: recurring political-exchange rule present", "RECURRING ADVERSARIAL" in prompt)
 check("T36c: worked counter-example present", "WORKED COUNTER-EXAMPLE" in prompt)
 
+print("\nTEST 37: Gate AA4 - reproduces the ACTUAL real post-hardening Gemini output for "
+      "#12833/#17453 and #15445/#17453 (2026-09-03 shadow replay against real, unseen recent "
+      "events surfaced these as false accepts even AFTER Hard Rule 8 was broadened to name "
+      "this exact 'recurring macro-narrative, new specific trigger each time' shape - prompt "
+      "refinement alone did not generalize across topics). Gate AA4 (previously Politics-only) "
+      "is generalized to Economy too and correctly vetoes both, structurally, regardless of "
+      "the model's own confidence")
+market_current = ("Middle East Conflict Fuels Global Market Sell-off and Inflation Fears",
+                   "Global bond markets experienced a sell-off as tensions in the Middle East "
+                   "escalated following new strikes in the region.")
+market_candidate = ("Global Markets React to Rising Oil Prices and Geopolitical Tensions",
+                     "Global stock markets experienced declines as elevated crude oil prices "
+                     "weighed on investor sentiment amid Middle East tensions.")
+real_market_false_accept = {"judgments": [
+    {"previous_event_id": 128331, "related": True, "relationship_type": "R3", "confidence": "high",
+     "evidence": ["Both events link Middle East tensions/conflict to rising oil prices and "
+                  "global market reactions including inflation fears and sell-offs.",
+                  "CURRENT EVENT indicates a further escalation of the conflict and its "
+                  "market impact."]}]}
+r = rj.judge_relationships(
+    {"title": market_current[0], "summary": market_current[1], "date": "2026-09-02",
+     "topic": "Economy", "region": "World"},
+    [cand(128331, title=market_candidate[0], summary=market_candidate[1], topic="Economy", region="World")],
+    mock(real_market_false_accept))
+check("T37a: without Gate AA4 (no topics supplied), this real shape is accepted (documents "
+      "the pre-Gate-AA4 gap, matches T27's documentation pattern)",
+      rj.accept(r[128331], current_text=" ".join(market_current), candidate_text=" ".join(market_candidate)))
+check("T37b: Gate AA4 (Economy/Economy, R3, same_storyline=False) vetoes it",
+      not rj.accept(r[128331], current_text=" ".join(market_current), candidate_text=" ".join(market_candidate),
+                     current_topic="Economy", candidate_topic="Economy", same_storyline=False))
+check("T37c: Gate AA4 does not block the SAME shape when same_storyline=True corroborates it",
+      rj.accept(r[128331], current_text=" ".join(market_current), candidate_text=" ".join(market_candidate),
+                current_topic="Economy", candidate_topic="Economy", same_storyline=True))
+check("T37d: Gate AA4 does not touch a different topic pair (e.g. World/International)",
+      rj.accept(r[128331], current_text=" ".join(market_current), candidate_text=" ".join(market_candidate),
+                current_topic="World", candidate_topic="World", same_storyline=False))
+
 print("\n" + "=" * 60)
 if FAILURES:
     print(f"FAILED: {len(FAILURES)} check(s) failed:")
