@@ -367,9 +367,31 @@ def build_prompt(articles, region=None) -> str:
         if len(picked) >= MAX_ARTICLES_PER_EVENT:
             break
         picked.append(a); seen.add(id(a))
+    # Phase 22C: optional direct-URL metadata enrichment for thin/empty article
+    # summaries (source_enrichment.py). Additive only - articles.summary itself is
+    # never touched; this returns a derived, in-memory string only, and only for
+    # the `picked` subset that actually reaches this prompt (not the full cluster,
+    # which can be far larger and would otherwise fetch articles the model never
+    # sees). Non-fatal by the same convention export_static.py already uses for
+    # storylines: an import or runtime failure here must never break analysis -
+    # the prompt falls back to each article's own unmodified summary exactly as
+    # before Phase 22C existed.
+    try:
+        from source_enrichment import get_combined_summary_for_article as _enrich_summary
+    except Exception:
+        _enrich_summary = None
+
+    def _summary_for_prompt(a):
+        if _enrich_summary is None:
+            return a["summary"] or "(none)"
+        try:
+            return _enrich_summary(a) or "(none)"
+        except Exception:
+            return a["summary"] or "(none)"
+
     blocks = [
         f'OUTLET: {a["source"]}  [lean: {_LEANWORD[lean_of(a["source"])]}, language: {a["language"]}]\n'
-        f'HEADLINE: {a["title"]}\nSUMMARY: {(a["summary"] or "(none)")[:SUMMARY_TRUNC]}'
+        f'HEADLINE: {a["title"]}\nSUMMARY: {_summary_for_prompt(a)[:SUMMARY_TRUNC]}'
         for a in picked
     ]
     # Per-side DISTINCT-OWNER counts - the SAME one-vote-per-owner arithmetic postprocess()

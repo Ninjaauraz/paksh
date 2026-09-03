@@ -1293,6 +1293,12 @@ const toDetail = (e, lang) => {
   c.outlets = e.sources || [];
   c.framing = framingFor(e, lang);
   c.storyline = e.storyline || null; // the saga thread this story belongs to (from the per-story JSON)
+  // Phase 21G: verified, single-relationship context (a DIFFERENT mechanism from
+  // storyline above - Stage-2-verified, one specific prior event, frozen snapshot).
+  // Already fully shaped by reader_context.py at export time: only relationship_label
+  // (bilingual {en,hi}), historical_event {id,title,date}, and optional delta_text ever
+  // reach the browser - no relationship-type code, confidence, or evidence.
+  c.story_context = e.story_context || null;
   return c;
 };
 const isHi = lang => lang === "hi" ? "deva" : "";
@@ -3344,7 +3350,42 @@ function StoryPage({
     t: t,
     lang: lang,
     open: open
-  })), sides.length > 0 && /*#__PURE__*/React.createElement("div", {
+  })), story.story_context && story.story_context.historical_event && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pb-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "पृष्ठभूमि" : "Context")), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[10.5px] uppercase tracking-[0.08em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, story.story_context.relationship_label && story.story_context.relationship_label[lang] || story.story_context.relationship_label?.en), /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.story_context.historical_event.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open && open(story.story_context.historical_event.id);
+    },
+    className: `block no-underline group cursor-pointer mt-1.5 headline text-[16px] ${t.ts} serif group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      lineHeight: 1.35
+    }
+  }, story.story_context.historical_event.title), story.story_context.historical_event.date && /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[10px] mt-1 ${t.tf}`
+  }, absDate(story.story_context.historical_event.date, lang) || timeAgo(story.story_context.historical_event.date, lang)), story.story_context.delta_text && /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[14.5px] ${t.ts} serif`,
+    style: {
+      lineHeight: 1.6,
+      maxWidth: "62ch"
+    }
+  }, story.story_context.delta_text))), sides.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mt-10"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-4 flex items-baseline justify-between gap-3"
