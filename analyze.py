@@ -1036,6 +1036,86 @@ def _text_of_by_id(article_id, articles_by_id):
     return f"{a.get('title', '')} {(a.get('summary') or '')}" if a else ""
 
 
+# Phase 28/28B: recurring political/geographic entity terms that, ALONE, do not
+# establish that a cross-cycle merge candidate is the SAME INCIDENT as the
+# target event - only that it involves the same recurring actor/place, which
+# recurs across many distinct real incidents. Direct evidence: event #17289
+# ("BJP Criticizes Punjab AAP Govt Over Employee Protests") cross-cycle-merged
+# with a completely unrelated later incident (Raghav Chadha's name removed
+# from Punjab's draft voter rolls) because the only two shared merge_keywords()
+# were "punjab" and "aap" - meeting XMERGE_MIN_SHARED=2 on pure recurring-
+# entity/location vocabulary, with no incident-specific word in common, at a
+# real (measured, cached-embedding) centroid similarity of ~0.70-0.71 - well
+# below HIGH_SIM (0.79). Deliberately NOT a general stopword list: this is
+# consulted ONLY by _recurring_entity_only_veto() below, never by within-batch
+# clustering, never by Phase 26C's _gating_keywords(), never by Storyline
+# matching. Extend only with the same standard of direct evidence used here.
+_RECURRING_ENTITY_KW = {"punjab", "aap"}
+
+
+def _recurring_entity_only_veto(shared_merge_keywords, sim):
+    """Paksh 28/28B: cross-cycle-merge incident-identity veto.
+
+    _topic_mismatch_veto() (Paksh 10, above) catches a new cluster bleeding
+    into an event of a DIFFERENT broad topic. It does not, and was never
+    designed to, catch two clusters that share the same broad topic AND the
+    same recurring political/geographic actor but are otherwise about
+    different specific incidents (confirmed: #17289) - _guess_topic() on the
+    new cluster's text agrees with the event's own topic in exactly that case,
+    so the topic veto does not fire.
+
+    This veto closes that specific gap, narrowly: a cross-cycle merge whose
+    ONLY shared merge_keywords() are drawn from _RECURRING_ENTITY_KW (i.e. no
+    incident-specific word survives) is rejected UNLESS similarity is at or
+    above the already-established HIGH_SIM threshold - the same "extreme-
+    similarity exception" _topic_mismatch_veto() already uses, not a new
+    number. Ordinary, keyword-confirmed continuing coverage is unaffected: any
+    merge that shares even one real, non-recurring-entity word (team name,
+    person, specific claim, specific place beyond the recurring one, etc.)
+    keeps its incident-specific evidence and is never touched by this
+    function. Verified against real cached embeddings for #17289 (rejected,
+    as intended) and #8672/#8907/#8555/#8808/#16558/#8016 (all preserved -
+    each shares a genuine incident-specific word, e.g. "fast"/"cjp" for #8672,
+    "parliament"/"jantar"/"mantar" for #8555, "sensex"/"nifty" for #16558,
+    "सोनम"/"वांगचुक" for the Hindi control #8016) - see the Phase 28B shadow
+    replay and its accompanying regression test for the full evidence.
+
+    Deliberately does NOT touch: MIN_SHARED, STRONG_SIM, JOIN_THRESHOLD,
+    HIGH_SIM, XMERGE_SIM, XMERGE_MIN_SHARED, within-batch clustering, Story
+    Memory/relationship-judge matching, or Storyline creation. A merge
+    rejected here simply becomes its own new event, exactly like a
+    _topic_mismatch_veto() rejection - it is NOT routed into an automatically-
+    created Storyline; whether it is later judged a genuine related-story
+    relationship remains entirely the existing relationship judge's call."""
+    if sim >= cluster.HIGH_SIM:
+        return False                      # extreme-similarity exception (same pattern/threshold as the topic veto)
+    specific = shared_merge_keywords - _RECURRING_ENTITY_KW
+    return not specific
+
+
+# Phase 28B: narrow material-change signal for cross-cycle merges (see
+# recount_event()'s MERGE_RESUMMARISE docstring - a merge accepted on
+# similarity alone, with no confirming incident-specific keyword, is exactly
+# the case where the pre-merge narrative is most likely to no longer describe
+# the post-merge article set, since there was never lexical confirmation that
+# the two clusters are about the same specifics). Deliberately not a multi-
+# factor score: article-count/date-span/topic-divergence signals were
+# considered (Phase 28B design) but a merge that ALREADY required the
+# HIGH_SIM-alone escape valve (no shared incident-specific word at all) is a
+# strictly narrower, more directly evidenced trigger than any size-based
+# heuristic - a real high-volume routine continuation (e.g. #8555's day-2
+# spike, 21->192 articles) still shares genuine incident-specific keywords and
+# would NOT trigger this, while a similarity-only admission never has that
+# lexical confirmation by definition. This DOES fire for any future merge that
+# takes the same HIGH_SIM path #17289 would have needed had it not been
+# rejected outright by _recurring_entity_only_veto() above.
+def _merge_needs_resummarise(shared_merge_keywords, sim):
+    if sim >= cluster.HIGH_SIM:
+        specific = shared_merge_keywords - _RECURRING_ENTITY_KW
+        return not specific
+    return False
+
+
 def _merge_into_existing(details, articles):
     """Fold each new cluster that continues a RECENT event into that event (assign its
     articles + recount), and return the id-lists of the UNMATCHED clusters (>=2 outlets)
@@ -1062,22 +1142,30 @@ def _merge_into_existing(details, articles):
                             "lang": max(set(langs), key=langs.count) if langs else "en"})
     raw_matches = cluster.match_clusters_to_events(details, ev_clusters) if ev_clusters else []
     articles_by_id = {a["id"]: a for a in articles}
-    matches, vetoed = [], 0
+    matches, vetoed, vetoed_entity = [], 0, 0
     for m in raw_matches:
         if _topic_mismatch_veto(m["cluster"], m["event"], articles_by_id, m["sim"]):
             vetoed += 1
+            continue
+        if _recurring_entity_only_veto(m["shared"], m["sim"]):
+            vetoed_entity += 1
             continue
         matches.append(m)
     matched = {id(m["cluster"]) for m in matches}
     for m in matches:
         assign_articles_to_event(m["cluster"]["ids"], m["event"]["event_id"])
-        recount_event(m["event"]["event_id"], resummarise=MERGE_RESUMMARISE)
+        resummarise = MERGE_RESUMMARISE or _merge_needs_resummarise(m["shared"], m["sim"])
+        recount_event(m["event"]["event_id"], resummarise=resummarise)
     if matches:
         print(f"Cross-cycle merge: folded {len(matches)} continuing cluster(s) "
               f"into existing events (no duplicates created).")
     if vetoed:
         print(f"Cross-cycle merge: vetoed {vetoed} candidate merge(s) on a confident "
               f"topic mismatch (became new event(s) instead).")
+    if vetoed_entity:
+        print(f"Cross-cycle merge: vetoed {vetoed_entity} candidate merge(s) - only "
+              f"recurring-entity keywords shared, no incident-specific evidence "
+              f"(became new event(s) instead).")
     return [d["ids"] for d in details
             if id(d) not in matched and d["source_count"] >= MIN_SOURCES_PER_EVENT]
 

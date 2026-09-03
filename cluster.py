@@ -183,6 +183,37 @@ _HI_STOP = set("में की के का और से पर को ह�
 #     words (team/player/tournament names, "world cup", "final") to satisfy
 #     MIN_SHARED=2 without "cricket" itself - the same reasoning already accepted
 #     for "match"/"series" above, and empirically confirmed in TEST 4/5/6 below.
+#   - "win": Phase 28/28B investigation of event #14552 ("Arsenal's Calafiori
+#     Scores Record-Breaking Fastest Community Shield Goal") found "win" as the
+#     SOLE shared keyword bridging the real Community Shield articles to
+#     completely unrelated NFL preseason recaps (e.g. "Instant analysis from
+#     Bears' 34-10 preseason win vs. Browns") - confirmed by direct graph
+#     analysis of all 51 real member articles: 55 article pairs in that one
+#     event were connected ONLY by "win". Like "match"/"cricket" above, this
+#     names the OUTCOME-REPORTING GENRE ("a team won"), not the specific game.
+#     Its siblings "beat"/"lead"/"score"/"victory"/"defeat" were checked against
+#     the SAME real corpus and found to have ZERO sole-bridge occurrences -
+#     deliberately NOT added, no speculative expansion.
+#   - "preseason": same #14552 investigation - a second, independent sole-bridge
+#     word (4 real article pairs), connecting NFL preseason content to Chelsea/
+#     Premier League preseason-friendly content. A specific-enough calendar-
+#     period word that it names a GENRE of match (a preseason fixture), not a
+#     specific team or contest, with low legitimate-story collateral risk.
+# Deliberately NOT added despite also appearing in #14552's contamination
+# graph: "man" (the generic half of the "Man City" abbreviation) and "city"
+# (the generic half of "Manchester City"). Both remain a residual, undissolved
+# bridge in #14552 after this addition. They are excluded on purpose: "man" is
+# one of the most common words in English news copy (any story about an
+# unnamed man, "gunman", "spokesman", "Man Utd", etc.) and stripping it would
+# risk broad, uncosted collateral damage far outside this event; "city" was
+# checked directly against real "Manchester City"/"Man City" headline pairs and
+# found to be the ONLY surviving anchor in cases using the "Man City"
+# abbreviation without "Manchester" - removing it would introduce a confirmed
+# false-negative risk for genuine Man City stories. This is a split multi-word
+# entity name problem (the tokenizer has no concept of "Manchester City" as one
+# unit), not a generic-vocabulary problem, and is out of scope for this list -
+# tracked as separate follow-up debt, not solved here by weakening two of the
+# most common words in the English language.
 # No other vocabulary was touched - this is a bounded, evidence-driven addition,
 # not a general stopword expansion.
 _GENERIC_KW = set((
@@ -201,7 +232,9 @@ _GENERIC_KW = set((
     "ltd pvt inc corp limited premarket movers gallery video coverage overview "
     "numerology astrological calendar predictions "
     # Phase 26C additions - direct real-corpus evidence, see comment above
-    "highlights scor info horoscope zodiac read all com hindi cricket"
+    "highlights scor info horoscope zodiac read all com hindi cricket "
+    # Phase 28B addition - direct real-corpus evidence, see comment above
+    "win preseason"
 ).split()) | set((
     "भारत सरकार पुलिस मामला खबर देश राज्य खबरें ख़बरें बुलेटिन बजे सुबह रात "
     "जून जुलाई समाचार ताजा मुख्य पढ़ें "
