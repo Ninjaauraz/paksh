@@ -25,6 +25,8 @@ import subprocess
 import sys
 import time
 
+import runlocked
+
 PY = sys.executable
 CYCLE_MIN = 12
 BACKFILL_N = 100
@@ -95,14 +97,28 @@ def cycle(deploy, backfill_n):
     stamp = datetime.datetime.now().strftime("%H:%M:%S")
     backend = os.environ.get("PAKSH_LLM_BACKEND", "ollama")
     print(f"\n=== cycle @ {stamp}  backend={backend} ===")
-    if _run(["refresh.py", "--gdelt"]) != 0:
-        print("  refresh failed this cycle; will retry next cycle.")
+
+    # Phase 25B-A: share the SAME .pipeline.lock the scheduled Task Scheduler
+    # jobs use (via runlocked.py) for the whole DB-writing span of this cycle
+    # (refresh -> backfill -> export -> deploy), not just one subprocess call.
+    # If a scheduled job (or another live.py) already holds it, defer - do
+    # nothing this cycle rather than write paksh.db/_site/git concurrently.
+    # The outer loop is untouched: we just return early and try again next
+    # sleep interval, exactly like the existing "refresh failed" defer path.
+    if not runlocked.acquire("live"):
+        print("  cycle deferred - another pipeline job holds the lock; will retry next cycle.")
         return
-    if backfill_n > 0:
-        _run(["backfill.py", "--cap", str(backfill_n)])
-        _run(["export_static.py"])      # publish the backfilled upgrades
-    if deploy:
-        _deploy()
+    try:
+        if _run(["refresh.py", "--gdelt"]) != 0:
+            print("  refresh failed this cycle; will retry next cycle.")
+            return
+        if backfill_n > 0:
+            _run(["backfill.py", "--cap", str(backfill_n)])
+            _run(["export_static.py"])      # publish the backfilled upgrades
+        if deploy:
+            _deploy()
+    finally:
+        runlocked.release()
 
 
 def main():

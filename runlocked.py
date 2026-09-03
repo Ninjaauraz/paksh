@@ -12,11 +12,26 @@ interlock with a PID lock file (.pipeline.lock):
   * a stale lock (holder crashed) is detected via PID liveness and reclaimed;
   * the lock is always released when the job finishes (try/finally).
 
-Usage:
+Usage (as a CLI wrapper around a subprocess, from a .bat):
     py runlocked.py <label> -- <command> [args...]
-Example (from a .bat):
+Example:
     py runlocked.py refresh -- py refresh.py --gdelt
     py runlocked.py reframe -- py reframe.py --apply --top-tier --limit 300
+
+Usage (as a library, Phase 25B-A - live.py holds the SAME lock for the
+duration of one in-process cycle rather than shelling out to this CLI):
+    import runlocked
+    if runlocked.acquire("live"):
+        try:
+            ...do the cycle's DB-writing work...
+        finally:
+            runlocked.release()
+    else:
+        ...defer this cycle, another job holds the lock...
+
+acquire()/release() are exactly the same acquire/release main() uses below -
+this is a pure extraction, not a second lock implementation. The CLI's
+messages/exit codes are unchanged.
 """
 import os
 import subprocess
@@ -53,6 +68,37 @@ def _read_lock():
         return None
 
 
+def acquire(label: str) -> bool:
+    """Try to take the lock for `label` (identified as OUR pid). Returns True if
+    acquired (caller now owns it and must call release()), False if another live
+    job already holds it - caller should defer/skip, never proceed. Reclaims a
+    stale lock (dead PID) automatically, same as the CLI path below."""
+    if LOCK.exists():
+        held = _read_lock()
+        if held and _pid_alive(held[1]):
+            print(f"[{_stamp()}] runlocked: SKIPPED '{label}' - '{held[0]}' still "
+                  f"running (pid {held[1]}, since {held[2]}). "
+                  f"Refusing to write paksh.db concurrently.")
+            return False
+        print(f"[{_stamp()}] runlocked: reclaiming stale lock "
+              f"(previous holder {held[1] if held else '?'} not alive).")
+
+    LOCK.write_text(f"{label}\n{os.getpid()}\n{_stamp()}\n", encoding="utf-8")
+    print(f"[{_stamp()}] runlocked: acquired lock for '{label}' (pid {os.getpid()}).")
+    return True
+
+
+def release():
+    """Release the lock, but only if it's still ours (matches main()'s own
+    try/finally safety - never remove a lock some other pid has since taken)."""
+    held = _read_lock()
+    if held and held[1] == os.getpid():
+        try:
+            LOCK.unlink()
+        except OSError:
+            pass
+
+
 def main():
     if "--" not in sys.argv:
         print("usage: py runlocked.py <label> -- <command...>")
@@ -64,20 +110,9 @@ def main():
         print("runlocked: no command given")
         sys.exit(2)
 
-    # --- acquire ---
-    if LOCK.exists():
-        held = _read_lock()
-        if held and _pid_alive(held[1]):
-            print(f"[{_stamp()}] runlocked: SKIPPED '{label}' - '{held[0]}' still "
-                  f"running (pid {held[1]}, since {held[2]}). "
-                  f"Refusing to write paksh.db concurrently.")
-            sys.exit(0)
-        print(f"[{_stamp()}] runlocked: reclaiming stale lock "
-              f"(previous holder {held[1] if held else '?'} not alive).")
-
-    LOCK.write_text(f"{label}\n{os.getpid()}\n{_stamp()}\n", encoding="utf-8")
-    print(f"[{_stamp()}] runlocked: acquired lock for '{label}' (pid {os.getpid()}). "
-          f"Running: {' '.join(cmd)}")
+    if not acquire(label):
+        sys.exit(0)
+    print(f"  Running: {' '.join(cmd)}")
 
     # --- run, always release ---
     try:
@@ -85,12 +120,7 @@ def main():
         print(f"[{_stamp()}] runlocked: '{label}' finished (exit {rc}).")
         sys.exit(rc)
     finally:
-        held = _read_lock()
-        if held and held[1] == os.getpid():            # only remove OUR lock
-            try:
-                LOCK.unlink()
-            except OSError:
-                pass
+        release()
 
 
 if __name__ == "__main__":
