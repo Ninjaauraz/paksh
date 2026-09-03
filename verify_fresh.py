@@ -93,12 +93,19 @@ def _stamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _write_alert(msg):
+def _write_alert(msg, alert_name=ALERT_NAME, title="Paksh pipeline",
+                  balloon_text="Ingest stalled - catalogue is stale. See Desktop alert."):
+    """Phase 25B-C: alert_name/title/balloon_text are new, optional parameters -
+    every existing caller in this file passes none of them and gets the exact
+    original PAKSH_STALE_ALERT.txt behavior unchanged. check_scheduled_health.py
+    (25B-C) reuses this same function with its own alert_name so a schedule-
+    health alert never collides with/overwrites a freshness alert - both can be
+    visible on the Desktop at once if both conditions are true."""
     body = (f"[{_stamp()}] PAKSH PIPELINE ALERT\n\n{msg}\n\n"
             f"See refresh_log.txt in C:\\paksh_project\\paksh.\n")
     for d in _desktop_dirs():
         try:
-            (d / ALERT_NAME).write_text(body, encoding="utf-8")
+            (d / alert_name).write_text(body, encoding="utf-8")
         except OSError:
             pass
     # best-effort balloon; never affects exit code
@@ -107,17 +114,17 @@ def _write_alert(msg):
             "Add-Type -AssemblyName System.Windows.Forms,System.Drawing;"
             "$n=New-Object System.Windows.Forms.NotifyIcon;"
             "$n.Icon=[System.Drawing.SystemIcons]::Warning;$n.Visible=$true;"
-            "$n.ShowBalloonTip(10000,'Paksh pipeline',"
-            "'Ingest stalled - catalogue is stale. See Desktop alert.',"
+            f"$n.ShowBalloonTip(10000,'{title}',"
+            f"'{balloon_text}',"
             "[System.Windows.Forms.ToolTipIcon]::Warning);Start-Sleep 12;$n.Dispose()"],
             timeout=25, capture_output=True)
     except Exception:
         pass
 
 
-def _clear_alert():
+def _clear_alert(alert_name=ALERT_NAME):
     for d in _desktop_dirs():
-        f = d / ALERT_NAME
+        f = d / alert_name
         if f.exists():
             try:
                 f.unlink()

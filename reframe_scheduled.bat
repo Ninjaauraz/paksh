@@ -37,7 +37,16 @@ py runlocked.py reframe -- cmd /c "py reframe.py --apply --limit 300 && py expor
 set RC=%ERRORLEVEL%
 py verify_fresh.py deploy-check >> reframe_log.txt 2>&1
 set VRC=%ERRORLEVEL%
+REM Phase 25B-C: schedule-health check (missed/failed scheduled task detection,
+REM failure classes A/B) - runs unconditionally, same pattern as verify_fresh.py
+REM above, so a broken earlier step in this chain can never prevent it from
+REM checking. This is the one check able to notice a task that never started at
+REM all (verify_fresh.py's checks are code INSIDE a chain that has to have
+REM started to run them).
+py check_scheduled_health.py >> reframe_log.txt 2>&1
+set SRC=%ERRORLEVEL%
 set FINAL=%RC%
 if not "%VRC%"=="0" set FINAL=%VRC%
+if not "%SRC%"=="0" set FINAL=%SRC%
 echo Run finished (exit %FINAL%): %date% %time% >> reframe_log.txt
 endlocal & exit /b %FINAL%
