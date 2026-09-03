@@ -453,6 +453,16 @@ ATTRIBUTION - keep these registers distinct, never blur one into another:
   DISPUTED CLAIM: the coverage itself disagrees ("The government said X, while the
     opposition disputed the claim" / "One report said X while another said Y.") Never
     silently pick a side when outlets conflict.
+  IDENTITY LABEL: an occupation, role, or title a source attaches to a NAMED PERSON is
+    not automatically a stated fact. If sources materially disagree on how they identify
+    someone (e.g. one calls her a "model", another a "student"), or only a minority of
+    the coverage uses a specific label, do NOT adopt it as the neutral description.
+    Either omit the label entirely (name the person and describe what they did, with no
+    occupation/role tag) or attribute it explicitly ("one report described her as...").
+    Do NOT invent a "separate incident" explanation to avoid an unresolved identity
+    conflict - if the coverage describes what is clearly the same person and the same
+    specific action, treat it as one person, one incident, with an unresolved or
+    attributed label, never two different events.
 Use whichever the coverage actually supports: accused, alleged, suspected, police said,
 prosecutors said, investigators said, according to court documents, the government said.
 Never convert an allegation into a stated fact. Never infer guilt, motive, cause, or a
