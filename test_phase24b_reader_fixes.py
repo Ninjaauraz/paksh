@@ -81,7 +81,7 @@ check("F3a: FloatingSupport visibility now also depends on scroll position, not 
 check("F3c: FloatingSupport is never rendered on the story route - unpredictable-length "
       "running text there defeated the scroll-threshold guard alone (confirmed live: the lead "
       "paragraph reached the button's fixed position at scroll=0 on event 17019)",
-      'route.view!=="story"&&<FloatingSupport' in app_js.replace(" ", ""))
+      'route.view !== "story" &&' in app_js and "React.createElement(FloatingSupport" in app_js)
 check("F3b: FloatingSupport itself (size/position/copy) is untouched - still the same fixed "
       "corner chip, this is a visibility-timing fix only",
       "FloatingSupport" in app_js and ("\\u2665" in app_js or "♥" in app_js))

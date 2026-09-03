@@ -7497,7 +7497,7 @@ function PakshApp() {
     openTopic: goTopic,
     saved: savedIds,
     onToggleSave: toggleSave
-  }), showFloatingSupport && !pastTop && /*#__PURE__*/React.createElement(FloatingSupport, {
+  }), showFloatingSupport && !pastTop && route.view !== "story" && /*#__PURE__*/React.createElement(FloatingSupport, {
     t: t,
     lang: lang,
     go: go
