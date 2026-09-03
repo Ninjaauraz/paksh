@@ -411,6 +411,11 @@ const {useState,useEffect,useMemo}=React;
       })();
       return _mode;
     }
+    // Stable sentinel for a story id that resolved (per-id JSON fetch failed, and the id isn't
+    // in the loaded feed/blindspot/archive data either) to genuinely not exist, as opposed to
+    // "not fetched yet". Referential identity, not shape, is what callers check (=== , not a
+    // property probe), so one shared object is enough - see the story-route effect below.
+    const STORY_NOT_FOUND = { __notFound: true };
     async function apiGet(res){
       if(await detectMode()==="api"){
         if(res==="topics" && _topicsProbe!==undefined){ const d=_topicsProbe; _topicsProbe=undefined; return d; }
@@ -3061,6 +3066,18 @@ const {useState,useEffect,useMemo}=React;
       // own Support link, plus /support itself (route.view==="support").
       const [showFloatingSupport,setShowFloatingSupport]=useState(true);
       useEffect(()=>{ const id=setTimeout(()=>setShowFloatingSupport(false),180000); return ()=>clearTimeout(id); },[]);
+      // Phase 24B/F3: being `fixed`, this chip sits at the same viewport spot regardless of
+      // scroll position, so on a full-width mobile column it was landing on top of body/framing
+      // text once the reader scrolled into a story (confirmed on 17019 at 375px). Hiding it
+      // once the reader has scrolled past the top of the page - where there is no running text
+      // yet to cover - removes the overlap without touching its size, position, or styling.
+      const [pastTop,setPastTop]=useState(false);
+      useEffect(()=>{
+        const onScroll=()=>setPastTop(window.scrollY>200);
+        onScroll();
+        window.addEventListener("scroll",onScroll,{passive:true});
+        return ()=>window.removeEventListener("scroll",onScroll);
+      },[]);
       const [query,setQuery]=useState("");
       const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]});
       const [detail,setDetail]=useState({});
@@ -3078,7 +3095,7 @@ const {useState,useEffect,useMemo}=React;
       // retired, so this now just sets the paper-white canvas once, no theme branching, no
       // `.dark` class, no localStorage theme write.
       useEffect(()=>{ document.body.style.backgroundColor="#F8F7F2"; },[]);
-      useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const f=(data.events||[]).concat(data.blindspots||[]).find(x=>String(x.id)===String(route.id)); if(f) setDetail(d=>({...d,[route.id]:f})); }); } },[route,data]);
+      useEffect(()=>{ window.scrollTo(0,0); if(route.view==="story"&&route.id&&!detail[route.id]){ apiGet("events/"+route.id).then(full=>setDetail(d=>({...d,[route.id]:full}))).catch(()=>{ const archiveEvents=Array.isArray(archive)?archive:[]; const f=(data.events||[]).concat(data.blindspots||[]).concat(archiveEvents).find(x=>String(x.id)===String(route.id)); setDetail(d=>({...d,[route.id]:f||STORY_NOT_FOUND})); }); } },[route,data,archive]);
       // events.json is capped to recent stories for a light first paint; the older tail lives in
       // events-archive.json and is fetched ONCE, either the first time the user browses beyond
       // the feed (a Topic / Sections/Topics index) or the first time they actually type a search
@@ -3119,7 +3136,7 @@ const {useState,useEffect,useMemo}=React;
           rows.forEach(r=>{ if(sides[r.side]!=null)sides[r.side]++; if(r.topic)tc[r.topic]=(tc[r.topic]||0)+1; });
           setLensStats({ topics:Object.keys(tc).sort((a,b)=>tc[b]-tc[a]), sides, total:rows.length }); }).catch(()=>{}); };
       // Record every opened story into the Reading Lens (signed-in only; best-effort).
-      useEffect(()=>{ if(route.view==="story"&&route.id&&auth&&detail[route.id]){ recordRead(toCard(detail[route.id],lang)); } },[route.view,route.id,auth,detail]);
+      useEffect(()=>{ if(route.view==="story"&&route.id&&auth&&detail[route.id]&&detail[route.id]!==STORY_NOT_FOUND){ recordRead(toCard(detail[route.id],lang)); } },[route.view,route.id,auth,detail]);
 
       const t=TOKENS.light;
       const nav=(path)=>{ if(window.location.pathname!==path){ window.history.pushState(null,"",path); } setRoute(parsePath()); };
@@ -3222,7 +3239,8 @@ const {useState,useEffect,useMemo}=React;
       // Pre-query browse view: baseCards is already the full loaded catalogue, newest-first
       // (see the sort above) — reuse it in place rather than a second fetch or an empty state.
       const browseCards=baseCards.slice(0,24);
-      const story = route.view==="story" ? (detail[route.id]?toDetail(detail[route.id],lang):null) : null;
+      const storyNotFound = route.view==="story" && detail[route.id]===STORY_NOT_FOUND;
+      const story = route.view==="story" ? (detail[route.id]&&!storyNotFound?toDetail(detail[route.id],lang):null) : null;
       // Same-topic stories to keep a reader moving instead of dead-ending at the article.
       const related = story ? baseCards.filter(c=>c.topic===story.topic && String(c.id)!==String(story.id)).slice(0,6) : [];
       const headerView = route.view==="story" ? "" : route.view;
@@ -3269,7 +3287,13 @@ const {useState,useEffect,useMemo}=React;
               news terminal. BreakingTicker itself is untouched (dormant), not deleted, in
               case a future breaking-news treatment wants it. */}
           <Masthead t={t} lang={lang} setLang={chooseLang} go={go} view={route.view} auth={auth} openHelp={()=>setOnboard(true)} savedCount={savedIds.size} regionFilter={regionFilter} setRegionFilter={setRegionFilter} story={story} sectionLabel={route.view==="blindspot"?STR[lang].osTitle:(route.view==="storyline"?ui("developingStories",lang):undefined)} openTopic={goTopic} saved={savedIds} onToggleSave={toggleSave} />
-          {showFloatingSupport && <FloatingSupport t={t} lang={lang} go={go} />}
+          {/* Phase 24B/F3: never on the story route - a story's own lead paragraph/framing/
+              source-list text is unpredictable-length running prose that can reach this fixed
+              corner position even before any scrolling (confirmed live on 17019: the lead
+              paragraph alone already reached it at scroll=0), so no scroll-position threshold
+              can fully guarantee no overlap there. Elsewhere (home, topic, search, ...) content
+              is card-bounded and materially lower-risk, so the scroll-based hide is enough. */}
+          {showFloatingSupport && !pastTop && route.view!=="story" && <FloatingSupport t={t} lang={lang} go={go} />}
           <main id="main" className="pb-24 md:pb-10">
             <div className="pk-page" key={route.view+(route.id||route.topic||"")}>
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
@@ -3288,7 +3312,7 @@ const {useState,useEffect,useMemo}=React;
                detail fetch is independent of the catalogue's `ready` flag, so it only needs
                `story` itself; blindspot's data comes from the same catalogue load as home,
                so it still gates on `ready`. */
-            : route.view==="story" ? (story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <StorySkeleton t={t} />)
+            : route.view==="story" ? (storyNotFound ? <NotFoundPage t={t} lang={lang} go={go} /> : story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <StorySkeleton t={t} />)
             : route.view==="blindspot" ? (ready ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} /> : <BlindspotSkeleton t={t} />)
             : !ready ? (route.view==="home" ? <FeedSkeleton t={t} /> : <PageSkeleton t={t} />)
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} cards={baseCards} t={t} lang={lang} goTopic={goTopic} />

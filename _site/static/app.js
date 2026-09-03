@@ -1183,6 +1183,13 @@ function detectMode() {
   })();
   return _mode;
 }
+// Stable sentinel for a story id that resolved (per-id JSON fetch failed, and the id isn't
+// in the loaded feed/blindspot/archive data either) to genuinely not exist, as opposed to
+// "not fetched yet". Referential identity, not shape, is what callers check (=== , not a
+// property probe), so one shared object is enough - see the story-route effect below.
+const STORY_NOT_FOUND = {
+  __notFound: true
+};
 async function apiGet(res) {
   if ((await detectMode()) === "api") {
     if (res === "topics" && _topicsProbe !== undefined) {
@@ -7053,6 +7060,20 @@ function PakshApp() {
     const id = setTimeout(() => setShowFloatingSupport(false), 180000);
     return () => clearTimeout(id);
   }, []);
+  // Phase 24B/F3: being `fixed`, this chip sits at the same viewport spot regardless of
+  // scroll position, so on a full-width mobile column it was landing on top of body/framing
+  // text once the reader scrolled into a story (confirmed on 17019 at 375px). Hiding it
+  // once the reader has scrolled past the top of the page - where there is no running text
+  // yet to cover - removes the overlap without touching its size, position, or styling.
+  const [pastTop, setPastTop] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setPastTop(window.scrollY > 200);
+    onScroll();
+    window.addEventListener("scroll", onScroll, {
+      passive: true
+    });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const [query, setQuery] = useState("");
   const [data, setData] = useState({
     events: [],
@@ -7102,14 +7123,15 @@ function PakshApp() {
         ...d,
         [route.id]: full
       }))).catch(() => {
-        const f = (data.events || []).concat(data.blindspots || []).find(x => String(x.id) === String(route.id));
-        if (f) setDetail(d => ({
+        const archiveEvents = Array.isArray(archive) ? archive : [];
+        const f = (data.events || []).concat(data.blindspots || []).concat(archiveEvents).find(x => String(x.id) === String(route.id));
+        setDetail(d => ({
           ...d,
-          [route.id]: f
+          [route.id]: f || STORY_NOT_FOUND
         }));
       });
     }
-  }, [route, data]);
+  }, [route, data, archive]);
   // events.json is capped to recent stories for a light first paint; the older tail lives in
   // events-archive.json and is fetched ONCE, either the first time the user browses beyond
   // the feed (a Topic / Sections/Topics index) or the first time they actually type a search
@@ -7203,7 +7225,7 @@ function PakshApp() {
   };
   // Record every opened story into the Reading Lens (signed-in only; best-effort).
   useEffect(() => {
-    if (route.view === "story" && route.id && auth && detail[route.id]) {
+    if (route.view === "story" && route.id && auth && detail[route.id] && detail[route.id] !== STORY_NOT_FOUND) {
       recordRead(toCard(detail[route.id], lang));
     }
   }, [route.view, route.id, auth, detail]);
@@ -7413,7 +7435,8 @@ function PakshApp() {
   // Pre-query browse view: baseCards is already the full loaded catalogue, newest-first
   // (see the sort above) — reuse it in place rather than a second fetch or an empty state.
   const browseCards = baseCards.slice(0, 24);
-  const story = route.view === "story" ? detail[route.id] ? toDetail(detail[route.id], lang) : null : null;
+  const storyNotFound = route.view === "story" && detail[route.id] === STORY_NOT_FOUND;
+  const story = route.view === "story" ? detail[route.id] && !storyNotFound ? toDetail(detail[route.id], lang) : null : null;
   // Same-topic stories to keep a reader moving instead of dead-ending at the article.
   const related = story ? baseCards.filter(c => c.topic === story.topic && String(c.id) !== String(story.id)).slice(0, 6) : [];
   const headerView = route.view === "story" ? "" : route.view;
@@ -7474,7 +7497,7 @@ function PakshApp() {
     openTopic: goTopic,
     saved: savedIds,
     onToggleSave: toggleSave
-  }), showFloatingSupport && /*#__PURE__*/React.createElement(FloatingSupport, {
+  }), showFloatingSupport && !pastTop && /*#__PURE__*/React.createElement(FloatingSupport, {
     t: t,
     lang: lang,
     go: go
@@ -7546,7 +7569,11 @@ function PakshApp() {
      while data was still loading — see the 6.3B.8 architecture audit). story's
      detail fetch is independent of the catalogue's `ready` flag, so it only needs
      `story` itself; blindspot's data comes from the same catalogue load as home,
-     so it still gates on `ready`. */ : route.view === "story" ? story ? /*#__PURE__*/React.createElement(StoryPage, {
+     so it still gates on `ready`. */ : route.view === "story" ? storyNotFound ? /*#__PURE__*/React.createElement(NotFoundPage, {
+    t: t,
+    lang: lang,
+    go: go
+  }) : story ? /*#__PURE__*/React.createElement(StoryPage, {
     story: story,
     t: t,
     lang: lang,

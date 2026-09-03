@@ -989,8 +989,12 @@ def main():
                 # 2) serve any real file: /index.html, /static/*, /data/*, /story/<id>.html,
                 #    robots.txt, sitemap.xml, favicons, og.png ...
                 {"handle": "filesystem"},
-                # 3) pretty story URLs -> the pre-rendered crawlable page
-                {"src": "/story/([^/]+)/?$", "dest": "/story/$1.html"},
+                # 3) pretty story URLs -> the pre-rendered crawlable page. check:true means
+                #    Vercel falls through to route 5 (the SPA shell) instead of a hard platform
+                #    404 when the event has no pre-rendered HTML (most of the DB - only the
+                #    exported/recent window gets a static page). The client-side router then
+                #    renders its own NotFoundPage for an unresolvable id (see app.jsx STORY_NOT_FOUND).
+                {"src": "/story/([^/]+)/?$", "dest": "/story/$1.html", "check": True},
                 # 4) keep the (absent) API 404 so the SPA's static-mode probe stays a fast 404
                 {"src": "/api/(.*)", "status": 404},
                 # 5) SPA fallback: every other in-app route renders the shell (History API + SEO)

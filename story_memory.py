@@ -49,6 +49,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import database   # read-only reuse: get_connection() only - never calls INTO database.py's tables
+import analyze as _analyze   # Phase 24B/F4: reuses _event_created_at()'s article-date parsing
+                              # only (a pure date utility, not the generation/prompt path) to
+                              # date a Context block's historical event - see get_verified_context
 
 
 # --------------------------------------------------------------------------
@@ -205,8 +208,9 @@ class VerifiedContext:
     hop_distance: int
     historical_observation: dict = field(default_factory=dict)
     delta: Optional[dict] = None
-    historical_event_date: Optional[str] = None  # live events.created_at - display only,
-                                                    # see get_verified_context's own comment
+    historical_event_date: Optional[str] = None  # Phase 24B/F4: earliest member-article
+                                                    # publish date - display only, see
+                                                    # get_verified_context's own comment
 
 
 def get_verified_context(conn, current_event_id: int, max_hops: int = 2) -> list[VerifiedContext]:
@@ -256,6 +260,30 @@ def get_verified_context(conn, current_event_id: int, max_hops: int = 2) -> list
                 if not prev_row:
                     continue
                 visited.add(prev_id)
+                # Phase 24B/F4: events.created_at is when Paksh's OWN pipeline inserted this
+                # row, not when the underlying news happened - a later backfill/re-cluster
+                # can legitimately postdate an earlier real story (confirmed cause of a
+                # reader-visible backwards Context date on event 17464: its predecessor
+                # 17383 was row-created 2026-09-03 even though its coverage began
+                # 2026-09-01, a day before 17464's own). articles.published is set once at
+                # ingest and never rewritten by reframe/recount/consolidate, so the earliest
+                # one is the grounded, stable answer to "when did this history begin" - the
+                # same article-date parsing analyze.py already uses for an event's own
+                # displayed date, just taking the oldest instead of the newest. Best-effort:
+                # this module stays deliberately isolated (see module docstring), so any
+                # failure here (no articles table in a minimal test fixture, a locked DB,
+                # anything) falls back to the original created_at behavior rather than ever
+                # raising out of get_verified_context.
+                historical_date = prev_row["created_at"]
+                try:
+                    prev_articles = cur.execute(
+                        "SELECT published FROM articles WHERE event_id=?", (prev_id,)).fetchall()
+                    historical_date = (
+                        _analyze._event_created_at([dict(a) for a in prev_articles], oldest=True)
+                        or historical_date
+                    )
+                except Exception:
+                    pass
                 evidence = json.loads(row["evidence_json"] or "[]")
                 snapshot = {
                     "title": row["prev_snapshot_title"],
@@ -286,7 +314,7 @@ def get_verified_context(conn, current_event_id: int, max_hops: int = 2) -> list
                     evidence=evidence, decided_at=row["decided_at"],
                     judge_version=row["judge_version"], hop_distance=hop,
                     historical_observation=snapshot, delta=delta,
-                    historical_event_date=prev_row["created_at"],
+                    historical_event_date=historical_date,
                 ))
                 next_frontier.append(prev_id)
         frontier = next_frontier

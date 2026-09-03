@@ -1082,11 +1082,19 @@ def _merge_into_existing(details, articles):
             if id(d) not in matched and d["source_count"] >= MIN_SOURCES_PER_EVENT]
 
 
-def _event_created_at(rows):
-    """The newest member-article publish date, as a naive-UTC ISO string, for backfill
-    runs. Parses ISO-8601 (RSS) and YYYYMMDD (GDELT); clamps to now so a backdated event
-    can never sort ahead of live ones; returns None if nothing parses (caller then falls
-    back to now). Never raises."""
+def _event_created_at(rows, oldest=False):
+    """The newest (or, with oldest=True, the earliest) member-article publish date, as a
+    naive-UTC ISO string. Parses ISO-8601 (RSS) and YYYYMMDD (GDELT); clamps to now so a
+    backdated event can never sort ahead of live ones; returns None if nothing parses
+    (caller then falls back to now). Never raises.
+
+    oldest=True is Phase 24B/F4's addition, used by story_memory.py to date a Context
+    block's historical event by when its coverage actually began (grounded in immutable
+    per-article publish timestamps) rather than by events.created_at (when Paksh's own
+    pipeline happened to create/re-create that DB row, which can legitimately postdate an
+    earlier real-world story - confirmed the cause of a reader-visible backwards date on
+    event 17464's Context block). The default (newest, oldest=False) is unchanged for
+    every existing caller."""
     best = None
     now = datetime.now(timezone.utc)
     for r in rows:
@@ -1108,7 +1116,7 @@ def _event_created_at(rows):
             dt = dt.replace(tzinfo=timezone.utc)
         if dt > now:                                       # bad/future feed date
             dt = now
-        if best is None or dt > best:
+        if best is None or (dt < best if oldest else dt > best):
             best = dt
     if best is None:
         return None
