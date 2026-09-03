@@ -471,6 +471,11 @@ future consequence the coverage itself does not state.
 STRICT NEUTRALITY - never cross these:
 - Use ONLY facts and claims present in the coverage below. Never invent facts,
   quotes, numbers, names, causes or consequences.
+- Do not add historical, background, or superlative claims not explicitly supported by
+  the coverage (e.g. "first", "unprecedented", "historic", "largest", "record", or
+  similar comparisons). If the coverage itself makes such a claim, report it attributed,
+  like any other claim. This does not limit ordinary synthesis - combining facts,
+  chronology, paraphrase, and comparing emphasis across sources remain expected.
 - Describe ONLY what the coverage says. Do NOT add downstream consequences ("this
   could lead to X"), motives the outlets did not state, or any praise or blame the
   outlets did not themselves make.
