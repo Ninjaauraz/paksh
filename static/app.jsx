@@ -466,6 +466,12 @@ const {useState,useEffect,useMemo}=React;
       c.coverage=e.coverage||{}; c.outlets=e.sources||[];
       c.framing=framingFor(e,lang);
       c.storyline=e.storyline||null;   // the saga thread this story belongs to (from the per-story JSON)
+      // Phase 21G: verified, single-relationship context (a DIFFERENT mechanism from
+      // storyline above - Stage-2-verified, one specific prior event, frozen snapshot).
+      // Already fully shaped by reader_context.py at export time: only relationship_label
+      // (bilingual {en,hi}), historical_event {id,title,date}, and optional delta_text ever
+      // reach the browser - no relationship-type code, confidence, or evidence.
+      c.story_context=e.story_context||null;
       return c; };
 
     const isHi = (lang) => lang==="hi" ? "deva" : "";
@@ -1360,6 +1366,37 @@ const {useState,useEffect,useMemo}=React;
                 <button onClick={()=>goStoryline&&goStoryline(story.storyline.id)} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{story.storyline.events.length} {lang==="hi"?"अपडेट · पूरी कड़ी →":"updates · full storyline →"}</button>
               </div>
               <StorylineTimeline storyline={story.storyline} currentId={story.id} t={t} lang={lang} open={open} />
+            </div>
+          )}
+
+          {/* STORY CONTEXT — a Stage-2-VERIFIED connection to one specific earlier event,
+              with a frozen historical snapshot (Phase 21G). Distinct from Storyline above:
+              Storyline is broad similarity-based grouping (a saga of many linked events);
+              this is one confirmed relationship, converted server-side into a restrained
+              editorial label, plus what changed if that has been established. Renders
+              nothing when story.story_context is absent - no LLM call, no graph traversal
+              happens in the browser; this is already-validated build-time data. */}
+          {story.story_context && story.story_context.historical_event && (
+            <div className="mx-auto mt-10 max-w-[840px]">
+              <div className="pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
+                <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"पृष्ठभूमि":"Context"}</h3>
+              </div>
+              <div className="mt-3">
+                <div className={`mono text-[10.5px] uppercase tracking-[0.08em] ${t.tf} ${lang==="hi"?"deva":""}`}>
+                  {(story.story_context.relationship_label && story.story_context.relationship_label[lang]) || story.story_context.relationship_label?.en}
+                </div>
+                <a href={"/story/"+encodeURIComponent(story.story_context.historical_event.id)}
+                   onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open&&open(story.story_context.historical_event.id); }}
+                   className={`block no-underline group cursor-pointer mt-1.5 headline text-[16px] ${t.ts} serif group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:1.35}}>
+                  {story.story_context.historical_event.title}
+                </a>
+                {story.story_context.historical_event.date && (
+                  <div className={`mono text-[10px] mt-1 ${t.tf}`}>{absDate(story.story_context.historical_event.date,lang)||timeAgo(story.story_context.historical_event.date,lang)}</div>
+                )}
+                {story.story_context.delta_text && (
+                  <p className={`mt-3 text-[14.5px] ${t.ts} serif`} style={{lineHeight:1.6,maxWidth:"62ch"}}>{story.story_context.delta_text}</p>
+                )}
+              </div>
             </div>
           )}
 

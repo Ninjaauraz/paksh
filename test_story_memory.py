@@ -30,13 +30,14 @@ def check(label, cond):
 def fresh_conn():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
-    conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT)")
+    conn.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT, created_at TEXT)")
     sm.init_story_memory_schema(conn)
     return conn
 
 
-def add_event(conn, eid, updated_at="2026-01-01T00:00:00"):
-    conn.execute("INSERT INTO events (id, updated_at) VALUES (?, ?)", (eid, updated_at))
+def add_event(conn, eid, updated_at="2026-01-01T00:00:00", created_at="2026-01-01T00:00:00"):
+    conn.execute("INSERT INTO events (id, updated_at, created_at) VALUES (?, ?, ?)",
+                 (eid, updated_at, created_at))
     conn.commit()
 
 
@@ -132,6 +133,8 @@ check("T7: correct previous_event_id", ctx[0].previous_event_id == 1)
 check("T7: correct relationship_type", ctx[0].relationship_type == "R3")
 check("T7: hop_distance is 1", ctx[0].hop_distance == 1)
 check("T7: historical_observation carries the frozen snapshot", ctx[0].historical_observation["title"] == "prev title")
+check("T7: historical_event_date is the PREVIOUS event's live created_at (display-only, "
+      "not part of the frozen snapshot)", ctx[0].historical_event_date == "2026-01-01T00:00:00")
 
 print("\nTEST 8: get_verified_context OMITS a relationship whose previous_event no longer "
       "exists (the 21E.3S consolidation fail-closed contract) - never served from the "

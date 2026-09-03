@@ -890,6 +890,21 @@ def main():
         # on every export_static.py build (every scheduled refresh), so it was the
         # larger real-world cost of the two.
         full_by_id = get_events_by_ids([e["id"] for e in events])
+
+        # Phase 21G: verified Story Memory context (a SEPARATE mechanism from Storyline
+        # above - Storyline is broad similarity-based grouping; this is a Stage-2-VERIFIED
+        # relationship to one specific prior event, with a frozen historical snapshot). Same
+        # non-fatal degradation pattern as storylines: an import or runtime failure here
+        # must never break the export - the site builds without it, exactly like storylines.
+        # Read-only, no LLM calls, one connection reused across the whole loop (matching this
+        # loop's own batching philosophy above).
+        build_story_context, sm_conn = None, None
+        try:
+            from reader_context import build_story_context
+            import database as _database
+            sm_conn = _database.get_connection()
+        except Exception:
+            build_story_context = None
         story_urls = []
         for e in events:
             full = full_by_id.get(e["id"])
@@ -901,11 +916,20 @@ def main():
             _sid = story_map.get(e["id"])
             if _sid and _sid in story_by_id:
                 full["storyline"] = story_by_id[_sid]
+            if build_story_context is not None:
+                try:
+                    sc = build_story_context(sm_conn, e["id"])
+                    if sc:
+                        full["story_context"] = sc
+                except Exception:
+                    pass  # non-fatal - see comment above
             write_json(OUT / "data" / "events" / f"{e['id']}.json", full)
             sp = OUT / "story" / f"{e['id']}.html"
             sp.parent.mkdir(parents=True, exist_ok=True)
             sp.write_text(_story_html(shell, full, og_ids), encoding="utf-8")
             story_urls.append((f"{SITE_URL}/story/{e['id']}", full.get("created_at")))
+        if sm_conn is not None:
+            sm_conn.close()
 
         # 4) Vercel routing. IMPORTANT: we use the legacy `routes` array, NOT cleanUrls+rewrites.
         #    The modern `{cleanUrls:true, rewrites:[/(.*)->/index.html]}` combo SILENTLY FAILS on

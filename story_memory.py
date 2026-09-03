@@ -205,6 +205,8 @@ class VerifiedContext:
     hop_distance: int
     historical_observation: dict = field(default_factory=dict)
     delta: Optional[dict] = None
+    historical_event_date: Optional[str] = None  # live events.created_at - display only,
+                                                    # see get_verified_context's own comment
 
 
 def get_verified_context(conn, current_event_id: int, max_hops: int = 2) -> list[VerifiedContext]:
@@ -245,9 +247,13 @@ def get_verified_context(conn, current_event_id: int, max_hops: int = 2) -> list
                 prev_id = row["previous_event_id"]
                 if prev_id in visited:
                     continue  # cycle guard
-                # fail-closed existence check (21E.3S consolidation contract)
-                exists = cur.execute("SELECT 1 FROM events WHERE id=?", (prev_id,)).fetchone()
-                if not exists:
+                # fail-closed existence check (21E.3S consolidation contract). created_at is
+                # read live here (not from the frozen snapshot) because it is a stable,
+                # effectively-immutable field (see 21E.3R's mutability findings: created_at
+                # is preserved across reframe.py/recount_migrate.py's in-place edits, unlike
+                # title/summary/region) - display-only, never a substitute for snapshot content.
+                prev_row = cur.execute("SELECT created_at FROM events WHERE id=?", (prev_id,)).fetchone()
+                if not prev_row:
                     continue
                 visited.add(prev_id)
                 evidence = json.loads(row["evidence_json"] or "[]")
@@ -280,6 +286,7 @@ def get_verified_context(conn, current_event_id: int, max_hops: int = 2) -> list
                     evidence=evidence, decided_at=row["decided_at"],
                     judge_version=row["judge_version"], hop_distance=hop,
                     historical_observation=snapshot, delta=delta,
+                    historical_event_date=prev_row["created_at"],
                 ))
                 next_frontier.append(prev_id)
         frontier = next_frontier
