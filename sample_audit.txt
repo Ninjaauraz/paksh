@@ -1,0 +1,160 @@
+====================================================================================================
+#17069 | topic=Politics region=World storyline=sl-16749 n_articles=12 lean_counts={'left': 0, 'center': 3, 'right': 4} content_complete=True
+TITLE: PM Modi meets Putin, other leaders at SCO Summit
+SUMMARY: Prime Minister Narendra Modi met Russian President Vladimir Putin and other world leaders at the SCO Summit in Bishkek. Modi engaged in "car diplomacy" with Putin, driving together to the opening ceremony of the Nomad Sports complex. Modi also extended an invitation to the BRICS summit. The discussions between Modi and Putin reportedly focused on bilateral relations and regional issues.
+POINTS: ['PM Modi attended the SCO Summit in Bishkek.', 'He met with Russian President Vladimir Putin.', 'Modi and Putin engaged in "car diplomacy", traveling together to an event.', 'Modi extended an invitation to the BRICS summit.', 'Discussions covered bilateral relations and regional issues.']
+  FRAMING[left]: None
+  FRAMING[center]: ['Emphasized PM Modi\'s "car diplomacy" with Russian President Putin, highlighting their joint arrival at an event.', 'Noted PM Modi extended an invitation to the BRICS Summit to global leaders.', 'Mentioned discussions between Modi and Putin covered bilateral relations and regional issues.']
+  FRAMING[right]: ['Framed the "car diplomacy" between PM Modi and Putin as sending a "big message" to the world.', 'Highlighted the joint arrival at the Nomad Sports opening ceremony as a significant event.']
+====================================================================================================
+#17464 | topic=Politics region=World storyline=None n_articles=2 lean_counts={'left': 1, 'center': 0, 'right': 1} content_complete=True
+TITLE: USPS Accused of Secretly Pursuing Trump's Mail Voting Plan
+SUMMARY: A whistleblower has alleged that the United States Postal Service (USPS) is secretly proceeding with a mail-voting plan previously proposed by former President Donald Trump. The plan reportedly aims to implement changes to mail sorting and delivery processes before the upcoming midterm elections. The whistleblower's claims suggest that these actions are being taken without public knowledge or full disclosure. One report also mentioned a fact-check concerning warnings about military ballots.
+POINTS: ['A whistleblower claims the USPS is secretly implementing a mail-voting plan.', 'The plan was reportedly proposed by former President Donald Trump.', 'The alleged changes concern mail sorting and delivery processes.', 'The actions are reportedly being taken before the midterm elections.', 'One report mentions a fact-check related to military ballot concerns.']
+  FRAMING[left]: ["Emphasized the whistleblower's claim that the USPS is secretly proceeding with former President Trump's mail-voting plan before the midterms.", 'Highlighted the alleged lack of public knowledge or full disclosure regarding the USPS actions.']
+  FRAMING[center]: None
+  FRAMING[right]: ['Focused on a fact-check related to warnings about military ballots, in the context of mail-voting discussions.']
+====================================================================================================
+#17383 | topic=Crime & Law region=World storyline=sl-17379 n_articles=4 lean_counts={'left': 1, 'center': 3, 'right': 0} content_complete=True
+TITLE: Whistleblower Alleges USPS Mail Voting System Rushed and Flawed
+SUMMARY: A whistleblower has claimed that the U.S. Postal Service (USPS) is rapidly implementing an online system to comply with an executive order concerning mail-in voting. The whistleblower alleges that the system is untested and that USPS defied a court order to push it forward. These actions, according to the whistleblower, could potentially 'derail' midterm elections if allowed to proceed. The work to comply with the executive order is described as rushed and sloppy.
+POINTS: ['A whistleblower claims the U.S. Postal Service is rushing an online system for mail-in voting.', 'The system is described as untested and potentially flawed.', 'The whistleblower alleges USPS defied a court order in its haste to implement the system.', "The whistleblower warns the system's implementation could 'derail' midterm elections.", 'Work to comply with the executive order is characterized as rushed and sloppy.']
+  FRAMING[left]: ["Emphasizes the whistleblower's claims that the USPS defied a court order to push the 'untested' portal.", "Highlights the potential for the system's rushed implementation to 'derail' midterm elections."]
+  FRAMING[center]: ["Focuses on the whistleblower's allegations that the USPS system is flawed and untested.", 'Reports that the work to comply with the executive order is described as rushed and sloppy.']
+  FRAMING[right]: None
+====================================================================================================
+#17436 | topic=Crime & Law region=World storyline=None n_articles=2 lean_counts={'left': 0, 'center': 2, 'right': 0} content_complete=True
+TITLE: Cleveland Police Receive Additional Funding for Serious Crime Tackling
+SUMMARY: Cleveland Police have been allocated an additional £2 million to enhance their efforts in tackling serious crime. This funding is intended to support the force's operations, particularly in the Middlesbrough area. The allocation follows a recent deadly crash, though the direct link between the crash and the funding's purpose is not explicitly detailed in the coverage. The funds are designated for addressing serious criminal activity within the region.
+POINTS: ['Cleveland Police received an additional £2 million in funding.', 'The money is designated for tackling serious crime.', 'The funding is specifically aimed at operations in the Middlesbrough area.', 'The allocation follows a deadly crash in the region.']
+  FRAMING[left]: None
+  FRAMING[center]: ['Coverage emphasizes the financial boost for Cleveland Police to combat serious crime.', 'The funding is specifically linked to operations in the Middlesbrough area.', 'The allocation is noted to have occurred after a deadly crash.']
+  FRAMING[right]: None
+====================================================================================================
+#17232 | topic=Economy region=India storyline=sl-16541 n_articles=8 lean_counts={'left': 0, 'center': 5, 'right': 0} content_complete=True
+TITLE: HDFC Bank CEO Exit Prompts Brokerage Target Price Cuts, Succession Focus
+SUMMARY: HDFC Bank's CEO Sashidhar Jagdishan will not seek reappointment, leading Jefferies to cut its target price for the bank's shares to Rs 880 from Rs 1,050 while maintaining a Buy rating. The brokerage cited near-term risks to deposit mobilisation and fee income. Other brokerages also retained bullish calls but highlighted the need for the next CEO to establish a clear growth path and leadership reset. The bank plans to hire a headhunter to find a successor.
+POINTS: ['HDFC Bank CEO Sashidhar Jagdishan will not seek reappointment.', 'Jefferies cut its target price for HDFC Bank shares to Rs 880 from Rs 1,050 but kept a Buy rating.', 'Brokerages noted near-term risks to deposit mobilisation and fee income.', 'Analysts stated the next CEO must provide a credible leadership reset and a clear growth path.', 'HDFC Bank will hire a headhunter to find a new CEO.']
+  FRAMING[left]: None
+  FRAMING[center]: ['Emphasised the decision of CEO Sashidhar Jagdishan not to seek reappointment.', 'Highlighted that brokerages retained bullish calls but stressed the need for leadership reset and growth revival.', 'Noted Jefferies cut target price to Rs 880 from Rs 1,050 but maintained a Buy rating.', 'Mentioned near-term risks to deposit mobilisation and fee income flagged by Jefferies.', "Reported the bank's plan to hire a headhunter for succession."]
+  FRAMING[right]: None
+====================================================================================================
+#17460 | topic=Economy region=World storyline=None n_articles=2 lean_counts={'left': 0, 'center': 2, 'right': 0} content_complete=True
+TITLE: Trump Announces Drug Pricing Deals with Pharma Companies
+SUMMARY: President Donald Trump announced agreements with nine pharmaceutical companies aimed at lowering prescription drug prices. The deals, described as "most-favored-nation" pricing, intend to align prices paid by Americans with those paid in other developed countries. The administration stated these agreements could lead to significant savings for consumers. Specific details on the exact price reductions and the timeline for implementation were not fully disclosed in the initial announcements.
+POINTS: ['Nine pharmaceutical companies have reached agreements with the Trump administration on drug pricing.', 'The deals are based on a "most-favored-nation" pricing model.', 'The stated goal is to make prescription drug prices in the U.S. comparable to those in other developed nations.', 'The administration claims these agreements will result in savings for consumers.', 'Full details on price reductions and implementation timelines were not immediately available.']
+  FRAMING[left]: None
+  FRAMING[center]: ['Framed the announcement around the "most-favored-nation" pricing model and its goal of aligning U.S. prices with those in other developed countries.', "Emphasized the administration's claim that the deals will lead to significant consumer savings.", 'Noted that specific details on price reductions and implementation timelines were not fully disclosed.']
+  FRAMING[right]: None
+====================================================================================================
+#15358 | topic=International region=World storyline=sl-11841 n_articles=85 lean_counts={'left': 4, 'center': 24, 'right': 8} content_complete=True
+TITLE: US-Iran Tensions Rise as Hormuz Deal Nears Expiry, Trump Threatens Oman
+SUMMARY: The US-Iran Memorandum of Understanding (MoU) regarding the Strait of Hormuz is set to expire, with Iran ruling out an extension and threatening escalation. Iran is reportedly working with Oman to finalize a joint statement on managing ship transit through the Strait. Amidst these developments, former US President Donald Trump threatened to bomb Oman if it interfered with the US-Iran deal talks. Turkish President Erdogan urged Trump to pursue talks with Iran and offered support. Brent crude oil prices rose above $90 as tensions increased.
+POINTS: ['The US-Iran Memorandum of Understanding (MoU) concerning the Strait of Hormuz is nearing its expiration.', 'Iran has stated it will not extend the MoU and has threatened to escalate conflict.', 'Iran is collaborating with Oman to finalize a joint statement on managing maritime traffic in the Strait of Hormuz.', 'Former US President Donald Trump issued a threat to bomb Oman if it obstructed the US-Iran deal negotiations.', "Turkish President Erdogan encouraged Trump to engage in talks with Iran and offered his country's support."]
+  FRAMING[left]: ["Highlights Turkish President Erdogan's call for dialogue with Iran and his offer of support."]
+  FRAMING[center]: ["Emphasizes Iran's efforts to finalize a maritime management agreement with Oman.", "Leads with Donald Trump's threat to bomb Oman if it interfered with US-Iran deal talks.", "Notes the impending expiry of the US-Iran MoU and Iran's refusal to extend it."]
+  FRAMING[right]: ["Features Donald Trump's threat to 'destroy' Oman if it interfered with the Strait of Hormuz issue.", "Mentions Iran being described as a 'good poker player' by Trump.", 'Frames the situation around the expiry of the US-Iran MoU and the potential for conflict.']
+====================================================================================================
+#17389 | topic=International region=World storyline=None n_articles=3 lean_counts={'left': 0, 'center': 3, 'right': 0} content_complete=True
+TITLE: Iran offers return to ceasefire if US complies
+SUMMARY: Iran has stated its readiness to return to a ceasefire agreement with the United States, provided Washington also adheres to the terms. This declaration followed an exchange of fire between the two nations. The proposed ceasefire was initially established in June. Iran's statement indicates a conditional willingness to re-engage with the agreement.
+POINTS: ['Iran announced it is prepared to resume a ceasefire with the US.', 'The condition for returning to the ceasefire is US compliance with the agreement.', 'The ceasefire was originally agreed upon in June.', 'The announcement came after a recent exchange of fire between Iran and the US.']
+  FRAMING[left]: None
+  FRAMING[center]: ["Reported Iran's conditional offer to return to a June ceasefire, contingent on US compliance.", 'Noted the offer followed an exchange of fire between the two nations.']
+  FRAMING[right]: None
+====================================================================================================
+#17125 | topic=Sports region=World storyline=sl-17067 n_articles=40 lean_counts={'left': 3, 'center': 21, 'right': 4} content_complete=True
+TITLE: Lionel Messi Retires From Argentina International Football Career
+SUMMARY: Lionel Messi has announced his retirement from international football after a 21-year career with Argentina. The announcement came 43 days after Argentina won the World Cup. Messi stated he has "nothing more to give" to the national team. During his 21 years, he played 125 matches and scored 106 goals for Argentina. He achieved a significant career milestone by winning the World Cup.
+POINTS: ['Lionel Messi announced his retirement from international football.', 'The announcement was made 43 days after Argentina won the World Cup.', 'Messi stated he felt he had "nothing more to give" to the national team.', 'He played 125 matches for Argentina over 21 years.', 'Messi scored 106 goals for Argentina during his international career.']
+  FRAMING[left]: ['The sole left-leaning outlet emphasized Messi\'s "two decades of glory and heartbreak" in his career.']
+  FRAMING[center]: ['Centrist coverage highlighted the timing of the announcement, 43 days after the World Cup win.', 'These outlets noted Messi\'s statement that he has "nothing more to give" to the national team.', "The centrist reporting detailed Messi's career statistics, including 125 goals in 21 years."]
+  FRAMING[right]: ["Right-leaning coverage focused on the simple fact of Messi's retirement from international football."]
+====================================================================================================
+#17463 | topic=Sports region=World storyline=None n_articles=2 lean_counts={'left': 2, 'center': 0, 'right': 0} content_complete=True
+TITLE: Gabriel Jesus Completes Transfer to Barcelona from Arsenal
+SUMMARY: Footballer Gabriel Jesus has completed a permanent transfer to Barcelona from Arsenal, concluding his four-year tenure with the London-based club. The move marks a significant career transition for the player.
+POINTS: ['Gabriel Jesus has transferred from Arsenal to Barcelona.', 'The transfer is a permanent move.', 'Jesus spent four years at Arsenal before the transfer.']
+  FRAMING[left]: ["Emphasizes the completion of the permanent transfer and the end of Gabriel Jesus's four-year spell at Arsenal."]
+  FRAMING[center]: None
+  FRAMING[right]: None
+====================================================================================================
+#14073 | topic=Science & Tech region=World storyline=sl-11546 n_articles=29 lean_counts={'left': 5, 'center': 13, 'right': 3} content_complete=True
+TITLE: Total Solar Eclipse Observed Across Spain and Europe
+SUMMARY: A total solar eclipse occurred on Wednesday, plunging parts of Spain into darkness. Crowds gathered in Spain and across Europe, including London where over 90% of the sun was obscured, to witness the celestial event. Some observers watched from the ground, while others experienced the eclipse from an airplane. Scientists also used the event to study the sun's corona.
+POINTS: ['A total solar eclipse was visible in parts of Spain on Wednesday.', 'Partial eclipses were observed across Europe, with London seeing over 90% coverage.', 'Spectators gathered in various locations, including Spain and London, to view the event.', 'Some individuals watched the eclipse from an airplane.', "Scientists conducted research on the sun's corona during the eclipse."]
+  FRAMING[left]: ['Emphasized the awe and cheers of spectators witnessing the rare moment of totality in Spain.']
+  FRAMING[center]: ['Highlighted the rare occurrence of the total solar eclipse in Spain, noting it was the first in 27 years for Europe.', "Mentioned unique viewing experiences, such as passengers on an Iberia flight and an Olympian's skate.", "Included the scientific aspect of studying the sun's corona during the eclipse."]
+  FRAMING[right]: ['Focused on the visual spectacle of the eclipse across Europe, describing it as a rare sight.', 'Mentioned the significant coverage of the sun in Britain (90%) and the celestial alignment.']
+====================================================================================================
+#17462 | topic=Science & Tech region=World storyline=None n_articles=2 lean_counts={'left': 2, 'center': 0, 'right': 0} content_complete=True
+TITLE: Scientists Detect Compelling Signs of Dark Matter
+SUMMARY: Scientists have detected what is described as the most compelling indication of dark matter to date. The discovery was made by researchers who were hunting for dark matter. While the specific details of the findings are not elaborated upon, the indication is considered significant by the scientific community.
+POINTS: ['Researchers hunting for dark matter have reported a significant discovery.', 'The indication is described as the most compelling to date.', 'The findings suggest a potential breakthrough in dark matter research.']
+  FRAMING[left]: ["Highlights the discovery as the 'most compelling indication of dark matter to date'."]
+  FRAMING[center]: None
+  FRAMING[right]: None
+====================================================================================================
+#12976 | topic=Health region=World storyline=sl-8045 n_articles=47 lean_counts={'left': 5, 'center': 16, 'right': 1} content_complete=True
+TITLE: WHO Warns Congo Ebola Outbreak Could Be Deadliest On Record
+SUMMARY: The World Health Organization (WHO) has warned that the Ebola outbreak in the Democratic Republic of Congo (DRC) could become the deadliest on record. As of recent reports, the number of confirmed cases has risen to 4,449, with the death toll surpassing 2,000. Officials state the virus is spreading rapidly, with the WHO indicating it is "chasing" the outbreak and that the virus is "ahead of us." A study suggests that new transmissions from animals likely caused the Congo-Uganda Ebola outbreak. The outbreak was officially declared on May 15 but is believed to have been spreading for several weeks prior.
+POINTS: ['The WHO has warned the Ebola outbreak in DR Congo could become the deadliest on record.', 'Confirmed cases have reached 4,449, with over 2,000 deaths reported.', 'WHO officials describe the situation as the virus being ahead of their efforts.', 'A study suggests animal transmission as a likely cause for the Congo-Uganda outbreak.', 'The outbreak, declared May 15, is believed to have been spreading for weeks before.']
+  FRAMING[left]: ["The sole left-leaning outlet emphasizes the WHO's warning that the outbreak could become the deadliest on record."]
+  FRAMING[center]: ['Centrist coverage highlights the rising number of confirmed cases, reaching 4,449.', 'Centrist outlets also report on a study suggesting animal transmission as a likely cause of the outbreak.']
+  FRAMING[right]: ["The sole right-leaning outlet highlights the WHO Chief's statement that the outbreak is on track to surpass the deadliest one in history."]
+====================================================================================================
+#17435 | topic=Health region=World storyline=None n_articles=2 lean_counts={'left': 0, 'center': 2, 'right': 0} content_complete=True
+TITLE: Scotland's SMA Screening Identifies First Baby for Treatment
+SUMMARY: The first baby identified through Scotland's Spinal Muscular Atrophy (SMA) screening programme has begun treatment. This marks a significant step in the early detection and management of the genetic disorder. The screening programme aims to identify infants with SMA at the earliest possible stage, allowing for timely intervention.
+POINTS: ["Scotland's SMA screening programme has identified its first baby.", 'The identified baby has started treatment for Spinal Muscular Atrophy.', 'The programme focuses on early detection of SMA.', 'Early intervention is a key goal of the screening initiative.']
+  FRAMING[left]: None
+  FRAMING[center]: ["Coverage focuses on the successful implementation of Scotland's SMA screening pilot program.", 'The reporting highlights the identification of the first baby and the commencement of their treatment.']
+  FRAMING[right]: None
+====================================================================================================
+#14645 | topic=Environment region=World storyline=sl-13098 n_articles=48 lean_counts={'left': 2, 'center': 18, 'right': 4} content_complete=True
+TITLE: Deadly earthquakes strike Indonesia and Colombia, rescue efforts underway
+SUMMARY: A 7.7-magnitude earthquake struck Indonesia, killing at least 53 people and forcing 5,000 to evacuate, with landslides and aftershocks hindering rescue operations. In Colombia, a powerful earthquake has killed at least 285 people, injured 4,000, and left hundreds missing, with rescue efforts entering a final phase. Tens of thousands of homes were damaged in Colombia, leaving many displaced.
+POINTS: ['A 7.7-magnitude earthquake in Indonesia resulted in at least 53 deaths and 5,000 evacuations.', 'Landslides and aftershocks complicated rescue efforts in Indonesia.', 'A powerful earthquake in Colombia has killed at least 285 people and injured 4,000.', 'Hundreds remain missing in Colombia following the earthquake.', 'Tens of thousands of homes were damaged in Colombia, displacing many residents.']
+  FRAMING[left]: ['Emphasized the death toll and evacuations in Indonesia, mentioning landslides and aftershocks hampering rescue.']
+  FRAMING[center]: ['Focused on the rising death toll in Indonesia and the ongoing search for survivors in Colombia.', 'Mentioned the specific magnitude of the Indonesian earthquake and the lifting of a tsunami warning.']
+  FRAMING[right]: ['Highlighted the death toll and tsunami warning status in Indonesia.', 'Mentioned Colombia seeking tariff relief from the US following its earthquake.']
+====================================================================================================
+#17437 | topic=Environment region=World storyline=None n_articles=2 lean_counts={'left': 0, 'center': 2, 'right': 0} content_complete=True
+TITLE: UK Records Hottest Summer in 2026
+SUMMARY: The summer of 2026 has been recorded as the hottest in the United Kingdom since records began. The Met Office, the UK's national weather service, confirmed this data. This finding indicates a significant climatic event for the region.
+POINTS: ['Summer 2026 was the hottest on record in the UK.', 'The Met Office confirmed the record-breaking temperatures.', 'This marks the warmest summer since meteorological records started.']
+  FRAMING[left]: None
+  FRAMING[center]: ['Emphasized the record-breaking nature of the summer, citing the Met Office.', 'Stressed that this was the warmest summer since records began.']
+  FRAMING[right]: None
+====================================================================================================
+#16991 | topic=Society region=World storyline=sl-16974 n_articles=5 lean_counts={'left': 0, 'center': 5, 'right': 0} content_complete=True
+TITLE: Nepal Teacher Saves 1,600 Students from Devastating Flood
+SUMMARY: A teacher in Nepal successfully evacuated over 1,600 schoolchildren moments before their school was inundated by devastating floods. The incident occurred last week during severe flooding that impacted the region. The teacher's swift action is credited with saving all the students from the disaster.
+POINTS: ['Over 1,600 schoolchildren were saved by a teacher in Nepal.', 'The evacuation happened just minutes before the school was flooded.', 'The event occurred during devastating floods that recently struck the region.', "The teacher's actions prevented any student casualties from the inundation."]
+  FRAMING[left]: None
+  FRAMING[center]: ["Emphasized the large number of students saved (1,600+) and the teacher's heroic actions.", 'Highlighted the proximity of the disaster, noting students were saved minutes before inundation.']
+  FRAMING[right]: None
+====================================================================================================
+#17459 | topic=Society region=World storyline=None n_articles=2 lean_counts={'left': 0, 'center': 2, 'right': 0} content_complete=True
+TITLE: Environmentalist and Writer Wendell Berry Dies at 92
+SUMMARY: Wendell Berry, a celebrated writer and environmentalist known for advocating a simpler life, has died at the age of 92. Berry, who was born in Kentucky, passed away recently. His work often focused on agrarianism, community, and the environment.
+POINTS: ['Wendell Berry, a writer and environmentalist, died at age 92.', 'He was known for advocating a simpler way of life.', 'Berry was born in Kentucky.', 'His writings focused on themes of agrarianism, community, and the environment.']
+  FRAMING[left]: None
+  FRAMING[center]: ['Reported the death of writer and environmentalist Wendell Berry at age 92.', 'Highlighted his advocacy for a simpler life and his Kentucky origins.', 'Mentioned his focus on agrarianism, community, and environmental themes in his work.']
+  FRAMING[right]: None
+====================================================================================================
+#16850 | topic=Entertainment region=India storyline=sl-9690 n_articles=11 lean_counts={'left': 1, 'center': 1, 'right': 1} content_complete=True
+TITLE: Spider-Man Film Surpasses Avatar 2 in Box Office Rankings
+SUMMARY: Spider-Man: Brand New Day has become the third highest-grossing film of all time, surpassing Avatar: The Way of Water. The film has grossed $2.33 billion globally. Meanwhile, Coyote vs. Acme debuted with an estimated $15.5 million in its opening weekend, following Warner Bros.' decision to cancel the film for a tax write-off before its eventual release. Spider-Man: Brand New Day has now held the top box office spot for five consecutive weekends.
+POINTS: ['Spider-Man: Brand New Day is now the third highest-grossing film globally, surpassing Avatar: The Way of Water.', 'The film has achieved a worldwide gross of $2.33 billion.', 'Coyote vs. Acme opened with $15.5 million in its first weekend.', 'Warner Bros. had previously cancelled Coyote vs. Acme for a tax write-off.', 'Spider-Man: Brand New Day has been the number one film at the box office for five consecutive weeks.']
+  FRAMING[left]: ['Highlights Spider-Man: Brand New Day surpassing Avatar: The Way of Water to become the third highest-grossing film of all time.']
+  FRAMING[center]: ["Notes Spider-Man: Brand New Day's box office success and its new ranking, while also detailing the debut and prior cancellation of Coyote vs. Acme."]
+  FRAMING[right]: ['Emphasizes Spider-Man: Brand New Day dethroning Avatar 2 with a specific $2.33 billion global gross figure.']
+====================================================================================================
+#17418 | topic=Entertainment region=World storyline=None n_articles=2 lean_counts={'left': 0, 'center': 2, 'right': 0} content_complete=True
+TITLE: Netflix documentary explores influencer's rise and fall
+SUMMARY: A Netflix documentary titled 'Raygun' examines the career of an internet influencer, detailing her rise to fame and subsequent personal struggles. The film illustrates how she "broke the internet" and ultimately "herself" through her online presence and activities. The documentary focuses on the impact of her digital footprint and the personal cost of her online persona.
+POINTS: ["Netflix has released a documentary named 'Raygun'.", 'The documentary focuses on an internet influencer.', 'It covers her rise to fame and personal downfall.', 'The film explores how she "broke the internet" and "herself".']
+  FRAMING[left]: None
+  FRAMING[center]: ['The coverage from The Sydney Morning Herald and The Age focuses on the documentary\'s narrative arc, highlighting the influencer\'s "rise and fall" and the theme of her "breaking the internet – and herself."']
+  FRAMING[right]: None
