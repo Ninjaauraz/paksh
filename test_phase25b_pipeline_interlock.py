@@ -19,9 +19,16 @@ Never touches paksh.db, never calls an LLM, never runs the real refresh.py.
 Run:  py test_phase25b_pipeline_interlock.py
 """
 import os
+import tempfile
 
 import live
 import runlocked
+
+# live.cycle() calls live._log() internally (Phase 25B-D), which appends to
+# live.LOG_PATH - point that at a throwaway temp file for this whole test run
+# so it never writes into the real live_log.txt.
+_orig_log_path = live.LOG_PATH
+live.LOG_PATH = tempfile.mktemp(suffix=".txt")
 
 FAILURES = []
 
@@ -106,6 +113,11 @@ check("4d: release() was still called despite the failure (try/finally holds)",
 live._run, live._deploy, runlocked.acquire, runlocked.release = orig_run, orig_deploy, orig_acquire, orig_release
 if runlocked.LOCK.exists():
     runlocked.LOCK.unlink()
+try:
+    os.remove(live.LOG_PATH)
+except OSError:
+    pass
+live.LOG_PATH = _orig_log_path
 
 print("\n" + "=" * 60)
 if FAILURES:
