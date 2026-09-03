@@ -114,6 +114,77 @@ _HI_STOP = set("में की के का और से पर को ह�
 
 # Words that survive _keywords but are far too common to justify merging two stories
 # across cycles on their own (this is also what stops ICC vs FIFA "world cup" over-merge).
+#
+# Phase 26C: this set correctly identifies sport/scoreboard/format boilerplate, but
+# was previously wired ONLY into merge_keywords() (the cross-cycle merge path below)
+# and into cluster_with_details()'s post-hoc display metadata - never into the
+# within-batch join decision (cluster_vectors()'s eligible()/shared(), fed by the
+# `kw` list built in cluster_with_details()) that actually CREATES a new event from
+# freshly-ingested articles. That gap let templated live-scorecard content merge
+# into single fake "events" (confirmed: events 3563/9367/13121 - see the Phase 26B
+# root-cause report) via the n>=1-shared-keyword/STRONG_SIM escape hatch, satisfied
+# by a single generic word this set didn't yet cover at that stage. Five terms below
+# were added from DIRECT evidence in that investigation, not speculatively:
+#   - "highlights": the exact word that let real, unrelated match-report titles
+#     ("HUN vs AUT highlights", "DEN-W vs CHE-W highlights") share a keyword.
+#   - "scor": a real fragment observed in _keywords() output for real corpus titles
+#     (a truncation artifact of "score"/"scorecard" - "scores" was already listed).
+#   - "info": observed in real _keywords() output for Hindi-tagged template titles
+#     ("... Info in Hindi - ..."); a bare format word, never discriminates a story.
+#   - "मैच" (Hindi "match") / "रिपोर्ट" (Hindi "report"): the Hindi analogs of
+#     English "match" and "report", both already listed above for English but
+#     missing for Hindi - observed verbatim in real Hindi sports-template titles
+#     ("... मैच रिपोर्ट").
+#   - "horoscope" / "zodiac": real event titles confirmed live in the Phase 26B
+#     systemic scan ("Astrological Forecasts Predict Fortunes for Various Zodiac
+#     Signs", "Astrological Forecasts for July 2026", "Planetary Shifts Predicted
+#     to Bring Financial Gains to Select Zodiac Signs") - "astrological" was
+#     already listed but "horoscope"/"zodiac" were not.
+#   - "राशि"/"राशियों" (Hindi "zodiac sign[s]"), "जानें" (a generic clickbait
+#     "find out" imperative), "वाले"/"वालों" (a generic relational suffix, "those
+#     of/belonging to X"), "हाल" (generic "news/update"): pulled directly from the
+#     REAL member-article titles of confirmed horoscope events #9256/#24/#6537 in
+#     the production DB (e.g. "कुंभ राशि वालों को कोई अच्छी खबर मिलेगी, जानें
+#     अपनी राशि का हाल" / "वृश्चिक राशि वाले जॉब में पाएंगे उन्नति, जानें अन्य
+#     राशियों का हाल" / "मकर राशि वाले ... जानें क्या कहती है आपकी राशि"). "राशि"
+#     alone appears in essentially every sampled title regardless of which sign is
+#     discussed (कुंभ/मेष/वृश्चिक/मकर - correctly LEFT as real, distinguishing
+#     keywords); empirically, removing only "राशि"/"राशियों" was NOT sufficient -
+#     real title pairs still shared 2 keywords via "जानें"+"हाल" or "जानें"+"वाले"
+#     alone, still clearing MIN_SHARED=2 on template words alone.
+#   - "read"/"all"/"com": pulled directly from real member-article titles of
+#     confirmed columnist-listing event #5263 ("Read all the latest hindi news
+#     from Sagar Kaushik | Jagran.com" vs "... from Parvez Ahmad | Jagran.com") -
+#     two DIFFERENT columnists' byline pages shared 3 keywords ("hindi","all","com")
+#     before this addition, clearing MIN_SHARED=2 outright (not even needing the
+#     escape hatch). "com" is a domain-suffix artifact (from "Jagran.com" splitting
+#     on the dot), never a real content word.
+#   - "hindi": also from event #5263, real risk accepted deliberately - a genuine
+#     story ABOUT the Hindi language (e.g. a language-policy dispute) would still
+#     have other strongly specific co-occurring words (place names, "imposition",
+#     party names) to satisfy MIN_SHARED=2 without needing "hindi" itself; the
+#     word's near-universal presence in every Hindi-outlet byline-listing page
+#     (a `language` tag leaking into title text, not real content) outweighs that
+#     narrow residual risk.
+#   - "cricket": found while validating the fix against the REAL member articles
+#     of confirmed bad event #3563 (not speculative - queried live from the
+#     production DB). Three genuinely different, unrelated matches -
+#     "Upcoming GIB vs SER cricket match ...", "Switzerland Women in Denmark, 4
+#     T20I Series, 2026 Cricket Series 2026, Live Scores and Results", and
+#     "Bangladesh in Zimbabwe, Only Test, 2026 Cricket Series 2026, Live Scores
+#     and Results" - each still shared exactly one keyword pairwise ("cricket"),
+#     which is enough to clear the n>=1/STRONG_SIM escape hatch on its own -
+#     the identical mechanism "highlights" exploited, just a sport-name token
+#     this list didn't yet cover. It sits in the same category as the already-
+#     listed "match"/"series"/"scores"/"results"/"commentary": the word names the
+#     CONTENT TEMPLATE/GENRE (this is a cricket-scorecard page), not the specific
+#     story. Risk of false negative: a genuine cricket news story (e.g. "India
+#     wins Cricket World Cup final") keeps other strongly specific co-occurring
+#     words (team/player/tournament names, "world cup", "final") to satisfy
+#     MIN_SHARED=2 without "cricket" itself - the same reasoning already accepted
+#     for "match"/"series" above, and empirically confirmed in TEST 4/5/6 below.
+# No other vocabulary was touched - this is a bounded, evidence-driven addition,
+# not a general stopword expansion.
 _GENERIC_KW = set((
     "world cup india indian government report reports new news today over after amid "
     "first second third police court case cases minister ministers official officials "
@@ -128,10 +199,14 @@ _GENERIC_KW = set((
     "commentary referees lineup preview intent squad "
     # company suffixes / market-page / horoscope-page tokens that leak from junk
     "ltd pvt inc corp limited premarket movers gallery video coverage overview "
-    "numerology astrological calendar predictions"
+    "numerology astrological calendar predictions "
+    # Phase 26C additions - direct real-corpus evidence, see comment above
+    "highlights scor info horoscope zodiac read all com hindi cricket"
 ).split()) | set((
     "भारत सरकार पुलिस मामला खबर देश राज्य खबरें ख़बरें बुलेटिन बजे सुबह रात "
-    "जून जुलाई समाचार ताजा मुख्य पढ़ें"
+    "जून जुलाई समाचार ताजा मुख्य पढ़ें "
+    # Phase 26C additions - direct real-corpus evidence, see comment above
+    "मैच रिपोर्ट राशि राशियों जानें वाले वालों हाल"
 ).split())
 
 # Distinctive outlet/masthead tokens that leak into titles & bylines and falsely
@@ -573,13 +648,37 @@ def _dedupe_same_outlet(indices, vecs, articles):
 
 # ------------------------------ public API ------------------------------
 
+def _gating_keywords(a):
+    """Phase 26C: the keyword set actually used to GATE the within-batch clustering
+    decision (cluster_vectors()'s eligible()/shared()) - _keywords() with _GENERIC_KW
+    subtracted, so a generic template word (e.g. "highlights") can never be the sole
+    keyword that satisfies the n>=1-shared/STRONG_SIM escape hatch, while a genuine
+    reworded-headline recall case (which shares a real content word) is unaffected.
+
+    Deliberately does NOT also subtract _OUTLET_KW here, unlike merge_keywords()'s
+    cross-cycle path. _OUTLET_KW contains several tokens with real false-negative
+    risk for THIS decision specifically: bare name/word fragments that can be
+    legitimate discriminating content ("hari"/"lall"/"lallant" are also real Indian
+    surname fragments; "pioneer"/"herald"/"chronicle"/"telegraph" are ordinary
+    English words with genuine non-outlet uses in headlines, e.g. "AI pioneer",
+    "this could herald a new era"). _OUTLET_KW's outlet-name-leakage protection is a
+    different, already-solved problem in its original scope (merge_keywords(), used
+    by the cross-cycle merge/consolidation paths) - it is not needed to close the
+    confirmed sports/horoscope/listing-template mechanism (Phase 26B), which is
+    purely about generic FORMAT vocabulary, not outlet names. Reusing it here would
+    add unreviewed false-negative risk for no confirmed benefit, so the smallest
+    safe subset of the originally-proposed `_GENERIC_KW | _OUTLET_KW` expression is
+    used: _GENERIC_KW alone."""
+    return _keywords(a) - _GENERIC_KW
+
+
 def cluster_with_details(articles, embedder=None):
     """Return every cluster (including singletons) with metadata, for inspection."""
     if not articles:
         return []
     embedder = embedder or default_embedder
     vecs = _normalize(embedder([_text_of(a) for a in articles]))
-    kw = [_keywords(a) for a in articles]
+    kw = [_gating_keywords(a) for a in articles]
     langs = [a.get("language", "en") for a in articles]
     out = []
     for group in cluster_vectors(vecs, kw=kw, langs=langs):
