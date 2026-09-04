@@ -793,6 +793,10 @@ const UI = {
     en: "Loading the full archive to search…",
     hi: "खोज के लिए पूरा संग्रह लोड हो रहा है…"
   },
+  searchPending: {
+    en: "Searching…",
+    hi: "खोजा जा रहा है…"
+  },
   searchUnavailable: {
     en: "Search data couldn't be loaded. Please try again.",
     hi: "खोज डेटा लोड नहीं हो सका। कृपया फिर से प्रयास करें।"
@@ -926,6 +930,7 @@ const STR = {
     totalSources: "Total news sources",
     whereLean: "Where the sources lean",
     aiNote: "Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
+    whoCoveredNote: "Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
     osCalloutBody1: "Only",
     osCalloutBody2: "of the covering outlets lean this way, a count of outlets, not a judgment about why a side did or didn't cover it.",
     srcTitle: "Source ratings",
@@ -1014,6 +1019,7 @@ const STR = {
     totalSources: "कुल समाचार स्रोत",
     whereLean: "स्रोत किस ओर झुके हैं",
     aiNote: "झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
+    whoCoveredNote: "इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
     osCalloutBody1: "केवल",
     osCalloutBody2: "कवर करने वाले आउटलेट इस ओर झुके हैं, यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
     srcTitle: "स्रोत रेटिंग",
@@ -3223,6 +3229,17 @@ function StoryPage({
     center: voteRow("center").votes,
     right: voteRow("right").votes
   };
+  // Phase 29B: the International/Unrated Coverage Breakdown rows below were gated on
+  // story.international / story.unrated, fields that aren't present in the exported
+  // story JSON (story.coverage.international.count / story.coverage.unrated.count is
+  // where this is actually computed, same place voteRow() above already reads L/C/R
+  // from) - so those rows, and the explanatory notes on them, never rendered for any
+  // story. Reading the same already-correct source voteRow() uses fixes the display
+  // only; `total` below is deliberately left exactly as it was (still effectively just
+  // story.sources) so the "Total news sources" figure itself does not change for any
+  // story - only these two previously-invisible informational rows becoming visible.
+  const intlCount = story.coverage && story.coverage.international && story.coverage.international.count || 0;
+  const unratedCount = story.coverage && story.coverage.unrated && story.coverage.unrated.count || 0;
   const [atab, setAtab] = useState("all");
   const arts = atab === "all" ? outlets : outlets.filter(o => o.lean === atab);
   const total = story.sources + (story.unrated || 0) + (story.international || 0);
@@ -3336,7 +3353,7 @@ function StoryPage({
   }), " ", lang === "hi" ? "आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है" : "Recorded to your Reading Lens · visible only to you") : /*#__PURE__*/React.createElement("button", {
     onClick: () => go("login"),
     className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`
-  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें →" : "Sign in to build your Reading Lens →")), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें — आपके पढ़े का निजी रिकॉर्ड →" : "Sign in to build your Reading Lens — a private record of what you read →")), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
@@ -3513,19 +3530,27 @@ function StoryPage({
     }, ms.join(" · "), " ", /*#__PURE__*/React.createElement("span", {
       className: "italic"
     }, "(", o, ", ", lang === "hi" ? "1 वोट" : "1 vote", ")")))));
-  }), story.international > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `flex items-center justify-between border-b py-2.5 ${t.border}`
+  }), intlCount > 0 && /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
   }, /*#__PURE__*/React.createElement("span", {
     className: `text-[13px] ${t.ts} ${isHi(lang)}`
   }, STR[lang].intlTitle), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[14px] font-semibold ${t.tp}`
-  }, story.international)), story.unrated > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `flex items-center justify-between border-b py-2.5 ${t.border}`
+  }, intlCount)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].intlNote)), unratedCount > 0 && /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
   }, /*#__PURE__*/React.createElement("span", {
     className: `text-[13px] ${t.ts} ${isHi(lang)}`
   }, STR[lang].unratedTitle), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[14px] font-semibold ${t.tp}`
-  }, story.unrated)), story.blindspot && /*#__PURE__*/React.createElement("div", {
+  }, unratedCount)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].unratedNote)), story.blindspot && /*#__PURE__*/React.createElement("div", {
     className: `mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`
   }, /*#__PURE__*/React.createElement(Eye, {
     size: 15,
@@ -3545,7 +3570,7 @@ function StoryPage({
     onTouchStart: onTouchStart,
     onTouchEnd: onTouchEnd
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mb-3 flex items-baseline justify-between gap-3"
+    className: "mb-1 flex items-baseline justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
@@ -3553,7 +3578,9 @@ function StoryPage({
     }
   }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("span", {
     className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("p", {
+    className: `mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].whoCoveredNote), /*#__PURE__*/React.createElement("div", {
     className: `flex items-center gap-5 overflow-x-auto border-b ${t.border}`,
     style: {
       scrollbarWidth: "none"
@@ -5257,7 +5284,11 @@ function SearchPage({
     onChange: e => setQuery(e.target.value),
     placeholder: STR[lang].search,
     className: `w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }))), browsing && (browseCards || []).length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }))), searchStatus === "pending" ? /*#__PURE__*/React.createElement("div", {
+    className: "py-24 text-center"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `headline text-[19px] ${t.ts} ${readCls(lang)}`
+  }, ui("searchPending", lang))) : browsing && (browseCards || []).length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: `py-24 text-center ${t.tf} ${isHi(lang)}`
   }, ui("searchHint", lang)) : searchStatus === "loading" ? /*#__PURE__*/React.createElement("div", {
     className: "py-24 text-center"
@@ -6285,8 +6316,11 @@ function SaveButton({
     fill: on ? "currentColor" : "none"
   }), on ? lang === "hi" ? "सहेजा" : "Saved" : lang === "hi" ? "सहेजें" : "Save");
 }
-// Per-card "✂ CLIP" action (design mobile card). Uses the shared SaveCtx so no card needs
-// save props threaded. Renders nothing when accounts are off; a guest tap routes to sign in.
+// Per-card save action (design mobile card, scissors icon kept for the "clipping" feel).
+// Uses the shared SaveCtx so no card needs save props threaded. Renders nothing when
+// accounts are off; a guest tap routes to sign in. Label matches SaveButton's "Save"/
+// "Saved" (Phase 29B: was "Clip"/"Clipped" here, a different word for the same action
+// as the story-page button - one concept, one name now; the icon stays distinctive.
 function CardClip({
   story,
   t,
@@ -6315,7 +6349,7 @@ function CardClip({
     style: {
       display: "inline-block"
     }
-  }, "\u2702"), on ? lang === "hi" ? "कतरा" : "Clipped" : lang === "hi" ? "कतरें" : "Clip");
+  }, "\u2702"), on ? lang === "hi" ? "सहेजा" : "Saved" : lang === "hi" ? "सहेजें" : "Save");
 }
 
 // Sign-in gate reused by Lens + Saved (the news is never gated; only these personal views are).
@@ -6562,18 +6596,18 @@ function SavedPage({
 }) {
   const L = lang === "hi" ? {
     title: "सहेजी खबरें",
-    empty: "अभी कुछ नहीं कतरा गया।",
+    empty: "अभी कुछ नहीं सहेजा गया।",
     emptyB: "किसी खबर पर ‘सहेजें’ दबाएँ, वह यहाँ कतरन की तरह जुड़ जाएगी।",
     browse: "मुख्य खबरें देखें →",
-    clipped: "कतरा",
+    clipped: "सहेजा",
     remove: "हटाएँ",
     gateB: "अपनी सहेजी खबरें देखने के लिए साइन इन करें।"
   } : {
     title: "Saved",
-    empty: "Nothing clipped yet.",
+    empty: "Nothing saved yet.",
     emptyB: "Press ‘Save’ on any story and it gets pinned here like a cutting.",
     browse: "Browse top stories →",
-    clipped: "Clipped",
+    clipped: "Saved",
     remove: "Remove",
     gateB: "Sign in to see your saved stories."
   };
@@ -7421,7 +7455,16 @@ function PakshApp() {
     const timer = setTimeout(() => setDebouncedQuery((query || "").trim()), 300);
     return () => clearTimeout(timer);
   }, [query]);
-  const searchStatus = !debouncedQuery ? "browsing" : archive === "error" ? "error" : !Array.isArray(archive) ? "loading" : "ready";
+  // Phase 29B: the 300ms debounce above means `debouncedQuery` briefly still holds the
+  // OLD (or empty) value right after a keystroke, which used to fall through to the
+  // "browsing" branch below and flash the generic latest-coverage feed as if the search
+  // box were empty - looked like a failed/ignored search for that window. `pending` is
+  // true exactly during that gap (the raw query the reader is looking at differs from
+  // what has actually been searched yet) and is checked first, so the reader always sees
+  // an explicit "Searching…" state instead of stale browsing content.
+  const trimmedQuery = (query || "").trim();
+  const pending = trimmedQuery !== "" && trimmedQuery !== debouncedQuery;
+  const searchStatus = pending ? "pending" : !debouncedQuery ? "browsing" : archive === "error" ? "error" : !Array.isArray(archive) ? "loading" : "ready";
   const searchRows = useMemo(() => {
     if (searchStatus !== "ready") return [];
     const tokens = debouncedQuery.toLowerCase().split(/\s+/).filter(Boolean);
