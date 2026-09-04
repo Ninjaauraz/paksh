@@ -1050,7 +1050,98 @@ def _text_of_by_id(article_id, articles_by_id):
 # consulted ONLY by _recurring_entity_only_veto() below, never by within-batch
 # clustering, never by Phase 26C's _gating_keywords(), never by Storyline
 # matching. Extend only with the same standard of direct evidence used here.
-_RECURRING_ENTITY_KW = {"punjab", "aap"}
+#
+# Phase 30A: "telangana" added. Direct evidence: event #16667's real A->B
+# cross-cycle merge (Phase 29C forensic report) shared merge_keywords()
+# included "telangana" - not because either story was actually about
+# Telangana, but because the SAME outlet ("Telangana Today") happened to
+# cover both the unrelated CJP-protest and BCI/NALSAR incidents, leaking its
+# own name into merge_keywords() (a real, narrow _OUTLET_KW gap - see
+# _PROCEDURAL_OVERLAP_KW's docstring below for why the fix sits here rather
+# than in _OUTLET_KW). "telangana" is a real Indian state name - structurally
+# the same category "punjab" already occupies here - so a future genuine
+# Telangana-state story keeps exactly the same protection Punjab gets: this
+# single recurring word is never enough, alone, to prove incident identity.
+_RECURRING_ENTITY_KW = {"punjab", "aap", "telangana"}
+
+
+# Phase 30A: generic legal/judicial-procedure words that, like
+# _RECURRING_ENTITY_KW's political/geographic entities, recur across countless
+# UNRELATED Supreme-Court/legal-process stories and therefore cannot by
+# themselves establish that a cross-cycle merge candidate is the SAME INCIDENT
+# as the target event. Direct evidence: Phase 29C's forensic reconstruction of
+# event #16667 found _recurring_entity_only_veto() alone insufficient - the
+# deployed Phase 28B code still accepted TWO real, separate false merges into
+# that event, both admitted purely on this vocabulary class:
+#   - C->A: an unrelated Delhi-riots/UAPA bail-plea story (Athar Khan) merged
+#     into the CJP-protest-march event on shared merge_keywords() = {plea,
+#     response, seeks} alone - real cached-embedding similarity ~0.73, well
+#     below HIGH_SIM (0.79), zero incident-specific word in common.
+#   - A->B: the SAME event later absorbed a completely unrelated BCI/NALSAR
+#     law-student-discipline ruling on shared merge_keywords() = {against,
+#     conduct, law, students, take} (+"telangana", handled above) - sim ~0.70.
+#     This merge was ACTUALLY EXECUTED IN PRODUCTION by the deployed Phase 28B
+#     code roughly 3 hours after its own deployment, proving this is an
+#     active, not merely historical, gap.
+# "law" and "students" are included here (not just verbs) on the same direct-
+# evidence standard: both recur across many unrelated Crime & Law stories on
+# their own (protest-FIR students, disciplined law students, school-reopening
+# students are all "students"; "law" is comparably generic to "court"/
+# "supreme", already excluded via _STOP for the same reason) - confirmed via a
+# real regression check against event #14939 ("Law Students Protest BCI
+# Chief... NALSAR Incident"), a genuine continuing story that ALSO shares
+# "law"/"students" cross-cycle: removing them does not break that merge,
+# because real continuing stories always carry additional genuine identity
+# evidence (there: "bci", "nalsar", "chairman", "apologises") - confirming
+# these two words were never load-bearing for legitimate continuity.
+# Deliberately NOT merged into _GENERIC_KW (a different decision - within-
+# batch clustering/display, see _gating_keywords()) and NOT a general
+# stopword list: consulted ONLY by _generic_procedural_only_veto() below, for
+# the cross-cycle merge path. Extend only with the same standard of direct
+# evidence used here - a confirmed real cross-cycle bridge with zero
+# incident-specific word in common, cross-checked against a real continuing
+# story that already uses the same word(s).
+_PROCEDURAL_OVERLAP_KW = {"seeks", "response", "plea", "against", "conduct", "take",
+                          "law", "students"}
+
+
+def _generic_procedural_only_veto(shared_merge_keywords, sim):
+    """Phase 30A: cross-cycle-merge incident-identity veto, SECOND vocabulary
+    class.
+
+    _recurring_entity_only_veto() (Phase 28/28B, below) catches a cross-cycle
+    merge whose only shared evidence is a recurring POLITICAL/GEOGRAPHIC
+    entity. It does not, and was never designed to, catch a merge whose only
+    shared evidence is generic legal/judicial-PROCEDURE vocabulary (see
+    _PROCEDURAL_OVERLAP_KW above) - Phase 29C found #16667's real A->B merge
+    passed _recurring_entity_only_veto() cleanly (none of "against", "conduct",
+    "law", "students", "take" are political/geographic entities) while still
+    being exactly the same class of failure: same broad topic, moderate
+    similarity, zero incident-specific word in common.
+
+    This is a SEPARATE, independent check - deliberately not folded into
+    _recurring_entity_only_veto() itself, so that function and its own Phase
+    28B regression evidence keep applying completely unmodified. Same
+    mechanism, same HIGH_SIM escape valve as every other veto in this module,
+    same "reject only when NO specific word survives" contract. A merge that
+    shares even one real, non-generic, non-recurring-entity, non-procedural
+    word (a name, a case, a specific place beyond the recurring ones, a
+    specific claim) keeps its incident-specific evidence and is never touched
+    by this function - see the module-level regression tests
+    (test_phase30a_incident_identity.py) for the full evidence, including a
+    broad, non-curated sample of 20 real multi-day event splits with zero
+    false negatives.
+
+    Deliberately does NOT touch: MIN_SHARED, STRONG_SIM, JOIN_THRESHOLD,
+    HIGH_SIM, XMERGE_SIM, XMERGE_MIN_SHARED, within-batch clustering (Phase
+    26C's _gating_keywords()/_GENERIC_KW), Story Memory/relationship-judge
+    matching, or Storyline creation. A merge rejected here simply becomes its
+    own new event, exactly like every other veto in this module - it is NOT
+    routed into an automatically-created Storyline."""
+    if sim >= cluster.HIGH_SIM:
+        return False                      # extreme-similarity exception (same pattern/threshold as every other veto here)
+    specific = shared_merge_keywords - _RECURRING_ENTITY_KW - _PROCEDURAL_OVERLAP_KW
+    return not specific
 
 
 def _recurring_entity_only_veto(shared_merge_keywords, sim):
@@ -1142,7 +1233,7 @@ def _merge_into_existing(details, articles):
                             "lang": max(set(langs), key=langs.count) if langs else "en"})
     raw_matches = cluster.match_clusters_to_events(details, ev_clusters) if ev_clusters else []
     articles_by_id = {a["id"]: a for a in articles}
-    matches, vetoed, vetoed_entity = [], 0, 0
+    matches, vetoed, vetoed_entity, vetoed_procedural = [], 0, 0, 0
     for m in raw_matches:
         if _topic_mismatch_veto(m["cluster"], m["event"], articles_by_id, m["sim"]):
             vetoed += 1
@@ -1150,10 +1241,19 @@ def _merge_into_existing(details, articles):
         if _recurring_entity_only_veto(m["shared"], m["sim"]):
             vetoed_entity += 1
             continue
+        if _generic_procedural_only_veto(m["shared"], m["sim"]):
+            vetoed_procedural += 1
+            continue
         matches.append(m)
     matched = {id(m["cluster"]) for m in matches}
     for m in matches:
         assign_articles_to_event(m["cluster"]["ids"], m["event"]["event_id"])
+        # Phase 30A: _merge_needs_resummarise() deliberately left unextended (only
+        # subtracts _RECURRING_ENTITY_KW, not _PROCEDURAL_OVERLAP_KW) - it only ever
+        # fires on the sim>=HIGH_SIM branch, which _generic_procedural_only_veto()
+        # (like every veto in this module) never touches; the two conditions are
+        # disjoint by construction (sim<HIGH_SIM vs sim>=HIGH_SIM), so there is no
+        # accepted merge this phase changes the resummarise decision for.
         resummarise = MERGE_RESUMMARISE or _merge_needs_resummarise(m["shared"], m["sim"])
         recount_event(m["event"]["event_id"], resummarise=resummarise)
     if matches:
@@ -1165,6 +1265,10 @@ def _merge_into_existing(details, articles):
     if vetoed_entity:
         print(f"Cross-cycle merge: vetoed {vetoed_entity} candidate merge(s) - only "
               f"recurring-entity keywords shared, no incident-specific evidence "
+              f"(became new event(s) instead).")
+    if vetoed_procedural:
+        print(f"Cross-cycle merge: vetoed {vetoed_procedural} candidate merge(s) - only "
+              f"generic legal/procedural keywords shared, no incident-specific evidence "
               f"(became new event(s) instead).")
     return [d["ids"] for d in details
             if id(d) not in matched and d["source_count"] >= MIN_SOURCES_PER_EVENT]
