@@ -6,6 +6,11 @@ secrets.*
 # AI provider keys - paste real keys ONLY in ai_keys.env (local, never committed).
 # ai_keys.example.env is the safe, keyless template that IS committed.
 ai_keys.env
+
+# Phase 30C-J: bounded local provider-health cache (ai_providers.py). Advisory
+# runtime state only (health/success/failure counts) - never prompts, source
+# text, summaries, or credentials. Machine-local, not shared history.
+.provider_health.json
 *.keys.env
 
 # --- local database + caches (regenerated; never publish) ---

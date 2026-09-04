@@ -758,7 +758,21 @@ def _publish_build(build_dir: Path, final_dir: Path):
     _rmtree_safe(old_dir)                      # leftover from a previous interrupted swap
     if final_dir.exists():
         _rename_safe(final_dir, old_dir)
-    _rename_safe(build_dir, final_dir)
+    # Phase 30C-G: THIS rename follows immediately after writing thousands of fresh
+    # files (1500+ OG-card PNGs alone in a real run) - a safe, isolated repro
+    # (test_phase30cg_export_lock.py) reproduced a real WinError 5 "Access is
+    # denied" on this exact call 1/5 times at that file volume (0/20 at trivial
+    # volume), using the default retry budget (5 x 0.5s = 2.5s total) - consistent
+    # with a transient Windows sharing-violation (most likely real-time antivirus/
+    # indexing scanning the just-written batch) outlasting that short a window,
+    # not a deterministic bug in the rename itself. A longer bounded retry here
+    # ONLY (build_dir was JUST written; old_dir above is the already-settled
+    # previous build and doesn't need this) gives that lock time to clear
+    # naturally. The atomicity guarantee is unchanged either way: if every retry
+    # still fails, this still raises, and build_dir/old_dir are left exactly
+    # where _publish_build()'s docstring already promises - only the odds of a
+    # false failure on a healthy machine drop.
+    _rename_safe(build_dir, final_dir, attempts=20, delay=1.0)
     _rmtree_safe(old_dir)                       # best-effort; a lingering .old dir is harmless
 
 

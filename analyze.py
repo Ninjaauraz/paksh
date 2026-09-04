@@ -823,11 +823,24 @@ def _guess_region(text: str) -> str:
 
 
 def _representative(rows):
-    """Pick the most usable article: prefer a center outlet (least framing),
-    then whichever has the most summary text to quote."""
+    """Pick the most usable article: prefer a center outlet WITH real summary
+    text to quote (least framing), then whichever has the most summary text.
+
+    Phase 30C-F: real event #18165 ("Fire breaks out at Maharashtra Asian
+    Hospital") had exactly one English center-lean outlet (Times of India),
+    whose summary field was empty - while a real Left outlet (The Hindu, 52
+    chars) and a real Right outlet (Republic World, 122 chars) both had usable
+    text. The old code always committed to the center slice once it was
+    non-empty, `max()` of a single empty-summary item still returns that
+    item, and _extractive_raw() then had nothing to quote - a published event
+    with content_complete=True and a blank body. Requiring the center
+    candidate to actually HAVE summary text (falling back to ALL rows, still
+    ranked by summary length, when it doesn't) fixes this specific case
+    without changing the center-preference policy for the normal case where a
+    center outlet does have real text."""
     if not rows:
         return None
-    center = [r for r in rows if lean_of(r["source"]) == "center"]
+    center = [r for r in rows if lean_of(r["source"]) == "center" and (r.get("summary") or "").strip()]
     return max(center or rows, key=lambda r: len(r.get("summary") or ""))
 
 
@@ -846,6 +859,17 @@ def _extractive_raw(articles):
     hi_title = (hi_rep or base).get("title", "")
     en_sum = _first_sentences((en_rep or base).get("summary") or "")
     hi_sum = _first_sentences((hi_rep or base).get("summary") or "")
+    # Phase 30C-F: last-resort fallback when NO member article in a language has
+    # any summary/description text at all (a real, if uncommon, RSS-feed gap -
+    # confirmed via production events with zero-length summary on every member
+    # article). Falls back to the article's own real headline rather than ever
+    # publishing a blank body - never invented prose, just the same title text
+    # already trusted enough to be the headline (and already the same pattern
+    # some outlets' own RSS feeds produce when they have no separate excerpt).
+    if not en_sum and en_title:
+        en_sum = en_title
+    if not hi_sum and hi_title:
+        hi_sum = hi_title
     return {
         "title": en_title,
         "summary": en_sum,
