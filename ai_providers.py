@@ -74,7 +74,16 @@ PROVIDERS = [
     {
         "name": "groq", "enabled": True,
         "base_url": "https://api.groq.com/openai/v1",
-        "model": "llama-3.3-70b-versatile",
+        # UPDATED 2026-09-04 (Phase 30C-B): "llama-3.3-70b-versatile" was retired -
+        # HTTP 404 "model does not exist or is not accessible". Confirmed against
+        # this account's live GET /v1/models (14 models total); of those, most are
+        # unsuited to summarization (TTS, whisper transcription, guard/classifier
+        # models, or Groq's tool-invoking "compound" agents). "openai/gpt-oss-120b"
+        # is the largest general-purpose instruction model actually available, and
+        # is already the SAME model id the (disabled) Cerebras entry below uses for
+        # this identical workload - independent evidence this id is a real, already-
+        # vetted fit for Paksh's summary/framing prompts, not an arbitrary pick.
+        "model": "openai/gpt-oss-120b",
         "get_key": "https://console.groq.com/keys",   # key -> GROQ_API_KEY in ai_keys.env
     },
     {
