@@ -215,6 +215,7 @@ const {useState,useEffect,useMemo}=React;
       searchTab:{en:"Search", hi:"खोज"}, browse:{en:"Browse by topic", hi:"विषय से देखें"},
       searchHint:{en:"Search across all coverage", hi:"सभी कवरेज में खोजें"},
       searchLoading:{en:"Loading the full archive to search…", hi:"खोज के लिए पूरा संग्रह लोड हो रहा है…"},
+      searchPending:{en:"Searching…", hi:"खोजा जा रहा है…"},
       searchUnavailable:{en:"Search data couldn't be loaded. Please try again.", hi:"खोज डेटा लोड नहीं हो सका। कृपया फिर से प्रयास करें।"},
       latestCoverage:{en:"Latest coverage", hi:"ताज़ा कवरेज"},
       gapAll:{en:"All", hi:"सभी"}, gapLeftMissing:{en:"Left missing", hi:"वाम ग़ायब"},
@@ -254,6 +255,7 @@ const {useState,useEffect,useMemo}=React;
         sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
+        whoCoveredNote:"Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
         osCalloutBody1:"Only", osCalloutBody2:"of the covering outlets lean this way, a count of outlets, not a judgment about why a side did or didn't cover it.",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
         srcDisclaimer:"All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
@@ -304,6 +306,7 @@ const {useState,useEffect,useMemo}=React;
         sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
+        whoCoveredNote:"इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
         osCalloutBody1:"केवल", osCalloutBody2:"कवर करने वाले आउटलेट इस ओर झुके हैं, यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
         srcDisclaimer:"सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
@@ -525,7 +528,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className={`relative overflow-hidden ${t.soft} ${className||""}`} style={{aspectRatio:ratio||"16 / 9"}}>
           {real
-            ? <img src={src} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setErr(true)} className="absolute inset-0 h-full w-full object-cover" />
+            ? <img src={src} alt={title||""} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setErr(true)} className="absolute inset-0 h-full w-full object-cover" />
             : <div className="absolute inset-0 flex items-center justify-center">
                 <span className={`mono text-[11px] font-semibold uppercase tracking-[0.16em] ${t.tf} ${lang==="hi"?"deva":""}`}>{tp}</span>
               </div>}
@@ -1301,6 +1304,17 @@ const {useState,useEffect,useMemo}=React;
       // The bias bar's widths come from the distinct-OWNER votes (vc); percentages are
       // derived from those, so the printed scale matches the segments exactly.
       const vc={left:voteRow("left").votes,center:voteRow("center").votes,right:voteRow("right").votes};
+      // Phase 29B: the International/Unrated Coverage Breakdown rows below were gated on
+      // story.international / story.unrated, fields that aren't present in the exported
+      // story JSON (story.coverage.international.count / story.coverage.unrated.count is
+      // where this is actually computed, same place voteRow() above already reads L/C/R
+      // from) - so those rows, and the explanatory notes on them, never rendered for any
+      // story. Reading the same already-correct source voteRow() uses fixes the display
+      // only; `total` below is deliberately left exactly as it was (still effectively just
+      // story.sources) so the "Total news sources" figure itself does not change for any
+      // story - only these two previously-invisible informational rows becoming visible.
+      const intlCount=(story.coverage&&story.coverage.international&&story.coverage.international.count)||0;
+      const unratedCount=(story.coverage&&story.coverage.unrated&&story.coverage.unrated.count)||0;
       const [atab,setAtab]=useState("all");
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
       const total=story.sources+(story.unrated||0)+(story.international||0);
@@ -1359,7 +1373,7 @@ const {useState,useEffect,useMemo}=React;
             <div className="mx-auto mt-3 max-w-[840px]">
               {auth
                 ? <div className={`flex items-center gap-1.5 mono text-[10.5px] ${t.tf} ${isHi(lang)}`}><Check size={12}/> {lang==="hi"?"आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है":"Recorded to your Reading Lens · visible only to you"}</div>
-                : <button onClick={()=>go("login")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{lang==="hi"?"अपना रीडिंग लेंस बनाने के लिए साइन इन करें →":"Sign in to build your Reading Lens →"}</button>}
+                : <button onClick={()=>go("login")} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`}>{lang==="hi"?"अपना रीडिंग लेंस बनाने के लिए साइन इन करें — आपके पढ़े का निजी रिकॉर्ड →":"Sign in to build your Reading Lens — a private record of what you read →"}</button>}
             </div>
           )}
 
@@ -1367,7 +1381,7 @@ const {useState,useEffect,useMemo}=React;
           {story.storyline && (story.storyline.events||[]).length>1 && (
             <div className="mx-auto mt-10 max-w-[840px]">
               <div className="mb-1 flex items-baseline justify-between gap-3 pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
-                <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"यह खबर कैसे विकसित हुई":"How this developed"}</h3>
+                <h2 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"यह खबर कैसे विकसित हुई":"How this developed"}</h2>
                 <button onClick={()=>goStoryline&&goStoryline(story.storyline.id)} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{story.storyline.events.length} {lang==="hi"?"अपडेट · पूरी कड़ी →":"updates · full storyline →"}</button>
               </div>
               <StorylineTimeline storyline={story.storyline} currentId={story.id} t={t} lang={lang} open={open} />
@@ -1384,7 +1398,7 @@ const {useState,useEffect,useMemo}=React;
           {story.story_context && story.story_context.historical_event && (
             <div className="mx-auto mt-10 max-w-[840px]">
               <div className="pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
-                <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"पृष्ठभूमि":"Context"}</h3>
+                <h2 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"पृष्ठभूमि":"Context"}</h2>
               </div>
               <div className="mt-3">
                 <div className={`mono text-[10.5px] uppercase tracking-[0.08em] ${t.tf} ${lang==="hi"?"deva":""}`}>
@@ -1409,7 +1423,7 @@ const {useState,useEffect,useMemo}=React;
           {sides.length>0 && (
           <div className="mt-10">
             <div className="mb-4 flex items-baseline justify-between gap-3">
-              <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].framingTitle}</h3>
+              <h2 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].framingTitle}</h2>
               <span className={`mono text-[10.5px] hidden sm:inline ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"बराबर कॉलम · क्रम बार जैसा":"equal columns · order matches the bar"}</span>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0 md:border" style={{borderColor:t.ink}}>
@@ -1443,7 +1457,7 @@ const {useState,useEffect,useMemo}=React;
 
           {/* coverage breakdown — ONE VOTE PER OWNER (invariant display) */}
           <div className="mx-auto mt-10 max-w-[840px]">
-            <div className="pb-2" style={{borderBottom:`1px solid ${t.ink}`}}><h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].coverageBreakdown}</h3></div>
+            <div className="pb-2" style={{borderBottom:`1px solid ${t.ink}`}}><h2 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].coverageBreakdown}</h2></div>
             <div className={`mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`}>
               <span className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{STR[lang].totalSources}</span>
               <span className={`mono text-[14px] font-semibold ${t.tp}`}>{total}</span>
@@ -1462,8 +1476,14 @@ const {useState,useEffect,useMemo}=React;
               </div>
               );
             })}
-            {story.international>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.international}</span></div>}
-            {story.unrated>0 && <div className={`flex items-center justify-between border-b py-2.5 ${t.border}`}><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{story.unrated}</span></div>}
+            {intlCount>0 && <div className={`border-b py-2.5 ${t.border}`}>
+              <div className="flex items-center justify-between"><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{intlCount}</span></div>
+              <p className={`mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].intlNote}</p>
+            </div>}
+            {unratedCount>0 && <div className={`border-b py-2.5 ${t.border}`}>
+              <div className="flex items-center justify-between"><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{unratedCount}</span></div>
+              <p className={`mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].unratedNote}</p>
+            </div>}
             {story.blindspot && <div className={`mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}><Eye size={15} className="mt-0.5 shrink-0"/><span>{STR[lang].osCalloutBody1} <strong>{story.bias[story.blindspot]}%</strong> {STR[lang].osCalloutBody2}</span></div>}
             <p className={`mt-4 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
           </div>
@@ -1473,10 +1493,11 @@ const {useState,useEffect,useMemo}=React;
           <div className="mx-auto mt-10 max-w-[840px]"><AdSlot t={t} lang={lang} h={110} format="horizontal" /></div>
 
           <div className="mx-auto mt-10 max-w-[840px]" id="arts" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-            <div className="mb-3 flex items-baseline justify-between gap-3">
+            <div className="mb-1 flex items-baseline justify-between gap-3">
               <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
               <span className={`md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पक्ष बदलने को स्वाइप करें ⇄":"swipe to change side ⇄"}</span>
             </div>
+            <p className={`mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].whoCoveredNote}</p>
             <div className={`flex items-center gap-5 overflow-x-auto border-b ${t.border}`} style={{scrollbarWidth:"none"}}>
               <ATab k="all" n={outlets.length} />
               {counts.left>0 && <ATab k="left" n={counts.left} />}
@@ -1508,7 +1529,7 @@ const {useState,useEffect,useMemo}=React;
           {related && related.length>0 && open && (
             <div className="mx-auto mt-12 max-w-[1000px]">
               <div className="mb-4 pb-2" style={{borderBottom:`1px solid ${t.ink}`}}>
-                <h3 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?`${tp} पर और खबरें`:`More on ${tp}`}</h3>
+                <h2 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?`${tp} पर और खबरें`:`More on ${tp}`}</h2>
               </div>
               <div className="grid gap-x-7 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
                 {related.map(s=><GridCard key={s.id} story={s} t={t} lang={lang} onOpen={open} />)}
@@ -2290,7 +2311,11 @@ const {useState,useEffect,useMemo}=React;
               <input autoFocus value={query||""} onChange={e=>setQuery(e.target.value)} placeholder={STR[lang].search} className={`w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang==="hi"?"deva":""}`} />
             </div>
           </div>
-          {browsing && (browseCards||[]).length===0 ? (
+          {searchStatus==="pending" ? (
+            <div className="py-24 text-center">
+              <p className={`headline text-[19px] ${t.ts} ${readCls(lang)}`}>{ui("searchPending",lang)}</p>
+            </div>
+          ) : browsing && (browseCards||[]).length===0 ? (
             <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{ui("searchHint",lang)}</div>
           ) : searchStatus==="loading" ? (
             <div className="py-24 text-center">
@@ -2727,8 +2752,11 @@ const {useState,useEffect,useMemo}=React;
         className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
         <Bookmark key={on?"on":"off"} className={on?"pk-pop":""} size={14} fill={on?"currentColor":"none"}/>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}</button>;
     }
-    // Per-card "✂ CLIP" action (design mobile card). Uses the shared SaveCtx so no card needs
-    // save props threaded. Renders nothing when accounts are off; a guest tap routes to sign in.
+    // Per-card save action (design mobile card, scissors icon kept for the "clipping" feel).
+    // Uses the shared SaveCtx so no card needs save props threaded. Renders nothing when
+    // accounts are off; a guest tap routes to sign in. Label matches SaveButton's "Save"/
+    // "Saved" (Phase 29B: was "Clip"/"Clipped" here, a different word for the same action
+    // as the story-page button - one concept, one name now; the icon stays distinctive.
     function CardClip({ story, t, lang }) {
       const ctx=React.useContext(SaveCtx);
       if(!ctx || !ctx.on) return null;
@@ -2737,7 +2765,7 @@ const {useState,useEffect,useMemo}=React;
       return (
         <span role="button" tabIndex={0} aria-pressed={on?"true":"false"} onClick={act} onKeyDown={(e)=>{ if(e.key==="Enter"||e.key===" ") act(e); }}
           className={`inline-flex cursor-pointer items-center gap-1 mono text-[10px] font-semibold uppercase tracking-[0.1em] ${on?t.blind:t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>
-          <span key={on?"on":"off"} className={on?"pk-pop":""} style={{display:"inline-block"}}>✂</span>{on?(lang==="hi"?"कतरा":"Clipped"):(lang==="hi"?"कतरें":"Clip")}
+          <span key={on?"on":"off"} className={on?"pk-pop":""} style={{display:"inline-block"}}>✂</span>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}
         </span>
       );
     }
@@ -2850,10 +2878,10 @@ const {useState,useEffect,useMemo}=React;
 
     // SAVED / clippings - newspaper-cutting treatment (dashed frame + a "clipped" tab).
     function SavedPage({ t, lang, auth, go, open, savedRows, onUnsave }) {
-      const L = lang==="hi" ? { title:"सहेजी खबरें", empty:"अभी कुछ नहीं कतरा गया।", emptyB:"किसी खबर पर ‘सहेजें’ दबाएँ, वह यहाँ कतरन की तरह जुड़ जाएगी।",
-        browse:"मुख्य खबरें देखें →", clipped:"कतरा", remove:"हटाएँ", gateB:"अपनी सहेजी खबरें देखने के लिए साइन इन करें।" }
-        : { title:"Saved", empty:"Nothing clipped yet.", emptyB:"Press ‘Save’ on any story and it gets pinned here like a cutting.",
-        browse:"Browse top stories →", clipped:"Clipped", remove:"Remove", gateB:"Sign in to see your saved stories." };
+      const L = lang==="hi" ? { title:"सहेजी खबरें", empty:"अभी कुछ नहीं सहेजा गया।", emptyB:"किसी खबर पर ‘सहेजें’ दबाएँ, वह यहाँ कतरन की तरह जुड़ जाएगी।",
+        browse:"मुख्य खबरें देखें →", clipped:"सहेजा", remove:"हटाएँ", gateB:"अपनी सहेजी खबरें देखने के लिए साइन इन करें।" }
+        : { title:"Saved", empty:"Nothing saved yet.", emptyB:"Press ‘Save’ on any story and it gets pinned here like a cutting.",
+        browse:"Browse top stories →", clipped:"Saved", remove:"Remove", gateB:"Sign in to see your saved stories." };
       if(!auth) return <SignInGate t={t} lang={lang} go={go} title={L.title} body={L.gateB} />;
       const rows=savedRows||[];
       return (
@@ -3222,7 +3250,17 @@ const {useState,useEffect,useMemo}=React;
         const timer=setTimeout(()=>setDebouncedQuery((query||"").trim()),300);
         return ()=>clearTimeout(timer);
       },[query]);
-      const searchStatus = !debouncedQuery ? "browsing"
+      // Phase 29B: the 300ms debounce above means `debouncedQuery` briefly still holds the
+      // OLD (or empty) value right after a keystroke, which used to fall through to the
+      // "browsing" branch below and flash the generic latest-coverage feed as if the search
+      // box were empty - looked like a failed/ignored search for that window. `pending` is
+      // true exactly during that gap (the raw query the reader is looking at differs from
+      // what has actually been searched yet) and is checked first, so the reader always sees
+      // an explicit "Searching…" state instead of stale browsing content.
+      const trimmedQuery = (query||"").trim();
+      const pending = trimmedQuery!=="" && trimmedQuery!==debouncedQuery;
+      const searchStatus = pending ? "pending"
+        : !debouncedQuery ? "browsing"
         : archive==="error" ? "error"
         : !Array.isArray(archive) ? "loading"
         : "ready";

@@ -1537,7 +1537,7 @@ function Thumb({
     }
   }, real ? /*#__PURE__*/React.createElement("img", {
     src: src,
-    alt: "",
+    alt: title || "",
     loading: "lazy",
     decoding: "async",
     referrerPolicy: "no-referrer",
@@ -3360,7 +3360,7 @@ function StoryPage({
     style: {
       borderBottom: `1px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("h3", {
+  }, /*#__PURE__*/React.createElement("h2", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -3381,7 +3381,7 @@ function StoryPage({
     style: {
       borderBottom: `1px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("h3", {
+  }, /*#__PURE__*/React.createElement("h2", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -3413,7 +3413,7 @@ function StoryPage({
     className: "mt-10"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-4 flex items-baseline justify-between gap-3"
-  }, /*#__PURE__*/React.createElement("h3", {
+  }, /*#__PURE__*/React.createElement("h2", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -3482,7 +3482,7 @@ function StoryPage({
     style: {
       borderBottom: `1px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("h3", {
+  }, /*#__PURE__*/React.createElement("h2", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -3644,7 +3644,7 @@ function StoryPage({
     style: {
       borderBottom: `1px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("h3", {
+  }, /*#__PURE__*/React.createElement("h2", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
