@@ -2,8 +2,8 @@
 setlocal
 REM ============================================================
 REM  Paksh NIGHTLY refresh (Windows Task Scheduler, 05:30).
-REM  Hardened: runlocked interlock + hybrid backend + guarded
-REM  auto-deploy of the generated _site/ only. The batch now EXITS
+REM  Hardened: runlocked interlock + guarded auto-deploy of the
+REM  generated _site/ only. The batch now EXITS
 REM  WITH THE REAL RESULT (no trailing echo masking failure), and a
 REM  ground-truth data check (verify_fresh.py) makes a run that
 REM  ingested nothing while the catalogue is stale fail RED even if
@@ -13,7 +13,10 @@ cd /d "C:\paksh_project\paksh"
 REM force UTF-8 so Devanagari (Hindi) titles never crash a cp1252-redirected log
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
-set PAKSH_LLM_BACKEND=hybrid
+REM Phase 30C-C: hybrid -> pool (Groq openai/gpt-oss-120b -> Gemini -> extractive)
+REM while Gemini's billing/dunning denial is pending Google's side (Phase 30C-A/B).
+REM Same fallback safety net either way - only which provider is tried FIRST changed.
+set PAKSH_LLM_BACKEND=pool
 
 echo. >> refresh_log.txt
 echo ===================================================== >> refresh_log.txt
