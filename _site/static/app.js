@@ -1698,34 +1698,52 @@ function BiasPill({
   const L = counts.left || 0,
     C = counts.center || 0,
     R = counts.right || 0;
+  const barH = h || 8;
+  // Phase 32D (Change 1): a side with zero coverage used to simply not render, letting the
+  // remaining sides' flexGrow expand to fill the whole bar - a 2-of-3-sides story and a
+  // fully-3-sided story with a negligible third side became visually indistinguishable,
+  // with only the caption's small mono text telling them apart. When every side is absent
+  // (L=C=R=0) the bar stays exactly as before - a bare track, nothing to distinguish. When
+  // ONLY one or two sides are absent, each now gets a fixed-width neutral notch (the bar's
+  // own track colour, sized to its own height) instead of being omitted outright, so the
+  // missing side reads as an actual gap in the shape, not just a lighter caption number.
+  const any = L > 0 || C > 0 || R > 0;
+  const notch = /*#__PURE__*/React.createElement("div", {
+    style: {
+      flexGrow: 0,
+      flexShrink: 0,
+      width: barH,
+      background: t.line
+    }
+  });
   return /*#__PURE__*/React.createElement("div", {
     className: className || ""
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex w-full overflow-hidden",
     style: {
-      height: h || 8,
+      height: barH,
       borderRadius: 999,
       background: t.line
     }
-  }, L > 0 && /*#__PURE__*/React.createElement("div", {
+  }, any && (L > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: L,
       flexBasis: 0,
       background: BIAS.left.color
     }
-  }), C > 0 && /*#__PURE__*/React.createElement("div", {
+  }) : notch), any && (C > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: C,
       flexBasis: 0,
       background: BIAS.center.color
     }
-  }), R > 0 && /*#__PURE__*/React.createElement("div", {
+  }) : notch), any && (R > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: R,
       flexBasis: 0,
       background: BIAS.right.color
     }
-  })), /*#__PURE__*/React.createElement("div", {
+  }) : notch)), /*#__PURE__*/React.createElement("div", {
     className: `mt-1 mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, lang === "hi" ? "वा" : "L", " ", L, " ", lang === "hi" ? "कें" : "C", " ", C, " ", lang === "hi" ? "द" : "R", " ", R));
 }
@@ -6850,7 +6868,13 @@ function MyPakshPage({
     getLastSeen().then(prev => {
       if (cancelled) return;
       const topics = followedTopics || new Set();
-      const rows = prev && topics.size ? (cards || []).filter(c => topics.has(c.topic) && c.created_at && Date.parse(c.created_at) > Date.parse(prev)).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 6) : [];
+      // _ts(), not raw Date.parse(): published_at/created_at strings from the export
+      // pipeline carry no timezone suffix, so a plain Date.parse silently reads them as
+      // the VIEWER'S local time instead of UTC - on a UTC+5:30 (IST) browser that skews
+      // "is this newer than my last visit" by 5.5 hours, wrongly dropping real matches.
+      // _ts() is the same fix timeAgo()/absDate() already use for this exact string shape.
+      const prevTs = _ts(prev);
+      const rows = prev && !isNaN(prevTs) && topics.size ? (cards || []).filter(c => topics.has(c.topic) && c.created_at && _ts(c.created_at) > prevTs).sort((a, b) => _ts(b.created_at) - _ts(a.created_at)).slice(0, 6) : [];
       setSywlhRows(rows);
       bumpLastSeen();
     }).catch(() => {
@@ -6938,18 +6962,23 @@ function MyPakshPage({
     lang: lang
   }, L.continueReading), /*#__PURE__*/React.createElement("div", {
     className: "grid gap-4 sm:grid-cols-3"
-  }, continueRows.map((r, i) => /*#__PURE__*/React.createElement("button", {
-    key: i,
-    onClick: () => open(r.story_id),
-    className: `border p-3 text-left ${t.border} hover:${t.tp}`
-  }, r.topic && /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".12em"
-    }
-  }, lang === "hi" ? TOPIC_HI[r.topic] || r.topic : r.topic), /*#__PURE__*/React.createElement("div", {
-    className: `mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`
-  }, r.title || r.story_id))))), sywlh.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+  }, continueRows.map((r, i) => {
+    const openedTs = r.opened_at ? _ts(r.opened_at) : NaN;
+    return /*#__PURE__*/React.createElement("button", {
+      key: i,
+      onClick: () => open(r.story_id),
+      className: `border p-3 text-left ${t.border} hover:${t.tp}`
+    }, r.topic && /*#__PURE__*/React.createElement("div", {
+      className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".12em"
+      }
+    }, lang === "hi" ? TOPIC_HI[r.topic] || r.topic : r.topic), /*#__PURE__*/React.createElement("div", {
+      className: `mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`
+    }, r.title || r.story_id), !isNaN(openedTs) && /*#__PURE__*/React.createElement("div", {
+      className: `mt-1.5 mono text-[10px] ${t.tf}`
+    }, lang === "hi" ? `${timeAgo(r.opened_at, lang)} खोली` : `Opened ${timeAgo(r.opened_at, lang)}`));
+  }))), sywlh.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
     t: t,
     lang: lang
   }, L.sywlh), /*#__PURE__*/React.createElement("div", {
@@ -6958,12 +6987,13 @@ function MyPakshPage({
     key: c.id,
     onClick: () => open(c.id),
     className: `border p-3 text-left ${t.border} hover:${t.tp}`
-  }, c.topic && /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".12em"
-    }
-  }, lang === "hi" ? TOPIC_HI[c.topic] || c.topic : c.topic), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(Eyebrow, {
+    topic: c.topic,
+    created_at: c.created_at,
+    storyline: c.storyline_id,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("div", {
     className: `mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`
   }, c.headline))))), (followedTopicList.length > 0 || followedStories.length > 0) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
     t: t,
@@ -7371,7 +7401,7 @@ function Onboarding({
     }, lang === "hi" ? TOPIC_HI[k] || k : k);
   })), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`
-  }, L.interestsHint)) : /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? `${(interests || []).length} चुने गए · ${L.interestsHint}` : `${(interests || []).length} selected · ${L.interestsHint}`)) : /*#__PURE__*/React.createElement("div", {
     className: "px-5 pb-5 pt-3"
   }, /*#__PURE__*/React.createElement("h2", {
     className: `headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`
