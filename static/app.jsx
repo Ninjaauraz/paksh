@@ -176,6 +176,11 @@ const {useState,useEffect,useMemo}=React;
       const next=Object.assign({}, cur, patch);
       await dbFetch("/profiles?id=eq."+s.user.id, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ prefs:next, updated_at:new Date().toISOString() }) }); }catch(e){} }
     const _uid = () => { const s=_readSession(); return s&&s.user?s.user.id:null; };
+    // Since You Were Last Here (Phase 31, G6): read the PREVIOUS marker before ever overwriting
+    // it - the caller must derive "what's new" from this value first, then only advance the
+    // marker after that read+derive succeeded. Never advance on a failed read.
+    async function getLastSeen(){ const rows=await dbFetch("/profiles?select=last_seen_at&limit=1"); return (rows&&rows[0]&&rows[0].last_seen_at)||null; }
+    async function bumpLastSeen(){ const uid=_uid(); if(!uid) return; return dbFetch("/profiles?id=eq."+uid, { method:"PATCH", headers:{ Prefer:"return=minimal" }, body:JSON.stringify({ last_seen_at:new Date().toISOString() }) }); }
     const _sideOf = (story) => { const c=(story&&story.counts)||{}; const L=c.left||0,C=c.center||0,R=c.right||0; if(L+C+R===0) return null; return R>L&&R>=C?"right":(L>=C&&L>=R?"left":"center"); };
     // Reading Lens: record each opened story (upsert refreshes opened_at). Best-effort, never blocks.
     async function recordRead(story){ if(!authOn()||!_uid()||!story) return; try{
@@ -189,6 +194,17 @@ const {useState,useEffect,useMemo}=React;
     async function saveStory(story){ return dbFetch("/saved_stories", { method:"POST", headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
       body:JSON.stringify({ user_id:_uid(), story_id:String(story.id), topic:story.topic||null, title:(story.headline||story.title||"").slice(0,300), saved_at:new Date().toISOString() }) }); }
     async function unsaveStory(id){ return dbFetch("/saved_stories?story_id=eq."+encodeURIComponent(String(id)), { method:"DELETE", headers:{ Prefer:"return=minimal" } }); }
+    // Following (Phase 31): "tell me when this develops" - independent of Save ("I want to
+    // keep this"). Never changes ranking, framing or the bias bar; only feeds Since You Were
+    // Last Here on My Paksh. Same REST/upsert idiom as saved_stories above, one row per follow.
+    async function listFollowedTopics(){ return dbFetch("/follows_topic?select=topic"); }
+    async function followTopic(topic){ return dbFetch("/follows_topic", { method:"POST", headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
+      body:JSON.stringify({ user_id:_uid(), topic }) }); }
+    async function unfollowTopic(topic){ return dbFetch("/follows_topic?topic=eq."+encodeURIComponent(topic), { method:"DELETE", headers:{ Prefer:"return=minimal" } }); }
+    async function listFollowedStories(){ return dbFetch("/follows_story?select=story_id,topic,title,created_at&order=created_at.desc"); }
+    async function followStory(story){ return dbFetch("/follows_story", { method:"POST", headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
+      body:JSON.stringify({ user_id:_uid(), story_id:String(story.id), topic:story.topic||null, title:(story.headline||story.title||"").slice(0,300) }) }); }
+    async function unfollowStory(storyId){ return dbFetch("/follows_story?story_id=eq."+encodeURIComponent(String(storyId)), { method:"DELETE", headers:{ Prefer:"return=minimal" } }); }
 
     /* ---------------- accessibility (works on EVERY page, not just Settings) ----------------
        Stored in localStorage so it applies for guests too (news is never gated), and mirrored
@@ -198,6 +214,11 @@ const {useState,useEffect,useMemo}=React;
     const DEFAULT_A11Y = { textSize:"standard", highContrast:false, dyslexiaFont:false, readAloud:false };
     const readA11y = () => { try{ return Object.assign({}, DEFAULT_A11Y, JSON.parse(localStorage.getItem(A11Y_LS)||"{}")); }catch(e){ return Object.assign({}, DEFAULT_A11Y); } };
     const writeA11y = (p) => { try{ localStorage.setItem(A11Y_LS, JSON.stringify(p)); }catch(e){} };
+    // Phase 31 (G5): onboarding interest picks. Same local-first, mirrored-to-account-on-sign-in
+    // idiom as accessibility above - works for guests (news is never gated) and survives sign-in.
+    const INTERESTS_LS = "paksh-interests";
+    const readInterests = () => { try{ const a=JSON.parse(localStorage.getItem(INTERESTS_LS)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } };
+    const writeInterests = (list) => { try{ localStorage.setItem(INTERESTS_LS, JSON.stringify(list||[])); }catch(e){} };
     const applyA11y = (p) => { try{ const el=document.documentElement;
       el.setAttribute("data-pk-text", p.textSize||"standard");
       el.classList.toggle("pk-hc", !!p.highContrast);
@@ -776,7 +797,7 @@ const {useState,useEffect,useMemo}=React;
     // navigation line (the 5 section links, National/International + date on home only, a
     // quiet search icon) - this is the "masthead + one line" shape the design explicitly
     // approves, not the old 4-band identity/nav/scope/search architecture.
-    function Masthead({ t, lang, setLang, go, view, auth, openHelp, savedCount, regionFilter, setRegionFilter, story, sectionLabel, openTopic, saved, onToggleSave }) {
+    function Masthead({ t, lang, setLang, go, view, auth, openHelp, savedCount, regionFilter, setRegionFilter, story, sectionLabel, openTopic, saved, onToggleSave, followingStory, onToggleFollowStory }) {
       const isReading = view==="story" || view==="blindspot" || view==="storyline";
       const [copied,setCopied]=useState(false);
       const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
@@ -808,11 +829,14 @@ const {useState,useEffect,useMemo}=React;
                 {isReading && story && (
                   <div className="hidden shrink-0 items-center gap-3 sm:flex">
                     {authOn() && onToggleSave && <SaveButton story={story} saved={saved||new Set()} onToggle={onToggleSave} t={t} lang={lang} />}
+                    {authOn() && onToggleFollowStory && <FollowButton on={!!followingStory} onToggle={()=>onToggleFollowStory(story)}
+                      labelOn={lang==="hi"?"फ़ॉलो हो रहा है":"Following"} labelOff={lang==="hi"?"+ फ़ॉलो":"+ Follow"} t={t} lang={lang} />}
                     <button onClick={copy} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
                   </div>
                 )}
                 {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
                 {!isReading && authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
+                {!isReading && authOn() && auth && <button onClick={()=>go("my-paksh")} aria-label={lang==="hi"?"मेरा पक्ष":"My Paksh"} className={`hidden sm:inline mono text-[12px] ${view==="my-paksh"?t.tp:`${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा पक्ष":"My Paksh"}</button>}
                 {!isReading && authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
                 {authOn() && (auth
                   ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:34,height:34,border:`1px solid ${t.ink}`,fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</button>
@@ -853,10 +877,12 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BottomNav({ t, lang, view, go, auth }) {
-      // Front · Gaps · Search · Sections — same drawer whether signed in or not.
-      // Login lives ONLY in the top-right; Saved sits behind the account button there.
+      // Front · Gaps · Search · Sections · My Paksh — same drawer whether signed in or not
+      // (Phase 31: My Paksh's own first-time state carries the sign-in/follow prompt, so the
+      // tab itself doesn't need to disappear for a guest). Login lives ONLY in the top-right;
+      // Saved sits behind the account button there.
       const items=[["home",lang==="hi"?"मुख":"Front",Home],["blindspot",lang==="hi"?"गैप":"Gaps",Eye],["search",ui("searchTab",lang),Search],
-        ["topics", ui("sections",lang), Grid]];
+        ["topics", ui("sections",lang), Grid], ["my-paksh", lang==="hi"?"मेरा पक्ष":"My Paksh", User]];
       const active=(k)=>view===k;
       return (
         <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>
@@ -1793,7 +1819,7 @@ const {useState,useEffect,useMemo}=React;
     // rest as a dense BriefRow list with progressive reveal — the same tiering vocabulary
     // HomeView already established, reused rather than reinvented, without HomeView's own
     // masthead-style "Top Stories" header or right rail (this is a section, not the front page).
-    function TopicPage({ topic, items, t, lang, open, go }) {
+    function TopicPage({ topic, items, t, lang, open, go, auth, followingTopic, onToggleFollowTopic }) {
       const label=lang==="hi"?(TOPIC_HI[topic]||topic):topic;
       const [visible,setVisible]=useState(20);
       const PAGE=20;
@@ -1802,9 +1828,13 @@ const {useState,useEffect,useMemo}=React;
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
-          <div className="flex items-baseline justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+          <div className="flex items-center justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
             <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
-            <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{items.length}</span>
+            <div className="flex shrink-0 items-center gap-3">
+              <span className={`mono text-[11px] ${t.tf}`}>{items.length}</span>
+              {authOn() && onToggleFollowTopic && <FollowButton on={!!followingTopic} onToggle={()=>onToggleFollowTopic(topic)}
+                labelOn={lang==="hi"?"फ़ॉलो हो रहा है":"Following"} labelOff={lang==="hi"?"+ फ़ॉलो टॉपिक":"+ Follow topic"} t={t} lang={lang} />}
+            </div>
           </div>
           {!items.length ? (
             <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
@@ -2752,6 +2782,16 @@ const {useState,useEffect,useMemo}=React;
         className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
         <Bookmark key={on?"on":"off"} className={on?"pk-pop":""} size={14} fill={on?"currentColor":"none"}/>{on?(lang==="hi"?"सहेजा":"Saved"):(lang==="hi"?"सहेजें":"Save")}</button>;
     }
+    // Follow/Following toggle (Phase 31) - ONE component used identically for a story
+    // (StoryPage, via the masthead action row) and a topic (TopicPage header). Same visual
+    // weight/border language as SaveButton on purpose - it is a sibling control, not a new
+    // control language. "on" means "this reader follows it"; labels are passed in so the two
+    // call sites can keep their own established copy ("+ Follow" vs "+ Follow topic").
+    function FollowButton({ on, onToggle, labelOn, labelOff, t, lang }) {
+      return <button type="button" onClick={onToggle} aria-pressed={on?"true":"false"}
+        className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>
+        {on?labelOn:labelOff}</button>;
+    }
     // Per-card save action (design mobile card, scissors icon kept for the "clipping" feel).
     // Uses the shared SaveCtx so no card needs save props threaded. Renders nothing when
     // accounts are off; a guest tap routes to sign in. Label matches SaveButton's "Save"/
@@ -2913,6 +2953,169 @@ const {useState,useEffect,useMemo}=React;
       );
     }
 
+    // MY PAKSH (Phase 31, G4) — the personal hub. Reuses existing data end to end: reading_history
+    // via listReading (same call LensPage makes, but no bias-balance/verdict recompute here — that
+    // stays Lens's job), saved_stories via the savedRows already loaded for /saved (no re-fetch,
+    // no re-implementing the clipping UI), follows_topic/follows_story via state already
+    // maintained for the Follow buttons. Sections are omitted entirely when empty, never rendered
+    // as an empty box; if everything is empty, one restrained first-time message shows instead of
+    // a stack of missing sections. Since You Were Last Here is added in a later gate (G6).
+    function MyPakshPage({ t, lang, auth, go, open, savedRows, followedTopics, followedStoryRows, onToggleFollowTopic, onToggleFollowStory, cards }) {
+      const [readingRows,setReadingRows]=useState(null);
+      useEffect(()=>{ if(!auth) return; listReading(30).then(r=>setReadingRows(r||[])).catch(()=>setReadingRows([])); },[auth]);
+      // Since You Were Last Here (G6) - v1 scope, decided deliberately narrow: new stories in
+      // FOLLOWED TOPICS only, published after the reader's last My Paksh visit. Paksh has no
+      // per-story revision timestamp (a development is a new event id, not an edit to an old
+      // one), so "updates to a followed STORY" has no honest definition yet without inventing
+      // one; that's tracked as open product debt, not guessed at here. Uses `cards` already
+      // loaded for the rest of the app - no extra fetch, no fan-out. Sequencing per spec: read
+      // the previous marker, derive, render, and only THEN advance the marker - never on failure.
+      const [sywlhRows,setSywlhRows]=useState(null);
+      // Wait for followedStoryRows to leave its "not yet loaded" null sentinel (refreshFollows
+      // in flight) before deriving - otherwise a fast page load could read an empty followedTopics
+      // Set that just hasn't finished hydrating yet, under-count real matches, and then advance
+      // the marker past them for good.
+      useEffect(()=>{ if(!auth || followedStoryRows===null) return; let cancelled=false;
+        getLastSeen().then(prev=>{ if(cancelled) return;
+          const topics=followedTopics||new Set();
+          const rows = (prev && topics.size) ? (cards||[])
+            .filter(c=>topics.has(c.topic) && c.created_at && Date.parse(c.created_at)>Date.parse(prev))
+            .sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,6) : [];
+          setSywlhRows(rows);
+          bumpLastSeen();
+        }).catch(()=>{ if(!cancelled) setSywlhRows([]); });
+        return ()=>{ cancelled=true; };
+      },[auth, followedStoryRows===null]);
+      const L = lang==="hi" ? {
+        title:"मेरा पक्ष", gateB:"अपना पक्ष देखने के लिए साइन इन करें। खबरें हमेशा बिना खाते के खुली रहती हैं।",
+        continueReading:"पढ़ना जारी रखें", sywlh:"जब से आप यहाँ नहीं थे", recentlyRead:"हाल में पढ़ी", following:"फॉलो की गई",
+        saved:"सहेजी खबरें", seeAllSaved:"सभी सहेजी खबरें देखें →",
+        openLens:"अपना रीडिंग लेंस देखें →", unfollow:"अनफॉलो",
+        firstTimeH:"अभी आपका पक्ष खाली है", firstTimeB:"किसी विषय या खबर को फॉलो करें, या कोई खबर सहेजें — वह यहाँ दिखेगी।",
+        browse:"मुख्य खबरें देखें →"
+      } : {
+        title:"My Paksh", gateB:"Sign in to see your Paksh. The news itself is always open, no account needed.",
+        continueReading:"Continue reading", sywlh:"Since you were last here", recentlyRead:"Recently read", following:"Following",
+        saved:"Saved", seeAllSaved:"See all saved →",
+        openLens:"See your Reading Lens →", unfollow:"Unfollow",
+        firstTimeH:"Your Paksh is empty so far", firstTimeB:"Follow a topic or a story, or save one, and it'll show up here.",
+        browse:"Browse top stories →"
+      };
+      if(!auth) return <SignInGate t={t} lang={lang} go={go} title={L.title} body={L.gateB} />;
+
+      const seen=new Set(); const dedup=[];
+      (readingRows||[]).forEach(r=>{ if(r.story_id && !seen.has(r.story_id)){ seen.add(r.story_id); dedup.push(r); } });
+      const continueRows=dedup.slice(0,3);
+      const recentRows=dedup.slice(3,8);
+      const saved=(savedRows||[]).slice(0,4);
+      const followedTopicList=Array.from(followedTopics||[]);
+      const followedStories=followedStoryRows||[];
+      const sywlh=sywlhRows||[];
+      const loading=readingRows===null;
+      const hasAnything=continueRows.length||sywlh.length||recentRows.length||followedTopicList.length||followedStories.length||saved.length;
+
+      return (
+        <PageWrap>
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
+          {loading ? <div className={`mt-8 py-10 text-center text-[13px] ${t.tf}`}>…</div>
+          : !hasAnything ? (
+            <div className={`mt-8 border border-dashed p-12 text-center ${t.border}`}>
+              <div className={`text-[16px] font-semibold ${t.tp} ${isHi(lang)}`}>{L.firstTimeH}</div>
+              <p className={`mx-auto mt-1.5 max-w-[44ch] text-[13.5px] ${t.tf} ${readCls(lang)}`}>{L.firstTimeB}</p>
+              <button onClick={()=>go("home")} className={`mt-5 border px-4 py-2 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.browse}</button>
+            </div>
+          ) : (
+            <div className="mt-8 space-y-10">
+              {continueRows.length>0 && (
+                <div>
+                  <SectionTitle t={t} lang={lang}>{L.continueReading}</SectionTitle>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {continueRows.map((r,i)=>(
+                      <button key={i} onClick={()=>open(r.story_id)} className={`border p-3 text-left ${t.border} hover:${t.tp}`}>
+                        {r.topic && <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{lang==="hi"?(TOPIC_HI[r.topic]||r.topic):r.topic}</div>}
+                        <div className={`mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sywlh.length>0 && (
+                <div>
+                  <SectionTitle t={t} lang={lang}>{L.sywlh}</SectionTitle>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {sywlh.map((c)=>(
+                      <button key={c.id} onClick={()=>open(c.id)} className={`border p-3 text-left ${t.border} hover:${t.tp}`}>
+                        {c.topic && <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{lang==="hi"?(TOPIC_HI[c.topic]||c.topic):c.topic}</div>}
+                        <div className={`mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`}>{c.headline}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(followedTopicList.length>0 || followedStories.length>0) && (
+                <div>
+                  <SectionTitle t={t} lang={lang}>{L.following}</SectionTitle>
+                  {followedTopicList.length>0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {followedTopicList.map(tp=>(
+                        <span key={tp} className={`inline-flex items-center gap-2 border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts}`}>
+                          <button onClick={()=>go("topic/"+encodeURIComponent(tp))} className={`hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</button>
+                          <button onClick={()=>onToggleFollowTopic(tp)} aria-label={L.unfollow} className={`hover:${t.blind}`}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {followedStories.length>0 && (
+                    <div className="mt-3">
+                      {followedStories.slice(0,8).map((r)=>(
+                        <div key={r.story_id} className={`flex w-full items-center justify-between gap-3 border-b py-3 ${t.border}`}>
+                          <button onClick={()=>open(r.story_id)} className={`min-w-0 flex-1 truncate headline text-[14.5px] text-left ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</button>
+                          <button onClick={()=>onToggleFollowStory({id:r.story_id})} className={`shrink-0 mono text-[10px] uppercase ${t.tf} hover:${t.blind}`}>{L.unfollow}</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {recentRows.length>0 && (
+                <div>
+                  <SectionTitle t={t} lang={lang}>{L.recentlyRead}</SectionTitle>
+                  <div>
+                    {recentRows.map((r,i)=>(
+                      <button key={i} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`}>
+                        <span className={`min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</span>
+                        {r.side&&BIAS[r.side] && <span className="shrink-0 mono text-[9px] font-semibold uppercase" style={{backgroundColor:BIAS[r.side].soft,color:BIAS[r.side].color,padding:"3px 6px",letterSpacing:".04em"}}>{lbl(r.side,lang)}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {saved.length>0 && (
+                <div>
+                  <SectionTitle t={t} lang={lang} right={<button onClick={()=>go("saved")} className={`text-[12px] font-semibold ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.seeAllSaved}</button>}>{L.saved}</SectionTitle>
+                  <div>
+                    {saved.map((r)=>(
+                      <button key={r.story_id} onClick={()=>open(r.story_id)} className={`flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`}>
+                        <span className={`min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button onClick={()=>go("lens")} className={`text-[12.5px] font-semibold ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.openLens}</button>
+              </div>
+            </div>
+          )}
+        </PageWrap>
+      );
+    }
+
     // STORYLINE timeline — how a saga developed across days. Dated thread of the linked events,
     // the current one marked. Each entry is a real event with its own bias bar; the storyline is
     // purely a chronology of coverage, it never re-computes or merges any bias count.
@@ -2996,14 +3199,15 @@ const {useState,useEffect,useMemo}=React;
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
       if(seg[0]==="storyline"&&seg[1]) return {view:"storyline", id:decodeURIComponent(seg[1])};
       if(seg.length===0) return {view:"home"};
-      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support","login","settings","account","saved","lens","storylines"].includes(seg[0])) return {view:seg[0]};
+      if(seg.length===1 && ["blindspot","topics","sources","about","search","contact","privacy","support","login","settings","account","saved","lens","storylines","my-paksh"].includes(seg[0])) return {view:seg[0]};
       return {view:"404"};
     }
     // First-run onboarding: a reading-language ask + four one-line explainers of how to read
     // Paksh (the bias bar, coverage gaps, publisher-not-article, bilingual). Shown once, then
     // remembered in localStorage ("paksh-onboarded"). Dismissable at any step.
-    function Onboarding({ t, lang, setLang, onDone }) {
+    function Onboarding({ t, lang, setLang, onDone, interests, onToggleInterest }) {
       const [step,setStep]=useState(0);
+      const LAST_STEP=5;
       const steps = lang==="hi" ? [
         {k:"बायस बार", b:"रंगीन बार गिनता है कि कवर करने वाले कितने अलग-अलग आउटलेट वाम, केंद्र या दक्षिण की ओर हैं, एक प्रकाशक = एक वोट।"},
         {k:"कवरेज गैप", b:"जब एक पक्ष के आउटलेट कोई खबर चलाएँ पर दूसरे न चलाएँ, पक्ष उसे चिह्नित करता है, यह अंकगणित है, निर्णय नहीं।"},
@@ -3016,14 +3220,17 @@ const {useState,useEffect,useMemo}=React;
         {k:"Bilingual", b:"Every story in English and Hindi, switch language any time with the toggle up top."},
       ];
       const L = lang==="hi"
-        ? { welcome:"पक्ष में आपका स्वागत है", pick:"पढ़ने की भाषा चुनें", next:"आगे", start:"शुरू करें", skip:"छोड़ें" }
-        : { welcome:"Welcome to Paksh", pick:"Choose your reading language", next:"Next", start:"Get started", skip:"Skip" };
+        ? { welcome:"पक्ष में आपका स्वागत है", pick:"पढ़ने की भाषा चुनें", next:"आगे", start:"शुरू करें", skip:"छोड़ें",
+            interestsH:"आप किसमें रुचि रखते हैं?", interestsB:"कुछ विषय चुनें, इससे आपका मेरा पक्ष पेज बनता है। बाद में कभी भी बदलें।", interestsHint:"3-8 चुनने का सुझाव" }
+        : { welcome:"Welcome to Paksh", pick:"Choose your reading language", next:"Next", start:"Get started", skip:"Skip",
+            interestsH:"What are you interested in?", interestsB:"Pick a few topics — this shapes your My Paksh page. Change it anytime.", interestsHint:"3-8 is a good start" };
       const done=()=>onDone();
+      const topicKeys=Object.keys(TOPIC_HI).filter(k=>k!=="General");
       return (
         <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4" style={{background:"rgba(21,20,15,0.55)"}}>
           <div className={`pk-sheet w-full max-w-[460px] border-t sm:border ${t.surface} ${t.border}`} style={{boxShadow:"0 -8px 40px rgba(0,0,0,0.30)"}}>
             <div className="flex items-center justify-between px-5 pt-4">
-              <span className="mono text-[10px] uppercase tracking-[0.16em]" style={{color:"#75442E"}}>{step===0?(lang==="hi"?"आपका स्वागत है":"Welcome"):`${lang==="hi"?"चरण":"Step"} ${step} ${lang==="hi"?"/":"of"} 4`}</span>
+              <span className="mono text-[10px] uppercase tracking-[0.16em]" style={{color:"#75442E"}}>{step===0?(lang==="hi"?"आपका स्वागत है":"Welcome"):`${lang==="hi"?"चरण":"Step"} ${step} ${lang==="hi"?"/":"of"} ${LAST_STEP}`}</span>
               <button onClick={done} className={`mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.skip}</button>
             </div>
             {step===0 ? (
@@ -3037,6 +3244,16 @@ const {useState,useEffect,useMemo}=React;
                   ))}
                 </div>
               </div>
+            ) : step===LAST_STEP ? (
+              <div className="px-5 pb-5 pt-3">
+                <h2 className={`headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`}>{L.interestsH}</h2>
+                <p className={`mt-1.5 text-[13.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.interestsB}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {topicKeys.map(k=>{ const on=(interests||[]).includes(k);
+                    return <button key={k} onClick={()=>onToggleInterest(k)} className={`border px-3 py-1.5 text-[12.5px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[k]||k):k}</button>; })}
+                </div>
+                <p className={`mt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`}>{L.interestsHint}</p>
+              </div>
             ) : (
               <div className="px-5 pb-5 pt-3">
                 <h2 className={`headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`}>{steps[step-1].k}</h2>
@@ -3044,8 +3261,8 @@ const {useState,useEffect,useMemo}=React;
               </div>
             )}
             <div className={`flex items-center justify-between border-t px-5 py-3 ${t.border}`}>
-              <div className="flex gap-1.5">{[0,1,2,3,4].map(i=><span key={i} style={{width:6,height:6,borderRadius:0,background:i===step?t.ink:t.line}}/>)}</div>
-              <button onClick={()=> step<4?setStep(step+1):done()} className={`border border-transparent px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<4?L.next:L.start}</button>
+              <div className="flex gap-1.5">{[0,1,2,3,4,5].map(i=><span key={i} style={{width:6,height:6,borderRadius:0,background:i===step?t.ink:t.line}}/>)}</div>
+              <button onClick={()=> step<LAST_STEP?setStep(step+1):done()} className={`border border-transparent px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<LAST_STEP?L.next:L.start}</button>
             </div>
           </div>
         </div>
@@ -3085,8 +3302,12 @@ const {useState,useEffect,useMemo}=React;
       const [a11y,setA11yState]=useState(readA11y);
       const [savedIds,setSavedIds]=useState(()=>new Set());   // story_ids the user has clipped
       const [savedRows,setSavedRows]=useState(null);          // full saved list for the Saved page
+      const [followedTopics,setFollowedTopics]=useState(()=>new Set());   // Phase 31: topics the user follows
+      const [followedStories,setFollowedStories]=useState(()=>new Set()); // Phase 31: story_ids the user follows
+      const [followedStoryRows,setFollowedStoryRows]=useState(null); // Phase 31: full rows (title/topic) for My Paksh
       const [lensStats,setLensStats]=useState({topics:[],sides:{left:0,center:0,right:0},total:0}); // reading summary → feed/gaps personalization
       const [onboard,setOnboard]=useState(()=>{ try{ return !localStorage.getItem("paksh-onboarded"); }catch(e){ return false; } });
+      const [interests,setInterestsState]=useState(readInterests); // Phase 31 (G5): onboarding topic picks
       // Floating Support invitation (6.3B.6): Support no longer occupies permanent masthead
       // space. Shown for the first ~3 minutes of a session, then gone - not persisted across
       // visits (a fresh session sees it again), no popup/modal, nothing else on the page
@@ -3153,10 +3374,21 @@ const {useState,useEffect,useMemo}=React;
           loadPrefs().then(p=>{ if(!p) return;
             if(p.a11y) setA11yState(prev=>{ const merged=Object.assign({}, prev, p.a11y); writeA11y(merged); return merged; });
             if(p.lang==="en"||p.lang==="hi") setLang(p.lang);
+            // Phase 31 (G5): the account is the source of truth once it has interests saved;
+            // otherwise, a guest's local picks (made before this sign-in) migrate up once.
+            if(Array.isArray(p.interests) && p.interests.length){ setInterestsState(p.interests); writeInterests(p.interests); }
+            else { const local=readInterests(); if(local.length) savePrefsRemote({ interests:local }); }
           });
-          refreshSaved(); refreshLens(); }).catch(()=>setAuth(null)); },[]);
+          refreshSaved(); refreshLens(); refreshFollows(); }).catch(()=>setAuth(null)); },[]);
       // Pull the saved list (ids for button state + rows for the Saved page).
       const refreshSaved=()=>{ listSaved().then(rows=>{ rows=rows||[]; setSavedRows(rows); setSavedIds(new Set(rows.map(r=>String(r.story_id)))); }).catch(()=>{ setSavedRows([]); }); };
+      // Pull the follow lists (Phase 31) - button state on StoryPage/TopicPage, and the
+      // Following section on My Paksh. Best-effort like refreshSaved: a failure here must
+      // never block editorial content, so it just leaves the sets as they were.
+      const refreshFollows=()=>{
+        listFollowedTopics().then(rows=>setFollowedTopics(new Set((rows||[]).map(r=>r.topic)))).catch(()=>{});
+        listFollowedStories().then(rows=>{ rows=rows||[]; setFollowedStoryRows(rows); setFollowedStories(new Set(rows.map(r=>String(r.story_id)))); }).catch(()=>{ setFollowedStoryRows([]); });
+      };
       // Summarise the reader's last-30-day history (top topics + lean split) for the transparent
       // personalization rails on the feed and Coverage Gaps. Never changes ranking or the bias bar.
       const refreshLens=()=>{ if(!authOn()||!_uid()){ setLensStats({topics:[],sides:{left:0,center:0,right:0},total:0}); return; }
@@ -3176,8 +3408,15 @@ const {useState,useEffect,useMemo}=React;
       const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); try{ localStorage.setItem("paksh-lang",l); }catch(e){} if(auth) savePrefsRemote({ lang:l }); };
       // Accessibility setter: update state, persist locally (applies for everyone), sync to the account.
       const setA11y=(p)=>{ setA11yState(p); writeA11y(p); if(auth) savePrefsRemote({ a11y:p }); };
-      const onAuthed=(s)=>{ setAuth(s); track("sign_in",{}); loadPrefs().then(p=>{ if(p&&p.a11y){ const merged=Object.assign({},a11y,p.a11y); setA11yState(merged); writeA11y(merged); } if(p&&(p.lang==="en"||p.lang==="hi")) setLang(p.lang); }); refreshSaved(); refreshLens(); go("home"); };
-      const onSignOut=()=>{ authSignOut().finally(()=>{ setAuth(null); setSavedIds(new Set()); setSavedRows(null); setLensStats({topics:[],sides:{left:0,center:0,right:0},total:0}); go("home"); }); };
+      const onAuthed=(s)=>{ setAuth(s); track("sign_in",{}); loadPrefs().then(p=>{ if(p&&p.a11y){ const merged=Object.assign({},a11y,p.a11y); setA11yState(merged); writeA11y(merged); } if(p&&(p.lang==="en"||p.lang==="hi")) setLang(p.lang);
+          if(p&&Array.isArray(p.interests)&&p.interests.length){ setInterestsState(p.interests); writeInterests(p.interests); }
+          else { const local=readInterests(); if(local.length) savePrefsRemote({ interests:local }); }
+        }); refreshSaved(); refreshLens(); refreshFollows(); go("home"); };
+      // Toggle one interest during onboarding: local-first (works for guests), mirrored to the
+      // account when signed in - same shape as setA11y just above it in spirit.
+      const toggleInterest=(topic)=>{ const on=interests.includes(topic); const next=on?interests.filter(x=>x!==topic):interests.concat([topic]);
+        setInterestsState(next); writeInterests(next); if(auth) savePrefsRemote({ interests:next }); };
+      const onSignOut=()=>{ authSignOut().finally(()=>{ setAuth(null); setSavedIds(new Set()); setSavedRows(null); setLensStats({topics:[],sides:{left:0,center:0,right:0},total:0}); setFollowedTopics(new Set()); setFollowedStories(new Set()); setFollowedStoryRows(null); go("home"); }); };
       const setConsentChoice=(v)=>{ try{ localStorage.setItem("paksh-consent",v); }catch(e){} setConsent(v); };
       const finishOnboarding=()=>{ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); };
       // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is not).
@@ -3185,6 +3424,15 @@ const {useState,useEffect,useMemo}=React;
         const next=new Set(savedIds); if(on){ next.delete(id); } else { next.add(id); } setSavedIds(next);
         if(on){ unsaveStory(id).then(refreshSaved).catch(refreshSaved); }
         else { saveStory(story).then(refreshSaved).catch(refreshSaved); } };
+      // Follow / unfollow a topic or story (Phase 31) - independent state from Save, same
+      // optimistic-update-then-reconcile shape as toggleSave. On failure, refreshFollows()
+      // re-pulls the real server state so the button never gets stuck showing a lie.
+      const toggleFollowTopic=(topic)=>{ if(!auth){ go("login"); return; } const on=followedTopics.has(topic);
+        const next=new Set(followedTopics); if(on){ next.delete(topic); } else { next.add(topic); } setFollowedTopics(next);
+        if(on){ unfollowTopic(topic).catch(refreshFollows); } else { followTopic(topic).catch(refreshFollows); } };
+      const toggleFollowStory=(story)=>{ if(!auth){ go("login"); return; } const id=String(story.id); const on=followedStories.has(id);
+        const next=new Set(followedStories); if(on){ next.delete(id); } else { next.add(id); } setFollowedStories(next);
+        if(on){ unfollowStory(id).catch(refreshFollows); } else { followStory(story).catch(refreshFollows); } };
 
       // Combine recent (always loaded) with the lazy archive once it arrives, so Search / Topic /
       // Sections cover the FULL catalogue while the home feed's first paint stayed small. The two
@@ -3313,6 +3561,7 @@ const {useState,useEffect,useMemo}=React;
         else if(route.view==="account") title = suffix(lang==="hi"?"खाता":"Account");
         else if(route.view==="saved") title = suffix(lang==="hi"?"सेव की गई":"Saved");
         else if(route.view==="lens") title = suffix(lang==="hi"?"रीडिंग लेंस":"Reading Lens");
+        else if(route.view==="my-paksh") title = suffix(lang==="hi"?"मेरा पक्ष":"My Paksh");
         else if(route.view==="404") title = suffix(lang==="hi"?"पेज नहीं मिला":"Page not found");
         try{ document.title = title; }catch(e){}
       },[route.view, route.id, route.topic, lang, story, data.storylines]);
@@ -3324,7 +3573,7 @@ const {useState,useEffect,useMemo}=React;
           {/* 6.3B.6: the DEVELOPING ticker is gone - too noisy, made the site feel like a
               news terminal. BreakingTicker itself is untouched (dormant), not deleted, in
               case a future breaking-news treatment wants it. */}
-          <Masthead t={t} lang={lang} setLang={chooseLang} go={go} view={route.view} auth={auth} openHelp={()=>setOnboard(true)} savedCount={savedIds.size} regionFilter={regionFilter} setRegionFilter={setRegionFilter} story={story} sectionLabel={route.view==="blindspot"?STR[lang].osTitle:(route.view==="storyline"?ui("developingStories",lang):undefined)} openTopic={goTopic} saved={savedIds} onToggleSave={toggleSave} />
+          <Masthead t={t} lang={lang} setLang={chooseLang} go={go} view={route.view} auth={auth} openHelp={()=>setOnboard(true)} savedCount={savedIds.size} regionFilter={regionFilter} setRegionFilter={setRegionFilter} story={story} sectionLabel={route.view==="blindspot"?STR[lang].osTitle:(route.view==="storyline"?ui("developingStories",lang):undefined)} openTopic={goTopic} saved={savedIds} onToggleSave={toggleSave} followingStory={!!(story && followedStories.has(String(story.id)))} onToggleFollowStory={toggleFollowStory} />
           {/* Phase 24B/F3: never on the story route - a story's own lead paragraph/framing/
               source-list text is unpredictable-length running prose that can reach this fixed
               corner position even before any scrolling (confirmed live on 17019: the lead
@@ -3341,6 +3590,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="storylines" ? <StorylinesHub storylines={data.storylines} t={t} lang={lang} goStoryline={goStoryline} />
             : route.view==="lens" ? <LensPage t={t} lang={lang} auth={auth} go={go} open={open} />
             : route.view==="saved" ? <SavedPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} onUnsave={(id)=>toggleSave({id})} />
+            : route.view==="my-paksh" ? <MyPakshPage t={t} lang={lang} auth={auth} go={go} open={open} savedRows={savedRows} followedTopics={followedTopics} followedStoryRows={followedStoryRows} onToggleFollowTopic={toggleFollowTopic} onToggleFollowStory={toggleFollowStory} cards={baseCards} />
             : route.view==="404" ? <NotFoundPage t={t} lang={lang} go={go} />
             /* 6.3B.8 — story and blindspot resolve their OWN loading state, each with a
                shape-matched skeleton, instead of sharing the homepage's FeedSkeleton behind
@@ -3354,7 +3604,7 @@ const {useState,useEffect,useMemo}=React;
             : route.view==="blindspot" ? (ready ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} /> : <BlindspotSkeleton t={t} />)
             : !ready ? (route.view==="home" ? <FeedSkeleton t={t} /> : <PageSkeleton t={t} />)
             : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} cards={baseCards} t={t} lang={lang} goTopic={goTopic} />
-            : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} />
+            : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} auth={auth} followingTopic={followedTopics.has(route.topic)} onToggleFollowTopic={toggleFollowTopic} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} go={go} />
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
@@ -3367,7 +3617,7 @@ const {useState,useEffect,useMemo}=React;
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} auth={auth} />
-          {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} />}
+          {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} interests={interests} onToggleInterest={toggleInterest} />}
           {!onboard && consent==="" && <ConsentBanner t={t} lang={lang} go={go}
             onChoose={(v)=>{ setConsentChoice(v); }} />}
         </div>
