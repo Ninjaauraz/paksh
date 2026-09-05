@@ -578,12 +578,23 @@ const {useState,useEffect,useMemo}=React;
     // retired now that BIAS itself carries the same values (see the BIAS definition above).
     function BiasPill({ counts, t, lang, h, className }) {
       const L=counts.left||0,C=counts.center||0,R=counts.right||0;
+      const barH=h||8;
+      // Phase 32D (Change 1): a side with zero coverage used to simply not render, letting the
+      // remaining sides' flexGrow expand to fill the whole bar - a 2-of-3-sides story and a
+      // fully-3-sided story with a negligible third side became visually indistinguishable,
+      // with only the caption's small mono text telling them apart. When every side is absent
+      // (L=C=R=0) the bar stays exactly as before - a bare track, nothing to distinguish. When
+      // ONLY one or two sides are absent, each now gets a fixed-width neutral notch (the bar's
+      // own track colour, sized to its own height) instead of being omitted outright, so the
+      // missing side reads as an actual gap in the shape, not just a lighter caption number.
+      const any=L>0||C>0||R>0;
+      const notch=<div style={{flexGrow:0,flexShrink:0,width:barH,background:t.line}}/>;
       return (
         <div className={className||""}>
-          <div className="flex w-full overflow-hidden" style={{height:h||8,borderRadius:999,background:t.line}}>
-            {L>0 && <div style={{flexGrow:L,flexBasis:0,background:BIAS.left.color}}/>}
-            {C>0 && <div style={{flexGrow:C,flexBasis:0,background:BIAS.center.color}}/>}
-            {R>0 && <div style={{flexGrow:R,flexBasis:0,background:BIAS.right.color}}/>}
+          <div className="flex w-full overflow-hidden" style={{height:barH,borderRadius:999,background:t.line}}>
+            {any && (L>0 ? <div style={{flexGrow:L,flexBasis:0,background:BIAS.left.color}}/> : notch)}
+            {any && (C>0 ? <div style={{flexGrow:C,flexBasis:0,background:BIAS.center.color}}/> : notch)}
+            {any && (R>0 ? <div style={{flexGrow:R,flexBasis:0,background:BIAS.right.color}}/> : notch)}
           </div>
           <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{(lang==="hi"?"वा":"L")} {L} {(lang==="hi"?"कें":"C")} {C} {(lang==="hi"?"द":"R")} {R}</div>
         </div>
@@ -3036,12 +3047,18 @@ const {useState,useEffect,useMemo}=React;
                 <div>
                   <SectionTitle t={t} lang={lang}>{L.continueReading}</SectionTitle>
                   <div className="grid gap-4 sm:grid-cols-3">
-                    {continueRows.map((r,i)=>(
+                    {continueRows.map((r,i)=>{ const openedTs=r.opened_at?_ts(r.opened_at):NaN;
+                      return (
                       <button key={i} onClick={()=>open(r.story_id)} className={`border p-3 text-left ${t.border} hover:${t.tp}`}>
                         {r.topic && <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{lang==="hi"?(TOPIC_HI[r.topic]||r.topic):r.topic}</div>}
                         <div className={`mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`}>{r.title||r.story_id}</div>
+                        {/* Phase 32D (Change 3): reuses timeAgo()'s existing m/h/d buckets as-is -
+                            no new "yesterday" bucket invented. Fails quietly (omits the line) on
+                            a missing/malformed opened_at rather than showing a broken string. */}
+                        {!isNaN(openedTs) && <div className={`mt-1.5 mono text-[10px] ${t.tf}`}>{lang==="hi"?`${timeAgo(r.opened_at,lang)} खोली`:`Opened ${timeAgo(r.opened_at,lang)}`}</div>}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -3052,7 +3069,13 @@ const {useState,useEffect,useMemo}=React;
                   <div className="grid gap-4 sm:grid-cols-3">
                     {sywlh.map((c)=>(
                       <button key={c.id} onClick={()=>open(c.id)} className={`border p-3 text-left ${t.border} hover:${t.tp}`}>
-                        {c.topic && <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".12em"}}>{lang==="hi"?(TOPIC_HI[c.topic]||c.topic):c.topic}</div>}
+                        {/* Phase 32D (Change 2): the same Eyebrow every ordinary card already uses
+                            (topic + real publish time + Developing chip when applicable) - reused
+                            as-is so "since you were last here" says WHEN a story changed, using
+                            only facts already on the card, never an unread count. blindspot is
+                            deliberately left unwired - that's a Coverage Gap concept, not a
+                            Reader Memory one. */}
+                        <Eyebrow topic={c.topic} created_at={c.created_at} storyline={c.storyline_id} t={t} lang={lang} />
                         <div className={`mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`}>{c.headline}</div>
                       </button>
                     ))}
@@ -3258,7 +3281,10 @@ const {useState,useEffect,useMemo}=React;
                   {topicKeys.map(k=>{ const on=(interests||[]).includes(k);
                     return <button key={k} onClick={()=>onToggleInterest(k)} className={`border px-3 py-1.5 text-[12.5px] font-semibold ${on?`${t.cta} ${t.ctaT} border-transparent`:`${t.border} ${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?(TOPIC_HI[k]||k):k}</button>; })}
                 </div>
-                <p className={`mt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`}>{L.interestsHint}</p>
+                {/* Phase 32D (Change 4): live, uncapped count - no maximum is enforced anywhere
+                    in onToggleInterest, and this doesn't add one; it just stops the hint from
+                    being static text. */}
+                <p className={`mt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?`${(interests||[]).length} चुने गए · ${L.interestsHint}`:`${(interests||[]).length} selected · ${L.interestsHint}`}</p>
               </div>
             ) : (
               <div className="px-5 pb-5 pt-3">
