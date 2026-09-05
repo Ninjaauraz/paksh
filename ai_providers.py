@@ -347,6 +347,15 @@ class ProviderCapacity:
     def __init__(self, provider):
         self.provider = provider
         self.limiter = _limiter_for(provider)          # None for an unlimited provider (e.g. Gemini today)
+        # Phase 30C-P1: guards transient_streak/permanent_streak/success_count/
+        # failure_count only - the four fields record_success()/record_failure()
+        # mutate under the real 8-worker concurrency _run_summaries() always runs
+        # under. Confirmed by real production-equivalent load (Phase 30C-O2: 64/64
+        # events genuinely succeeded per the DB, but the unlocked counters only
+        # recorded 39 successes - lost increments from concurrent unlocked `+=`).
+        # Everything else on this class (limiter, thresholds, selection_key's
+        # ranking) is untouched.
+        self._lock = threading.Lock()
         self.transient_streak = 0
         self.permanent_streak = 0
         self.success_count = 0
@@ -367,19 +376,39 @@ class ProviderCapacity:
         self.success_count = int(row.get("success", 0) or 0)
         self.failure_count = int(row.get("failure", 0) or 0)
 
-    def current_health(self):
-        """Computed fresh every call - never a stored/sticky field for the
-        RATE_LIMITED case, so cooldown expiry (an _RateLimiter-owned fact)
-        is reflected immediately with no separate transition logic."""
+    def _health_from_streaks(self, permanent_streak, transient_streak):
+        """Phase 30C-P1: the streak->health decision, factored out so
+        current_health() and as_cache_row() compute it from ONE already-
+        consistent snapshot of both streaks (taken together under _lock)
+        instead of each independently re-reading self.permanent_streak/
+        self.transient_streak, which could otherwise observe a torn update
+        (one field reset by a concurrent record_success()/record_failure()
+        before the other). Pure extraction - the decision itself, and its
+        order (DISABLED -> UNAVAILABLE -> RATE_LIMITED -> DEGRADED -> HEALTHY),
+        is byte-for-byte the same as before this phase."""
         if not self.provider.get("enabled"):
             return DISABLED
-        if self.permanent_streak >= _UNAVAILABLE_THRESHOLD:
+        if permanent_streak >= _UNAVAILABLE_THRESHOLD:
             return UNAVAILABLE
         if self.limiter and self.limiter.in_cooldown():
             return RATE_LIMITED
-        if self.transient_streak >= _DEGRADE_THRESHOLD:
+        if transient_streak >= _DEGRADE_THRESHOLD:
             return DEGRADED
         return HEALTHY
+
+    def current_health(self):
+        """Computed fresh every call - never a stored/sticky field for the
+        RATE_LIMITED case, so cooldown expiry (an _RateLimiter-owned fact)
+        is reflected immediately with no separate transition logic.
+
+        Phase 30C-P1: permanent_streak/transient_streak are snapshotted
+        together under _lock, so a concurrent record_success()/
+        record_failure() from another worker thread can never be observed
+        mid-update."""
+        with self._lock:
+            permanent_streak = self.permanent_streak
+            transient_streak = self.transient_streak
+        return self._health_from_streaks(permanent_streak, transient_streak)
 
     def eligible_for_dispatch(self):
         """UNAVAILABLE/DISABLED are hard exclusions (the actual waste-
@@ -426,31 +455,54 @@ class ProviderCapacity:
         return (rank, low_headroom)
 
     def record_success(self):
-        self.success_count += 1
-        was_unavailable_or_degraded = self.permanent_streak or self.transient_streak
-        self.transient_streak = 0
-        self.permanent_streak = 0
+        """Phase 30C-P1: success_count and the streak reset now happen as
+        ONE atomic operation under _lock - previously each was a separate
+        unlocked `+=`/assignment, so a concurrent record_success()/
+        record_failure() from another thread could interleave between them
+        (the confirmed cause of Phase 30C-O2's undercount). _mark_dirty()
+        (file I/O) is called AFTER releasing the lock - it was never part of
+        the race and doesn't need to hold it."""
+        with self._lock:
+            self.success_count += 1
+            was_unavailable_or_degraded = self.permanent_streak or self.transient_streak
+            self.transient_streak = 0
+            self.permanent_streak = 0
         if was_unavailable_or_degraded:
             _mark_dirty(self.provider["name"])
 
     def record_failure(self, err_str):
-        self.failure_count += 1
+        """Phase 30C-P1: failure_count + the streak update are one atomic
+        operation under _lock. The early `return` on a rate-limit marker
+        still exits the `with` block correctly (a `with` statement's __exit__
+        always runs on return) and still skips _mark_dirty() exactly as
+        before - behavior here is unchanged, only now race-free."""
         err_str = err_str or ""
-        if _RATE_LIMIT_MARKER in err_str:
-            return   # handled entirely by _RateLimiter's cooldown - no streak change
-        if any(m in err_str for m in _TRANSIENT_DEGRADE_MARKERS):
-            self.transient_streak += 1
-            self.permanent_streak = 0
-        else:
-            self.permanent_streak += 1
-            self.transient_streak = 0
+        with self._lock:
+            self.failure_count += 1
+            if _RATE_LIMIT_MARKER in err_str:
+                return   # handled entirely by _RateLimiter's cooldown - no streak change
+            if any(m in err_str for m in _TRANSIENT_DEGRADE_MARKERS):
+                self.transient_streak += 1
+                self.permanent_streak = 0
+            else:
+                self.permanent_streak += 1
+                self.transient_streak = 0
         _mark_dirty(self.provider["name"])
 
     def as_cache_row(self):
-        return {"health": self.current_health(),
-                "success": self.success_count, "failure": self.failure_count,
-                "transient_streak": self.transient_streak,
-                "permanent_streak": self.permanent_streak}
+        """Phase 30C-P1: all four counters snapshotted together under _lock,
+        so the persisted row (including its "health" field, derived from the
+        SAME snapshot via _health_from_streaks) can never mix pre- and post-
+        update values from a concurrent record_success()/record_failure()."""
+        with self._lock:
+            permanent_streak = self.permanent_streak
+            transient_streak = self.transient_streak
+            success_count = self.success_count
+            failure_count = self.failure_count
+        return {"health": self._health_from_streaks(permanent_streak, transient_streak),
+                "success": success_count, "failure": failure_count,
+                "transient_streak": transient_streak,
+                "permanent_streak": permanent_streak}
 
 
 _CAPACITIES = {}   # provider name -> ProviderCapacity, built lazily (mirrors _LIMITERS)
@@ -636,6 +688,31 @@ def pool_generate(prompt, as_json=False, retries_per_provider=1):
                 if any(t in str(e) for t in _TRANSIENT):
                     break                    # move to next provider immediately
     raise ValueError("all providers failed -> " + " | ".join(errors[-4:]))
+
+
+def chat_with_provider(provider, prompt, as_json=False):
+    """Phase 30C-P: single targeted provider call for the round-based work
+    queue (analyze.py's LLM_BACKEND=="rounds"). The caller has ALREADY
+    decided which ONE provider to try this round - this makes exactly that
+    one real attempt via the existing _chat_once(), with none of
+    pool_generate()'s own provider-loop/retries_per_provider/fallback logic
+    (that responsibility now belongs to the round orchestrator, one layer up
+    in analyze.py, not to this function or to pool_generate(), which is
+    completely unchanged and still serves LLM_BACKEND=="pool" exactly as
+    before). Records success/failure into the SAME ProviderCapacity
+    pool_generate() uses, so provider health stays unified across both
+    callers. Raises whatever _chat_once() raises - the caller's _call_json()
+    still gets its OWN existing same-provider retry for a non-RuntimeError
+    failure (e.g. malformed JSON), unchanged; this function adds no retry of
+    its own."""
+    cap = _capacity_for(provider)
+    try:
+        result = _chat_once(provider, prompt, as_json)
+        cap.record_success()
+        return result
+    except Exception as e:
+        cap.record_failure(str(e))
+        raise
 
 
 def status_lines():

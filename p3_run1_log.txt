@@ -1,0 +1,44 @@
+
+=== Paksh analysis (Gemini: gemma4:31b-cloud) ===
+Found 3000 un-grouped articles.
+Clustering (embeddings) ...
+Cross-cycle merge: folded 26 continuing cluster(s) into existing events (no duplicates created).
+Cross-cycle merge: vetoed 23 candidate merge(s) on a confident topic mismatch (became new event(s) instead).
+Found 8 multi-outlet cluster(s); 8 have >=2 rated outlets.
+Publishing 8 event(s): top 8 via rounds summary, 0 extractive (no model call).
+
+  Summarising 8 via bounded multi-round dispatch (max 3 rounds, one provider per round, no same-round fallback; Ollama fixed lane: max 8 @ concurrency 1, then capacity-aware pool) with 8 workers ...
+    framing retry failed, keeping first attempt (model/JSON failure: limiter timeout: no concurrency slot became available)
+    summary -> extractive fallback (model/JSON failure: limiter timeout: TPM budget/cooldown did not clear in time)
+    summary -> extractive fallback (model/JSON failure: limiter timeout: TPM budget/cooldown did not clear in time)
+  Events attempted: 8
+  
+  Round 1:
+    ollama: 1 (1 success, 0 fail)
+    groq: 4 (2 success, 2 fail)
+    gemini: 3 (3 success, 0 fail)
+  Round 2:
+    ollama: 1 (1 success, 0 fail)
+    gemini: 1 (1 success, 0 fail)
+  
+  Succeeded: 8   Extractive fallback: 0
+  
+  Provider/failure breakdown:
+    groq provider: 2
+  [1/8] [Economy] Pranav Constructions Raises ₹84 Crore from Anchor Inve  (L:0 C:2 R:0)
+  [2/8] [Economy] Banks Closed for Janmashtami and Scheduled Saturdays  (L:0 C:2 R:0)
+  [3/8] [Politics] MHA Calls Ladakh Meeting Amid Demands for Talks on Reg  (L:0 C:2 R:0)
+  [4/8] [Politics] JD(U) Opposes Ganga Treaty Renewal Citing Bihar's Inte  (L:0 C:1 R:1)
+  [5/8] [Society] Media outlets recount mythic claims about Lord Krishna  (L:0 C:0 R:2)
+  [6/8] [Crime & Law] Supreme Court dismisses SEBI pleas against NSE co-loca  (L:0 C:1 R:0)
+  [7/8] [Economy] Yen's Fortunes Shift Amidst Repatriation and Trade Pre  (L:0 C:2 R:0)
+  [8/8] [Science & Tech] UN adopts map that accurately shows Africa's size  (L:1 C:1 R:0)
+----------------------------------------
+Published 8 event(s): 8 LLM brief(s), 0 extractive.
+Retry: 6/8 first-pass complete, 2 retried (1 rescued, 0 not rescued, 1 failed).
+
+Next:  python export_static.py
+
+[2026-09-05 12:53:45] runlocked: acquired lock for 'p3run1' (pid 29720).
+  Running: py analyze.py
+[2026-09-05 12:55:42] runlocked: 'p3run1' finished (exit 0).

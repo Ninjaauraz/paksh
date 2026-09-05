@@ -189,6 +189,14 @@ def _gemini_generate(prompt: str, as_json: bool) -> str:
 
 def _generate(prompt: str, as_json: bool, backend=None) -> str:
     backend = backend or LLM_BACKEND
+    if isinstance(backend, dict):
+        # Phase 30C-P: `backend` is a specific provider dict (e.g. from
+        # ai_providers.PROVIDERS) - the round dispatcher has already decided
+        # which ONE provider to try this round. Bypasses pool_generate()'s own
+        # provider-loop entirely; pool_generate() itself is untouched and still
+        # backs LLM_BACKEND=="pool" exactly as before.
+        from ai_providers import chat_with_provider
+        return chat_with_provider(backend, prompt, as_json)
     if backend == "ollama":
         return _ollama_generate(prompt, as_json)
     if backend == "pool":
@@ -882,13 +890,21 @@ def _extractive_raw(articles):
     }
 
 
-def _run_summaries(rows_list, workers, backend=None):
+def _run_summaries(rows_list, workers, backend=None, dispatch_fn=None):
     """Summarise several article-groups and return analyses IN THE SAME ORDER.
     For a network backend a thread pool runs the slow LLM calls concurrently; each
     group still falls back to an extractive summary on failure, so one bad call
-    never sinks the batch."""
+    never sinks the batch.
+
+    Phase 30C-N: dispatch_fn is an optional per-event override - when given, it
+    replaces the single fixed `analyze_event(rows, backend=backend)` call with a
+    caller-supplied decision (see _dispatch_unified() below). Every existing
+    caller passes dispatch_fn=None (the default), so this is purely additive -
+    hybrid/pool/gemini/ollama backends behave byte-for-byte as before."""
     def one(rows):
         try:
+            if dispatch_fn is not None:
+                return dispatch_fn(rows)
             return analyze_event(rows, backend=backend)      # self-falls-back inside
         except Exception:
             return postprocess(_extractive_raw(rows), rows)
@@ -897,6 +913,285 @@ def _run_summaries(rows_list, workers, backend=None):
         with ThreadPoolExecutor(max_workers=workers) as ex:
             return list(ex.map(one, rows_list))              # ex.map preserves order
     return [one(r) for r in rows_list]
+
+
+# ---------------------- Phase 30C-N: unified multi-provider dispatch ----------------------
+# Opt-in ONLY via LLM_BACKEND=="unified" - a NEW, separate backend value nothing in
+# production config (.env, refresh_scheduled.bat, reframe_scheduled.bat) currently
+# selects. hybrid/pool/gemini/ollama are completely untouched by everything below.
+#
+# Phase 30C-M-C established Ollama Cloud exposes NO rate-limit/quota/usage telemetry
+# (no header, no documented number) - it cannot be safely modeled as a capacity-aware
+# ProviderCapacity member the way Groq's real 429-body-derived limiter is. It CAN be
+# safely modeled as a FIXED, bounded lane: a hard cap on total assignments this run
+# (not just concurrency, since we have no way to reason about remaining capacity
+# otherwise) plus a concurrency cap of 1 (the Ollama Free plan's documented "1
+# concurrent request" limit). Both numbers come directly from the SAME
+# LLM_LOCAL_BUDGET/Free-plan facts already established in Phase 30C-M-A/B/C -
+# nothing here is a new guess.
+
+OLLAMA_MAX_CONCURRENT = 1   # Ollama Cloud Free plan: "1 concurrent request" (documented, not invented)
+
+
+class _FixedBudgetLane:
+    """A bounded, NON-capacity-aware provider lane (Ollama today - see module
+    comment above for why it can't be a real ProviderCapacity member yet).
+    Tracks a hard cap on TOTAL assignments for the run, decremented on every
+    ACQUIRE (attempt), not on success - conservative on purpose, since an
+    Ollama failure still consumed one of our unknown-sized free allocation's
+    requests. Thread-safe; deliberately much simpler than _RateLimiter in
+    ai_providers.py (no token estimate, no sliding window, no cooldown) -
+    there is no telemetry to base any of that on."""
+
+    def __init__(self, max_assignments, max_concurrent):
+        self._lock = threading.Lock()
+        self._remaining = max_assignments
+        self._sem = threading.Semaphore(max_concurrent)
+
+    def try_acquire(self):
+        """Non-blocking: returns False immediately if the budget is exhausted
+        or the single concurrency slot is already in use - callers fall
+        through to the capacity-aware pool instead of waiting."""
+        with self._lock:
+            if self._remaining <= 0:
+                return False
+            if not self._sem.acquire(blocking=False):
+                return False
+            self._remaining -= 1
+            return True
+
+    def release(self):
+        self._sem.release()
+
+
+_OLLAMA_LANE = _FixedBudgetLane(max_assignments=LLM_LOCAL_BUDGET, max_concurrent=OLLAMA_MAX_CONCURRENT)
+
+
+def _dispatch_unified(rows):
+    """Per-event provider assignment for LLM_BACKEND=="unified" (Phase 30C-N).
+
+    Normal case: ONE event -> ONE provider attempt. Tries the bounded Ollama
+    lane first (while budget/concurrency allow); if Ollama succeeds
+    (summary_method=="llm"), that result is used directly - the capacity-
+    aware pool (Groq/Gemini via ai_providers.pool_generate(), unmodified) is
+    never touched for that event. If Ollama's lane is unavailable (budget
+    exhausted or its one concurrent slot busy) OR Ollama itself failed to
+    produce an LLM result, this is the ONE bounded "eligible alternate" retry
+    Phase 30C-N's design calls for - never a third attempt, never simultaneous
+    multi-provider fan-out. The pool's own existing internal fallback (Groq
+    -> Gemini -> extractive) is what ultimately protects this second attempt;
+    analyze_event() itself is completely unmodified either way."""
+    if _OLLAMA_LANE.try_acquire():
+        try:
+            result = analyze_event(rows, backend="ollama")
+        finally:
+            _OLLAMA_LANE.release()
+        if result.get("summary_method") == "llm":
+            return result
+    return analyze_event(rows, backend="pool")
+
+
+# ---------------------- Phase 30C-P: bounded multi-round work queue ----------------------
+# Opt-in ONLY via LLM_BACKEND=="rounds" - a NEW, separate backend value nothing in
+# production config (.env, refresh_scheduled.bat, reframe_scheduled.bat) currently
+# selects. hybrid/pool/gemini/ollama/unified are completely untouched by everything
+# below. This is the Phase 30C-P/P-REVIEW design: the core correction from "unified"
+# is that there is NEVER a same-round provider fallback here - Ollama failing (an
+# actual attempted-and-failed call, not merely a busy/exhausted lane) does NOT fall
+# through to the pool within the same round the way _dispatch_unified() above does;
+# it becomes RETRYABLE_FAILURE and waits for round 2. See _dispatch_one()'s docstring
+# for the one deliberate exception (a non-blocking try_acquire() failure is a
+# SELECTION outcome, not an attempt, so picking a pool provider in that same call is
+# choosing pool as THE one provider for the round, not a fallback-after-failure).
+
+MAX_ROUNDS = 3
+
+
+class _WorkItem:
+    """In-memory only for the life of one analyze.py run - never persisted, never
+    given a DB event id during dispatch (that still happens only in main()'s
+    existing single-threaded insert_event() loop, unchanged). `index` is a stable
+    in-run identity (position in the original rows_by_rank[:n_llm] slice), used
+    only for telemetry - never written anywhere."""
+
+    __slots__ = ("index", "rows", "tried_providers", "attempts", "result")
+
+    def __init__(self, index, rows):
+        self.index = index
+        self.rows = rows
+        self.tried_providers = set()   # provider names ACTUALLY attempted this generation
+        self.attempts = []             # [{"round":, "provider":, "result":, "failure_class":}]
+        self.result = None             # final analysis dict, set only on SUCCEEDED
+
+
+def _classify_failure(exc) -> str:
+    """Best-effort, OBSERVABILITY-ONLY classification (Phase 30C-P Section 20 -
+    this does NOT create a new provider-health policy; ProviderCapacity's own
+    classification inside chat_with_provider()/pool_generate() is completely
+    unaffected by this function). 'provider' for anything that looks like an
+    HTTP/connectivity failure (the same shape of markers ai_providers.py's own
+    health classifier already looks for, for consistency); 'event' for
+    everything else (malformed JSON, empty output, generic title - the provider
+    responded, the content just wasn't usable)."""
+    text = str(exc)
+    markers = ("429", "500", "502", "503", "529", "401", "403", "404",
+               "RESOURCE_EXHAUSTED", "UNAVAILABLE", "timeout", "connection",
+               "Could not reach Ollama")
+    return "provider" if any(m in text for m in markers) else "event"
+
+
+def _round_1_or_2_provider(item):
+    """Ollama first, if untried by this item AND its lane is currently
+    acquirable; otherwise exactly one untried pool provider from the EXISTING
+    health/capacity ranking (ai_providers._pick_providers_in_order(), unchanged -
+    no new ranking algorithm, no weights, no percentages). Returns
+    (provider_name, provider_dict_or_None) - provider_dict is None for "ollama"
+    (its backend string is the literal "ollama", unchanged from every earlier
+    phase); returns (None, None) if nothing is eligible at all this round.
+
+    A try_acquire()==False is a SELECTION outcome, not a failed attempt (Section
+    4): no HTTP call happened, so "ollama" is never added to tried_providers for
+    that reason, and picking a pool provider in the SAME call is simply which
+    ONE provider this round chose - not a fallback."""
+    if "ollama" not in item.tried_providers and _OLLAMA_LANE.try_acquire():
+        return "ollama", None
+    from ai_providers import _pick_providers_in_order, active_providers
+    ranked = _pick_providers_in_order(active_providers())
+    untried = [p for p in ranked if p["name"] not in item.tried_providers]
+    if untried:
+        return untried[0]["name"], untried[0]
+    return None, None
+
+
+def _round_3_provider(item):
+    """Round 3 only: identical selection to rounds 1-2 first (including Ollama,
+    if it's somehow still untried and acquirable); if nothing untried remains at
+    all, allow exactly ONE repeat of a previously-tried POOL provider - never
+    Ollama (its scarce budget is never spent on a repeat; ai_providers.PROVIDERS
+    never contains an "ollama" entry, so `ranked` below can't select it either
+    way)."""
+    label, provider = _round_1_or_2_provider(item)
+    if label is not None:
+        return label, provider
+    from ai_providers import _pick_providers_in_order, active_providers
+    ranked = _pick_providers_in_order(active_providers())
+    if ranked:
+        return ranked[0]["name"], ranked[0]   # best-ranked pool provider, even if already tried
+    return None, None
+
+
+def _dispatch_one(item, round_no):
+    """Runs on one worker thread inside _run_generation_rounds()'s per-round
+    executor. Exactly ONE provider is attempted for `item` this round - the
+    critical Phase 30C-P-REVIEW invariant: no fallback within this call, in
+    either direction (no Ollama->pool, no Groq->Gemini). A failure returns
+    RETRYABLE_FAILURE; the NEXT round (not this call) is what tries something
+    else."""
+    if round_no >= MAX_ROUNDS:
+        label, provider = _round_3_provider(item)
+    else:
+        label, provider = _round_1_or_2_provider(item)
+
+    if label is None:
+        return "RETRYABLE_FAILURE"   # nothing eligible at all this round
+
+    captured = []
+    on_failure = captured.append
+
+    if label == "ollama":
+        try:
+            result = analyze_event(item.rows, backend="ollama", on_failure=on_failure)
+        finally:
+            _OLLAMA_LANE.release()
+    else:
+        result = analyze_event(item.rows, backend=provider, on_failure=on_failure)
+
+    item.tried_providers.add(label)   # ANY attempt - success or failure - marks it tried
+    if result.get("summary_method") == "llm":
+        item.result = result
+        item.attempts.append({"round": round_no, "provider": label,
+                               "result": "success", "failure_class": None})
+        return "SUCCEEDED"
+    failure_class = _classify_failure(captured[0]) if captured else "event"
+    item.attempts.append({"round": round_no, "provider": label,
+                           "result": "failure", "failure_class": failure_class})
+    return "RETRYABLE_FAILURE"
+
+
+class _RoundTelemetry:
+    """Phase 30C-P2: aggregate, run-level counters ONLY - never a per-event log
+    (Section 6/23). Mutated exclusively from the single-threaded round
+    orchestrator, between rounds, after each round's executor has already fully
+    joined - unlike ProviderCapacity, there is no concurrent access to this
+    object to guard against, so it deliberately carries no lock (Section 26)."""
+
+    def __init__(self):
+        self.per_round = {}          # round_no -> {provider_name: {"success":, "failure":}}
+        self.failure_classes = {}    # "<provider> <class>" -> count
+        self.succeeded = 0
+        self.extractive = 0
+
+    def record_round(self, round_no, items, outcomes):
+        bucket = self.per_round.setdefault(round_no, {})
+        for item, outcome in zip(items, outcomes):
+            if not item.attempts or item.attempts[-1]["round"] != round_no:
+                continue    # item had no eligible provider this round at all
+            att = item.attempts[-1]
+            stats = bucket.setdefault(att["provider"], {"success": 0, "failure": 0})
+            stats["success" if att["result"] == "success" else "failure"] += 1
+            if att["result"] == "failure":
+                key = f"{att['provider']} {att['failure_class']}"
+                self.failure_classes[key] = self.failure_classes.get(key, 0) + 1
+
+    def finalize(self, succeeded_count, extractive_count):
+        self.succeeded = succeeded_count
+        self.extractive = extractive_count
+
+    def summary_lines(self):
+        lines = [f"Events attempted: {self.succeeded + self.extractive}", ""]
+        for round_no in sorted(self.per_round):
+            lines.append(f"Round {round_no}:")
+            for name, stats in self.per_round[round_no].items():
+                lines.append(f"  {name}: {stats['success'] + stats['failure']} "
+                             f"({stats['success']} success, {stats['failure']} fail)")
+        lines.append("")
+        lines.append(f"Succeeded: {self.succeeded}   Extractive fallback: {self.extractive}")
+        if self.failure_classes:
+            lines.append("")
+            lines.append("Provider/failure breakdown:")
+            for key in sorted(self.failure_classes):
+                lines.append(f"  {key}: {self.failure_classes[key]}")
+        return lines
+
+
+def _run_generation_rounds(work_items, telemetry=None):
+    """The round orchestrator. Sequential, hard-barriered rounds: round N+1's
+    ThreadPoolExecutor is never CREATED until round N's has fully joined (the
+    `with` block blocks on __exit__ until every submitted call returns), so a
+    round-2 attempt on any item can never run concurrently with a round-1
+    attempt on any item - this is what makes "no same-round fallback" also mean
+    "no cross-round overlap". Successes leave `queue` permanently (never
+    reconsidered); only RETRYABLE_FAILURE items carry into the next round.
+    Returns whatever remains after MAX_ROUNDS - those are EXHAUSTED; the caller
+    applies the existing extractive fallback exactly as every other backend
+    already does for a failed analyze_event()."""
+    queue = list(work_items)
+    for round_no in range(1, MAX_ROUNDS + 1):
+        if not queue:
+            break
+        if LLM_CONCURRENCY > 1 and len(queue) > 1:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=LLM_CONCURRENCY) as ex:
+                outcomes = list(ex.map(lambda it: _dispatch_one(it, round_no), queue))
+        else:
+            outcomes = [_dispatch_one(it, round_no) for it in queue]
+        if telemetry is not None:
+            try:
+                telemetry.record_round(round_no, queue, outcomes)
+            except Exception:
+                pass   # observability must never break dispatch (Section 24)
+        queue = [it for it, outcome in zip(queue, outcomes) if outcome == "RETRYABLE_FAILURE"]
+    return queue
 
 
 # Paksh 7B (F2): retry-observability counters ONLY - never persisted, never part of
@@ -938,10 +1233,20 @@ def _record_retry_stat(key: str):
         _RETRY_STATS[key] += 1
 
 
-def analyze_event(articles, backend=None) -> dict:
+def analyze_event(articles, backend=None, on_failure=None) -> dict:
     """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
     unavailable or returns nothing usable, falls back to an extractive headline
     so the event still renders (coverage + bias bar are unaffected either way).
+
+    Phase 30C-P: on_failure, if given, is called with the caught exception ONLY
+    when the FIRST attempt fails outright (the event becomes extractive) - never
+    for the framing-retry path, since a content_complete=False "llm" result is
+    NOT a round failure (see analyze.py's _dispatch_one). Purely additive for the
+    round orchestrator's OWN best-effort failure-class observability (Section 20/
+    24 of the 30C-P brief: never affects control flow); every existing caller
+    (reframe.py, backfill.py, the hybrid/unified/pool/gemini/ollama backends)
+    passes nothing, so their behavior is completely unchanged. A bug in the
+    callback itself is swallowed - observability must never break dispatch.
 
     Paksh 7B: if the LLM succeeds but the result comes back with a covered side
     missing framing (content_complete is False), makes exactly ONE additional
@@ -967,6 +1272,11 @@ def analyze_event(articles, backend=None) -> dict:
             raise ValueError("generic placeholder title")
     except Exception as e:
         print(f"    summary -> extractive fallback ({e})")
+        if on_failure is not None:
+            try:
+                on_failure(e)
+            except Exception:
+                pass   # observability must never break dispatch (Phase 30C-P Section 24)
         return postprocess(_extractive_raw(articles), articles)
 
     result = postprocess(raw, articles)
@@ -1422,6 +1732,37 @@ def main():
               f"{n_llm - nloc} via Gemini ({GEMINI_MODEL}, {LLM_CONCURRENCY} workers) ...")
         llm_analyses = (_run_summaries(rows_by_rank[:nloc], 1, backend="ollama")
                         + _run_summaries(rows_by_rank[nloc:n_llm], LLM_CONCURRENCY, backend="gemini"))
+    elif LLM_BACKEND == "unified":
+        # Phase 30C-N: single rolling dispatch across ALL n_llm events (not two
+        # pre-split sequential batches like hybrid above) - each of the
+        # LLM_CONCURRENCY=8 workers decides per-event, via _dispatch_unified(),
+        # whether Ollama's bounded lane (max LLM_LOCAL_BUDGET assignments,
+        # concurrency 1) or the capacity-aware pool handles it. Global
+        # concurrency never exceeds LLM_CONCURRENCY - Ollama's own slot is a
+        # nested sub-limit, not an addition to it.
+        print(f"  Summarising {n_llm} via unified dispatch (Ollama fixed lane: "
+              f"max {LLM_LOCAL_BUDGET} @ concurrency {OLLAMA_MAX_CONCURRENT}, "
+              f"then capacity-aware pool) with {LLM_CONCURRENCY} workers ...")
+        llm_analyses = _run_summaries(rows_by_rank[:n_llm], LLM_CONCURRENCY, dispatch_fn=_dispatch_unified)
+    elif LLM_BACKEND == "rounds":
+        # Phase 30C-P: bounded multi-round work queue - up to MAX_ROUNDS=3 sequential,
+        # hard-barriered passes. Unlike "unified" above, there is NEVER a same-round
+        # provider fallback: a failed attempt returns the work item to the NEXT
+        # round's queue, where a DIFFERENT provider is chosen. See
+        # _run_generation_rounds()/_dispatch_one() above for the full mechanism.
+        print(f"  Summarising {n_llm} via bounded multi-round dispatch (max "
+              f"{MAX_ROUNDS} rounds, one provider per round, no same-round "
+              f"fallback; Ollama fixed lane: max {LLM_LOCAL_BUDGET} @ concurrency "
+              f"{OLLAMA_MAX_CONCURRENT}, then capacity-aware pool) with "
+              f"{LLM_CONCURRENCY} workers ...")
+        work_items = [_WorkItem(i, rows_by_rank[i]) for i in range(n_llm)]
+        telemetry = _RoundTelemetry()
+        exhausted = set(_run_generation_rounds(work_items, telemetry=telemetry))
+        llm_analyses = [postprocess(_extractive_raw(it.rows), it.rows) if it in exhausted
+                         else it.result for it in work_items]
+        telemetry.finalize(len(work_items) - len(exhausted), len(exhausted))
+        for line in telemetry.summary_lines():
+            print(" ", line)
     else:
         if n_llm and LLM_CONCURRENCY > 1:
             print(f"  Summarising top {n_llm} with {LLM_CONCURRENCY} concurrent workers ...")
@@ -1446,6 +1787,15 @@ def main():
             c = analysis["coverage"]
             print(f"  [{rank + 1}/{n_llm}] [{analysis['topic']}] {analysis['title'][:54]}  "
                   f"(L:{c['left']['count']} C:{c['center']['count']} R:{c['right']['count']})")
+            # Phase 30C-P3: multi-round recovery trace - observability only, gated to
+            # "rounds" and only for items that actually needed redistribution (>1
+            # attempt) or were exhausted, so a normal run's log stays quiet. event_id
+            # is only known HERE (after insert_event()), not inside _dispatch_one().
+            if LLM_BACKEND == "rounds" and (len(work_items[rank].attempts) > 1
+                                             or work_items[rank] in exhausted):
+                trace = " -> ".join(f"R{a['round']}:{a['provider']}:{a['result']}"
+                                     for a in work_items[rank].attempts)
+                print(f"      event #{event_id}: {trace} -> final={analysis.get('summary_method')}")
 
     print("-" * 40)
     print(f"Published {llm_n + ext_n} event(s): {llm_n} LLM brief(s), "
