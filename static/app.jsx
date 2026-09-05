@@ -2978,9 +2978,15 @@ const {useState,useEffect,useMemo}=React;
       useEffect(()=>{ if(!auth || followedStoryRows===null) return; let cancelled=false;
         getLastSeen().then(prev=>{ if(cancelled) return;
           const topics=followedTopics||new Set();
-          const rows = (prev && topics.size) ? (cards||[])
-            .filter(c=>topics.has(c.topic) && c.created_at && Date.parse(c.created_at)>Date.parse(prev))
-            .sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)).slice(0,6) : [];
+          // _ts(), not raw Date.parse(): published_at/created_at strings from the export
+          // pipeline carry no timezone suffix, so a plain Date.parse silently reads them as
+          // the VIEWER'S local time instead of UTC - on a UTC+5:30 (IST) browser that skews
+          // "is this newer than my last visit" by 5.5 hours, wrongly dropping real matches.
+          // _ts() is the same fix timeAgo()/absDate() already use for this exact string shape.
+          const prevTs=_ts(prev);
+          const rows = (prev && !isNaN(prevTs) && topics.size) ? (cards||[])
+            .filter(c=>topics.has(c.topic) && c.created_at && _ts(c.created_at)>prevTs)
+            .sort((a,b)=>_ts(b.created_at)-_ts(a.created_at)).slice(0,6) : [];
           setSywlhRows(rows);
           bumpLastSeen();
         }).catch(()=>{ if(!cancelled) setSywlhRows([]); });
