@@ -1023,6 +1023,7 @@ const STR = {
     srcTitle: "Source ratings",
     srcIntro: "Every outlet Paksh tracks, how it's rated, and why.",
     srcDisclaimer: "All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
+    srcSignalsIntro: "“Signals” are the six weighted parts of that rubric (stance, framing, story selection, sourcing, ownership, a cross-spectrum panel check); the scales under each entry are the three axes Paksh tracks separately (ideological, economic, and stance toward the incumbent). Full rubric and weights →",
     filterLean: "Lean",
     filterLang: "Language",
     langEN: "English",
@@ -1112,6 +1113,7 @@ const STR = {
     srcTitle: "स्रोत रेटिंग",
     srcIntro: "पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
     srcDisclaimer: "सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
+    srcSignalsIntro: "“संकेत” उसी रूब्रिक के छह भाग हैं (रुख, फ़्रेमिंग, खबरों का चयन, स्रोत, स्वामित्व, क्रॉस-स्पेक्ट्रम पैनल जाँच); हर प्रविष्टि के नीचे के पैमाने वे तीन अक्ष हैं जिन्हें पक्ष अलग से देखता है (वैचारिक, आर्थिक, और सत्ता के प्रति रुख)। पूरा रूब्रिक और भार →",
     filterLean: "झुकाव",
     filterLang: "भाषा",
     langEN: "अंग्रेज़ी",
@@ -2318,7 +2320,22 @@ function Masthead({
       padding: "9px 13px",
       letterSpacing: lang === "hi" ? 0 : ".05em"
     }
-  }, lang === "hi" ? "साइन इन" : "Sign in")))), !isReading && /*#__PURE__*/React.createElement("nav", {
+  }, lang === "hi" ? "साइन इन" : "Sign in")))), isReading && story && /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 pb-3 sm:hidden"
+  }, authOn() && onToggleSave && /*#__PURE__*/React.createElement(SaveButton, {
+    story: story,
+    saved: saved || new Set(),
+    onToggle: onToggleSave,
+    t: t,
+    lang: lang
+  }), authOn() && onToggleFollowStory && /*#__PURE__*/React.createElement(FollowButton, {
+    on: !!followingStory,
+    onToggle: () => onToggleFollowStory(story),
+    labelOn: lang === "hi" ? "फ़ॉलो हो रहा है" : "Following",
+    labelOff: lang === "hi" ? "+ फ़ॉलो" : "+ Follow",
+    t: t,
+    lang: lang
+  })), !isReading && /*#__PURE__*/React.createElement("nav", {
     className: "hidden items-stretch md:flex",
     style: {
       borderTop: `1px solid ${t.ink}`
@@ -3046,6 +3063,7 @@ function HomeView({
   go,
   auth,
   lens,
+  interests,
   openHelp,
   storylines,
   goStoryline,
@@ -3073,7 +3091,14 @@ function HomeView({
   // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
   // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
   // more of what you already open. Computed before "In brief" so it gets first pick of matches.
-  const _topTopics = auth && lens && lens.total > 0 && lens.topics ? lens.topics.slice(0, 4) : [];
+  // Phase 34 (PD-1): reading history (observed behaviour) still wins the moment it exists.
+  // Until then, a signed-in reader's onboarding interests seed the same slot so the picker
+  // they filled in during onboarding actually does something - no new feed, no new ranking,
+  // just an earlier-available input to the mechanism that already existed. The label below
+  // switches with the source so a fresh reader is never told "because you read X" for a
+  // topic they've only declared interest in, never opened.
+  const _fromHistory = !!(auth && lens && lens.total > 0 && lens.topics && lens.topics.length);
+  const _topTopics = _fromHistory ? lens.topics.slice(0, 4) : auth && interests && interests.length ? interests.slice(0, 4) : [];
   const forYou = _topTopics.length ? take(cards.filter(c => _topTopics.includes(c.topic)), 4) : [];
   const brief = take(cards, 15); // "In brief" tier
   const notUsed = arr => (arr || []).filter(c => !used.has(c.id));
@@ -3252,7 +3277,7 @@ function HomeView({
       style: {
         letterSpacing: lang === "hi" ? 0 : ".1em"
       }
-    }, lang === "hi" ? `क्योंकि आपने ${tp} पढ़ा` : `Because you read ${tp}`), /*#__PURE__*/React.createElement(SectionCard, {
+    }, _fromHistory ? lang === "hi" ? `क्योंकि आपने ${tp} पढ़ा` : `Because you read ${tp}` : lang === "hi" ? `चूँकि आपने ${tp} में रुचि चुनी` : `Because you're interested in ${tp}`), /*#__PURE__*/React.createElement(SectionCard, {
       story: s,
       t: t,
       lang: lang,
@@ -4601,7 +4626,8 @@ function SignalChips({
 function SourcesPage({
   t,
   lang,
-  sources
+  sources,
+  go
 }) {
   const list = sources || [];
   const groups = ["left", "center", "right"].map(k => ({
@@ -4634,7 +4660,12 @@ function SourcesPage({
     }
   }, STR[lang].srcTitle)), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 max-w-[74ch] text-[13.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`
-  }, STR[lang].srcDisclaimer), groups.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].srcDisclaimer), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 max-w-[74ch] text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
+  }, STR[lang].srcSignalsIntro, " ", go && /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("about"),
+    className: `font-semibold underline underline-offset-2 ${t.ts} hover:${t.tp}`
+  }, STR[lang].navMethod)), groups.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: `py-24 text-center ${t.tf} ${isHi(lang)}`
   }, STR[lang].noStories) : /*#__PURE__*/React.createElement(React.Fragment, null, groups.length > 1 && /*#__PURE__*/React.createElement("div", {
     className: `mt-5 flex flex-wrap gap-x-5 gap-y-1.5 mono text-[11px] uppercase ${lang === "hi" ? "deva" : ""}`,
@@ -6887,7 +6918,6 @@ function MyPakshPage({
   const L = lang === "hi" ? {
     title: "मेरा पक्ष",
     gateB: "अपना पक्ष देखने के लिए साइन इन करें। खबरें हमेशा बिना खाते के खुली रहती हैं।",
-    continueReading: "पढ़ना जारी रखें",
     sywlh: "जब से आप यहाँ नहीं थे",
     recentlyRead: "हाल में पढ़ी",
     following: "फॉलो की गई",
@@ -6901,7 +6931,6 @@ function MyPakshPage({
   } : {
     title: "My Paksh",
     gateB: "Sign in to see your Paksh. The news itself is always open, no account needed.",
-    continueReading: "Continue reading",
     sywlh: "Since you were last here",
     recentlyRead: "Recently read",
     following: "Following",
@@ -6928,14 +6957,17 @@ function MyPakshPage({
       dedup.push(r);
     }
   });
-  const continueRows = dedup.slice(0, 3);
-  const recentRows = dedup.slice(3, 8);
+  // Phase 34 (PD-3): Continue Reading and Recently Read read the identical reading_history
+  // query and only differed by which slice of it they showed (first 3 vs next 5) - there is
+  // no "unfinished" signal in the data to justify two destinations. One list, one cap (8,
+  // same total the two sections showed between them before).
+  const recentRows = dedup.slice(0, 8);
   const saved = (savedRows || []).slice(0, 4);
   const followedTopicList = Array.from(followedTopics || []);
   const followedStories = followedStoryRows || [];
   const sywlh = sywlhRows || [];
   const loading = readingRows === null;
-  const hasAnything = continueRows.length || sywlh.length || recentRows.length || followedTopicList.length || followedStories.length || saved.length;
+  const hasAnything = sywlh.length || recentRows.length || followedTopicList.length || followedStories.length || saved.length;
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
     className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
@@ -6957,27 +6989,37 @@ function MyPakshPage({
     }
   }, L.browse)) : /*#__PURE__*/React.createElement("div", {
     className: "mt-8 space-y-10"
-  }, continueRows.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+  }, recentRows.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
     t: t,
     lang: lang
-  }, L.continueReading), /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-4 sm:grid-cols-3"
-  }, continueRows.map((r, i) => {
+  }, L.recentlyRead), /*#__PURE__*/React.createElement("div", null, recentRows.map((r, i) => {
     const openedTs = r.opened_at ? _ts(r.opened_at) : NaN;
     return /*#__PURE__*/React.createElement("button", {
       key: i,
       onClick: () => open(r.story_id),
-      className: `border p-3 text-left ${t.border} hover:${t.tp}`
-    }, r.topic && /*#__PURE__*/React.createElement("div", {
-      className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+      className: `flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "min-w-0 flex-1"
+    }, r.topic && /*#__PURE__*/React.createElement("span", {
+      className: `block eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
       style: {
         letterSpacing: lang === "hi" ? 0 : ".12em"
       }
-    }, lang === "hi" ? TOPIC_HI[r.topic] || r.topic : r.topic), /*#__PURE__*/React.createElement("div", {
-      className: `mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`
-    }, r.title || r.story_id), !isNaN(openedTs) && /*#__PURE__*/React.createElement("div", {
-      className: `mt-1.5 mono text-[10px] ${t.tf}`
-    }, lang === "hi" ? `${timeAgo(r.opened_at, lang)} खोली` : `Opened ${timeAgo(r.opened_at, lang)}`));
+    }, lang === "hi" ? TOPIC_HI[r.topic] || r.topic : r.topic), /*#__PURE__*/React.createElement("span", {
+      className: `block truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`
+    }, r.title || r.story_id)), /*#__PURE__*/React.createElement("span", {
+      className: "shrink-0 flex flex-col items-end gap-1.5"
+    }, r.side && BIAS[r.side] && /*#__PURE__*/React.createElement("span", {
+      className: "mono text-[9px] font-semibold uppercase",
+      style: {
+        backgroundColor: BIAS[r.side].soft,
+        color: BIAS[r.side].color,
+        padding: "3px 6px",
+        letterSpacing: ".04em"
+      }
+    }, lbl(r.side, lang)), !isNaN(openedTs) && /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[10px] ${t.tf}`
+    }, lang === "hi" ? `${timeAgo(r.opened_at, lang)} खोली` : `Opened ${timeAgo(r.opened_at, lang)}`)));
   }))), sywlh.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
     t: t,
     lang: lang
@@ -7023,24 +7065,7 @@ function MyPakshPage({
       id: r.story_id
     }),
     className: `shrink-0 mono text-[10px] uppercase ${t.tf} hover:${t.blind}`
-  }, L.unfollow))))), recentRows.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
-    t: t,
-    lang: lang
-  }, L.recentlyRead), /*#__PURE__*/React.createElement("div", null, recentRows.map((r, i) => /*#__PURE__*/React.createElement("button", {
-    key: i,
-    onClick: () => open(r.story_id),
-    className: `flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`
-  }, r.title || r.story_id), r.side && BIAS[r.side] && /*#__PURE__*/React.createElement("span", {
-    className: "shrink-0 mono text-[9px] font-semibold uppercase",
-    style: {
-      backgroundColor: BIAS[r.side].soft,
-      color: BIAS[r.side].color,
-      padding: "3px 6px",
-      letterSpacing: ".04em"
-    }
-  }, lbl(r.side, lang)))))), saved.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+  }, L.unfollow))))), saved.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
     t: t,
     lang: lang,
     right: /*#__PURE__*/React.createElement("button", {
@@ -7325,7 +7350,7 @@ function Onboarding({
     start: "शुरू करें",
     skip: "छोड़ें",
     interestsH: "आप किसमें रुचि रखते हैं?",
-    interestsB: "कुछ विषय चुनें, इससे आपका मेरा पक्ष पेज बनता है। बाद में कभी भी बदलें।",
+    interestsB: "कुछ विषय चुनें — जब तक हम यह न जान लें कि आप क्या पढ़ते हैं, ये होमपेज पर आपके “आपके लिए” चुनाव तय करेंगे। बाद में कभी भी बदलें।",
     interestsHint: "3-8 चुनने का सुझाव"
   } : {
     welcome: "Welcome to Paksh",
@@ -7334,7 +7359,7 @@ function Onboarding({
     start: "Get started",
     skip: "Skip",
     interestsH: "What are you interested in?",
-    interestsB: "Pick a few topics — this shapes your My Paksh page. Change it anytime.",
+    interestsB: "Pick a few topics — until we learn what you actually read, they shape your “For you” picks on the homepage. Change it anytime.",
     interestsHint: "3-8 is a good start"
   };
   const done = () => onDone();
@@ -8044,7 +8069,7 @@ function PakshApp() {
     go: go,
     view: route.view,
     auth: auth,
-    openHelp: () => setOnboard(true),
+    openHelp: () => go("about"),
     savedCount: savedIds.size,
     regionFilter: regionFilter,
     setRegionFilter: setRegionFilter,
@@ -8194,7 +8219,8 @@ function PakshApp() {
   }) : route.view === "sources" ? /*#__PURE__*/React.createElement(SourcesPage, {
     t: t,
     lang: lang,
-    sources: data.sources
+    sources: data.sources,
+    go: go
   }) : route.view === "about" ? /*#__PURE__*/React.createElement(AboutPage, {
     t: t,
     lang: lang,
@@ -8237,7 +8263,8 @@ function PakshApp() {
     go: go,
     auth: auth,
     lens: lensStats,
-    openHelp: () => setOnboard(true),
+    interests: interests,
+    openHelp: () => go("about"),
     storylines: data.storylines,
     goStoryline: goStoryline,
     goStorylines: goStorylines
