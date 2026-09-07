@@ -43,6 +43,12 @@ from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
 SITE_URL = "https://paksh.news"
+# Phase 35: must match the "ca-pub-..." id in the AdSense loader <script> hardcoded in
+# static/index.html (without the "ca-" prefix - ads.txt uses the bare "pub-..." form), and,
+# once it goes live, the ADSENSE_CLIENT constant in static/app.jsx. Google's ads.txt crawler
+# checks this file at the domain root; without it (or with the wrong id) AdSense can refuse
+# to fill ad requests even when everything else is configured correctly.
+ADSENSE_PUBLISHER_ID = "pub-3441154254234680"
 SRC_FIELDS = ("id", "name", "language", "region", "website", "ownership", "owner", "lean", "label",
               "confidence", "contested", "review_status", "last_reviewed",
               "rationale", "subscores", "axes")
@@ -1020,6 +1026,14 @@ def main():
         (OUT / "robots.txt").write_text(
             "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\nRSS: %s/rss.xml\n"
             % (SITE_URL, SITE_URL), encoding="utf-8")
+        # Phase 35: ads.txt as a REAL file. Without one on disk, Vercel's SPA fallback (route 5
+        # above) was serving index.html - real HTML, status 200 - for GET /ads.txt, which is not
+        # a valid ads.txt to Google's crawler (it wants a plain-text seller list, not a webpage)
+        # and can keep AdSense from authorizing/filling ads on this domain at all. The
+        # "f08c47fec0942fa0" TAG-ID is Google's own public, non-secret certification authority id
+        # used in every publisher's ads.txt line, not anything specific to this account.
+        (OUT / "ads.txt").write_text(
+            "google.com, %s, DIRECT, f08c47fec0942fa0\n" % ADSENSE_PUBLISHER_ID, encoding="utf-8")
         rows = ['  <url><loc>%s/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>' % SITE_URL]
         # section + info pages (now that routing serves them; previously they 404'd AND were
         # missing here, so they were invisible to search). Topic pages are strong SEO surfaces
