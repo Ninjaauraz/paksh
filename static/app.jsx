@@ -849,7 +849,9 @@ const {useState,useEffect,useMemo}=React;
                 )}
                 {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
                 {!isReading && authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
-                {!isReading && authOn() && auth && <button onClick={()=>go("my-paksh")} aria-label={lang==="hi"?"मेरा पक्ष":"My Paksh"} className={`hidden sm:inline mono text-[12px] ${view==="my-paksh"?t.tp:`${t.tf} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा पक्ष":"My Paksh"}</button>}
+                {/* My Paksh nav entry point intentionally removed — current product decision,
+                    independent of this rollback; the my-paksh view/page below is otherwise
+                    untouched but no longer reachable from the UI. */}
                 {!isReading && authOn() && auth && <button onClick={()=>go("saved")} aria-label={lang==="hi"?"सहेजी खबरें":"Saved"} className={`inline-flex items-center gap-1 mono text-[12px] ${view==="saved"?t.tp:`${t.tf} hover:${t.tp}`}`}><span aria-hidden="true">✂</span>{savedCount||0}</button>}
                 {authOn() && (auth
                   ? <button onClick={()=>go("account")} aria-label={lang==="hi"?"मेरा खाता":"My account"} title={(auth.user&&auth.user.email)||""} className={`grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`} style={{width:34,height:34,border:`1px solid ${t.ink}`,fontFamily:"'Source Serif 4',Georgia,serif"}}>{initials(auth.user&&auth.user.email)}</button>
@@ -904,12 +906,12 @@ const {useState,useEffect,useMemo}=React;
       );
     }
     function BottomNav({ t, lang, view, go, auth }) {
-      // Front · Gaps · Search · Sections · My Paksh — same drawer whether signed in or not
-      // (Phase 31: My Paksh's own first-time state carries the sign-in/follow prompt, so the
-      // tab itself doesn't need to disappear for a guest). Login lives ONLY in the top-right;
-      // Saved sits behind the account button there.
+      // Front · Gaps · Search · Sections — same drawer whether signed in or not. My Paksh tab
+      // intentionally removed (current product decision, independent of this rollback); the
+      // my-paksh view/page is otherwise untouched but no longer reachable from the UI.
+      // Login lives ONLY in the top-right; Saved sits behind the account button there.
       const items=[["home",lang==="hi"?"मुख":"Front",Home],["blindspot",lang==="hi"?"गैप":"Gaps",Eye],["search",ui("searchTab",lang),Search],
-        ["topics", ui("sections",lang), Grid], ["my-paksh", lang==="hi"?"मेरा पक्ष":"My Paksh", User]];
+        ["topics", ui("sections",lang), Grid]];
       const active=(k)=>view===k;
       return (
         <nav className={`fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`}>

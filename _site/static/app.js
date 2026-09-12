@@ -297,33 +297,31 @@ const AXES = [{
   }
 }];
 const TOKENS = {
-  // Redesign (Paksh 39): the Annotated Front Page palette. Paper/ink/hairline/image-field
-  // are the four surfaces; clay (#8A4B33) is the one editorial accent (kickers, gap
-  // language, section numbers) and is NEVER a fill. Centralising the exact hex here means
-  // every component that already reads t.bg/t.tp/t.border/etc picks up the new system
-  // without a per-component palette edit.
   light: {
     bg: "bg-[#F8F7F2]",
-    surface: "bg-[#F8F7F2]",
-    soft: "bg-[#E6E3DA]",
-    border: "border-[#DAD5C9]",
-    tp: "text-[#14130F]",
-    ts: "text-[#2A2823]",
-    tf: "text-[#8B857A]",
-    brand: "text-[#14130F]",
-    brandBg: "bg-[#14130F]",
-    blind: "text-[#8A4B33]",
-    blindSoft: "bg-[#F2EDE7]",
-    nav: "bg-[#F8F7F2]",
-    dev: "text-[#6E685D]",
-    cta: "bg-[#14130F]",
-    ctaT: "text-[#F8F7F2]",
-    line: "#DAD5C9",
-    ink: "#14130F",
-    chip: "bg-[#EFEBE1]",
-    centerSeg: "#6F6B61",
-    track: "#DAD5C9",
-    gap: "#F8F7F2"
+    surface: "bg-[#F4F1EA]",
+    soft: "bg-[#EFEBE1]",
+    border: "border-[#D8D3C6]",
+    tp: "text-[#15140F]",
+    ts: "text-[#3A372F]",
+    tf: "text-[#8A8371]",
+    brand: "text-[#15140F]",
+    brandBg: "bg-[#15140F]",
+    blind: "text-[#75442E]",
+    blindSoft: "bg-[#EFE3DB]",
+    nav: "glass-nav-light",
+    // dev — the one new accent (6.3B.3): muted indigo, ONE job only ("developing/ongoing"),
+    // so it never competes with blind's "gap/warning" meaning. Same light/dark AA-tuning
+    // pattern as blind above. Used ONLY by DevelopingRail's header + update marker.
+    dev: "text-[#2E3A52]",
+    cta: "bg-[#15140F]",
+    ctaT: "text-[#F4F1EA]",
+    line: "#D8D3C6",
+    ink: "#15140F",
+    chip: "bg-[#EAE6DB]",
+    centerSeg: "#8C8579",
+    track: "#EAE6DB",
+    gap: "#F4F1EA"
   }
   // 6.3B.10: dark mode retired - the approved direction is paper-white only, and the UI
   // toggle to reach dark mode was already removed in 6.3B.4. TOKENS.dark, the `dark`/
@@ -1692,78 +1690,64 @@ function OutletAvatar({
 // the textured BiasSegments/MiniBar instrument it replaced is gone (see above).
 // Paksh 7: reads BIAS[k].color directly - the formerly-separate PILL_COLOR triad is
 // retired now that BIAS itself carries the same values (see the BIAS definition above).
-// THE COVERAGE MARK (redesign, Paksh 39) — three DISCONNECTED proportional segments, one
-// per lean, gap between them, rounded ends. A side with zero coverage has NO segment at
-// all (not a notch, not a placeholder) — the bar is simply narrower. Counts read
-// "L 3  C 4  R 2", each letter tinted its own lean colour, never a percentage and never
-// "n =". `absence` (optional) prints the design's editorial sentence — "No Left coverage
-// yet." — in place of a genuinely missing side; used only where the absence itself is the
-// finding (the front-page differentiator rail, Coverage Gaps, gap-story treatments), not
-// on every ordinary card.
 function BiasPill({
   counts,
   t,
   lang,
   h,
-  gap,
-  className,
-  showCounts = true,
-  absence
+  className
 }) {
   const L = counts.left || 0,
     C = counts.center || 0,
     R = counts.right || 0;
-  const barH = h || 6;
-  const barGap = gap != null ? gap : Math.max(3, Math.round(barH * 0.75));
-  const total = L + C + R;
-  const seg = (n, color) => n > 0 ? /*#__PURE__*/React.createElement("div", {
-    key: color,
+  const barH = h || 8;
+  // Phase 32D (Change 1): a side with zero coverage used to simply not render, letting the
+  // remaining sides' flexGrow expand to fill the whole bar - a 2-of-3-sides story and a
+  // fully-3-sided story with a negligible third side became visually indistinguishable,
+  // with only the caption's small mono text telling them apart. When every side is absent
+  // (L=C=R=0) the bar stays exactly as before - a bare track, nothing to distinguish. When
+  // ONLY one or two sides are absent, each now gets a fixed-width neutral notch (the bar's
+  // own track colour, sized to its own height) instead of being omitted outright, so the
+  // missing side reads as an actual gap in the shape, not just a lighter caption number.
+  const any = L > 0 || C > 0 || R > 0;
+  const notch = /*#__PURE__*/React.createElement("div", {
     style: {
-      flexGrow: n,
-      flexBasis: 0,
-      minWidth: barH,
-      background: color,
-      borderRadius: barH / 2
-    }
-  }) : null;
-  const letters = [["left", "L", "वा"], ["center", "C", "कें"], ["right", "R", "द"]];
-  return /*#__PURE__*/React.createElement("div", {
-    className: className || ""
-  }, total > 0 ? /*#__PURE__*/React.createElement("div", {
-    className: "flex",
-    style: {
-      height: barH,
-      gap: barGap
-    }
-  }, seg(L, BIAS.left.color), seg(C, BIAS.center.color), seg(R, BIAS.right.color)) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: barH,
-      borderRadius: barH / 2,
+      flexGrow: 0,
+      flexShrink: 0,
+      width: barH,
       background: t.line
     }
-  }), showCounts && total > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `mt-1.5 mono text-[10px] ${lang === "hi" ? "deva" : ""}`,
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    className: className || ""
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex w-full overflow-hidden",
     style: {
-      letterSpacing: ".1em",
-      color: t.tf
+      height: barH,
+      borderRadius: 999,
+      background: t.line
     }
-  }, letters.map(([k, en, hi]) => /*#__PURE__*/React.createElement("span", {
-    key: k,
+  }, any && (L > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
-      marginRight: 10
+      flexGrow: L,
+      flexBasis: 0,
+      background: BIAS.left.color
     }
-  }, /*#__PURE__*/React.createElement("span", {
+  }) : notch), any && (C > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
-      color: BIAS[k].color,
-      fontWeight: 500
+      flexGrow: C,
+      flexBasis: 0,
+      background: BIAS.center.color
     }
-  }, lang === "hi" ? hi : en), " ", counts[k] || 0))), absence && /*#__PURE__*/React.createElement("div", {
-    className: `mt-1.5 text-[12.5px] italic ${readCls(lang)}`,
+  }) : notch), any && (R > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
-      color: "#8A4B33",
-      lineHeight: 1.45
+      flexGrow: R,
+      flexBasis: 0,
+      background: BIAS.right.color
     }
-  }, absence));
+  }) : notch)), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1 mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "वा" : "L", " ", L, " ", lang === "hi" ? "कें" : "C", " ", C, " ", lang === "hi" ? "द" : "R", " ", R));
 }
 // Paksh 7: BiasBar and GapColumns removed as confirmed dead code (§A of the Phase 7
 // blueprint corrected the prior research here - both were only ever reachable through
@@ -1833,10 +1817,7 @@ function Eyebrow({
     t: t,
     lang: lang
   }), /*#__PURE__*/React.createElement("span", {
-    className: t.blind,
-    style: {
-      fontWeight: 600
-    }
+    className: t.ts
   }, tp || "News"), created_at && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
     className: t.tf
   }, "\xB7"), /*#__PURE__*/React.createElement("span", {
@@ -1969,145 +1950,47 @@ function LeadStory({
       onOpen(story.id);
     },
     className: "block no-underline group cursor-pointer"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".13em"
-    }
-  }, tp || "News"), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-2.5 text-[30px] sm:text-[38px] lg:text-[44px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
-    style: {
-      lineHeight: lang === "hi" ? 1.18 : 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.026em",
-      textWrap: "balance"
-    }
-  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
-    className: `mt-3.5 text-[15.5px] lg:text-[17px] ${t.ts} ${readCls(lang)} lc-4`,
-    style: {
-      lineHeight: lang === "hi" ? 1.85 : 1.58,
-      textWrap: "pretty"
-    }
-  }, story.lead), /*#__PURE__*/React.createElement(Thumb, {
+  }, /*#__PURE__*/React.createElement(Thumb, {
     src: story.img || story.image,
     topic: story.topic,
     title: story.headline,
-    ratio: "4 / 3",
+    ratio: "16 / 9",
     t: t,
     lang: lang,
-    className: "mt-4"
+    className: "mb-5"
   }), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3.5 flex items-center gap-4 pt-3.5",
+    className: `eyebrow accent-clay ${lang === "hi" ? "deva" : ""}`,
     style: {
-      borderTop: `1px solid ${t.line}`
+      letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, /*#__PURE__*/React.createElement(BiasPill, {
+  }, lang === "hi" ? "आज सबसे ज़्यादा कवरेज" : "Most covered today", tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h2", {
+    className: `headline pk-rise mt-3 text-[36px] sm:text-[44px] lg:text-[54px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-4`,
+    style: {
+      lineHeight: lang === "hi" ? 1.12 : 1.04,
+      letterSpacing: lang === "hi" ? 0 : "-0.024em",
+      textWrap: "balance"
+    }
+  }, story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8"
+  }, story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`,
+    style: {
+      lineHeight: lang === "hi" ? 1.85 : 1.6,
+      textWrap: "pretty"
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(BiasPill, {
     counts: c,
     t: t,
     lang: lang,
-    h: 6,
-    className: "flex-1",
-    showCounts: false
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "mono text-[10.5px] shrink-0",
-    style: {
-      letterSpacing: ".1em",
-      color: t.tf
-    }
+    h: 10
+  }), /*#__PURE__*/React.createElement("div", {
+    className: `mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: BIAS.left.color,
-      fontWeight: 500
+      borderBottom: `1px solid ${t.ink}`,
+      paddingBottom: 2
     }
-  }, lang === "hi" ? "वा" : "L"), " ", c.left || 0, " ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: BIAS.center.color,
-      fontWeight: 500
-    }
-  }, lang === "hi" ? "कें" : "C"), " ", c.center || 0, " ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: BIAS.right.color,
-      fontWeight: 500
-    }
-  }, lang === "hi" ? "द" : "R"), " ", c.right || 0)));
-}
-// COMPACT — the front-page left rail: kicker, headline, coverage mark. No image, no dek.
-function CompactStory({
-  story,
-  t,
-  lang,
-  onOpen
-}) {
-  const c = story.counts || {
-    left: 0,
-    center: 0,
-    right: 0
-  };
-  const tp = lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic;
-  return /*#__PURE__*/React.createElement("a", {
-    href: "/story/" + encodeURIComponent(story.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      onOpen(story.id);
-    },
-    className: "block no-underline group cursor-pointer"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, tp || "News"), /*#__PURE__*/React.createElement("h3", {
-    className: `headline mt-1.5 text-[16px] leading-[1.24] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.01em",
-      textWrap: "balance"
-    }
-  }, story.headline), /*#__PURE__*/React.createElement(BiasPill, {
-    counts: c,
-    t: t,
-    lang: lang,
-    h: 5,
-    className: "mt-2"
-  }));
-}
-// DIFFERENTIATOR — the front-page right rail ("What one side isn't saying"): headline,
-// a two-side mark (whichever sides ARE covering it), and the editorial absence sentence
-// in place of the missing side's segment. No kicker — the sentence carries the story.
-function DifferentiatorItem({
-  story,
-  note,
-  t,
-  lang,
-  onOpen
-}) {
-  const c = story.counts || {
-    left: 0,
-    center: 0,
-    right: 0
-  };
-  return /*#__PURE__*/React.createElement("a", {
-    href: "/story/" + encodeURIComponent(story.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      onOpen(story.id);
-    },
-    className: "block no-underline group cursor-pointer"
-  }, /*#__PURE__*/React.createElement("h3", {
-    className: `headline text-[15px] leading-[1.24] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.01em",
-      textWrap: "balance"
-    }
-  }, story.headline), /*#__PURE__*/React.createElement(BiasPill, {
-    counts: c,
-    t: t,
-    lang: lang,
-    h: 5,
-    className: "mt-2",
-    showCounts: false,
-    absence: note
-  }));
+  }, lang === "hi" ? "सभी पक्ष पढ़ें" : "Read all sides", " \u2192")))));
 }
 // Paksh 7: SecondaryStory, DenseRow, and SpectrumRail removed as confirmed dead code -
 // none had a live call site (SecondaryStory/DenseRow) or any call site at all
@@ -2190,16 +2073,17 @@ function GridCard({
       e.preventDefault();
       onOpen(story.id);
     },
-    className: "block no-underline group cursor-pointer"
+    className: `block no-underline group cursor-pointer overflow-hidden border ${t.surface} ${t.border}`
   }, story.img && /*#__PURE__*/React.createElement(Thumb, {
     src: story.img,
     topic: story.topic,
     title: story.headline,
     ratio: "16 / 9",
     t: t,
-    lang: lang,
-    className: "mb-3"
-  }), /*#__PURE__*/React.createElement(Eyebrow, {
+    lang: lang
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "p-4"
+  }, /*#__PURE__*/React.createElement(Eyebrow, {
     topic: story.topic,
     created_at: story.created_at,
     blindspot: story.blindspot,
@@ -2207,23 +2091,20 @@ function GridCard({
     t: t,
     lang: lang
   }), /*#__PURE__*/React.createElement("h3", {
-    className: `headline mt-1.5 text-[18px] leading-[1.2] lc-3 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.012em"
-    }
+    className: `headline pk-text-headline mt-1.5 lc-3 ${t.tp} ${readCls(lang)}`
   }, story.headline), /*#__PURE__*/React.createElement("div", {
-    className: "mt-2.5 flex items-end justify-between gap-3"
+    className: "mt-3 flex items-end justify-between gap-3"
   }, /*#__PURE__*/React.createElement(BiasPill, {
     counts: c,
     t: t,
     lang: lang,
-    h: 5,
+    h: 8,
     className: "flex-1"
   }), /*#__PURE__*/React.createElement(CardClip, {
     story: story,
     t: t,
     lang: lang
-  })));
+  }))));
 }
 
 /* ---------------- shell ---------------- */
@@ -2313,7 +2194,6 @@ function Masthead({
   onToggleFollowStory
 }) {
   const isReading = view === "story" || view === "blindspot" || view === "storyline";
-  const isGrand = view === "home";
   const [copied, setCopied] = useState(false);
   const copy = () => {
     try {
@@ -2324,61 +2204,61 @@ function Masthead({
   };
   const tp = story ? lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic : "";
   const region = story ? lang === "hi" ? story.region === "World" ? "विश्व" : "भारत" : story.region || "India" : "";
-  const NAV = [["home", STR[lang].navTop, false], ["blindspot", STR[lang].navOS, true], ["sources", STR[lang].navSrc, false], ["about", STR[lang].navMethod, false]];
+  const NAV = [["home", STR[lang].navTop, false], ["blindspot", STR[lang].navOS, true], ["topics", ui("sections", lang), false], ["sources", STR[lang].navSrc, false], ["about", STR[lang].navMethod, false]];
   const initials = email => {
     const s = (email || "").trim();
     return s ? s[0].toUpperCase() : "?";
   };
-  const longDate = new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric"
+  const shortDate = new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
+    month: "short",
+    day: "numeric"
   });
-  // Utility row: hamburger (→ /topics, the Sections contents page) + search left;
-  // language + sign-in/account right. Identical shape on every route — only the wordmark
-  // below it changes size (grand on the front page, inline everywhere else).
-  const utilityRow = /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between py-3"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-4 sm:gap-5"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("topics"),
-    className: `inline-flex items-center gap-2 text-[10.5px] font-semibold uppercase ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+  return /*#__PURE__*/React.createElement("div", {
+    className: t.bg,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".09em"
-    },
-    "aria-label": ui("sections", lang)
-  }, /*#__PURE__*/React.createElement(Menu, {
-    size: 14
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "hidden sm:inline"
-  }, ui("sections", lang))), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("search"),
-    className: `${t.ts} hover:${t.tp}`,
-    "aria-label": STR[lang].search
-  }, /*#__PURE__*/React.createElement(Search, {
-    size: 16
-  })), !isGrand && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    className: "hidden sm:inline-block",
-    style: {
-      width: 1,
-      height: 14,
-      background: t.line
+      borderBottom: `1px solid ${t.ink}`
     }
-  }), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1280px] px-4 sm:px-10"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 sm:py-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex min-w-0 items-center gap-3 sm:gap-4"
+  }, isReading && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
-    className: "hidden sm:inline-flex items-baseline",
+    className: `inline-flex shrink-0 items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".1em"
+    }
+  }, /*#__PURE__*/React.createElement(ArrowLeft, {
+    size: 14
+  }), " ", /*#__PURE__*/React.createElement("span", {
+    className: "hidden sm:inline"
+  }, STR[lang].back)), (story || sectionLabel) && /*#__PURE__*/React.createElement("span", {
+    className: `hidden sm:inline truncate eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, story ? `${tp} · ${region}` : sectionLabel)), /*#__PURE__*/React.createElement(LangToggle, {
+    t: t,
+    lang: lang,
+    setLang: setLang,
+    dark: false
+  }))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("home"),
+    className: "flex items-baseline justify-center",
     "aria-label": "Paksh home"
   }, /*#__PURE__*/React.createElement("span", {
     className: `brand-hi leading-none ${t.tp}`,
     style: {
-      fontSize: 21
+      fontSize: 26
     }
-  }, "\u092A\u0915\u094D\u0937")))), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-4 sm:gap-4.5"
+  }, "\u092A\u0915\u094D\u0937")), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-end gap-4 sm:gap-6"
   }, isReading && story && /*#__PURE__*/React.createElement("div", {
-    className: "hidden shrink-0 items-center gap-4 sm:flex"
+    className: "hidden shrink-0 items-center gap-3 sm:flex"
   }, authOn() && onToggleSave && /*#__PURE__*/React.createElement(SaveButton, {
     story: story,
     saved: saved || new Set(),
@@ -2394,19 +2274,15 @@ function Masthead({
     lang: lang
   }), /*#__PURE__*/React.createElement("button", {
     onClick: copy,
-    className: `inline-flex items-center gap-1.5 text-[11px] font-medium ${t.ts} hover:${t.tp}`
+    className: `inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".1em"
+    }
   }, copied ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Check, {
     size: 13
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
-  }), " ", lang === "hi" ? "शेयर" : "Share")), /*#__PURE__*/React.createElement("span", {
-    className: "hidden sm:inline-block",
-    style: {
-      width: 1,
-      height: 12,
-      background: t.line
-    }
-  })), openHelp && /*#__PURE__*/React.createElement("button", {
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), openHelp && /*#__PURE__*/React.createElement("button", {
     onClick: openHelp,
     className: `hidden sm:inline ${t.tf} hover:${t.tp}`,
     "aria-label": lang === "hi" ? "पक्ष कैसे पढ़ें" : "How Paksh works"
@@ -2421,77 +2297,27 @@ function Masthead({
     className: `inline-flex items-center gap-1 mono text-[12px] ${view === "saved" ? t.tp : `${t.tf} hover:${t.tp}`}`
   }, /*#__PURE__*/React.createElement("span", {
     "aria-hidden": "true"
-  }, "\u2702"), savedCount || 0), /*#__PURE__*/React.createElement("span", {
-    className: `text-[11px] font-medium ${t.tp}`,
-    style: {
-      letterSpacing: ".04em"
-    }
-  }, /*#__PURE__*/React.createElement(LangToggle, {
-    t: t,
-    lang: lang,
-    setLang: setLang,
-    dark: false
-  })), /*#__PURE__*/React.createElement("span", {
-    className: "hidden sm:inline-block",
-    style: {
-      width: 1,
-      height: 12,
-      background: t.line
-    }
-  }), authOn() && (auth ? /*#__PURE__*/React.createElement("button", {
+  }, "\u2702"), savedCount || 0), authOn() && (auth ? /*#__PURE__*/React.createElement("button", {
     onClick: () => go("account"),
     "aria-label": lang === "hi" ? "मेरा खाता" : "My account",
     title: auth.user && auth.user.email || "",
-    className: `hidden sm:grid place-items-center text-[12px] font-semibold ${t.tp}`,
+    className: `grid place-items-center text-[13px] font-semibold ${t.tp} ${t.soft}`,
     style: {
-      width: 28,
-      height: 28,
+      width: 34,
+      height: 34,
       border: `1px solid ${t.ink}`,
       fontFamily: "'Source Serif 4',Georgia,serif"
     }
   }, initials(auth.user && auth.user.email)) : /*#__PURE__*/React.createElement("button", {
     onClick: () => go("login"),
-    className: `hidden sm:inline text-[10.5px] font-semibold uppercase ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    className: `text-[10px] font-semibold uppercase ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".09em"
+      border: `1px solid ${t.ink}`,
+      padding: "9px 13px",
+      letterSpacing: lang === "hi" ? 0 : ".05em"
     }
-  }, lang === "hi" ? "साइन इन" : "Sign in"))));
-  // The wordmark: grand + centred on the front page (52px desktop / 30px mobile), a
-  // small inline mark everywhere else — see utilityRow above for the interior placement.
-  const grandWordmark = isGrand && /*#__PURE__*/React.createElement("div", {
-    className: "text-center",
-    style: {
-      padding: "6px 0 18px"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("home"),
-    "aria-label": "Paksh home",
-    className: "inline-block"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `brand-hi leading-none ${t.tp}`,
-    style: {
-      fontSize: 44
-    }
-  }, "\u092A\u0915\u094D\u0937")), /*#__PURE__*/React.createElement("div", {
-    className: `mt-2 text-[10.5px] sm:text-[12px] font-semibold uppercase ${t.ts}`,
-    style: {
-      letterSpacing: ".38em"
-    }
-  }, "Paksh"));
-  return /*#__PURE__*/React.createElement("div", {
-    className: t.bg
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px]"
-  }, utilityRow, grandWordmark, isReading ? (
-  /* Reading pages (story/blindspot/storyline) own their own kicker/date band
-     below this — the masthead itself is a single unit for them, per the
-     design's "reading pages get none" rule. Mobile keeps the Save/Follow row. */
-  isReading && story && /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-3 pb-3 sm:hidden",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      paddingTop: 10
-    }
+  }, lang === "hi" ? "साइन इन" : "Sign in")))), isReading && story && /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 pb-3 sm:hidden"
   }, authOn() && onToggleSave && /*#__PURE__*/React.createElement(SaveButton, {
     story: story,
     saved: saved || new Set(),
@@ -2505,121 +2331,109 @@ function Masthead({
     labelOff: lang === "hi" ? "+ फ़ॉलो" : "+ Follow",
     t: t,
     lang: lang
-  }))) : /*#__PURE__*/React.createElement("nav", {
-    className: "flex items-center justify-between gap-3",
+  })), !isReading && /*#__PURE__*/React.createElement("nav", {
+    className: "hidden items-stretch md:flex",
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      padding: "9px 0"
+      borderTop: `1px solid ${t.ink}`
     }
-  }, isGrand ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    className: `hidden sm:inline mono text-[10.5px] ${t.tf}`,
-    style: {
-      letterSpacing: ".08em"
-    }
-  }, longDate), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-1 sm:flex-none items-center gap-4 overflow-x-auto sm:overflow-visible"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setRegionFilter && setRegionFilter("National"),
-    className: `shrink-0 text-[11px] sm:text-[11.5px] font-semibold uppercase ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".05em",
-      color: regionFilter !== "International" ? t.ink : "#2A2823",
-      borderBottom: regionFilter !== "International" ? `2px solid ${t.ink}` : "none",
-      paddingBottom: 2
-    }
-  }, ui("National", lang)), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setRegionFilter && setRegionFilter("International"),
-    className: `shrink-0 text-[11px] sm:text-[11.5px] font-semibold uppercase ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".05em",
-      color: regionFilter === "International" ? t.ink : "#2A2823",
-      borderBottom: regionFilter === "International" ? `2px solid ${t.ink}` : "none",
-      paddingBottom: 2
-    }
-  }, ui("International", lang)), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("blindspot"),
-    className: `shrink-0 text-[11px] sm:text-[11.5px] font-semibold uppercase ${t.blind} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".05em"
-    }
-  }, STR[lang].navOS), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("sources"),
-    className: `shrink-0 text-[11px] sm:text-[11.5px] font-semibold uppercase text-[#2A2823] ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".05em"
-    }
-  }, STR[lang].navSrc), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("about"),
-    className: `hidden sm:inline shrink-0 text-[11.5px] font-semibold uppercase text-[#2A2823] ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".05em"
-    }
-  }, STR[lang].navMethod))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    className: `truncate text-[11px] font-semibold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, sectionLabel || ""), /*#__PURE__*/React.createElement("div", {
-    className: "flex shrink-0 items-center gap-4"
-  }, NAV.filter(([k]) => k !== view).map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
+  }, NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
-    className: `hidden sm:inline text-[11px] font-semibold uppercase hover:${t.tp} ${clay ? t.blind : "text-[#2A2823]"} ${lang === "hi" ? "deva" : ""}`,
+    className: `relative text-[11px] font-semibold uppercase hover:${t.tp} ${view === k ? t.tp : clay ? t.blind : t.ts} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".05em"
+      padding: "11px 20px",
+      borderRight: `1px solid ${t.line}`,
+      letterSpacing: lang === "hi" ? 0 : ".04em"
     }
-  }, label)))))));
+  }, label, view === k && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: -1,
+      height: 2,
+      background: t.ink
+    }
+  }))), view === "home" && /*#__PURE__*/React.createElement("div", {
+    className: "ml-auto flex items-center gap-3 px-4"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRegionFilter && setRegionFilter("National"),
+    className: `mono text-[10px] uppercase hover:${t.tp} ${regionFilter !== "International" ? t.tp : t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, ui("National", lang)), /*#__PURE__*/React.createElement("span", {
+    className: t.tf
+  }, "\xB7"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRegionFilter && setRegionFilter("International"),
+    className: `mono text-[10px] uppercase hover:${t.tp} ${regionFilter === "International" ? t.tp : t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, ui("International", lang)), /*#__PURE__*/React.createElement("span", {
+    className: `hidden lg:inline mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, shortDate)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("search"),
+    className: `${view === "home" ? "" : "ml-auto "}flex items-center ${t.tf} hover:${t.tp}`,
+    style: {
+      padding: "0 18px",
+      borderLeft: `1px solid ${t.line}`
+    },
+    "aria-label": STR[lang].search
+  }, /*#__PURE__*/React.createElement(Search, {
+    size: 14
+  })))));
 }
 // Floating Support invitation (6.3B.6) — temporary, not a permanent masthead fixture.
-// Disappears ~3 minutes into the session via PakshApp's showFloatingSupport state
-// (or immediately on ×). No modal, no
+// Sits above BottomNav (lower z-index, offset clear of it on mobile) and disappears
+// ~3 minutes into the session via PakshApp's showFloatingSupport state. No modal, no
 // animation beyond the app's existing hover/tap micro-interactions.
-// The reader-funded slip (design "floating support slip") — viewport-fixed, dismissible,
-// self-retiring (PakshApp times it out after ~3 minutes; the × also dismisses it early).
 function FloatingSupport({
   t,
   lang,
-  go,
-  dismiss
+  go
 }) {
-  return /*#__PURE__*/React.createElement("div", {
-    className: `fixed z-30 bottom-4 left-4 md:bottom-6 md:left-6 ${t.bg}`,
-    style: {
-      width: 250,
-      maxWidth: "calc(100vw - 32px)",
-      border: `1px solid ${t.ink}`,
-      padding: "14px 15px",
-      boxShadow: `0 1px 0 ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-start justify-between gap-2.5"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, lang === "hi" ? "पाठक-समर्थित" : "Reader-funded"), /*#__PURE__*/React.createElement("button", {
-    onClick: dismiss,
-    className: t.tf,
-    "aria-label": lang === "hi" ? "बंद करें" : "Dismiss",
-    style: {
-      fontSize: 13,
-      lineHeight: 1
-    }
-  }, "\xD7")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2 text-[13px] leading-snug ${t.ts} ${readCls(lang)}`
-  }, lang === "hi" ? "पक्ष पढ़ना हमेशा मुफ़्त रहेगा। क्लासिफ़ाइड और पाठकों के छोटे योगदान इसे चलाते हैं।" : "Paksh is free to read and always will be. Classifieds and small reader gifts keep it running."), /*#__PURE__*/React.createElement("button", {
+  return /*#__PURE__*/React.createElement("button", {
     onClick: () => go("support"),
-    className: `mt-2.5 inline-block text-[10px] font-semibold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    className: `fixed z-30 bottom-20 right-4 md:bottom-6 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase ${t.blind} ${t.surface}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em",
-      borderBottom: `1px solid ${t.ink}`,
-      paddingBottom: 2
-    }
-  }, lang === "hi" ? "पक्ष का सहयोग करें" : "Support Paksh"), /*#__PURE__*/React.createElement("div", {
-    className: `mt-2 text-[10px] leading-snug ${t.tf}`
-  }, lang === "hi" ? "यह जल्द ही खुद हट जाएगा — यह आपका पीछा नहीं करेगा।" : "Dismisses itself shortly — it won't follow you around."));
+      border: "1px solid currentColor",
+      padding: "9px 14px",
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    },
+    "aria-label": lang === "hi" ? "सहयोग" : "Support"
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, "\u2665"), /*#__PURE__*/React.createElement("span", {
+    className: lang === "hi" ? "deva" : ""
+  }, lang === "hi" ? "सहयोग" : "Support"));
+}
+function BottomNav({
+  t,
+  lang,
+  view,
+  go,
+  auth
+}) {
+  // Front · Gaps · Search · Sections — same drawer whether signed in or not. My Paksh tab
+  // intentionally removed (current product decision, independent of this rollback); the
+  // my-paksh view/page is otherwise untouched but no longer reachable from the UI.
+  // Login lives ONLY in the top-right; Saved sits behind the account button there.
+  const items = [["home", lang === "hi" ? "मुख" : "Front", Home], ["blindspot", lang === "hi" ? "गैप" : "Gaps", Eye], ["search", ui("searchTab", lang), Search], ["topics", ui("sections", lang), Grid]];
+  const active = k => view === k;
+  return /*#__PURE__*/React.createElement("nav", {
+    className: `fixed inset-x-0 bottom-0 z-40 border-t md:hidden ${t.border} ${t.nav}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex"
+  }, items.map(([k, label, Ic]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => go(k),
+    className: `flex flex-1 flex-col items-center gap-0.5 py-2 ${active(k) ? t.tp : t.tf}`
+  }, /*#__PURE__*/React.createElement(Ic, {
+    size: 19
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `text-[9.5px] font-semibold ${lang === "hi" ? "deva" : ""}`
+  }, label)))));
 }
 function Footer({
   t,
@@ -2627,13 +2441,9 @@ function Footer({
   go
 }) {
   return /*#__PURE__*/React.createElement("footer", {
-    className: t.bg,
-    style: {
-      borderTop: `1px solid ${t.line}`,
-      marginTop: 48
-    }
+    className: `mt-12 border-t ${t.border} ${t.surface}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-9"
+    className: "mx-auto max-w-[1280px] px-4 sm:px-10 py-9"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-end justify-between gap-6"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2643,10 +2453,7 @@ function Footer({
   }, /*#__PURE__*/React.createElement("span", {
     className: `brand-hi text-xl ${t.tp}`
   }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("span", {
-    className: `text-[13px] font-semibold uppercase ${t.tp}`,
-    style: {
-      letterSpacing: ".24em"
-    }
+    className: `text-[15px] font-semibold uppercase tracking-[0.24em] ${t.tp}`
   }, "Paksh")), /*#__PURE__*/React.createElement("p", {
     className: `mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`
   }, STR[lang].footIndependence)), /*#__PURE__*/React.createElement("div", {
@@ -2660,10 +2467,7 @@ function Footer({
     lang: lang,
     className: "mt-7"
   }), /*#__PURE__*/React.createElement("div", {
-    className: `mt-7 pt-5 mono text-[10.5px] uppercase tracking-wide ${t.tf}`,
-    style: {
-      borderTop: `1px solid ${t.line}`
-    }
+    className: `mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`
   }, "\xA9 2026 Paksh \xB7 A Redstocks Technology LLP product")));
 }
 
@@ -2818,30 +2622,112 @@ function SectionCard({
     t: t,
     lang: lang
   })), /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em",
-      fontWeight: 600
+      letterSpacing: lang === "hi" ? 0 : ".14em"
     }
   }, tp || "News"), /*#__PURE__*/React.createElement("h3", {
-    className: `headline mt-1.5 text-[18px] leading-[1.2] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    className: `headline pk-text-headline mt-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.012em",
-      textWrap: "balance"
+      textWrap: "pretty"
     }
   }, story.headline), /*#__PURE__*/React.createElement("div", {
-    className: "mt-2.5 flex items-end justify-between gap-3"
+    className: "mt-3 flex items-end justify-between gap-3"
   }, /*#__PURE__*/React.createElement(BiasPill, {
     counts: c,
     t: t,
     lang: lang,
-    h: 5,
+    h: 8,
     className: "flex-1"
   }), /*#__PURE__*/React.createElement(CardClip, {
     story: story,
     t: t,
     lang: lang
   })));
+}
+// MAJOR — Paksh 7 blueprint §C: a fourth register between Lead and the 2x2 Standard
+// grid. Importance is expressed by BREAKING the surrounding grid to run full-width
+// (image beside the headline, not above it, plus a one-line dek) rather than by any
+// new colour or background field - per the brief's own "importance should have a
+// visual language... but do not overuse emphasis" instruction, and the blueprint's
+// explicit rule that the grid interruption itself is the signal, not a tint.
+//
+// Paksh 7A: mounted in HomeView as the #2-ranked story (next in `cards`' own existing
+// rank order after Lead takes #1) - the SAME arithmetic ranking (distinct-outlet
+// breadth, recency-decayed) that already assigns Lead/Section/Brief/Strip, just
+// extended one more tier. No new selection rule invented: HomeView's own comment
+// already states "the rest fall into the tier ladder in ranked order," so Major is
+// that ladder's next rung, not a guessed editorial pick.
+function MajorStory({
+  story,
+  t,
+  lang,
+  onOpen
+}) {
+  const c = story.counts || {
+    left: 0,
+    center: 0,
+    right: 0
+  };
+  const tp = lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic;
+  return /*#__PURE__*/React.createElement("a", {
+    href: "/story/" + encodeURIComponent(story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      onOpen(story.id);
+    },
+    className: "block no-underline group cursor-pointer",
+    style: {
+      borderTop: `2px solid ${t.ink}`,
+      paddingTop: 20,
+      marginTop: 28,
+      marginBottom: 28
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col sm:flex-row sm:items-start gap-5 sm:gap-7"
+  }, story.img && /*#__PURE__*/React.createElement("div", {
+    className: "sm:w-[42%] shrink-0"
+  }, /*#__PURE__*/React.createElement(Thumb, {
+    src: story.img,
+    topic: story.topic,
+    title: story.headline,
+    ratio: "7 / 4",
+    t: t,
+    lang: lang
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0 flex-1"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, tp || "News", story.created_at ? ` · ${timeAgo(story.created_at, lang)}` : ""), /*#__PURE__*/React.createElement("h3", {
+    className: `headline pk-text-headline mt-2 ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      fontSize: "22px",
+      lineHeight: 1.22,
+      textWrap: "balance"
+    }
+  }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[14.5px] lc-2 ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.75 : 1.55,
+      textWrap: "pretty"
+    }
+  }, story.lead), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3.5 flex items-end justify-between gap-3"
+  }, /*#__PURE__*/React.createElement(BiasPill, {
+    counts: c,
+    t: t,
+    lang: lang,
+    h: 8,
+    className: "w-40"
+  }), /*#__PURE__*/React.createElement(CardClip, {
+    story: story,
+    t: t,
+    lang: lang
+  })))));
 }
 // Paksh 7: BriefBar removed as confirmed dead code - BriefRow's own comment below
 // already documented that it replaced BriefBar with BiasPill; no call site remained.
@@ -2890,6 +2776,207 @@ function BriefRow({
     }
   }, story.headline));
 }
+// THE ONE REVERSAL — the ink-filled Coverage Gaps band at the fold. The page's only
+// ink area; it spends that emphasis on what Paksh exists to say: what one side didn't
+// run. Each label ("Missing: Left · 1 of 12") is computed from the real per-lean counts.
+function InkGapBand({
+  items,
+  t,
+  lang,
+  go,
+  open
+}) {
+  if (!items.length) return null;
+  const paper = "#F4F1EA",
+    faint = "rgba(244,241,234,.28)";
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#15140F"
+    },
+    className: "px-4 sm:px-10 py-5 sm:py-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between gap-3 pb-3",
+    style: {
+      borderBottom: `1px solid ${faint}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      color: paper,
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, lang === "hi" ? "कवरेज गैप · जो एक पक्ष ने नहीं चलाया" : "Coverage gaps · what one side didn’t run"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("blindspot"),
+    className: "mono text-[10.5px] shrink-0",
+    style: {
+      color: "rgba(244,241,234,.6)"
+    }
+  }, items.length, " ", lang === "hi" ? "आज" : "today", " \xB7 ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      borderBottom: "1px solid rgba(244,241,234,.5)"
+    }
+  }, lang === "hi" ? "सभी गैप" : "all gaps", " \u2192"))), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-y-5 sm:grid-cols-2 lg:grid-cols-3 pt-4"
+  }, items.map((it, i) => /*#__PURE__*/React.createElement("a", {
+    key: it.story.id,
+    href: "/story/" + encodeURIComponent(it.story.id),
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      open(it.story.id);
+    },
+    className: `block no-underline group cursor-pointer ${i > 0 ? "sm:border-l sm:pl-8" : ""}`,
+    style: i > 0 ? {
+      borderColor: faint
+    } : {}
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[10.5px] gap-accent ${lang === "hi" ? "deva" : ""}`
+  }, it.label), /*#__PURE__*/React.createElement("div", {
+    className: `headline mt-2 text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    style: {
+      color: paper,
+      lineHeight: 1.3,
+      textWrap: "pretty"
+    }
+  }, it.story.headline)))));
+}
+// Paksh 7: WidestAgreement removed as confirmed dead code - no call site anywhere in
+// the routed app, and its BiasSegments instrument was already superseded by BiasPill.
+// Right-rail auth-aware card (Direction B, transparent personalization). Member: a "Because
+// you read {topic}" pointer to a story on the topic they read most. Guest: a "New to Paksh?"
+// explainer with a How-it-works link. Never reorders the feed; ranking stays arithmetic.
+function RailPersonalize({
+  auth,
+  lens,
+  cards,
+  t,
+  lang,
+  go,
+  open,
+  openHelp
+}) {
+  if (auth && lens && lens.total > 0 && lens.topics.length) {
+    const topic = lens.topics[0];
+    const pick = (cards || []).find(c => c.topic === topic) || (cards || [])[0];
+    const tp = lang === "hi" ? TOPIC_HI[topic] || topic : topic;
+    return /*#__PURE__*/React.createElement("div", {
+      className: `border p-4 ${t.surface} ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".14em"
+      }
+    }, lang === "hi" ? `क्योंकि आपने ${tp} पढ़ा` : `Because you read ${tp}`), pick && /*#__PURE__*/React.createElement("a", {
+      href: "/story/" + encodeURIComponent(pick.id),
+      onClick: e => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        open(pick.id);
+      },
+      className: "block no-underline group cursor-pointer mt-2"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `headline text-[15px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      style: {
+        lineHeight: 1.3
+      }
+    }, pick.headline), /*#__PURE__*/React.createElement("div", {
+      className: "mt-2 w-32"
+    }, /*#__PURE__*/React.createElement(BiasPill, {
+      counts: pick.counts || {
+        left: 0,
+        center: 0,
+        right: 0
+      },
+      t: t,
+      lang: lang,
+      h: 8
+    }))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => go("lens"),
+      className: `mt-3 eyebrow ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".08em"
+      }
+    }, lang === "hi" ? "मेरा रीडिंग लेंस →" : "My Reading Lens →"));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: `border p-4 ${t.surface} ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "पक्ष में नए?" : "New to Paksh?"), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.7 : 1.55
+    }
+  }, lang === "hi" ? "पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।" : "Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 flex flex-wrap gap-2"
+  }, openHelp && /*#__PURE__*/React.createElement("button", {
+    onClick: openHelp,
+    className: `border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lang === "hi" ? "यह कैसे काम करता है" : "How it works"), authOn() && !auth && /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("login"),
+    className: `px-3 py-1.5 eyebrow ${t.cta} ${t.ctaT} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, lang === "hi" ? "साइन इन" : "Sign in")));
+}
+// Right-rail "Developing storylines" — the freshest sagas (multi-event threads). Each links
+// to the full storyline page. Pure chronology of coverage; no bias re-computation.
+// The rail is a compact TEASER by design (narrow column, like the Coverage-Gaps rail below
+// it) — it is not where "all developing stories" are supposed to live. When more qualify
+// than fit the teaser, a visible link goes to the full Storylines hub (goStorylines) rather
+// than silently dropping them.
+const DEVELOPING_RAIL_N = 4;
+function DevelopingRail({
+  storylines,
+  t,
+  lang,
+  goStoryline,
+  goStorylines
+}) {
+  const all = (storylines || []).filter(s => s.n_events >= 2);
+  const items = all.slice(0, DEVELOPING_RAIL_N);
+  if (!items.length) return null;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow pb-2 ${t.dev} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, ui("developingStories", lang)), items.map((s, i) => {
+    const title = lang === "hi" && s.title_hi ? s.title_hi : s.title;
+    return /*#__PURE__*/React.createElement("a", {
+      key: s.id,
+      href: "/storyline/" + encodeURIComponent(s.id),
+      onClick: e => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        goStoryline && goStoryline(s.id);
+      },
+      className: `block no-underline group cursor-pointer py-3 ${i < items.length - 1 || all.length > items.length ? "border-b" : ""} ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `headline text-[14px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      style: {
+        lineHeight: 1.3,
+        textWrap: "pretty"
+      }
+    }, title), /*#__PURE__*/React.createElement("div", {
+      className: `mt-1 mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+    }, /*#__PURE__*/React.createElement("span", {
+      "aria-hidden": "true",
+      className: t.dev
+    }, "\u25C7"), " ", s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
+  }), all.length > items.length && /*#__PURE__*/React.createElement("button", {
+    onClick: () => goStorylines && goStorylines(),
+    className: `mt-2.5 mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, ui("viewAllDeveloping", lang), " (", all.length, ") \u2192"));
+}
 // 6.3B.8 — the developing-storylines index as an editorial dossier list, not a repeated
 // card grid: the most recently updated saga leads with real weight (topic, date span,
 // update count), the rest read as a plain dated list. No ticker, no live/pulse language -
@@ -2905,26 +2992,9 @@ function StorylinesHub({
   const PAGE = 30;
   const lead = items[0],
     rest = items.slice(1, visible);
-  const since = s => s.start || s.created_at || s.updated_at;
   const row = (s, big) => {
     const title = lang === "hi" && s.title_hi ? s.title_hi : s.title;
     const tp = lang === "hi" ? TOPIC_HI[s.topic] || s.topic : s.topic;
-    const dateCol = since(s) && /*#__PURE__*/React.createElement("div", {
-      className: "hidden sm:block shrink-0",
-      style: {
-        width: 110
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      className: `mono text-[10px] ${t.tf}`,
-      style: {
-        letterSpacing: ".07em"
-      }
-    }, lang === "hi" ? "से" : "Since", " ", absDate(since(s), lang)), /*#__PURE__*/React.createElement("div", {
-      className: `mt-1.5 eyebrow ${t.blind}`,
-      style: {
-        letterSpacing: lang === "hi" ? 0 : ".08em"
-      }
-    }, s.n_events, " ", lang === "hi" ? "प्रविष्टियाँ" : "entries"));
     return /*#__PURE__*/React.createElement("a", {
       key: s.id,
       href: "/storyline/" + encodeURIComponent(s.id),
@@ -2933,75 +3003,37 @@ function StorylinesHub({
         e.preventDefault();
         goStoryline && goStoryline(s.id);
       },
-      className: `flex gap-6 no-underline group cursor-pointer`
-    }, big && dateCol, /*#__PURE__*/React.createElement("div", {
-      className: "min-w-0 flex-1"
+      className: `block no-underline group cursor-pointer`
     }, /*#__PURE__*/React.createElement("div", {
-      className: `eyebrow ${t.blind}`,
+      className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
       style: {
-        letterSpacing: lang === "hi" ? 0 : ".11em"
+        letterSpacing: lang === "hi" ? 0 : ".12em"
       }
-    }, tp), /*#__PURE__*/React.createElement("div", {
-      className: `headline mt-1.5 ${big ? "text-[24px] sm:text-[30px]" : "text-[16px]"} ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    }, tp, s.updated_at ? ` · ${timeAgo(s.updated_at, lang)}` : ""), /*#__PURE__*/React.createElement("div", {
+      className: `headline mt-1.5 ${big ? "text-[26px] sm:text-[32px]" : "text-[16px]"} ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
       style: {
-        lineHeight: big ? 1.16 : 1.28,
+        lineHeight: big ? 1.18 : 1.32,
         textWrap: "pretty"
       }
     }, title), /*#__PURE__*/React.createElement("div", {
-      className: `mt-1.5 mono text-[10.5px] ${t.tf}`
-    }, !big && `${s.n_events} ${lang === "hi" ? "अपडेट" : "updates"} · `, s.updated_at ? timeAgo(s.updated_at, lang) : "")));
+      className: `mt-1.5 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+    }, s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
   };
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between gap-3 pb-2.5",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, ui("developingStories", lang)), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10px] ${t.tf}`,
-    style: {
-      letterSpacing: ".08em"
-    }
-  }, items.length, " ", lang === "hi" ? "धागे अभी भी चल रहे हैं" : "threads still moving")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-7 pb-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]",
-    style: {
-      borderBottom: `1.5px solid ${t.ink}`
-    }
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline max-w-[22ch] ${t.tp} ${readCls(lang)}`,
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
-      fontSize: "clamp(28px,3.8vw,40px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
-      textWrap: "balance"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, lang === "hi" ? "वे खबरें जो अभी भी लिखी जा रही हैं" : "Stories that are still being written"), /*#__PURE__*/React.createElement("p", {
-    className: `text-[15px] ${t.ts} ${readCls(lang)}`,
+  }, ui("developingStories", lang)), items.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 max-w-[720px] pb-8",
     style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.58
-    }
-  }, lang === "hi" ? "वे धागे जिन्हें पक्ष खुला रख रहा है क्योंकि कवरेज अभी भी आ रही है।" : "Threads Paksh is keeping open because coverage is still arriving.")), items.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "mt-6 pb-6",
-    style: {
-      borderBottom: `1px solid ${t.line}`
+      borderBottom: `1px solid ${t.ink}`
     }
   }, row(lead, true)), /*#__PURE__*/React.createElement("div", {
-    className: "mt-6 flex flex-col gap-6"
-  }, rest.map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: s.id,
-    className: i > 0 ? "pt-6 border-t" : "",
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
-  }, row(s, false)))), items.length - 1 > rest.length && /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 grid gap-x-10 gap-y-7 sm:grid-cols-2"
+  }, rest.map(s => row(s, false))), items.length - 1 > rest.length && /*#__PURE__*/React.createElement("div", {
     className: "mt-8 flex justify-center"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setVisible(v => v + PAGE),
@@ -3013,13 +3045,6 @@ function StorylinesHub({
     className: `py-24 text-center ${t.tf} ${isHi(lang)}`
   }, STR[lang].noStories));
 }
-// FRONT PAGE (redesign, Paksh 39) — a three-part editorial lead (compact left rail ·
-// dominant centre lead · "what one side isn't saying" right rail), a four-across
-// secondary tier, one section transition, then In Brief. Every story still appears in
-// exactly ONE place (the `used`/`take`/`notUsed` de-dup below is unchanged), and ranking
-// stays the same feed_rank arithmetic computed in the pipeline — only the composition
-// that presents it changed. My Paksh / "For you" personalization is gone from this page
-// per the redesign brief; the arithmetic feed is universal, not personalized.
 function HomeView({
   cards,
   gapLeft,
@@ -3040,6 +3065,9 @@ function HomeView({
   goStoryline,
   goStorylines
 }) {
+  // de-dup partition: every story appears in exactly ONE place. Ranking (importance:
+  // breadth of distinct outlets across L/C/R, decayed by recency) is UNTOUCHED — the
+  // top-ranked story leads, the rest fall into the tier ladder in ranked order.
   const used = new Set();
   const take = (arr, n) => {
     const out = [];
@@ -3052,40 +3080,51 @@ function HomeView({
     }
     return out;
   };
+  const lead = cards[0];
+  if (lead) used.add(lead.id);
+  const major = take(cards, 1)[0]; // Paksh 7A: MAJOR tier - next-ranked story after Lead
+  const section = take(cards, 4); // the 2×2 secondary grid in the main well
+  // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
+  // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
+  // more of what you already open. Computed before "In brief" so it gets first pick of matches.
+  // Phase 34 (PD-1): reading history (observed behaviour) still wins the moment it exists.
+  // Until then, a signed-in reader's onboarding interests seed the same slot so the picker
+  // they filled in during onboarding actually does something - no new feed, no new ranking,
+  // just an earlier-available input to the mechanism that already existed. The label below
+  // switches with the source so a fresh reader is never told "because you read X" for a
+  // topic they've only declared interest in, never opened.
+  const _fromHistory = !!(auth && lens && lens.total > 0 && lens.topics && lens.topics.length);
+  const _topTopics = _fromHistory ? lens.topics.slice(0, 4) : auth && interests && interests.length ? interests.slice(0, 4) : [];
+  const forYou = _topTopics.length ? take(cards.filter(c => _topTopics.includes(c.topic)), 4) : [];
+  const brief = take(cards, 15); // "In brief" tier
   const notUsed = arr => (arr || []).filter(c => !used.has(c.id));
+  // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
+  // are "Missing: Right". Labels read the real per-lean counts (N of total).
   const nOf = c => {
     const k = c.counts || {};
     return (k.left || 0) + (k.center || 0) + (k.right || 0);
   };
-  const lead = take(cards, 1)[0]; // centre — the dominant story
-  const leftRail = take(cards, 3); // left rail — compact, text-only
-  // right rail — "what one side isn't saying": real coverage-gap stories, one absence
-  // sentence each, computed from the real per-lean counts (same arithmetic /blindspot uses).
-  const diffItems = [];
+  const gapItems = [];
   notUsed(gapRight).slice(0, 2).forEach(s => {
-    diffItems.push({
+    const k = s.counts || {};
+    gapItems.push({
       story: s,
-      note: nOf(s) - ((s.counts || {}).left || 0) > 0 ? lang === "hi" ? "वाम का कोई कवरेज नहीं।" : "No Left coverage yet." : lang === "hi" ? "वाम लगभग ख़ामोश है।" : "The Left is nearly silent."
+      label: lang === "hi" ? `ग़ायब: वाम · ${k.left || 0}/${nOf(s)}` : `Missing: Left · ${k.left || 0} of ${nOf(s)}`
     });
   });
   notUsed(gapLeft).slice(0, 1).forEach(s => {
-    diffItems.push({
+    const k = s.counts || {};
+    gapItems.push({
       story: s,
-      note: nOf(s) - ((s.counts || {}).right || 0) > 0 ? lang === "hi" ? "दक्षिण की ओर से ख़ामोशी।" : "The Right is silent so far." : lang === "hi" ? "दक्षिण का कोई कवरेज नहीं।" : "No Right coverage yet."
+      label: lang === "hi" ? `ग़ायब: दक्षिण · ${k.right || 0}/${nOf(s)}` : `Missing: Right · ${k.right || 0} of ${nOf(s)}`
     });
   });
-  diffItems.slice(0, 3).forEach(g => used.add(g.story.id));
-  const secondary = take(cards, 4); // four-across secondary tier
-
-  // ONE section transition, below the fold — the most-covered topic today that still has
-  // unused stories left, so it reads as real depth rather than picked-over leftovers.
-  const sectionTopic = (topics || []).find(tp => notUsed(cards).some(c => c.topic === tp));
-  const sectionPool = sectionTopic ? notUsed(cards).filter(c => c.topic === sectionTopic) : [];
-  const sectionLead = sectionPool[0];
-  const sectionRest = sectionPool.slice(1, 4);
-  if (sectionLead) used.add(sectionLead.id);
-  sectionRest.forEach(s => used.add(s.id));
-  const brief = take(cards, 15); // In Brief — everything else, dense list
+  gapItems.slice(0, 3).forEach(g => used.add(g.story.id));
+  // HORIZONTAL STORY BREAK (6.3B.3) — one deliberate compositional beat between the
+  // primary grid and the Coverage Gaps ink-reversal below. Same de-dup rule as every
+  // other tier: next unused top-ranked card, marked used, appears nowhere else.
+  const strip = take(cards, 1)[0];
+  const pad = "px-4 sm:px-10";
   const browse = /*#__PURE__*/React.createElement("div", {
     className: "mt-9 flex justify-center"
   }, /*#__PURE__*/React.createElement("button", {
@@ -3095,214 +3134,175 @@ function HomeView({
       letterSpacing: lang === "hi" ? 0 : ".08em"
     }
   }, lang === "hi" ? "सभी सेक्शन देखें" : "Browse all sections", " \u2192"));
-  const pad = "px-4 sm:px-[30px]";
-  const gapCount = stats.gaps || 0;
-  const coverageLine = lang === "hi" ? /*#__PURE__*/React.createElement(React.Fragment, null, "\u0906\u091C \u0915\u093E \u092B\u093C\u094D\u0930\u0902\u091F \u092A\u0947\u091C ", stats.outlets || 0, " \u0906\u0909\u091F\u0932\u0947\u091F\u094D\u0938 \u092A\u0930 \u0906\u0927\u093E\u0930\u093F\u0924 \u0939\u0948\u0964 ", gapCount > 0 && /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("blindspot"),
-    className: "font-semibold",
-    style: {
-      color: "#8A4B33",
-      borderBottom: "1px solid #D8C4B8"
-    }
-  }, gapCount, " \u0916\u092C\u0930\u0947\u0902 \u091C\u094B \u090F\u0915 \u092A\u0915\u094D\u0937 \u0928\u0939\u0940\u0902 \u092C\u0924\u093E \u0930\u0939\u093E \u2192")) : /*#__PURE__*/React.createElement(React.Fragment, null, "Today's front page draws on ", stats.outlets || 0, " outlets. ", gapCount > 0 && /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("blindspot"),
-    className: "font-semibold",
-    style: {
-      color: "#8A4B33",
-      borderBottom: "1px solid #D8C4B8"
-    }
-  }, gapCount, " stories one side isn't telling you \u2192"));
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px]"
+    className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("h1", {
     className: "sr-only"
   }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
-    className: `pt-1 text-[13px] italic ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: 1.5
-    }
-  }, coverageLine)), /*#__PURE__*/React.createElement("div", {
-    className: pad
+    className: "grid lg:grid-cols-[2.1fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mt-5 grid gap-8 pt-5 lg:grid-cols-[.68fr_2fr_.82fr] lg:gap-0",
-    style: {
-      borderTop: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "order-2 lg:order-1 flex flex-col gap-5 lg:pr-6 lg:border-r",
+    className: "min-w-0 py-4 lg:py-6 lg:border-r lg:pr-7",
     style: {
       borderColor: t.line
     }
-  }, leftRail.map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: s.id,
-    className: i > 0 ? "pt-5 border-t" : "",
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
-  }, /*#__PURE__*/React.createElement(CompactStory, {
-    story: s,
-    t: t,
-    lang: lang,
-    onOpen: open
-  })))), /*#__PURE__*/React.createElement("div", {
-    className: "order-1 lg:order-2 lg:px-7"
-  }, lead && /*#__PURE__*/React.createElement(LeadStory, {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between gap-3 pb-2",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-bold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, STR[lang].topNews), stats.updated && /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? `${timeAgo(stats.updated, lang)} अपडेट` : `Updated ${timeAgo(stats.updated, lang)}`)), lead && /*#__PURE__*/React.createElement("div", {
+    className: "py-5",
+    style: {
+      borderBottom: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement(LeadStory, {
     story: lead,
     t: t,
     lang: lang,
     onOpen: open
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "order-3 lg:pl-6 lg:border-l",
-    style: {
-      borderColor: t.line
-    }
-  }, diffItems.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `pb-2.5 eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".1em",
-      borderBottom: `1.5px solid ${t.ink}`
-    }
-  }, lang === "hi" ? "जो एक पक्ष नहीं कह रहा" : "What one side isn't saying"), diffItems.map((it, i) => /*#__PURE__*/React.createElement("div", {
-    key: it.story.id,
-    className: "py-3.5",
-    style: {
-      borderBottom: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement(DifferentiatorItem, {
-    story: it.story,
-    note: it.note,
+  })), major && /*#__PURE__*/React.createElement(MajorStory, {
+    story: major,
     t: t,
     lang: lang,
     onOpen: open
-  })))))), secondary.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mt-7 grid gap-x-6 gap-y-7 pt-5 sm:grid-cols-2 lg:grid-cols-4",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`
-    }
-  }, secondary.map((s, i) => /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "grid sm:grid-cols-2"
+  }, section.map((s, i) => /*#__PURE__*/React.createElement("div", {
     key: s.id,
-    className: i > 0 ? "sm:border-l sm:pl-6" : "",
-    style: i > 0 ? {
+    className: `py-5 ${i < section.length - 1 ? "border-b" : ""} ${i % 2 === 1 ? "sm:border-l sm:pl-5" : "sm:pr-5"} ${i >= 2 ? "sm:border-b-0" : ""}`,
+    style: {
       borderColor: t.line
-    } : {}
+    }
   }, /*#__PURE__*/React.createElement(SectionCard, {
-    story: {
-      ...s,
-      img: i === 0 ? s.img : null
-    },
+    story: s,
     t: t,
     lang: lang,
     onOpen: open
-  }))))), sectionLead && /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mt-9"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline gap-3.5 pb-2",
-    style: {
-      borderBottom: `2.5px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "brand-hi text-[22px] leading-none",
-    style: {
-      color: t.ink
-    }
-  }, TOPIC_HI[sectionTopic] || sectionTopic), /*#__PURE__*/React.createElement("span", {
-    className: `text-[11px] font-semibold uppercase ${t.tp}`,
-    style: {
-      letterSpacing: ".2em"
-    }
-  }, lang === "hi" ? TOPIC_HI[sectionTopic] || sectionTopic : sectionTopic), /*#__PURE__*/React.createElement("button", {
-    onClick: () => goTopic(sectionTopic),
-    className: `ml-auto shrink-0 mono text-[10.5px] ${t.tf} hover:${t.tp}`
-  }, lang === "hi" ? "पूरा सेक्शन →" : "Full section →")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-5 grid gap-8 lg:grid-cols-[1.55fr_1fr]"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "lg:pr-7 lg:border-r",
-    style: {
-      borderColor: t.line
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-6 sm:grid-cols-[1.15fr_1fr] items-start"
-  }, sectionLead.img && /*#__PURE__*/React.createElement(Thumb, {
-    src: sectionLead.img,
-    topic: sectionLead.topic,
-    title: sectionLead.headline,
-    ratio: "4 / 3",
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0 py-4 lg:py-6 lg:pl-7 space-y-7"
+  }, /*#__PURE__*/React.createElement(RailPersonalize, {
+    auth: auth,
+    lens: lens,
+    cards: cards,
+    t: t,
+    lang: lang,
+    go: go,
+    open: open,
+    openHelp: openHelp
+  }), /*#__PURE__*/React.createElement(DevelopingRail, {
+    storylines: storylines,
+    t: t,
+    lang: lang,
+    goStoryline: goStoryline,
+    goStorylines: goStorylines
+  }), /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
     lang: lang
-  }), /*#__PURE__*/React.createElement("a", {
-    href: "/story/" + encodeURIComponent(sectionLead.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      open(sectionLead.id);
-    },
-    className: `block no-underline group cursor-pointer ${sectionLead.img ? "" : "sm:col-span-2"}`
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: `headline text-[24px] leading-[1.14] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : "-0.02em",
-      textWrap: "balance"
-    }
-  }, sectionLead.headline), sectionLead.lead && /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[14.5px] lc-3 ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.56
-    }
-  }, sectionLead.lead), /*#__PURE__*/React.createElement(BiasPill, {
-    counts: sectionLead.counts || {},
-    t: t,
-    lang: lang,
-    h: 5,
-    className: "mt-3"
-  })))), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col gap-4"
-  }, sectionRest.map((s, i) => /*#__PURE__*/React.createElement("a", {
-    key: s.id,
-    href: "/story/" + encodeURIComponent(s.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      open(s.id);
-    },
-    className: `block no-underline group cursor-pointer ${i > 0 ? "pt-4 border-t" : ""}`,
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
-  }, /*#__PURE__*/React.createElement("h3", {
-    className: `headline text-[16px] leading-[1.24] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-    style: {
-      textWrap: "balance"
-    }
-  }, s.headline), /*#__PURE__*/React.createElement(BiasPill, {
-    counts: s.counts || {},
-    t: t,
-    lang: lang,
-    h: 4,
-    showCounts: false,
-    className: "mt-2"
-  }))), /*#__PURE__*/React.createElement(AdSlot, {
-    t: t,
-    lang: lang,
-    h: 140
-  }))))), brief.length > 0 && /*#__PURE__*/React.createElement("div", {
+  })))), strip && /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mt-9 pt-5",
+    className: "py-6",
     style: {
-      borderTop: `1.5px solid ${t.ink}`
+      borderTop: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement(FeedRow, {
+    story: strip,
+    t: t,
+    lang: lang,
+    onOpen: open
+  }))), gapItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#15140F"
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: `mb-3.5 eyebrow ${t.tp}`,
+    className: `${pad} pt-7 pb-1`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "headline",
+    style: {
+      color: "#F4F1EA",
+      fontSize: "clamp(48px,7vw,88px)",
+      lineHeight: 1,
+      letterSpacing: "-0.02em"
+    }
+  }, stats.gaps), /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[11px] uppercase tracking-[0.14em] mt-1 ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      color: "rgba(244,241,234,.55)"
+    }
+  }, lang === "hi" ? "आज ट्रैक किए गए कवरेज गैप" : "coverage gaps tracked today")), /*#__PURE__*/React.createElement(InkGapBand, {
+    items: gapItems,
+    t: t,
+    lang: lang,
+    go: go,
+    open: open
+  })), forYou.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-7",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    t: t,
+    lang: lang,
+    right: /*#__PURE__*/React.createElement("button", {
+      onClick: () => go("lens"),
+      className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+    }, lang === "hi" ? "मेरा लेंस →" : "My Reading Lens →")
+  }, lang === "hi" ? "आपके लिए" : "For you"), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-4"
+  }, forYou.map((s, i) => {
+    const tp = lang === "hi" ? TOPIC_HI[s.topic] || s.topic : s.topic;
+    return /*#__PURE__*/React.createElement("div", {
+      key: s.id,
+      className: i > 0 ? "lg:border-l lg:pl-6" : "",
+      style: i > 0 ? {
+        borderColor: t.line
+      } : {}
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `eyebrow mb-1.5 ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".1em"
+      }
+    }, _fromHistory ? lang === "hi" ? `क्योंकि आपने ${tp} पढ़ा` : `Because you read ${tp}` : lang === "hi" ? `चूँकि आपने ${tp} में रुचि चुनी` : `Because you're interested in ${tp}`), /*#__PURE__*/React.createElement(SectionCard, {
+      story: s,
+      t: t,
+      lang: lang,
+      onOpen: open
+    }));
+  })))), forYou.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-2"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 90,
+    format: "horizontal"
+  }))), brief.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "py-7"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-3.5 flex items-baseline justify-between pb-2",
+    style: {
+      borderBottom: `2px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, lang === "hi" ? "संक्षेप में · आज ट्रैक की गई बाक़ी सब" : "In brief · everything else tracked today"), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "संक्षेप में · आज ट्रैक की गई बाक़ी सब" : "In brief · everything else tracked today")), /*#__PURE__*/React.createElement("div", {
     style: {
       columnGap: "2.25rem",
       columnRule: `1px solid ${t.line}`
@@ -3442,147 +3442,51 @@ function StoryPage({
   // Distinguish "this story isn't analysed yet" (all sides blank -> pending) from a side
   // that simply lacks enough unique coverage (some side has a summary, this one doesn't).
   const anyFraming = sides.some(k => frLen(fr[k]) > 0);
-  const hasStoryline = story.storyline && (story.storyline.events || []).length > 1;
-  const summaryPoints = Array.isArray(story.summary) && story.summary.length ? story.summary : story.lead ? [story.lead] : [];
-  const rail = /*#__PURE__*/React.createElement(React.Fragment, null, hasStoryline && /*#__PURE__*/React.createElement("div", {
-    className: "pb-3.5",
-    style: {
-      borderBottom: `1px solid ${t.line}`
-    }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em",
-      paddingBottom: 8,
-      borderBottom: `1.5px solid ${t.ink}`
-    }
-  }, lang === "hi" ? "यह खबर विकसित हो रही है" : "This story is developing"), /*#__PURE__*/React.createElement("div", {
-    className: `mt-3 mono text-[10px] ${t.tf}`,
-    style: {
-      letterSpacing: ".09em"
-    }
-  }, tp, " \xB7 ", story.storyline.events.length, " ", lang === "hi" ? "प्रविष्टियाँ" : "entries"), /*#__PURE__*/React.createElement("p", {
-    className: `mt-1.5 text-[13.5px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: 1.5
-    }
-  }, lang === "hi" ? "पहली प्रविष्टि से लेकर अब तक का पूरा क्रम देखें।" : "Follow the thread from the first entry."), /*#__PURE__*/React.createElement("button", {
-    onClick: () => goStoryline && goStoryline(story.storyline.id),
-    className: `mt-2 text-[10px] font-semibold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em",
-      borderBottom: `1px solid ${t.ink}`,
-      paddingBottom: 2
-    }
-  }, lang === "hi" ? "डॉज़ियर खोलें" : "Open the dossier")), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
-    className: hasStoryline ? "mt-5 pb-3.5" : "pb-3.5",
-    style: {
-      borderBottom: `1px solid ${t.line}`
-    }
+    className: "mx-auto max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em",
-      paddingBottom: 8,
-      borderBottom: `1.5px solid ${t.ink}`
+      letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, lang === "hi" ? "संबंधित" : "Related"), related.slice(0, 4).map((s, i) => /*#__PURE__*/React.createElement("a", {
-    key: s.id,
-    href: "/story/" + encodeURIComponent(s.id),
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      open(s.id);
-    },
-    className: `block no-underline group cursor-pointer ${i > 0 ? "mt-3 pt-3" : "mt-3"}`,
-    style: i > 0 ? {
-      borderTop: `1px solid ${t.line}`
-    } : {}
-  }, /*#__PURE__*/React.createElement("h4", {
-    className: `headline text-[14.5px] leading-[1.24] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+  }, tp, " \xB7 ", region, story.created_at ? ` · ${timeAgo(story.created_at, lang)}` : ""), /*#__PURE__*/React.createElement("h1", {
+    className: `headline pk-text-display mt-3 ${t.tp} ${readCls(lang)}`,
     style: {
+      lineHeight: lang === "hi" ? 1.16 : 1.08,
+      letterSpacing: lang === "hi" ? 0 : "-0.022em",
       textWrap: "balance"
     }
-  }, s.headline), /*#__PURE__*/React.createElement(BiasPill, {
-    counts: s.counts || {},
-    t: t,
-    lang: lang,
-    h: 4,
-    showCounts: false,
-    className: "mt-2"
-  })))), /*#__PURE__*/React.createElement("div", {
-    className: "mt-5"
-  }, /*#__PURE__*/React.createElement(AdSlot, {
-    t: t,
-    lang: lang,
-    h: 140
-  })));
-  return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-6"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between gap-3 pb-2.5",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, tp), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10px] ${t.tf}`,
-    style: {
-      letterSpacing: ".08em"
-    }
-  }, absDate(story.created_at, lang) || region, story.created_at ? ` · ${lang === "hi" ? "अपडेट" : "updated"} ${timeAgo(story.created_at, lang)}` : "")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-6 grid gap-9 lg:grid-cols-[minmax(0,1fr)_260px]"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "min-w-0"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline text-[30px] sm:text-[38px] lg:text-[44px] ${t.tp} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.18 : 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
-      textWrap: "balance",
-      maxWidth: "24ch"
-    }
   }, story.headline), story.lead && /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 text-[16px] sm:text-[18px] ${t.ts} ${readCls(lang)}`,
+    className: `mt-4 text-[17px] sm:text-[18px] ${t.tp} ${readCls(lang)}`,
     style: {
-      lineHeight: lang === "hi" ? 1.85 : 1.55,
-      maxWidth: "56ch",
+      lineHeight: lang === "hi" ? 1.85 : 1.62,
+      maxWidth: "62ch",
       textWrap: "pretty"
     }
   }, story.lead), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4.5 flex flex-wrap items-center gap-4 py-2.5",
-    style: {
-      borderTop: `1px solid ${t.line}`,
-      borderBottom: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10.5px] uppercase ${t.tf}`,
-    style: {
-      letterSpacing: ".07em"
-    }
-  }, lang === "hi" ? `${total} आउटलेट्स से संकलित` : `Compiled from ${total} outlets`), /*#__PURE__*/React.createElement(BiasPill, {
+    className: `mt-4 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, metaLine, story.auto && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 ", /*#__PURE__*/React.createElement("span", {
+    className: "uppercase"
+  }, STR[lang].autoTag)), absDate(story.created_at, lang) ? ` · ${absDate(story.created_at, lang)}` : "")), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-6 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement(BiasPill, {
     counts: vc,
     t: t,
     lang: lang,
-    h: 6,
-    className: "flex-1 min-w-[140px]"
+    h: 14
   })), story.img && /*#__PURE__*/React.createElement("div", {
-    className: "mt-5"
+    className: "mx-auto mt-6 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(Thumb, {
     src: story.img,
     topic: story.topic,
     title: story.headline,
-    ratio: "5 / 4",
+    ratio: "16 / 9",
     t: t,
     lang: lang
   })), authOn() && /*#__PURE__*/React.createElement("div", {
-    className: "mt-3"
+    className: "mx-auto mt-3 max-w-[840px]"
   }, auth ? /*#__PURE__*/React.createElement("div", {
     className: `flex items-center gap-1.5 mono text-[10.5px] ${t.tf} ${isHi(lang)}`
   }, /*#__PURE__*/React.createElement(Check, {
@@ -3590,49 +3494,40 @@ function StoryPage({
   }), " ", lang === "hi" ? "आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है" : "Recorded to your Reading Lens · visible only to you") : /*#__PURE__*/React.createElement("button", {
     onClick: () => go("login"),
     className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`
-  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें — आपके पढ़े का निजी रिकॉर्ड →" : "Sign in to build your Reading Lens — a private record of what you read →")), summaryPoints.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 pt-5",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`
-    }
+  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें — आपके पढ़े का निजी रिकॉर्ड →" : "Sign in to build your Reading Lens — a private record of what you read →")), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
+    className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".13em"
+      borderBottom: `1px solid ${t.ink}`
     }
-  }, lang === "hi" ? "पक्ष का तटस्थ सारांश" : "Paksh neutral summary"), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3.5 flex flex-col gap-3"
-  }, summaryPoints.map((p, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "flex gap-3 items-start"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "shrink-0 mono text-[11px]",
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      color: BIAS.right.color,
-      lineHeight: 1.6
+      letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, String(i + 1).padStart(2, "0")), /*#__PURE__*/React.createElement("div", {
-    className: `text-[15.5px] sm:text-[16.5px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.58,
-      textWrap: "pretty"
-    }
-  }, p)))), /*#__PURE__*/React.createElement("div", {
-    className: `mt-3.5 text-[12px] max-w-[70ch] ${t.tf}`,
-    style: {
-      lineHeight: 1.5
-    }
-  }, lang === "hi" ? "आवृत करने वाले आउटलेट्स की अपनी रिपोर्टिंग से तैयार। आउटलेट लेबल और गिनती संपादकों और रजिस्ट्री से आती है, इस सारांश से नहीं।" : "Generated from the covering outlets' own reporting. Outlet labels and counts come from editors and the registry, not this summary.")), story.story_context && story.story_context.historical_event && /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 pt-4",
-    style: {
-      borderTop: `1px solid ${t.line}`
-    }
+  }, lang === "hi" ? "यह खबर कैसे विकसित हुई" : "How this developed"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => goStoryline && goStoryline(story.storyline.id),
+    className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, story.storyline.events.length, " ", lang === "hi" ? "अपडेट · पूरी कड़ी →" : "updates · full storyline →")), /*#__PURE__*/React.createElement(StorylineTimeline, {
+    storyline: story.storyline,
+    currentId: story.id,
+    t: t,
+    lang: lang,
+    open: open
+  })), story.story_context && story.story_context.historical_event && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tp}`,
+    className: "pb-2",
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".13em"
+      borderBottom: `1px solid ${t.ink}`
     }
-  }, lang === "hi" ? "पृष्ठभूमि" : "Context"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? "पृष्ठभूमि" : "Context")), /*#__PURE__*/React.createElement("div", {
     className: "mt-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: `mono text-[10.5px] uppercase tracking-[0.08em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
@@ -3647,140 +3542,189 @@ function StoryPage({
     style: {
       lineHeight: 1.35
     }
-  }, story.story_context.historical_event.title), story.story_context.delta_text && /*#__PURE__*/React.createElement("p", {
+  }, story.story_context.historical_event.title), story.story_context.historical_event.date && /*#__PURE__*/React.createElement("div", {
+    className: `mono text-[10px] mt-1 ${t.tf}`
+  }, absDate(story.story_context.historical_event.date, lang) || timeAgo(story.story_context.historical_event.date, lang)), story.story_context.delta_text && /*#__PURE__*/React.createElement("p", {
     className: `mt-3 text-[14.5px] ${t.ts} serif`,
     style: {
       lineHeight: 1.6,
       maxWidth: "62ch"
     }
   }, story.story_context.delta_text))), sides.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 pt-3.5",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`
-    }
+    className: "mt-10"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between gap-3"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+    className: "mb-4 flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".13em"
+      letterSpacing: lang === "hi" ? 0 : ".14em"
     }
   }, STR[lang].framingTitle), /*#__PURE__*/React.createElement("span", {
-    className: `hidden sm:inline text-[12px] italic ${t.tf} ${readCls(lang)}`
-  }, lang === "hi" ? "जोर का एक तटस्थ पठन, एकत्रित headlines से" : "A neutral read of emphasis, from collected headlines")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4.5 grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-0"
-  }, sides.map((k, i) => /*#__PURE__*/React.createElement("div", {
-    key: k,
-    className: i > 0 ? "pt-5 md:pt-0 md:pl-6 md:border-l" : "",
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2"
-  }, /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] hidden sm:inline ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "बराबर कॉलम · क्रम बार जैसा" : "equal columns · order matches the bar")), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0 md:border",
     style: {
-      width: 22,
-      height: 5,
-      borderRadius: 3,
-      background: BIAS[k].color,
-      display: "inline-block"
+      borderColor: t.ink
     }
-  }), /*#__PURE__*/React.createElement("span", {
-    className: `text-[10px] font-semibold uppercase`,
+  }, sides.map(k => /*#__PURE__*/React.createElement("div", {
+    key: k,
+    className: "flex flex-col border md:border-0 md:border-r last:md:border-r-0",
     style: {
-      letterSpacing: ".09em",
+      borderColor: t.ink
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `flex items-center justify-between ${t.soft}`,
+    style: {
+      padding: "8px 12px",
+      borderBottom: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[10.5px] font-bold uppercase tracking-[0.06em] ${lang === "hi" ? "deva" : ""}`,
+    style: {
       color: BIAS[k].color
     }
-  }, lbl(k, lang), " \xB7 ", counts[k], " ", lang === "hi" ? "" : counts[k] === 1 ? "outlet" : "outlets")), vc[k] === 1 && Array.isArray(fr[k]) && fr[k].length > 0 && /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 mono text-[10px] uppercase tracking-[0.08em] ${t.tf}`
-  }, ui("soleOutlet", lang)), Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("div", {
-    className: "mt-2.5 flex flex-col gap-2"
-  }, fr[k].map((p, i2) => /*#__PURE__*/React.createElement("p", {
-    key: i2,
-    className: `text-[14.5px] ${t.ts} ${readCls(lang)}`,
+  }, lbl(k, lang), " \xB7 ", counts[k]), /*#__PURE__*/React.createElement("span", {
     style: {
-      lineHeight: lang === "hi" ? 1.75 : 1.55,
-      textWrap: "pretty"
+      width: 10,
+      height: 10,
+      background: BIAS[k].color,
+      border: `1px solid ${t.ink}`
     }
-  }, p))) : typeof fr[k] === "string" && fr[k].trim() ? /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[14.5px] ${t.ts} ${readCls(lang)}`,
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-1 flex-col p-4 ${t.surface}`
+  }, vc[k] === 1 && Array.isArray(fr[k]) && fr[k].length > 0 && /*#__PURE__*/React.createElement("p", {
+    className: `mt-3.5 mono text-[10px] uppercase tracking-[0.08em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, ui("soleOutlet", lang)), Array.isArray(fr[k]) && fr[k].length ? /*#__PURE__*/React.createElement("ul", {
+    className: "mt-3.5 space-y-2"
+  }, fr[k].map((p, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    className: `flex gap-2 text-[14px] md:text-[14.5px] ${t.ts} ${readCls(lang)}`,
     style: {
-      lineHeight: lang === "hi" ? 1.75 : 1.55
-    }
-  }, fr[k]) : /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
-  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending), voteRow(k).outlets > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `mt-2.5 text-[11.5px] ${t.tf} ${readCls(lang)}`
-  }, voteRow(k).groups.map(([o]) => o).join(" · "))))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3.5 text-[11.5px] leading-[1.5] ${t.tf}`
-  }, lang === "hi" ? "मोबाइल पर तीनों कॉलम एक ही क्रम में तीन ढेर वाली माप बन जाते हैं — कभी स्वाइप-योग्य कैरूसेल नहीं।" : "On mobile the three columns become three stacked measures in the same order — never a swipeable carousel.")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 pt-3.5",
-    style: {
-      borderTop: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".13em"
-    }
-  }, STR[lang].coverageBreakdown), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3.5 grid gap-x-8 gap-y-0 sm:grid-cols-2"
-  }, ["left", "center", "right"].flatMap(k => voteRow(k).groups.flatMap(([, mastheads]) => mastheads.map(m => ({
-    m,
-    k
-  })))).map(({
-    m,
-    k
-  }, i) => /*#__PURE__*/React.createElement("div", {
-    key: k + i,
-    className: "flex items-center gap-2.5 py-2.5",
-    style: {
-      borderBottom: `1px solid ${t.line}`
+      lineHeight: lang === "hi" ? 1.7 : 1.55
     }
   }, /*#__PURE__*/React.createElement("span", {
-    className: "shrink-0",
+    className: "mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full",
     style: {
-      width: 3,
-      height: 22,
       background: BIAS[k].color
     }
-  }), /*#__PURE__*/React.createElement("span", {
-    className: `flex-1 text-[13.5px] font-semibold leading-[1.2] ${t.tp} ${readCls(lang)}`
-  }, m)))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[12px] leading-[1.5] ${t.tf}`,
+  }), p))) : typeof fr[k] === "string" && fr[k].trim() ? /*#__PURE__*/React.createElement("p", {
+    className: `mt-3.5 text-[14.5px] md:text-[15px] ${t.ts} ${readCls(lang)}`,
     style: {
-      textWrap: "pretty"
+      lineHeight: lang === "hi" ? 1.75 : 1.62
     }
-  }, lang === "hi" ? `${total} प्रकाशक। मालिक के हिसाब से एक वोट, इसलिए एक समूह के दो नाम अपने पक्ष में एक बार गिने जाते हैं।` : `${total} publishers. One vote per owner, so two titles from one group count once on their side.`), intlCount > 0 && /*#__PURE__*/React.createElement("p", {
-    className: `mt-2 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].intlTitle, ": ", intlCount, ". ", STR[lang].intlNote), unratedCount > 0 && /*#__PURE__*/React.createElement("p", {
+  }, fr[k]) : /*#__PURE__*/React.createElement("p", {
+    className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
+  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pb-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, STR[lang].coverageBreakdown)), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-semibold ${t.tp} ${readCls(lang)}`
+  }, STR[lang].totalSources), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[14px] font-semibold ${t.tp}`
+  }, total)), ["left", "center", "right"].map(k => {
+    const {
+      votes,
+      outlets: oc,
+      groups
+    } = voteRow(k);
+    if (votes === 0 && oc === 0) return null;
+    const coOwned = groups.some(([o, ms]) => ms.length > 1);
+    return /*#__PURE__*/React.createElement("div", {
+      key: k,
+      className: `border-b py-3 ${t.border}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "flex items-center gap-2.5"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "shrink-0",
+      style: {
+        width: 14,
+        height: 14,
+        background: BIAS[k].color,
+        border: `1px solid ${t.ink}`
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      className: `text-[13px] ${t.ts} ${lang === "hi" ? "deva" : ""}`
+    }, lbl(k, lang))), /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[14px] font-semibold ${t.tp}`
+    }, votes, oc > votes && /*#__PURE__*/React.createElement("span", {
+      className: `ml-1 text-[11px] font-normal ${t.tf}`
+    }, lang === "hi" ? `प्रकाशक · ${oc} मास्टहेड` : `${votes === 1 ? "publisher" : "publishers"} · ${oc} mastheads`))), coOwned && /*#__PURE__*/React.createElement("div", {
+      className: "mt-1.5 space-y-0.5 pl-6"
+    }, groups.filter(([o, ms]) => ms.length > 1).map(([o, ms], j) => /*#__PURE__*/React.createElement("div", {
+      key: j,
+      className: `text-[11px] leading-snug ${t.tf} ${isHi(lang)}`
+    }, ms.join(" · "), " ", /*#__PURE__*/React.createElement("span", {
+      className: "italic"
+    }, "(", o, ", ", lang === "hi" ? "1 वोट" : "1 vote", ")")))));
+  }), intlCount > 0 && /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] ${t.ts} ${isHi(lang)}`
+  }, STR[lang].intlTitle), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[14px] font-semibold ${t.tp}`
+  }, intlCount)), /*#__PURE__*/React.createElement("p", {
     className: `mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].unratedTitle, ": ", unratedCount, ". ", STR[lang].unratedNote), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].intlNote)), unratedCount > 0 && /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-2.5 ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] ${t.ts} ${isHi(lang)}`
+  }, STR[lang].unratedTitle), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[14px] font-semibold ${t.tp}`
+  }, unratedCount)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].unratedNote)), story.blindspot && /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`
+  }, /*#__PURE__*/React.createElement(Eye, {
+    size: 15,
+    className: "mt-0.5 shrink-0"
+  }), /*#__PURE__*/React.createElement("span", null, STR[lang].osCalloutBody1, " ", /*#__PURE__*/React.createElement("strong", null, story.bias[story.blindspot], "%"), " ", STR[lang].osCalloutBody2)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
   }, STR[lang].aiNote)), /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 pt-3.5",
+    className: "mx-auto mt-10 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement(AdSlot, {
+    t: t,
+    lang: lang,
+    h: 110,
+    format: "horizontal"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-10 max-w-[840px]",
     id: "arts",
     onTouchStart: onTouchStart,
-    onTouchEnd: onTouchEnd,
-    style: {
-      borderTop: `1px solid ${t.line}`
-    }
+    onTouchEnd: onTouchEnd
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between gap-3"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+    className: "mb-1 flex items-baseline justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".13em"
+      letterSpacing: lang === "hi" ? 0 : ".14em"
     }
   }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("span", {
-    className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf}`
-  }, lang === "hi" ? "स्वाइप करें ⇄" : "swipe ⇄")), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2 mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+    className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("p", {
+    className: `mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
   }, STR[lang].whoCoveredNote), /*#__PURE__*/React.createElement("div", {
-    className: `flex items-center gap-5 overflow-x-auto`,
+    className: `flex items-center gap-5 overflow-x-auto border-b ${t.border}`,
     style: {
-      scrollbarWidth: "none",
-      borderBottom: `1px solid ${t.line}`
+      scrollbarWidth: "none"
     }
   }, /*#__PURE__*/React.createElement(ATab, {
     k: "all",
@@ -3801,7 +3745,7 @@ function StoryPage({
     k: "unrated",
     n: counts.unrated
   })), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4 flex flex-col"
+    className: "mt-4 space-y-2.5"
   }, arts.map((o, i) => /*#__PURE__*/React.createElement("a", {
     key: i,
     href: o.url || "#",
@@ -3810,37 +3754,51 @@ function StoryPage({
     onClick: () => track("source_open", {
       side: o.lean
     }),
-    className: `flex items-start gap-3 py-3 no-underline group ${i > 0 ? "border-t" : ""}`,
-    style: i > 0 ? {
-      borderColor: t.line
-    } : {}
+    className: `flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`
   }, /*#__PURE__*/React.createElement(OutletAvatar, {
     o: o,
     side: o.lean,
-    size: 26
+    size: 30
   }), /*#__PURE__*/React.createElement("div", {
     className: "min-w-0 flex-1"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[13px] font-bold ${t.tp} group-hover:underline`
-  }, o.source), /*#__PURE__*/React.createElement("span", {
+    className: `text-[13px] font-bold ${t.tp}`
+  }, o.source), /*#__PURE__*/React.createElement(LeanBadge, {
+    side: o.lean,
+    lang: lang,
+    t: t
+  }), /*#__PURE__*/React.createElement("span", {
     className: `ml-auto mono text-[10px] ${t.tf}`
   }, (o.language || "en").toUpperCase())), o.headline && /*#__PURE__*/React.createElement("div", {
-    className: `mt-1 text-[14px] leading-snug ${t.ts} ${readCls(lang)}`
+    className: `mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`
   }, o.headline)), /*#__PURE__*/React.createElement(ArrowUpRight, {
     size: 15,
     className: `mt-0.5 shrink-0 ${t.tf}`
   }))), arts.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: `py-10 text-center text-[13px] ${t.tf}`
-  }, "-"))), /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 pt-3.5 lg:hidden",
+  }, "-"))), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-12 max-w-[1000px]"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb-4 pb-2",
     style: {
-      borderTop: `1.5px solid ${t.ink}`
+      borderBottom: `1px solid ${t.ink}`
     }
-  }, rail)), /*#__PURE__*/React.createElement("div", {
-    className: "hidden lg:block pt-1"
-  }, rail)));
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".14em"
+    }
+  }, lang === "hi" ? `${tp} पर और खबरें` : `More on ${tp}`)), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-x-7 gap-y-6 sm:grid-cols-2 lg:grid-cols-3"
+  }, related.map(s => /*#__PURE__*/React.createElement(GridCard, {
+    key: s.id,
+    story: s,
+    t: t,
+    lang: lang,
+    onOpen: open
+  })))));
 }
 
 /* ---------------- other pages ---------------- */
@@ -4091,7 +4049,7 @@ function BlindspotPage({
   const [visLeft, setVisLeft] = useState(PAGE);
   const [visRight, setVisRight] = useState(PAGE);
   const gapsToday = agg.total != null ? agg.total : cards.length;
-  const pad = "px-4 sm:px-[30px]";
+  const pad = "px-4 sm:px-10";
   // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
   // surface up to 3 gaps where that side is the under-covered one, preferring topics you read.
   const sides = lens && lens.sides || {};
@@ -4157,71 +4115,35 @@ function BlindspotPage({
     }, ui("showMore", lang), " (", more, ")")));
   };
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px]"
+    className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: pad
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-10 pt-8 pb-9 lg:grid-cols-[1.55fr_1fr]",
     style: {
-      borderBottom: `1.5px solid ${t.ink}`
+      background: "#15140F"
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
-    className: "headline max-w-[22ch]",
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `${pad} py-10 sm:py-14`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
     style: {
-      color: t.ink,
-      fontSize: "clamp(28px,4.2vw,48px)",
-      lineHeight: 1.05,
-      letterSpacing: lang === "hi" ? 0 : "-0.03em",
+      color: "rgba(244,241,234,.6)",
+      letterSpacing: lang === "hi" ? 0 : ".16em"
+    }
+  }, STR[lang].osTitle), /*#__PURE__*/React.createElement("p", {
+    className: "headline mt-4 max-w-[720px]",
+    style: {
+      color: "#F4F1EA",
+      fontSize: "clamp(26px,4vw,44px)",
+      lineHeight: 1.18,
+      letterSpacing: lang === "hi" ? 0 : "-0.015em",
       textWrap: "balance"
     }
   }, openingSentence), /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 max-w-[58ch] text-[15px] sm:text-[16.5px] ${t.ts} ${readCls(lang)}`,
+    className: `mt-5 max-w-[60ch] text-[13.5px] sm:text-[14px] ${readCls(lang)}`,
     style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.58
+      color: "rgba(244,241,234,.65)",
+      lineHeight: lang === "hi" ? 1.75 : 1.6
     }
-  }, STR[lang].osSub)), /*#__PURE__*/React.createElement("div", {
-    className: "pt-1"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em",
-      paddingBottom: 9,
-      borderBottom: `1px solid ${t.line}`
-    }
-  }, lang === "hi" ? "आज की गिनती" : "Today's count"), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between py-3",
-    style: {
-      borderBottom: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[14.5px] ${t.ts} ${readCls(lang)}`
-  }, lang === "hi" ? "गैप वाली खबरें" : "Stories with a gap"), /*#__PURE__*/React.createElement("span", {
-    className: "headline text-[26px]",
-    style: {
-      color: t.ink
-    }
-  }, gapsToday)), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between py-3",
-    style: {
-      borderBottom: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[14.5px] ${t.ts} ${readCls(lang)}`
-  }, lang === "hi" ? "वाम पर ग़ायब" : "Missing on the Left"), /*#__PURE__*/React.createElement("span", {
-    className: "headline text-[26px]",
-    style: {
-      color: BIAS.left.color
-    }
-  }, leftMissing.length)), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between py-3"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[14.5px] ${t.ts} ${readCls(lang)}`
-  }, lang === "hi" ? "दक्षिण पर ग़ायब" : "Missing on the Right"), /*#__PURE__*/React.createElement("span", {
-    className: "headline text-[26px]",
-    style: {
-      color: BIAS.right.color
-    }
-  }, rightMissing.length))))), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].osSub))), /*#__PURE__*/React.createElement("div", {
     className: `${pad} py-10 sm:py-14`
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid gap-10 lg:grid-cols-2 lg:gap-x-14"
@@ -4305,58 +4227,59 @@ function TopicsHub({
   goTopic,
   cards
 }) {
-  const contentsTitle = lang === "hi" ? "विषय-सूची" : "Contents";
-  const half = Math.ceil(topics.length / 2);
-  const cols = [topics.slice(0, half), topics.slice(half)];
-  const Row = ({
-    tp,
-    first
-  }) => /*#__PURE__*/React.createElement("button", {
-    onClick: () => goTopic(tp),
-    className: "flex w-full items-baseline justify-between gap-3 py-3.5 text-left",
-    style: {
-      borderTop: first ? `1.5px solid ${t.ink}` : `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "flex items-baseline gap-3 min-w-0"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "brand-hi shrink-0",
-    style: {
-      fontSize: 22,
-      lineHeight: 1,
-      color: t.ink
-    }
-  }, TOPIC_HI[tp] || tp), /*#__PURE__*/React.createElement("span", {
-    className: `headline truncate ${t.tp}`,
-    style: {
-      fontSize: 20
-    }
-  }, tp)), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[11px] shrink-0 ${t.tf}`
-  }, counts[tp] || 0));
+  const LEAD_N = 4;
+  const lead = topics.slice(0, LEAD_N),
+    rest = topics.slice(LEAD_N);
+  const recentFor = tp => (cards || []).find(c => c.topic === tp);
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline ${t.tp}`,
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
-      fontSize: "clamp(28px,3.4vw,38px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, contentsTitle), /*#__PURE__*/React.createElement("div", {
-    className: "mt-5 grid gap-x-12 sm:grid-cols-2"
-  }, cols.map((col, ci) => /*#__PURE__*/React.createElement("div", {
-    key: ci
-  }, col.map((tp, i) => /*#__PURE__*/React.createElement(Row, {
+  }, ui("sections", lang)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`,
+      paddingBottom: 32
+    }
+  }, lead.map(tp => {
+    const rc = recentFor(tp);
+    const label = lang === "hi" ? TOPIC_HI[tp] || tp : tp;
+    return /*#__PURE__*/React.createElement("button", {
+      key: tp,
+      onClick: () => goTopic(tp),
+      className: "block text-left"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-baseline justify-between gap-3"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: `headline text-[24px] sm:text-[28px] ${t.tp} ${readCls(lang)}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : "-0.014em"
+      }
+    }, label), /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[11px] shrink-0 ${t.tf}`
+    }, counts[tp] || 0)), rc && /*#__PURE__*/React.createElement("div", {
+      className: `mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`
+    }, rc.headline));
+  })), rest.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 columns-2 lg:columns-3",
+    style: {
+      columnGap: "2.25rem"
+    }
+  }, rest.map(tp => /*#__PURE__*/React.createElement("button", {
     key: tp,
-    tp: tp,
-    first: i === 0
-  }))))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-5 max-w-[74ch] text-[13px] ${t.tf} ${readCls(lang)}`,
+    onClick: () => goTopic(tp),
+    className: `mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`,
     style: {
-      lineHeight: 1.55
+      breakInside: "avoid"
     }
-  }, lang === "hi" ? "खेल और मनोरंजन उच्च मात्रा में प्रकाशित होते हैं और फ़्रंट पेज के लिए होड़ करने के बजाय अपने ही सेक्शन में रहते हैं — यह एक तय, प्रकाशित क्रम-नियम है, उनके महत्व पर कोई राय नहीं।" : "Sport and entertainment publish at high volume and sit in their own sections rather than competing for the front page — a fixed, published ordering rule, not a judgement about their worth."));
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`
+  }, lang === "hi" ? TOPIC_HI[tp] || tp : tp), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[10.5px] shrink-0 ${t.tf}`
+  }, counts[tp] || 0)))));
 }
 // 6.3B.8 — a section front, not a miniature homepage: one lead (typography + image, no
 // card chrome), a small secondary tier (SectionCard, already BiasPill-based), then the
@@ -4382,34 +4305,26 @@ function TopicPage({
     rest = items.slice(5, 5 + visible);
   const more = items.length - 5 - visible;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("topics"),
-    className: `mb-5 inline-flex items-center gap-1.5 text-[10.5px] font-semibold uppercase ${t.ts} hover:${t.tp}`,
+    className: `mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".1em"
     }
   }, /*#__PURE__*/React.createElement(ArrowLeft, {
     size: 14
   }), " ", ui("sections", lang)), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3.5",
+    className: "flex items-center justify-between gap-3 pb-3",
     style: {
-      borderBottom: `2.5px solid ${t.ink}`
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "flex items-baseline gap-3 sm:gap-4 min-w-0"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "brand-hi shrink-0 text-[32px] sm:text-[44px]",
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
-      lineHeight: 1,
-      color: t.ink
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, TOPIC_HI[topic] || topic), /*#__PURE__*/React.createElement("span", {
-    className: `text-[12px] sm:text-[15px] font-semibold uppercase truncate ${t.tp}`,
-    style: {
-      letterSpacing: ".2em"
-    }
-  }, label)), /*#__PURE__*/React.createElement("div", {
+  }, label), /*#__PURE__*/React.createElement("div", {
     className: "flex shrink-0 items-center gap-3"
   }, /*#__PURE__*/React.createElement("span", {
     className: `mono text-[11px] ${t.tf}`
@@ -4723,93 +4638,68 @@ function SourcesPage({
     });
   };
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("div", {
     className: "pb-3.5",
     style: {
-      borderBottom: `1px solid ${t.line}`
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, lang === "hi" ? "स्रोत" : "Sources"), /*#__PURE__*/React.createElement("span", {
-    className: `ml-3 mono text-[10px] ${t.tf}`
-  }, list.length, " ", lang === "hi" ? "आउटलेट ट्रैक किए गए · सभी रेटिंग अस्थायी" : "outlets tracked · all ratings provisional")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-6 grid gap-10 pb-6 lg:grid-cols-[1.5fr_1fr]",
-    style: {
-      borderBottom: `1.5px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
-    className: `headline max-w-[22ch] ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(28px,3.6vw,40px)",
-      lineHeight: 1.05,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
-      textWrap: "balance"
-    }
-  }, STR[lang].srcTitle), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3.5 max-w-[60ch] text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.58
-    }
-  }, STR[lang].srcDisclaimer), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 max-w-[60ch] text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
-  }, STR[lang].srcSignalsIntro, " ", go && /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("about"),
-    className: `font-semibold underline underline-offset-2 ${t.ts} hover:${t.tp}`
-  }, STR[lang].navMethod))), groups.length > 1 && /*#__PURE__*/React.createElement("div", {
-    className: "pt-1"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.blind}`,
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em",
-      paddingBottom: 9,
-      borderBottom: `1px solid ${t.line}`
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, lang === "hi" ? "झुकाव के हिसाब से पढ़ें" : "Read the roster by"), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3.5 flex flex-wrap items-baseline gap-x-4 gap-y-1.5"
-  }, groups.map(g => /*#__PURE__*/React.createElement("button", {
-    key: g.k,
-    onClick: () => jump(g.k),
-    className: "mono text-[11.5px] font-medium hover:underline",
-    style: {
-      color: BIAS[g.k].color
-    }
-  }, lbl(g.k, lang), " ", g.items.length))))), groups.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
-  }, STR[lang].noStories) : /*#__PURE__*/React.createElement(React.Fragment, null, groups.map(g => /*#__PURE__*/React.createElement("div", {
-    key: g.k,
-    id: "src-" + g.k,
-    className: "mt-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline gap-3.5 pb-2",
-    style: {
-      borderBottom: `2.5px solid ${BIAS[g.k].color}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 26,
-      height: 6,
-      borderRadius: 3,
-      background: BIAS[g.k].color,
-      display: "inline-block"
-    }
-  }), /*#__PURE__*/React.createElement("h2", {
-    className: `headline text-[21px] sm:text-[23px] ${t.tp} ${readCls(lang)}`,
+  }, lang === "hi" ? "रेटिंग रजिस्ट्री" : "Ratings registry"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.02em"
     }
+  }, STR[lang].srcTitle)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 max-w-[74ch] text-[13.5px] leading-[1.55] ${t.ts} ${readCls(lang)}`
+  }, STR[lang].srcDisclaimer), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 max-w-[74ch] text-[12.5px] leading-[1.55] ${t.tf} ${readCls(lang)}`
+  }, STR[lang].srcSignalsIntro, " ", go && /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("about"),
+    className: `font-semibold underline underline-offset-2 ${t.ts} hover:${t.tp}`
+  }, STR[lang].navMethod)), groups.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: `py-24 text-center ${t.tf} ${isHi(lang)}`
+  }, STR[lang].noStories) : /*#__PURE__*/React.createElement(React.Fragment, null, groups.length > 1 && /*#__PURE__*/React.createElement("div", {
+    className: `mt-5 flex flex-wrap gap-x-5 gap-y-1.5 mono text-[11px] uppercase ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, groups.map(g => /*#__PURE__*/React.createElement("button", {
+    key: g.k,
+    onClick: () => jump(g.k),
+    className: `hover:underline`,
+    style: {
+      color: BIAS[g.k].color
+    }
+  }, lbl(g.k, lang), " ", /*#__PURE__*/React.createElement("span", {
+    className: t.tf
+  }, "(", g.items.length, ")")))), groups.map(g => /*#__PURE__*/React.createElement("div", {
+    key: g.k,
+    id: "src-" + g.k,
+    className: "mt-9"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-baseline justify-between gap-3 pb-2",
+    style: {
+      borderBottom: `1px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline text-[21px] sm:text-[23px] ${readCls(lang)}`,
+    style: {
+      color: BIAS[g.k].color
+    }
   }, lbl(g.k, lang)), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10.5px] ${t.tf}`
-  }, g.items.length, " ", lang === "hi" ? "आउटलेट" : "outlets")), /*#__PURE__*/React.createElement("div", null, g.items.map(s => /*#__PURE__*/React.createElement(SourceRow, {
+    className: `mono text-[11px] ${t.tf}`
+  }, g.items.length)), /*#__PURE__*/React.createElement("div", null, g.items.map(s => /*#__PURE__*/React.createElement(SourceRow, {
     key: s.id || s.name,
     s: s,
     t: t,
     lang: lang
   }))))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-8 max-w-[80ch] text-[13px] leading-[1.6] ${t.ts} ${readCls(lang)}`
+    className: `mt-8 text-[11.5px] leading-relaxed ${t.tf} ${isHi(lang)}`
   }, STR[lang].aiNote)), /*#__PURE__*/React.createElement("div", {
     className: "mt-8"
   }, /*#__PURE__*/React.createElement(AdSlot, {
@@ -4819,229 +4709,178 @@ function SourcesPage({
     format: "horizontal"
   })));
 }
-// The document family — Method, and (below) Support/Contact/Privacy — share ONE
-// composition: a 200px hanging §-numbered label against a single ~64ch reading measure.
-// No images, no pills in the body; the quietest pages in Paksh, on purpose.
-function Clause({
-  n,
-  h,
-  t,
-  lang,
-  children
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    className: "grid gap-6 sm:grid-cols-[130px_minmax(0,64ch)] sm:gap-11 mt-8 pt-7",
-    style: {
-      borderTop: `1px solid ${t.line}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "sm:text-right"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mono text-[11px]",
-    style: {
-      letterSpacing: ".1em",
-      color: BIAS.right.color
-    }
-  }, "\xA7 ", n), /*#__PURE__*/React.createElement("div", {
-    className: `mt-1.5 text-[11px] font-semibold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".09em",
-      lineHeight: 1.3
-    }
-  }, h)), /*#__PURE__*/React.createElement("div", null, children));
-}
 function AboutPage({
   t,
   lang,
   agg,
   go
 }) {
+  const Row = ({
+    h,
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    className: `border-b py-6 ${t.border}`
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline text-[20px] ${t.tp} ${readCls(lang)} mb-2`
+  }, h), /*#__PURE__*/React.createElement("div", {
+    className: `text-[15px] leading-[1.62] ${t.ts} ${readCls(lang)}`
+  }, children));
   const a = agg || {};
   const gapText = (STR[lang].m_gap || "").replace("{total}", a.total).replace("{rh}", a.right_heavier).replace("{lh}", a.left_heavier).replace("{lo}", a.left_outlets).replace("{ro}", a.right_outlets);
   const heroH1 = lang === "hi" ? "भारत की हर खबर, हर पक्ष — और उसके पीछे का अंकगणित" : "Every side of India's news, and the arithmetic behind it";
   const bullets = M_READ[lang] || M_READ.en;
   const bulletColors = [BIAS.left.color, BIAS.center.color, BIAS.right.color];
-  const P = ({
-    children
-  }) => /*#__PURE__*/React.createElement("p", {
-    className: `text-[16px] sm:text-[17px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.85 : 1.62,
-      textWrap: "pretty"
-    }
-  }, children);
-  return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-8"
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto max-w-[1180px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: "pb-3.5",
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, STR[lang].methodTitle)), /*#__PURE__*/React.createElement("div", {
-    className: "max-w-[74ch] pt-8 pb-6",
-    style: {
-      borderBottom: `1.5px solid ${t.ink}`
+      borderBottom: `2px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "brand-hi",
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      fontSize: 24,
-      color: t.blind
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, "\u092A\u0915\u094D\u0937 \u0915\u0948\u0938\u0947 \u0915\u093E\u092E \u0915\u0930\u0924\u093E \u0939\u0948"), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-3.5 ${t.tp} ${readCls(lang)}`,
+  }, STR[lang].methodTitle), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-3 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`,
     style: {
-      fontSize: "clamp(28px,3.8vw,42px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
+      letterSpacing: lang === "hi" ? 0 : "-0.022em",
+      maxWidth: "22ch",
       textWrap: "balance"
     }
-  }, heroH1), /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 text-[17px] sm:text-[18px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.85 : 1.6
-    }
-  }, STR[lang].m_does)), /*#__PURE__*/React.createElement(Clause, {
-    n: "01",
-    h: STR[lang].m_ruleH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_rule)), /*#__PURE__*/React.createElement(Clause, {
-    n: "02",
-    h: STR[lang].m_aiH,
-    t: t,
-    lang: lang
+  }, heroH1)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 grid lg:grid-cols-[1.7fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "grid sm:grid-cols-2 gap-x-8 gap-y-5",
+    className: "lg:border-r lg:pr-8",
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      paddingTop: 14
+      borderColor: t.line
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    className: `text-[10px] font-semibold uppercase ${t.tp}`,
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[17px] ${t.ts} ${readCls(lang)}`,
     style: {
-      letterSpacing: ".08em"
+      lineHeight: 1.62,
+      maxWidth: "62ch"
     }
-  }, lang === "hi" ? "यह ठीक तीन काम करता है" : "It does exactly three things"), /*#__PURE__*/React.createElement("p", {
+  }, STR[lang].m_does), /*#__PURE__*/React.createElement("div", {
+    className: `mt-6 ${t.surface} p-5`,
+    style: {
+      border: `1px solid ${t.line}`,
+      borderLeft: `3px solid ${t.ink}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_ruleH), /*#__PURE__*/React.createElement("p", {
     className: `mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`,
     style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.55
+      lineHeight: 1.6
     }
-  }, STR[lang].m_ai)))), /*#__PURE__*/React.createElement(Clause, {
-    n: "03",
-    h: STR[lang].m_rateH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4",
+  }, STR[lang].m_rule)), /*#__PURE__*/React.createElement("div", {
+    className: `mt-7 eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      borderTop: `1.5px solid ${t.ink}`
+      letterSpacing: lang === "hi" ? 0 : ".06em"
     }
-  }, SIGNALS.map((sig, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "flex justify-between items-baseline py-2.5",
+  }, STR[lang].m_aiH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[15px] ${t.ts} ${readCls(lang)}`,
     style: {
-      borderBottom: i === SIGNALS.length - 1 ? `1.5px solid ${t.ink}` : `1px solid ${t.line}`
+      lineHeight: 1.62,
+      maxWidth: "62ch"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`
-  }, sig[lang] || sig.en), /*#__PURE__*/React.createElement("span", {
-    className: "mono text-[13px] font-medium",
+  }, STR[lang].m_ai), /*#__PURE__*/React.createElement("div", {
+    className: `mt-7 eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      color: BIAS.right.color
+      letterSpacing: lang === "hi" ? 0 : ".06em"
     }
-  }, sig.w, "%")))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[13px] ${t.tf} ${readCls(lang)}`
-  }, STR[lang].m_rateFoot)), /*#__PURE__*/React.createElement(Clause, {
-    n: "04",
-    h: STR[lang].m_readH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].m_rateH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 mb-3 text-[14px] ${t.ts} ${readCls(lang)}`,
     style: {
-      border: `1px solid ${t.line}`
-    },
-    className: "p-5"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `mono text-[9px] uppercase ${t.tf}`,
-    style: {
-      letterSpacing: ".14em"
-    }
-  }, lang === "hi" ? "उदाहरण — कोई असली खबर नहीं" : "Worked example — not a live story"), /*#__PURE__*/React.createElement(BiasPill, {
-    counts: {
-      left: 3,
-      center: 4,
-      right: 2
-    },
-    t: t,
-    lang: lang,
-    h: 7,
-    className: "mt-3 max-w-[280px]"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "mt-3.5 flex flex-col gap-2"
-  }, bullets.map((b, i) => /*#__PURE__*/React.createElement("p", {
-    key: i,
-    className: `text-[15px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.55
-    }
-  }, b))))), /*#__PURE__*/React.createElement(Clause, {
-    n: "05",
-    h: STR[lang].m_axisH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_axis)), /*#__PURE__*/React.createElement(Clause, {
-    n: "06",
-    h: STR[lang].m_partiesH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_parties)), /*#__PURE__*/React.createElement(Clause, {
-    n: "07",
-    h: STR[lang].m_provH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_prov)), /*#__PURE__*/React.createElement(Clause, {
-    n: "08",
-    h: STR[lang].m_orderH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_order)), /*#__PURE__*/React.createElement(Clause, {
-    n: "09",
-    h: STR[lang].m_freshH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_fresh)), a.total != null && /*#__PURE__*/React.createElement(Clause, {
-    n: "10",
-    h: STR[lang].m_gapH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, gapText)), /*#__PURE__*/React.createElement(Clause, {
-    n: a.total != null ? "11" : "10",
-    h: STR[lang].m_appealH,
-    t: t,
-    lang: lang
-  }, /*#__PURE__*/React.createElement(P, null, STR[lang].m_appeal), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go && go("contact"),
-    className: `mt-3.5 inline-block text-[11px] font-semibold uppercase ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".1em",
-      borderBottom: `1.5px solid ${t.ink}`,
-      paddingBottom: 3
-    }
-  }, lang === "hi" ? "सुधार भेजें →" : "File a correction →"), /*#__PURE__*/React.createElement("p", {
-    className: `mt-6 pt-4 text-[12.5px] ${t.tf} ${isHi(lang)}`,
-    style: {
-      borderTop: `1px solid ${t.line}`,
       lineHeight: 1.55
     }
-  }, STR[lang].footIndependence)));
+  }, STR[lang].m_rateLede), /*#__PURE__*/React.createElement("div", null, SIGNALS.map((sig, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex items-baseline gap-2 py-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `text-[13.5px] ${t.ts} ${readCls(lang)}`
+  }, sig[lang] || sig.en), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1",
+    style: {
+      borderBottom: `1px dotted ${t.line}`,
+      marginBottom: 4
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: `mono text-[12px] font-semibold ${t.blind}`
+  }, sig.w, "%")))), /*#__PURE__*/React.createElement("p", {
+    className: `mt-3 text-[12px] ${t.tf} ${isHi(lang)}`
+  }, STR[lang].m_rateFoot)), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6 lg:mt-0 lg:pl-8 space-y-6"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow mb-3 ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_readH), /*#__PURE__*/React.createElement("ul", {
+    className: "space-y-3"
+  }, bullets.map((b, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    className: `relative pl-5 text-[13.5px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 2,
+      top: 8,
+      width: 6,
+      height: 6,
+      background: bulletColors[i] || t.ink
+    }
+  }), b)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid #E0CBB9`
+    },
+    className: `${t.blindSoft} p-4`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".06em"
+    }
+  }, STR[lang].m_appealH), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2 text-[13.5px] ${t.blind} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.55
+    }
+  }, STR[lang].m_appeal), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go && go("contact"),
+    className: `mt-3 text-[10px] font-semibold uppercase ${t.blind} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      border: "1px solid currentColor",
+      padding: "8px 13px",
+      letterSpacing: lang === "hi" ? 0 : ".05em"
+    }
+  }, lang === "hi" ? "सुधार भेजें" : "File a correction")), /*#__PURE__*/React.createElement("p", {
+    className: `text-[11.5px] ${t.tf} ${isHi(lang)}`,
+    style: {
+      lineHeight: 1.5
+    }
+  }, STR[lang].footIndependence))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 max-w-3xl"
+  }, /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_orderH
+  }, STR[lang].m_order), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_freshH
+  }, STR[lang].m_fresh), a.total != null && /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_gapH
+  }, gapText), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_axisH
+  }, STR[lang].m_axis), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_partiesH
+  }, STR[lang].m_parties), /*#__PURE__*/React.createElement(Row, {
+    h: STR[lang].m_provH
+  }, STR[lang].m_prov))));
 }
 function ContactPage({
   t,
@@ -5148,28 +4987,24 @@ function ContactPage({
   const inp = `w-full border-b bg-transparent px-0.5 py-2 text-[14.5px] outline-none transition-colors ${t.border} focus:border-[#15140F] ${t.tp} ${isHi(lang)}`;
   const lbl = `mb-1.5 block text-[12.5px] font-semibold ${t.ts} ${isHi(lang)}`;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: "pb-3.5",
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, lang === "hi" ? "संपर्क व सुधार" : "Contact & corrections")), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-7 ${t.tp} ${readCls(lang)}`,
+  }, lang === "hi" ? "संपर्क व सुधार" : "Contact & corrections"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
     style: {
-      fontSize: "clamp(28px,3.4vw,36px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.026em"
+      letterSpacing: lang === "hi" ? 0 : "-0.02em"
     }
-  }, lang === "hi" ? "डेस्क को लिखें" : "Write to the desk"), /*#__PURE__*/React.createElement("div", {
-    className: "mt-6 grid lg:grid-cols-[1.4fr_1fr]"
+  }, lang === "hi" ? "डेस्क को लिखें" : "Write to the desk")), /*#__PURE__*/React.createElement("div", {
+    className: "mt-7 grid lg:grid-cols-[1.4fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lg:border-r lg:pr-8",
     style: {
@@ -5343,38 +5178,20 @@ function SupportPage({
   const btn = `inline-flex items-center justify-center border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`;
   const btn2 = `inline-flex items-center justify-center border px-5 py-2.5 text-[12px] font-semibold uppercase ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[720px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[720px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+  }, lang === "hi" ? "सहयोग" : "Support"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, "Support Paksh")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 grid gap-6 sm:grid-cols-[130px_1fr]"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "sm:text-right brand-hi",
-    style: {
-      fontSize: 20,
-      color: t.blind
-    }
-  }, "\u0938\u0939\u092F\u094B\u0917"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
-    className: `headline ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(28px,3.6vw,40px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
-      textWrap: "balance"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
   }, L.title), /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 text-[17px] sm:text-[18px] leading-[1.6] ${t.ts} ${readCls(lang)}`
-  }, L.lede))), supportReady() ? /*#__PURE__*/React.createElement("div", {
+    className: `mt-4 text-[16px] leading-[1.62] ${t.ts} ${readCls(lang)}`
+  }, L.lede), supportReady() ? /*#__PURE__*/React.createElement("div", {
     className: "mt-8 pt-6",
     style: {
       borderTop: `1px solid ${t.ink}`
@@ -5498,28 +5315,23 @@ function PrivacyPage({
     }
   }, body));
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1180px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[1180px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: "pb-3",
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, P.eyebrow)), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-7 ${t.tp} ${readCls(lang)}`,
+  }, P.eyebrow), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2.5 text-[30px] sm:text-[36px] ${t.tp} ${readCls(lang)}`,
     style: {
-      fontSize: "clamp(28px,3.6vw,36px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
-      textWrap: "balance"
+      letterSpacing: lang === "hi" ? 0 : "-0.02em"
     }
-  }, P.title), /*#__PURE__*/React.createElement("div", {
+  }, P.title)), /*#__PURE__*/React.createElement("div", {
     className: "mt-7 grid lg:grid-cols-[1.6fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lg:border-r lg:pr-8",
@@ -5612,41 +5424,26 @@ function SearchPage({
   const browsing = searchStatus === "browsing";
   const list = browsing ? browseCards || [] : results;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-[30px] py-6"
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline mb-5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, ui("searchTab", lang)), /*#__PURE__*/React.createElement("div", {
+    className: "max-w-xl"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
-    style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      paddingTop: 9
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline gap-4 pb-3",
-    style: {
-      borderBottom: `2.5px solid ${t.ink}`
-    }
+    className: "relative"
   }, /*#__PURE__*/React.createElement(Search, {
-    size: 22,
-    className: t.tf
+    size: 17,
+    className: `absolute left-3 top-1/2 -translate-y-1/2 ${t.tf}`
   }), /*#__PURE__*/React.createElement("input", {
     autoFocus: true,
     value: query || "",
     onChange: e => setQuery(e.target.value),
-    placeholder: ui("searchTab", lang),
-    className: `headline flex-1 min-w-0 bg-transparent outline-none placeholder:${t.tf} ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(24px,4.4vw,40px)",
-      lineHeight: 1.05,
-      letterSpacing: lang === "hi" ? 0 : "-0.024em"
-    }
-  }), !browsing && /*#__PURE__*/React.createElement("button", {
-    onClick: () => setQuery(""),
-    className: `shrink-0 text-[13px] ${t.tf} hover:${t.tp}`
-  }, lang === "hi" ? "साफ़ करें" : "clear")), browsing && /*#__PURE__*/React.createElement("div", {
-    className: `mt-2.5 mono text-[10px] uppercase ${t.tf}`,
-    style: {
-      letterSpacing: ".09em"
-    }
-  }, lang === "hi" ? "हर खबर, हर पक्ष" : "Every story, every side", " \xB7 ", (browseCards || []).length), searchStatus === "pending" ? /*#__PURE__*/React.createElement("div", {
+    placeholder: STR[lang].search,
+    className: `w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }))), searchStatus === "pending" ? /*#__PURE__*/React.createElement("div", {
     className: "py-24 text-center"
   }, /*#__PURE__*/React.createElement("p", {
     className: `headline text-[19px] ${t.ts} ${readCls(lang)}`
@@ -5761,28 +5558,21 @@ function BlindspotSkeleton({
   t
 }) {
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px]"
+    className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "px-4 sm:px-[30px] pt-8 pb-9 grid gap-10 lg:grid-cols-[1.55fr_1fr]",
     style: {
-      borderBottom: `1.5px solid ${t.ink}`
+      background: "#15140F"
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "px-4 sm:px-10 py-10 sm:py-14"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "skel h-3 w-24 mb-4"
+  }), /*#__PURE__*/React.createElement("div", {
     className: "skel h-10 w-2/3 mb-3"
   }), /*#__PURE__*/React.createElement("div", {
-    className: "skel h-4 w-1/2"
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "space-y-3 pt-1"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "skel h-3 w-24 mb-2"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "skel h-6 w-full"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "skel h-6 w-full"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "skel h-6 w-full"
+    className: "skel h-3 w-1/2"
   }))), /*#__PURE__*/React.createElement("div", {
-    className: "px-4 sm:px-[30px] py-10 sm:py-14 grid gap-10 lg:grid-cols-2 lg:gap-x-14"
+    className: "px-4 sm:px-10 py-10 sm:py-14 grid gap-10 lg:grid-cols-2 lg:gap-x-14"
   }, [0, 1].map(i => /*#__PURE__*/React.createElement("div", {
     key: i
   }, /*#__PURE__*/React.createElement("div", {
@@ -6280,64 +6070,25 @@ function LoginPage({
   // border around the whole thing. The form is the main column; "what an account adds" is a
   // quiet rail separated by one hairline (desktop only), the same 1.4fr/1fr rhythm already
   // used on Contact.
-  const entranceH1 = lang === "hi" ? "अपनी पढ़ाई जारी रखने के लिए साइन इन करें" : "Sign in to keep your reading";
-  const entranceSub = lang === "hi" ? "खबरें कभी बंद नहीं होतीं। खाता सिर्फ़ आपका रीडिंग लेंस और आपकी कतरनें जोड़ता है।" : "The news is never gated. An account only adds your Reading Lens and your clippings.";
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-[30px] py-6"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between pb-2.5",
-    style: {
-      borderBottom: `1px solid ${t.line}`
-    }
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("home"),
-    className: `inline-flex items-center gap-1.5 text-[10.5px] font-semibold uppercase ${t.ts} hover:${t.tp}`,
+    className: `mb-6 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".09em"
+      letterSpacing: lang === "hi" ? 0 : ".1em"
     }
   }, /*#__PURE__*/React.createElement(ArrowLeft, {
     size: 14
-  }), " ", L.back)), /*#__PURE__*/React.createElement("div", {
-    className: "text-center",
-    style: {
-      padding: "34px 0 28px",
-      borderBottom: `1.5px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "brand-hi leading-none",
-    style: {
-      fontSize: 44,
-      color: t.ink
-    }
-  }, "\u092A\u0915\u094D\u0937"), /*#__PURE__*/React.createElement("div", {
-    className: `mt-2 text-[10.5px] font-semibold uppercase ${t.ts}`,
-    style: {
-      letterSpacing: ".4em"
-    }
-  }, "Paksh")), mode === "signin" && method === "password" && step === "email" && /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto mt-7 max-w-[420px] text-center"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(22px,3vw,28px)",
-      lineHeight: 1.14,
-      letterSpacing: lang === "hi" ? 0 : "-0.022em",
-      textWrap: "balance"
-    }
-  }, entranceH1), /*#__PURE__*/React.createElement("p", {
-    className: `mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.75 : 1.55
-    }
-  }, entranceSub)), /*#__PURE__*/React.createElement("div", {
-    className: "mt-8 grid md:grid-cols-[1.3fr_1fr]"
+  }), " ", L.back), /*#__PURE__*/React.createElement("div", {
+    className: "grid md:grid-cols-[1.3fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "md:border-r md:pr-8",
     style: {
       borderColor: t.line
     }
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: `headline text-[22px] sm:text-[26px] ${t.tp} ${readCls(lang)}`,
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
@@ -6454,30 +6205,16 @@ function SettingsPage({
     lh: 1.62
   };
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[720px] px-4 sm:px-[30px] py-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: "mx-auto max-w-[720px] px-4 sm:px-8 py-10"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, lang === "hi" ? "खाता व पठन" : "Account & reading")), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-6 ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(26px,3.2vw,32px)",
-      lineHeight: 1.08,
-      letterSpacing: lang === "hi" ? 0 : "-0.02em"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
   }, L.title), /*#__PURE__*/React.createElement("div", {
     className: "mt-8 pt-6",
     style: {
-      borderTop: `1.5px solid ${t.ink}`
+      borderTop: `2px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow mb-3 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
@@ -6518,7 +6255,7 @@ function SettingsPage({
   }, L.signin))), /*#__PURE__*/React.createElement("div", {
     className: "mt-8 pt-6",
     style: {
-      borderTop: `1.5px solid ${t.ink}`
+      borderTop: `2px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow mb-3 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
@@ -6554,7 +6291,7 @@ function SettingsPage({
   }))), /*#__PURE__*/React.createElement("div", {
     className: "mt-8 pt-6",
     style: {
-      borderTop: `1.5px solid ${t.ink}`
+      borderTop: `2px solid ${t.ink}`
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow mb-3 ${t.tp} ${lang === "hi" ? "deva" : ""}`,
@@ -6628,20 +6365,13 @@ function AccountPage({
     className: t.tf
   }));
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[640px] px-4 sm:px-[30px] py-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: "mx-auto max-w-[640px] px-4 sm:px-8 py-10"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, L.title)), auth ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+  }, L.title), auth ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
     className: `mt-3 text-[15px] ${t.ts} ${isHi(lang)}`
   }, L.hi, ", ", /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
@@ -6906,30 +6636,25 @@ function LensPage({
   }, label));
   const balSub = lang === "hi" ? "कोई फ़ैसला नहीं, आपने जो खबरें खोलीं उनके प्रकाशक-झुकाव की गिनती।" : "Not a judgement, the arithmetic of the stories you opened, by each source's publisher lean.";
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-[30px] py-8"
+    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+    className: "flex flex-wrap items-end justify-between gap-3 pb-3",
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
+      borderBottom: `2px solid ${t.ink}`
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, lang === "hi" ? "मेरा रीडिंग लेंस" : "Your Reading Lens"), total > 0 && /*#__PURE__*/React.createElement("span", {
-    className: `ml-3 mono text-[10px] ${t.tf}`
-  }, lang === "hi" ? "निजी · पिछले 30 दिन" : "Private to you · last 30 days")), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-6 ${t.tp} ${readCls(lang)}`,
+  }, lang === "hi" ? "मेरा रीडिंग लेंस" : "My reading lens"), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2 text-[30px] sm:text-[38px] ${t.tp} ${readCls(lang)}`,
     style: {
-      fontSize: "clamp(26px,3.6vw,36px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.028em",
-      textWrap: "balance"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, total > 0 ? lang === "hi" ? `आपने इस महीने ${total} खबरें पढ़ीं` : `You've read ${total} ${total === 1 ? "story" : "stories"} this month` : lang === "hi" ? "मेरा न्यूज़ झुकाव" : "My news bias"), rows === null ? /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "मेरा न्यूज़ झुकाव" : "My news bias")), total > 0 && /*#__PURE__*/React.createElement("span", {
+    className: `shrink-0 text-[13px] ${t.tf} ${readCls(lang)}`
+  }, total, " ", lang === "hi" ? "खबरें · 30 दिन" : "stories · 30 days")), rows === null ? /*#__PURE__*/React.createElement("div", {
     className: `py-10 text-center text-[13px] ${t.tf} ${isHi(lang)}`
   }, L.loading) : total === 0 ? /*#__PURE__*/React.createElement("div", {
     className: `mt-8 border border-dashed p-10 text-center text-[14px] ${t.border} ${t.tf} ${readCls(lang)}`
@@ -6956,16 +6681,16 @@ function LensPage({
     counts: agg,
     t: t,
     lang: lang,
-    h: 10
+    h: 14
   })), verdict && /*#__PURE__*/React.createElement("div", {
     className: "mt-4 flex items-start gap-2.5 p-3",
     style: {
-      background: BIAS[hi].soft,
-      borderLeft: `2px solid ${BIAS[hi].color}`
+      background: BIAS.left.soft,
+      borderLeft: `2px solid ${BIAS.left.color}`
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: BIAS[hi].color,
+      color: BIAS.left.color,
       fontSize: 13
     },
     "aria-hidden": "true"
@@ -7073,28 +6798,10 @@ function SavedPage({
     body: L.gateB
   });
   const rows = savedRows || [];
-  return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1220px] px-4 sm:px-[30px] py-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2.5",
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
-    }
-  }, lang === "hi" ? "आपकी कतरनें" : "Your clippings"), savedRows && savedRows.length > 0 && /*#__PURE__*/React.createElement("span", {
-    className: `ml-3 mono text-[10px] ${t.tf}`
-  }, savedRows.length, " ", lang === "hi" ? "रखी गईं" : "kept")), /*#__PURE__*/React.createElement("h1", {
-    className: `headline mt-6 ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(26px,3.4vw,34px)",
-      lineHeight: 1.06,
-      letterSpacing: lang === "hi" ? 0 : "-0.026em"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
   }, L.title), savedRows === null ? /*#__PURE__*/React.createElement("div", {
     className: `mt-8 py-10 text-center text-[13px] ${t.tf}`
@@ -7145,13 +6852,239 @@ function SavedPage({
   }, L.remove)))));
 }
 
+// MY PAKSH (Phase 31, G4) — the personal hub. Reuses existing data end to end: reading_history
+// via listReading (same call LensPage makes, but no bias-balance/verdict recompute here — that
+// stays Lens's job), saved_stories via the savedRows already loaded for /saved (no re-fetch,
+// no re-implementing the clipping UI), follows_topic/follows_story via state already
+// maintained for the Follow buttons. Sections are omitted entirely when empty, never rendered
+// as an empty box; if everything is empty, one restrained first-time message shows instead of
+// a stack of missing sections. Since You Were Last Here is added in a later gate (G6).
+function MyPakshPage({
+  t,
+  lang,
+  auth,
+  go,
+  open,
+  savedRows,
+  followedTopics,
+  followedStoryRows,
+  onToggleFollowTopic,
+  onToggleFollowStory,
+  cards
+}) {
+  const [readingRows, setReadingRows] = useState(null);
+  useEffect(() => {
+    if (!auth) return;
+    listReading(30).then(r => setReadingRows(r || [])).catch(() => setReadingRows([]));
+  }, [auth]);
+  // Since You Were Last Here (G6) - v1 scope, decided deliberately narrow: new stories in
+  // FOLLOWED TOPICS only, published after the reader's last My Paksh visit. Paksh has no
+  // per-story revision timestamp (a development is a new event id, not an edit to an old
+  // one), so "updates to a followed STORY" has no honest definition yet without inventing
+  // one; that's tracked as open product debt, not guessed at here. Uses `cards` already
+  // loaded for the rest of the app - no extra fetch, no fan-out. Sequencing per spec: read
+  // the previous marker, derive, render, and only THEN advance the marker - never on failure.
+  const [sywlhRows, setSywlhRows] = useState(null);
+  // Wait for followedStoryRows to leave its "not yet loaded" null sentinel (refreshFollows
+  // in flight) before deriving - otherwise a fast page load could read an empty followedTopics
+  // Set that just hasn't finished hydrating yet, under-count real matches, and then advance
+  // the marker past them for good.
+  useEffect(() => {
+    if (!auth || followedStoryRows === null) return;
+    let cancelled = false;
+    getLastSeen().then(prev => {
+      if (cancelled) return;
+      const topics = followedTopics || new Set();
+      // _ts(), not raw Date.parse(): published_at/created_at strings from the export
+      // pipeline carry no timezone suffix, so a plain Date.parse silently reads them as
+      // the VIEWER'S local time instead of UTC - on a UTC+5:30 (IST) browser that skews
+      // "is this newer than my last visit" by 5.5 hours, wrongly dropping real matches.
+      // _ts() is the same fix timeAgo()/absDate() already use for this exact string shape.
+      const prevTs = _ts(prev);
+      const rows = prev && !isNaN(prevTs) && topics.size ? (cards || []).filter(c => topics.has(c.topic) && c.created_at && _ts(c.created_at) > prevTs).sort((a, b) => _ts(b.created_at) - _ts(a.created_at)).slice(0, 6) : [];
+      setSywlhRows(rows);
+      bumpLastSeen();
+    }).catch(() => {
+      if (!cancelled) setSywlhRows([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth, followedStoryRows === null]);
+  const L = lang === "hi" ? {
+    title: "मेरा पक्ष",
+    gateB: "अपना पक्ष देखने के लिए साइन इन करें। खबरें हमेशा बिना खाते के खुली रहती हैं।",
+    sywlh: "जब से आप यहाँ नहीं थे",
+    recentlyRead: "हाल में पढ़ी",
+    following: "फॉलो की गई",
+    saved: "सहेजी खबरें",
+    seeAllSaved: "सभी सहेजी खबरें देखें →",
+    openLens: "अपना रीडिंग लेंस देखें →",
+    unfollow: "अनफॉलो",
+    firstTimeH: "अभी आपका पक्ष खाली है",
+    firstTimeB: "किसी विषय या खबर को फॉलो करें, या कोई खबर सहेजें — वह यहाँ दिखेगी।",
+    browse: "मुख्य खबरें देखें →"
+  } : {
+    title: "My Paksh",
+    gateB: "Sign in to see your Paksh. The news itself is always open, no account needed.",
+    sywlh: "Since you were last here",
+    recentlyRead: "Recently read",
+    following: "Following",
+    saved: "Saved",
+    seeAllSaved: "See all saved →",
+    openLens: "See your Reading Lens →",
+    unfollow: "Unfollow",
+    firstTimeH: "Your Paksh is empty so far",
+    firstTimeB: "Follow a topic or a story, or save one, and it'll show up here.",
+    browse: "Browse top stories →"
+  };
+  if (!auth) return /*#__PURE__*/React.createElement(SignInGate, {
+    t: t,
+    lang: lang,
+    go: go,
+    title: L.title,
+    body: L.gateB
+  });
+  const seen = new Set();
+  const dedup = [];
+  (readingRows || []).forEach(r => {
+    if (r.story_id && !seen.has(r.story_id)) {
+      seen.add(r.story_id);
+      dedup.push(r);
+    }
+  });
+  // Phase 34 (PD-3): Continue Reading and Recently Read read the identical reading_history
+  // query and only differed by which slice of it they showed (first 3 vs next 5) - there is
+  // no "unfinished" signal in the data to justify two destinations. One list, one cap (8,
+  // same total the two sections showed between them before).
+  const recentRows = dedup.slice(0, 8);
+  const saved = (savedRows || []).slice(0, 4);
+  const followedTopicList = Array.from(followedTopics || []);
+  const followedStories = followedStoryRows || [];
+  const sywlh = sywlhRows || [];
+  const loading = readingRows === null;
+  const hasAnything = sywlh.length || recentRows.length || followedTopicList.length || followedStories.length || saved.length;
+  return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
+    className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
+    }
+  }, L.title), loading ? /*#__PURE__*/React.createElement("div", {
+    className: `mt-8 py-10 text-center text-[13px] ${t.tf}`
+  }, "\u2026") : !hasAnything ? /*#__PURE__*/React.createElement("div", {
+    className: `mt-8 border border-dashed p-12 text-center ${t.border}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[16px] font-semibold ${t.tp} ${isHi(lang)}`
+  }, L.firstTimeH), /*#__PURE__*/React.createElement("p", {
+    className: `mx-auto mt-1.5 max-w-[44ch] text-[13.5px] ${t.tf} ${readCls(lang)}`
+  }, L.firstTimeB), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("home"),
+    className: `mt-5 border px-4 py-2 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, L.browse)) : /*#__PURE__*/React.createElement("div", {
+    className: "mt-8 space-y-10"
+  }, recentRows.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+    t: t,
+    lang: lang
+  }, L.recentlyRead), /*#__PURE__*/React.createElement("div", null, recentRows.map((r, i) => {
+    const openedTs = r.opened_at ? _ts(r.opened_at) : NaN;
+    return /*#__PURE__*/React.createElement("button", {
+      key: i,
+      onClick: () => open(r.story_id),
+      className: `flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "min-w-0 flex-1"
+    }, r.topic && /*#__PURE__*/React.createElement("span", {
+      className: `block eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".12em"
+      }
+    }, lang === "hi" ? TOPIC_HI[r.topic] || r.topic : r.topic), /*#__PURE__*/React.createElement("span", {
+      className: `block truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`
+    }, r.title || r.story_id)), /*#__PURE__*/React.createElement("span", {
+      className: "shrink-0 flex flex-col items-end gap-1.5"
+    }, r.side && BIAS[r.side] && /*#__PURE__*/React.createElement("span", {
+      className: "mono text-[9px] font-semibold uppercase",
+      style: {
+        backgroundColor: BIAS[r.side].soft,
+        color: BIAS[r.side].color,
+        padding: "3px 6px",
+        letterSpacing: ".04em"
+      }
+    }, lbl(r.side, lang)), !isNaN(openedTs) && /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[10px] ${t.tf}`
+    }, lang === "hi" ? `${timeAgo(r.opened_at, lang)} खोली` : `Opened ${timeAgo(r.opened_at, lang)}`)));
+  }))), sywlh.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+    t: t,
+    lang: lang
+  }, L.sywlh), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-4 sm:grid-cols-3"
+  }, sywlh.map(c => /*#__PURE__*/React.createElement("button", {
+    key: c.id,
+    onClick: () => open(c.id),
+    className: `border p-3 text-left ${t.border} hover:${t.tp}`
+  }, /*#__PURE__*/React.createElement(Eyebrow, {
+    topic: c.topic,
+    created_at: c.created_at,
+    storyline: c.storyline_id,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("div", {
+    className: `mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`
+  }, c.headline))))), (followedTopicList.length > 0 || followedStories.length > 0) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+    t: t,
+    lang: lang
+  }, L.following), followedTopicList.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2"
+  }, followedTopicList.map(tp => /*#__PURE__*/React.createElement("span", {
+    key: tp,
+    className: `inline-flex items-center gap-2 border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts}`
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("topic/" + encodeURIComponent(tp)),
+    className: `hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? TOPIC_HI[tp] || tp : tp), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onToggleFollowTopic(tp),
+    "aria-label": L.unfollow,
+    className: `hover:${t.blind}`
+  }, "\xD7")))), followedStories.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, followedStories.slice(0, 8).map(r => /*#__PURE__*/React.createElement("div", {
+    key: r.story_id,
+    className: `flex w-full items-center justify-between gap-3 border-b py-3 ${t.border}`
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => open(r.story_id),
+    className: `min-w-0 flex-1 truncate headline text-[14.5px] text-left ${t.tp} ${readCls(lang)}`
+  }, r.title || r.story_id), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onToggleFollowStory({
+      id: r.story_id
+    }),
+    className: `shrink-0 mono text-[10px] uppercase ${t.tf} hover:${t.blind}`
+  }, L.unfollow))))), saved.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+    t: t,
+    lang: lang,
+    right: /*#__PURE__*/React.createElement("button", {
+      onClick: () => go("saved"),
+      className: `text-[12px] font-semibold ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+    }, L.seeAllSaved)
+  }, L.saved), /*#__PURE__*/React.createElement("div", null, saved.map(r => /*#__PURE__*/React.createElement("button", {
+    key: r.story_id,
+    onClick: () => open(r.story_id),
+    className: `flex w-full items-center justify-between gap-3 border-b py-3 text-left ${t.border}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `min-w-0 flex-1 truncate headline text-[14.5px] ${t.tp} ${readCls(lang)}`
+  }, r.title || r.story_id))))), /*#__PURE__*/React.createElement("div", {
+    className: "pt-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("lens"),
+    className: `text-[12.5px] font-semibold ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, L.openLens))));
+}
+
 // STORYLINE timeline — how a saga developed across days. Dated thread of the linked events,
 // the current one marked. Each entry is a real event with its own bias bar; the storyline is
 // purely a chronology of coverage, it never re-computes or merges any bias count.
-// The timeline spine — the one place in Paksh a vertical rule carries meaning. Desktop:
-// a dated gutter beside an ink vertical. Mobile: the spine moves to a left border and
-// the date sits inline above each entry. Newest first, oldest last — reverse-chronological,
-// matching how `evs` is already ordered by the caller.
 function StorylineTimeline({
   storyline,
   currentId,
@@ -7162,194 +7095,74 @@ function StorylineTimeline({
 }) {
   if (!storyline || !(storyline.events || []).length) return null;
   const evs = storyline.events;
-  if (compact) {
-    return /*#__PURE__*/React.createElement("ol", {
-      className: "relative mt-4",
+  return /*#__PURE__*/React.createElement("ol", {
+    className: "relative mt-4",
+    style: {
+      marginLeft: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 0,
+      top: 4,
+      bottom: 4,
+      width: 2,
+      background: t.line
+    }
+  }), evs.map(ev => {
+    const cur = String(ev.id) === String(currentId);
+    const lc = ev.lean_counts || {
+      left: 0,
+      center: 0,
+      right: 0
+    };
+    const title = lang === "hi" && ev.title_hi ? ev.title_hi : ev.title;
+    return /*#__PURE__*/React.createElement("li", {
+      key: ev.id,
+      className: "relative pb-5",
       style: {
-        marginLeft: 6
+        paddingLeft: 22
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
         position: "absolute",
-        left: 0,
-        top: 4,
-        bottom: 4,
-        width: 2,
-        background: t.line
+        left: -3,
+        top: 5,
+        width: 9,
+        height: 9,
+        borderRadius: 9,
+        background: cur ? t.ink : t.gap || "#F4F1EA",
+        border: `2px solid ${t.ink}`
       }
-    }), evs.map(ev => {
-      const cur = String(ev.id) === String(currentId);
-      const title = lang === "hi" && ev.title_hi ? ev.title_hi : ev.title;
-      return /*#__PURE__*/React.createElement("li", {
-        key: ev.id,
-        className: "relative pb-5",
-        style: {
-          paddingLeft: 22
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          position: "absolute",
-          left: -3,
-          top: 5,
-          width: 9,
-          height: 9,
-          borderRadius: 9,
-          background: cur ? t.ink : t.gap || "#F4F1EA",
-          border: `2px solid ${t.ink}`
-        }
-      }), /*#__PURE__*/React.createElement("div", {
-        className: `mono text-[10px] uppercase tracking-[0.1em] ${t.tf}`
-      }, absDate(ev.date, lang) || timeAgo(ev.date, lang)), cur ? /*#__PURE__*/React.createElement("div", {
-        className: `headline mt-1 text-[15px] ${t.tp} ${readCls(lang)}`,
-        style: {
-          lineHeight: 1.3
-        }
-      }, title, " ", /*#__PURE__*/React.createElement("span", {
-        className: `mono text-[9px] uppercase tracking-wide ${t.blind}`
-      }, "\xB7 ", lang === "hi" ? "यह खबर" : "this story")) : /*#__PURE__*/React.createElement("a", {
-        href: "/story/" + encodeURIComponent(ev.id),
-        onClick: e => {
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-          e.preventDefault();
-          open && open(ev.id);
-        },
-        className: `block no-underline group cursor-pointer mt-1 headline text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
-        style: {
-          lineHeight: 1.3
-        }
-      }, title));
-    }));
-  }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "hidden sm:grid mt-2",
-    style: {
-      gridTemplateColumns: "120px 1fr"
-    }
-  }, evs.map((ev, i) => {
-    const cur = String(ev.id) === String(currentId);
-    const lc = ev.lean_counts || {
-      left: 0,
-      center: 0,
-      right: 0
-    };
-    const title = lang === "hi" && ev.title_hi ? ev.title_hi : ev.title;
-    const last = i === evs.length - 1;
-    return /*#__PURE__*/React.createElement(React.Fragment, {
-      key: ev.id
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "text-right pr-5",
+    }), /*#__PURE__*/React.createElement("div", {
+      className: `mono text-[10px] uppercase tracking-[0.1em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+    }, absDate(ev.date, lang) || timeAgo(ev.date, lang)), cur ? /*#__PURE__*/React.createElement("div", {
+      className: `headline mt-1 text-[15px] ${t.tp} ${readCls(lang)}`,
       style: {
-        borderRight: `1px solid ${t.ink}`,
-        paddingTop: 20,
-        paddingBottom: last ? 0 : 20
+        lineHeight: 1.3
       }
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "mono text-[10.5px]",
-      style: {
-        lineHeight: 1.3,
-        letterSpacing: ".05em",
-        color: cur ? t.ink : t.tf
-      }
-    }, absDate(ev.date, lang) || timeAgo(ev.date, lang))), /*#__PURE__*/React.createElement("div", {
-      className: "pl-6",
-      style: {
-        paddingTop: 20,
-        paddingBottom: 20,
-        borderBottom: last ? "none" : `1px solid ${t.line}`
-      }
-    }, cur && /*#__PURE__*/React.createElement("div", {
-      className: `eyebrow ${t.blind}`,
-      style: {
-        letterSpacing: lang === "hi" ? 0 : ".11em"
-      }
-    }, lang === "hi" ? "नवीनतम" : "Latest"), cur ? /*#__PURE__*/React.createElement("div", {
-      className: `headline mt-1.5 text-[18px] sm:text-[20px] ${t.tp} ${readCls(lang)}`,
-      style: {
-        lineHeight: 1.2,
-        textWrap: "balance"
-      }
-    }, title) : /*#__PURE__*/React.createElement("a", {
+    }, title, " ", /*#__PURE__*/React.createElement("span", {
+      className: `mono text-[9px] uppercase tracking-wide ${t.blind}`
+    }, "\xB7 ", lang === "hi" ? "यह खबर" : "this story")) : /*#__PURE__*/React.createElement("a", {
       href: "/story/" + encodeURIComponent(ev.id),
       onClick: e => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
         open && open(ev.id);
       },
-      className: `block no-underline group cursor-pointer headline text-[16px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+      className: `block no-underline group cursor-pointer mt-1 headline text-[15px] ${t.ts} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
       style: {
-        lineHeight: 1.24,
-        textWrap: "balance"
+        lineHeight: 1.3
       }
-    }, title), lc.left + lc.center + lc.right > 0 && /*#__PURE__*/React.createElement("div", {
-      className: "mt-2.5 flex items-center gap-3"
+    }, title), !compact && lc.left + lc.center + lc.right > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "mt-2 w-36"
     }, /*#__PURE__*/React.createElement(BiasPill, {
       counts: lc,
       t: t,
       lang: lang,
-      h: 5,
-      className: "max-w-[170px]",
-      showCounts: false
-    }), cur && /*#__PURE__*/React.createElement("button", {
-      onClick: () => open && open(ev.id),
-      className: `shrink-0 text-[10px] font-semibold uppercase ${t.tp}`,
-      style: {
-        letterSpacing: lang === "hi" ? 0 : ".07em",
-        borderBottom: `1px solid ${t.ink}`,
-        paddingBottom: 2
-      }
-    }, lang === "hi" ? "पढ़ें" : "Read"))));
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "sm:hidden mt-4 pl-4",
-    style: {
-      borderLeft: `1px solid ${t.ink}`
-    }
-  }, evs.map((ev, i) => {
-    const cur = String(ev.id) === String(currentId);
-    const lc = ev.lean_counts || {
-      left: 0,
-      center: 0,
-      right: 0
-    };
-    const title = lang === "hi" && ev.title_hi ? ev.title_hi : ev.title;
-    return /*#__PURE__*/React.createElement("div", {
-      key: ev.id,
-      className: i > 0 ? "pt-4 mt-0 pb-5 border-t" : "pb-5",
-      style: i > 0 ? {
-        borderColor: t.line
-      } : {}
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "mono text-[10px]",
-      style: {
-        letterSpacing: ".05em",
-        color: cur ? t.ink : t.tf
-      }
-    }, absDate(ev.date, lang) || timeAgo(ev.date, lang)), cur ? /*#__PURE__*/React.createElement("div", {
-      className: `headline mt-1.5 text-[18px] ${t.tp} ${readCls(lang)}`,
-      style: {
-        lineHeight: 1.2,
-        textWrap: "balance"
-      }
-    }, title) : /*#__PURE__*/React.createElement("a", {
-      href: "/story/" + encodeURIComponent(ev.id),
-      onClick: e => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        open && open(ev.id);
-      },
-      className: `block no-underline group cursor-pointer headline text-[16px] ${t.tp} ${readCls(lang)}`,
-      style: {
-        lineHeight: 1.22,
-        textWrap: "balance"
-      }
-    }, title), lc.left + lc.center + lc.right > 0 && /*#__PURE__*/React.createElement(BiasPill, {
-      counts: lc,
-      t: t,
-      lang: lang,
-      h: 5,
-      className: "mt-2 max-w-[150px]",
-      showCounts: false
-    }));
-  })));
+      h: 6
+    })));
+  }));
 }
 // STORYLINE page (/storyline/:id) — the whole saga: header + the full dated thread.
 // The index is lean (no events), so fetch the full per-saga file on open; `lean` gives an
@@ -7418,48 +7231,29 @@ function StorylinePage({
   const title = lang === "hi" && storyline.title_hi ? storyline.title_hi : storyline.title;
   const tp = lang === "hi" ? TOPIC_HI[storyline.topic] || storyline.topic : storyline.topic;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-[30px] py-6"
+    className: "mx-auto max-w-[840px] px-4 sm:px-8 py-10"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between gap-3 pb-2.5",
+    className: `eyebrow ${t.blind} ${lang === "hi" ? "deva" : ""}`,
     style: {
-      borderTop: `1.5px solid ${t.ink}`,
-      borderBottom: `1px solid ${t.line}`,
-      paddingTop: 9
+      letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${t.tp}`,
+  }, L.eyebrow, tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-2 text-[26px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".11em"
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, L.eyebrow, tp ? ` · ${tp}` : ""), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10px] ${t.tf}`,
-    style: {
-      letterSpacing: ".08em"
-    }
-  }, lang === "hi" ? "खुला" : "Opened", " ", absDate(storyline.start, lang), " \xB7 ", storyline.n_events, " ", L.updates)), /*#__PURE__*/React.createElement("div", {
-    className: "pt-7 pb-6",
-    style: {
-      borderBottom: `1.5px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: `headline max-w-[24ch] ${t.tp} ${readCls(lang)}`,
-    style: {
-      fontSize: "clamp(28px,4vw,44px)",
-      lineHeight: 1.05,
-      letterSpacing: lang === "hi" ? 0 : "-0.03em",
-      textWrap: "balance"
-    }
-  }, title), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3.5 max-w-[60ch] text-[15px] sm:text-[16px] ${t.ts} ${readCls(lang)}`,
-    style: {
-      lineHeight: lang === "hi" ? 1.8 : 1.55
-    }
-  }, L.note)), /*#__PURE__*/React.createElement(StorylineTimeline, {
+  }, title), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, storyline.n_events, " ", L.updates, " \xB7 ", absDate(storyline.start, lang), " \u2192 ", absDate(storyline.end, lang)), /*#__PURE__*/React.createElement("p", {
+    className: `mt-4 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
+  }, L.note), /*#__PURE__*/React.createElement("div", {
+    className: "mt-6"
+  }, /*#__PURE__*/React.createElement(StorylineTimeline, {
     storyline: storyline,
     t: t,
     lang: lang,
     open: open
-  }));
+  })));
 }
 // "Developing" chip — marks a story that belongs to a saga thread (Eyebrow + story header).
 // Paksh 7A: the ◇ marker now carries t.dev (the indigo "developing/ongoing" accent) instead
@@ -7500,7 +7294,7 @@ function parsePath() {
   if (seg.length === 0) return {
     view: "home"
   };
-  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support", "login", "settings", "account", "saved", "lens", "storylines"].includes(seg[0])) return {
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support", "login", "settings", "account", "saved", "lens", "storylines", "my-paksh"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -8222,6 +8016,7 @@ function PakshApp() {
   const story = route.view === "story" ? detail[route.id] && !storyNotFound ? toDetail(detail[route.id], lang) : null : null;
   // Same-topic stories to keep a reader moving instead of dead-ending at the article.
   const related = story ? baseCards.filter(c => c.topic === story.topic && String(c.id) !== String(story.id)).slice(0, 6) : [];
+  const headerView = route.view === "story" ? "" : route.view;
 
   // Route-aware <title> for client-side navigation. Story pages already ship a unique,
   // crawler-visible <title> from the pre-rendered HTML (export_static._story_html) — this
@@ -8246,7 +8041,7 @@ function PakshApp() {
     if (route.view === "topic") title = suffix(route.topic);else if (route.view === "topics") title = suffix(ui("sections", lang));else if (route.view === "blindspot") title = suffix(STR[lang].osTitle);else if (route.view === "search") title = suffix(ui("searchTab", lang));else if (route.view === "storylines") title = suffix(ui("developingStories", lang));else if (route.view === "storyline") {
       const sl = (data.storylines || []).find(s => s.id === route.id);
       title = suffix(sl ? lang === "hi" && sl.title_hi ? sl.title_hi : sl.title : ui("developingStories", lang));
-    } else if (route.view === "sources") title = suffix(STR[lang].navSrc);else if (route.view === "about") title = suffix(STR[lang].navMethod);else if (route.view === "contact") title = suffix(lang === "hi" ? "संपर्क" : "Contact");else if (route.view === "support") title = suffix(lang === "hi" ? "सहयोग" : "Support");else if (route.view === "privacy") title = suffix(lang === "hi" ? "गोपनीयता" : "Privacy");else if (route.view === "login") title = suffix(lang === "hi" ? "साइन इन" : "Sign in");else if (route.view === "settings") title = suffix(lang === "hi" ? "सेटिंग्स" : "Settings");else if (route.view === "account") title = suffix(lang === "hi" ? "खाता" : "Account");else if (route.view === "saved") title = suffix(lang === "hi" ? "सेव की गई" : "Saved");else if (route.view === "lens") title = suffix(lang === "hi" ? "रीडिंग लेंस" : "Reading Lens");else if (route.view === "404") title = suffix(lang === "hi" ? "पेज नहीं मिला" : "Page not found");
+    } else if (route.view === "sources") title = suffix(STR[lang].navSrc);else if (route.view === "about") title = suffix(STR[lang].navMethod);else if (route.view === "contact") title = suffix(lang === "hi" ? "संपर्क" : "Contact");else if (route.view === "support") title = suffix(lang === "hi" ? "सहयोग" : "Support");else if (route.view === "privacy") title = suffix(lang === "hi" ? "गोपनीयता" : "Privacy");else if (route.view === "login") title = suffix(lang === "hi" ? "साइन इन" : "Sign in");else if (route.view === "settings") title = suffix(lang === "hi" ? "सेटिंग्स" : "Settings");else if (route.view === "account") title = suffix(lang === "hi" ? "खाता" : "Account");else if (route.view === "saved") title = suffix(lang === "hi" ? "सेव की गई" : "Saved");else if (route.view === "lens") title = suffix(lang === "hi" ? "रीडिंग लेंस" : "Reading Lens");else if (route.view === "my-paksh") title = suffix(lang === "hi" ? "मेरा पक्ष" : "My Paksh");else if (route.view === "404") title = suffix(lang === "hi" ? "पेज नहीं मिला" : "Page not found");
     try {
       document.title = title;
     } catch (e) {}
@@ -8284,11 +8079,10 @@ function PakshApp() {
   }), showFloatingSupport && !pastTop && route.view !== "story" && /*#__PURE__*/React.createElement(FloatingSupport, {
     t: t,
     lang: lang,
-    go: go,
-    dismiss: () => setShowFloatingSupport(false)
+    go: go
   }), /*#__PURE__*/React.createElement("main", {
     id: "main",
-    className: "pb-10"
+    className: "pb-24 md:pb-10"
   }, /*#__PURE__*/React.createElement("div", {
     className: "pk-page",
     key: route.view + (route.id || route.topic || "")
@@ -8342,6 +8136,18 @@ function PakshApp() {
     onUnsave: id => toggleSave({
       id
     })
+  }) : route.view === "my-paksh" ? /*#__PURE__*/React.createElement(MyPakshPage, {
+    t: t,
+    lang: lang,
+    auth: auth,
+    go: go,
+    open: open,
+    savedRows: savedRows,
+    followedTopics: followedTopics,
+    followedStoryRows: followedStoryRows,
+    onToggleFollowTopic: toggleFollowTopic,
+    onToggleFollowStory: toggleFollowStory,
+    cards: baseCards
   }) : route.view === "404" ? /*#__PURE__*/React.createElement(NotFoundPage, {
     t: t,
     lang: lang,
@@ -8462,6 +8268,12 @@ function PakshApp() {
     t: t,
     lang: lang,
     go: go
+  }), /*#__PURE__*/React.createElement(BottomNav, {
+    t: t,
+    lang: lang,
+    view: headerView,
+    go: go,
+    auth: auth
   }), onboard && /*#__PURE__*/React.createElement(Onboarding, {
     t: t,
     lang: lang,
