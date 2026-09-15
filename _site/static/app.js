@@ -225,23 +225,23 @@ const Grid = p => /*#__PURE__*/React.createElement("svg", {
 // blue. PILL_COLOR itself is retired below - BiasPill reads BIAS[k].color directly.
 const BIAS = {
   left: {
-    color: "#587A91",
+    color: "#3F8EAF",
     tex: "seg-left",
-    soft: "#E3E8EA",
+    soft: "#D7E4E6",
     en: "Left",
     hi: "वाम"
   },
   center: {
-    color: "#6F6B61",
+    color: "#77736A",
     tex: "seg-center",
-    soft: "#ECE9E1",
+    soft: "#E0DFD9",
     en: "Centre",
     hi: "केंद्र"
   },
   right: {
-    color: "#A46149",
+    color: "#C46645",
     tex: "seg-right",
-    soft: "#EFE3DB",
+    soft: "#EFDDD2",
     en: "Right",
     hi: "दक्षिण"
   },
@@ -980,7 +980,6 @@ const STR = {
     tagline: "Compare how India's media covers each story, every side, side by side.",
     topNews: "Top Stories",
     osTitle: "Coverage Gaps",
-    osSub: "Stories where one side reports heavily and the other barely does, counted the same way as the bias bar.",
     gapLeftHead: "Covered more by Left-leaning outlets",
     gapRightHead: "Covered more by Right-leaning outlets",
     gapShowing: "Showing the {n} most lopsided of {total}",
@@ -1070,7 +1069,6 @@ const STR = {
     tagline: "देखिए भारत का मीडिया हर खबर को कैसे कवर करता है, हर पक्ष, आमने-सामने।",
     topNews: "मुख्य खबरें",
     osTitle: "कवरेज गैप",
-    osSub: "वे ख़बरें जिन्हें एक पक्ष ज़्यादा कवर करता है और दूसरा बहुत कम, बायस बार जैसी ही गिनती से चिह्नित।",
     gapLeftHead: "ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर",
     gapRightHead: "ज़्यादातर दक्षिण-झुकाव आउटलेट्स द्वारा कवर",
     gapShowing: "{total} में से {n} सबसे असंतुलित दिखाई जा रही हैं",
@@ -1745,9 +1743,7 @@ function BiasPill({
       flexBasis: 0,
       background: BIAS.right.color
     }
-  }) : notch)), /*#__PURE__*/React.createElement("div", {
-    className: `mt-1 mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? "वा" : "L", " ", L, " ", lang === "hi" ? "कें" : "C", " ", C, " ", lang === "hi" ? "द" : "R", " ", R));
+  }) : notch)));
 }
 // Paksh 7: BiasBar and GapColumns removed as confirmed dead code (§A of the Phase 7
 // blueprint corrected the prior research here - both were only ever reachable through
@@ -1984,6 +1980,20 @@ function LeadStory({
     lang: lang,
     h: 10
   }), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5 flex items-center gap-3.5"
+  }, ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("span", {
+    key: k,
+    className: `inline-flex items-center gap-1.5 mono text-[9.5px] font-medium uppercase tracking-[0.06em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true",
+    style: {
+      width: 7,
+      height: 7,
+      borderRadius: 1.5,
+      background: BIAS[k].color,
+      display: "inline-block"
+    }
+  }), lbl(k, lang)))), /*#__PURE__*/React.createElement("div", {
     className: `mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, /*#__PURE__*/React.createElement("span", {
     style: {
@@ -4048,7 +4058,6 @@ function BlindspotPage({
   const PAGE = 10;
   const [visLeft, setVisLeft] = useState(PAGE);
   const [visRight, setVisRight] = useState(PAGE);
-  const gapsToday = agg.total != null ? agg.total : cards.length;
   const pad = "px-4 sm:px-10";
   // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
   // surface up to 3 gaps where that side is the under-covered one, preferring topics you read.
@@ -4064,9 +4073,6 @@ function BlindspotPage({
   // About page already fills from the same agg fields, surfaced here where the claim is
   // actually made, not only on a separate Method page.
   const gapText = agg.total != null ? (STR[lang].m_gap || "").replace("{total}", agg.total).replace("{rh}", agg.right_heavier).replace("{lh}", agg.left_heavier).replace("{lo}", agg.left_outlets).replace("{ro}", agg.right_outlets) : "";
-  // The opening editorial statement — grounded in the real daily count (never hardcoded),
-  // and careful to describe outlet coverage, not readership: Paksh counts outlets, not people.
-  const openingSentence = lang === "hi" ? `आज ${gapsToday} ख़बरें लगभग पूरी तरह सिर्फ़ एक पक्ष से रिपोर्ट हुईं।` : `${gapsToday} ${gapsToday === 1 ? "story" : "stories"} today were reported almost entirely from one side of the spectrum.`;
   // One column, either side: lead item gets image + larger type and no card chrome; the
   // rest are compact typographic rows; an empty column states its absence in prose, not 0/—.
   const Column = ({
@@ -4117,34 +4123,15 @@ function BlindspotPage({
   return /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("div", {
+    className: pad
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: `headline mt-8 ${t.tp} ${readCls(lang)}`,
     style: {
-      background: "#15140F"
+      fontSize: "clamp(26px,4vw,40px)",
+      letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `${pad} py-10 sm:py-14`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      color: "rgba(244,241,234,.6)",
-      letterSpacing: lang === "hi" ? 0 : ".16em"
-    }
-  }, STR[lang].osTitle), /*#__PURE__*/React.createElement("p", {
-    className: "headline mt-4 max-w-[720px]",
-    style: {
-      color: "#F4F1EA",
-      fontSize: "clamp(26px,4vw,44px)",
-      lineHeight: 1.18,
-      letterSpacing: lang === "hi" ? 0 : "-0.015em",
-      textWrap: "balance"
-    }
-  }, openingSentence), /*#__PURE__*/React.createElement("p", {
-    className: `mt-5 max-w-[60ch] text-[13.5px] sm:text-[14px] ${readCls(lang)}`,
-    style: {
-      color: "rgba(244,241,234,.65)",
-      lineHeight: lang === "hi" ? 1.75 : 1.6
-    }
-  }, STR[lang].osSub))), /*#__PURE__*/React.createElement("div", {
-    className: `${pad} py-10 sm:py-14`
+  }, STR[lang].osTitle)), /*#__PURE__*/React.createElement("div", {
+    className: `${pad} py-8 sm:py-10`
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid gap-10 lg:grid-cols-2 lg:gap-x-14"
   }, /*#__PURE__*/React.createElement("div", {

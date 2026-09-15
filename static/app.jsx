@@ -29,9 +29,9 @@ const {useState,useEffect,useMemo}=React;
     // reads the same "left" as the card grammar does, rather than a visibly different
     // blue. PILL_COLOR itself is retired below - BiasPill reads BIAS[k].color directly.
     const BIAS = {
-      left:   { color:"#587A91", tex:"seg-left",   soft:"#E3E8EA", en:"Left",   hi:"वाम" },
-      center: { color:"#6F6B61", tex:"seg-center", soft:"#ECE9E1", en:"Centre", hi:"केंद्र" },
-      right:  { color:"#A46149", tex:"seg-right",  soft:"#EFE3DB", en:"Right",  hi:"दक्षिण" },
+      left:   { color:"#3F8EAF", tex:"seg-left",   soft:"#D7E4E6", en:"Left",   hi:"वाम" },
+      center: { color:"#77736A", tex:"seg-center", soft:"#E0DFD9", en:"Centre", hi:"केंद्र" },
+      right:  { color:"#C46645", tex:"seg-right",  soft:"#EFDDD2", en:"Right",  hi:"दक्षिण" },
       international: { color:"#5E7E78", tex:"", soft:"#E3EAE8", en:"International", hi:"अंतरराष्ट्रीय" },
     };
     // Editorial tonality axes (0-100), set per PUBLISHER by editors in sources.py -
@@ -259,7 +259,6 @@ const {useState,useEffect,useMemo}=React;
         navTop:"Top Stories", navOS:"Coverage Gaps", navSrc:"Sources", navMethod:"Method",
         search:"Search coverage…", tagline:"Compare how India's media covers each story, every side, side by side.",
         topNews:"Top Stories", osTitle:"Coverage Gaps",
-        osSub:"Stories where one side reports heavily and the other barely does, counted the same way as the bias bar.",
         gapLeftHead:"Covered more by Left-leaning outlets", gapRightHead:"Covered more by Right-leaning outlets",
         gapShowing:"Showing the {n} most lopsided of {total}", gapCovered:"Covered by",
         m_gapH:"How coverage gaps break down",
@@ -311,7 +310,6 @@ const {useState,useEffect,useMemo}=React;
         navTop:"मुख्य खबरें", navOS:"कवरेज गैप", navSrc:"स्रोत", navMethod:"कार्यप्रणाली",
         search:"कवरेज खोजें…", tagline:"देखिए भारत का मीडिया हर खबर को कैसे कवर करता है, हर पक्ष, आमने-सामने।",
         topNews:"मुख्य खबरें", osTitle:"कवरेज गैप",
-        osSub:"वे ख़बरें जिन्हें एक पक्ष ज़्यादा कवर करता है और दूसरा बहुत कम, बायस बार जैसी ही गिनती से चिह्नित।",
         gapLeftHead:"ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर", gapRightHead:"ज़्यादातर दक्षिण-झुकाव आउटलेट्स द्वारा कवर",
         gapShowing:"{total} में से {n} सबसे असंतुलित दिखाई जा रही हैं", gapCovered:"कवर किया गया:",
         m_gapH:"कवरेज गैप का ब्यौरा",
@@ -598,7 +596,6 @@ const {useState,useEffect,useMemo}=React;
             {any && (C>0 ? <div style={{flexGrow:C,flexBasis:0,background:BIAS.center.color}}/> : notch)}
             {any && (R>0 ? <div style={{flexGrow:R,flexBasis:0,background:BIAS.right.color}}/> : notch)}
           </div>
-          <div className={`mt-1 mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{(lang==="hi"?"वा":"L")} {L} {(lang==="hi"?"कें":"C")} {C} {(lang==="hi"?"द":"R")} {R}</div>
         </div>
       );
     }
@@ -699,9 +696,17 @@ const {useState,useEffect,useMemo}=React;
           <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_250px] lg:gap-8">
             {story.lead && <p className={`text-[16px] lg:text-[17.5px] ${t.ts} ${readCls(lang)} lc-4`} style={{lineHeight:lang==="hi"?1.85:1.6,textWrap:"pretty"}}>{story.lead}</p>}
             <div>
-              {/* 6.3B.6: one rounded BiasPill + "L n C n R n" - Paksh's one bias grammar,
-                  now used identically everywhere on the homepage. */}
+              {/* one rounded BiasPill - the bar alone carries the distribution; the
+                  legend below is what teaches a new reader what the colours mean, shown
+                  once here rather than as a repeated caption on every card site-wide. */}
               <BiasPill counts={c} t={t} lang={lang} h={10} />
+              <div className="mt-2.5 flex items-center gap-3.5">
+                {["left","center","right"].map(k=>(
+                  <span key={k} className={`inline-flex items-center gap-1.5 mono text-[9.5px] font-medium uppercase tracking-[0.06em] ${t.tf} ${lang==="hi"?"deva":""}`}>
+                    <span aria-hidden="true" style={{width:7,height:7,borderRadius:1.5,background:BIAS[k].color,display:"inline-block"}}/>{lbl(k,lang)}
+                  </span>
+                ))}
+              </div>
               <div className={`mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang==="hi"?"deva":""}`}><span style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:2}}>{lang==="hi"?"सभी पक्ष पढ़ें":"Read all sides"} →</span></div>
             </div>
           </div>
@@ -1717,7 +1722,6 @@ const {useState,useEffect,useMemo}=React;
       const PAGE=10;
       const [visLeft,setVisLeft]=useState(PAGE);
       const [visRight,setVisRight]=useState(PAGE);
-      const gapsToday=(agg.total!=null?agg.total:cards.length);
       const pad="px-4 sm:px-10";
       // "Tuned to your reading" (member): the side you read LEAST is the side you most miss, so
       // surface up to 3 gaps where that side is the under-covered one, preferring topics you read.
@@ -1735,11 +1739,6 @@ const {useState,useEffect,useMemo}=React;
       const gapText = agg.total!=null ? (STR[lang].m_gap||"")
         .replace("{total}",agg.total).replace("{rh}",agg.right_heavier).replace("{lh}",agg.left_heavier)
         .replace("{lo}",agg.left_outlets).replace("{ro}",agg.right_outlets) : "";
-      // The opening editorial statement — grounded in the real daily count (never hardcoded),
-      // and careful to describe outlet coverage, not readership: Paksh counts outlets, not people.
-      const openingSentence = lang==="hi"
-        ? `आज ${gapsToday} ख़बरें लगभग पूरी तरह सिर्फ़ एक पक्ष से रिपोर्ट हुईं।`
-        : `${gapsToday} ${gapsToday===1?"story":"stories"} today were reported almost entirely from one side of the spectrum.`;
       // One column, either side: lead item gets image + larger type and no card chrome; the
       // rest are compact typographic rows; an empty column states its absence in prose, not 0/—.
       const Column=({side,items,visible,setVisible,label})=>{
@@ -1762,21 +1761,15 @@ const {useState,useEffect,useMemo}=React;
       };
       return (
         <div className="mx-auto max-w-[1280px]">
-          {/* the ink opening — the loud moment, constrained to the publication's own content
-              width (not the browser viewport), same ink language as the homepage's one reversal
-              moment, given room here to become a full editorial sentence instead of a bare
-              number. */}
-          <div style={{background:"#15140F"}}>
-            <div className={`${pad} py-10 sm:py-14`}>
-              <div className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:"rgba(244,241,234,.6)",letterSpacing:lang==="hi"?0:".16em"}}>{STR[lang].osTitle}</div>
-              <p className="headline mt-4 max-w-[720px]" style={{color:"#F4F1EA",fontSize:"clamp(26px,4vw,44px)",lineHeight:1.18,letterSpacing:lang==="hi"?0:"-0.015em",textWrap:"balance"}}>{openingSentence}</p>
-              <p className={`mt-5 max-w-[60ch] text-[13.5px] sm:text-[14px] ${readCls(lang)}`} style={{color:"rgba(244,241,234,.65)",lineHeight:lang==="hi"?1.75:1.6}}>{STR[lang].osSub}</p>
-            </div>
+          {/* restrained editorial heading — no statistic, no explanatory prose; the concept
+              is communicated by the story cards and their side-indicator bars below. */}
+          <div className={pad}>
+            <h1 className={`headline mt-8 ${t.tp} ${readCls(lang)}`} style={{fontSize:"clamp(26px,4vw,40px)",letterSpacing:lang==="hi"?0:"-0.018em"}}>{STR[lang].osTitle}</h1>
           </div>
 
           {/* facing columns — absence gets the same room as presence: a full editorial sentence,
               not a smaller/greyed box, when a side has nothing to show. */}
-          <div className={`${pad} py-10 sm:py-14`}>
+          <div className={`${pad} py-8 sm:py-10`}>
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-x-14">
               <div className="lg:border-r lg:pr-14" style={{borderColor:t.line}}>
                 <Column side="left" items={leftMissing} visible={visLeft} setVisible={setVisLeft} label={lang==="hi"?"जो वाम नहीं दिखा रहा":"Not covering: Left"} />
