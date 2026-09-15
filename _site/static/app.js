@@ -2,7 +2,8 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
 const {
   useState,
   useEffect,
-  useMemo
+  useMemo,
+  useRef
 } = React;
 // App context: save/clip state (feed cards get a ✂ CLIP action) + go() for nav from deep
 // components (e.g. a clicked ad box → the advertiser form) without prop-drilling.
@@ -1003,22 +1004,13 @@ const STR = {
     autoTag: "Auto-summary",
     autoFrom: "from coverage",
     autoNote: "This headline comes straight from a covering outlet, a neutral Paksh summary is being prepared.",
-    unratedTitle: "Unrated outlets",
-    unratedNote: "Outlets we found covering this story but don't rate yet, they add coverage but don't affect the bias bar.",
-    intlTitle: "International coverage",
-    intlNote: "Foreign wire services (Reuters, AP, BBC…) covering this story, they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
     framingTitle: "How each side is framing it",
     framingSub: "A neutral read of what each side's coverage emphasises, based on the headlines collected, not opinion.",
     framingPending: "The side-by-side framing comparison appears once a full summary is generated for this story.",
     framingThin: "Not enough unique coverage to create a summary.",
-    sideBySide: "Side by Side",
-    coverageBreakdown: "Coverage Breakdown",
-    totalSources: "Total news sources",
     whereLean: "Where the sources lean",
     aiNote: "Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
     whoCoveredNote: "Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
-    osCalloutBody1: "Only",
-    osCalloutBody2: "of the covering outlets lean this way, a count of outlets, not a judgment about why a side did or didn't cover it.",
     srcTitle: "Source ratings",
     srcIntro: "Every outlet Paksh tracks, how it's rated, and why.",
     srcDisclaimer: "All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
@@ -1092,22 +1084,13 @@ const STR = {
     autoTag: "स्वतः सारांश",
     autoFrom: "कवरेज से",
     autoNote: "यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है, पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
-    unratedTitle: "बिना रेटिंग वाले आउटलेट",
-    unratedNote: "ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं, ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
-    intlTitle: "अंतरराष्ट्रीय कवरेज",
-    intlNote: "इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…), ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
     framingTitle: "हर पक्ष इसे कैसे पेश कर रहा है",
     framingSub: "हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
     framingPending: "इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
     framingThin: "सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
-    sideBySide: "आमने-सामने",
-    coverageBreakdown: "कवरेज का ब्यौरा",
-    totalSources: "कुल समाचार स्रोत",
     whereLean: "स्रोत किस ओर झुके हैं",
     aiNote: "झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
     whoCoveredNote: "इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
-    osCalloutBody1: "केवल",
-    osCalloutBody2: "कवर करने वाले आउटलेट इस ओर झुके हैं, यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
     srcTitle: "स्रोत रेटिंग",
     srcIntro: "पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
     srcDisclaimer: "सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
@@ -1699,48 +1682,54 @@ function BiasPill({
     C = counts.center || 0,
     R = counts.right || 0;
   const barH = h || 8;
-  // Phase 32D (Change 1): a side with zero coverage used to simply not render, letting the
-  // remaining sides' flexGrow expand to fill the whole bar - a 2-of-3-sides story and a
-  // fully-3-sided story with a negligible third side became visually indistinguishable,
-  // with only the caption's small mono text telling them apart. When every side is absent
-  // (L=C=R=0) the bar stays exactly as before - a bare track, nothing to distinguish. When
-  // ONLY one or two sides are absent, each now gets a fixed-width neutral notch (the bar's
-  // own track colour, sized to its own height) instead of being omitted outright, so the
-  // missing side reads as an actual gap in the shape, not just a lighter caption number.
+  // Broken/segmented pill: three independently-rounded bars with a small visible gap
+  // between them, rather than one continuous track — the approved coverage-indicator
+  // redesign. Purely visual: the flexGrow proportions (and the Phase 32D neutral-notch
+  // behaviour for a genuinely absent side, so a 2-of-3 story never reads identically to
+  // a 3-of-3 story) are unchanged from the original single-bar version.
   const any = L > 0 || C > 0 || R > 0;
+  const gap = Math.max(2, Math.round(barH / 3));
+  const r = Math.max(2, Math.round(barH / 3));
   const notch = /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: 0,
       flexShrink: 0,
       width: barH,
+      borderRadius: r,
       background: t.line
     }
   });
+  const summary = lang === "hi" ? `वाम ${L}, केंद्र ${C}, दक्षिण ${R}` : `Left ${L}, Centre ${C}, Right ${R}`;
   return /*#__PURE__*/React.createElement("div", {
-    className: className || ""
+    className: className || "",
+    role: "img",
+    "aria-label": summary
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex w-full overflow-hidden",
+    "aria-hidden": "true",
+    className: "flex w-full",
     style: {
       height: barH,
-      borderRadius: 999,
-      background: t.line
+      gap
     }
   }, any && (L > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: L,
       flexBasis: 0,
+      borderRadius: r,
       background: BIAS.left.color
     }
   }) : notch), any && (C > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: C,
       flexBasis: 0,
+      borderRadius: r,
       background: BIAS.center.color
     }
   }) : notch), any && (R > 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       flexGrow: R,
       flexBasis: 0,
+      borderRadius: r,
       background: BIAS.right.color
     }
   }) : notch)));
@@ -2201,7 +2190,9 @@ function Masthead({
   saved,
   onToggleSave,
   followingStory,
-  onToggleFollowStory
+  onToggleFollowStory,
+  query,
+  setQuery
 }) {
   const isReading = view === "story" || view === "blindspot" || view === "storyline";
   const [copied, setCopied] = useState(false);
@@ -2214,15 +2205,42 @@ function Masthead({
   };
   const tp = story ? lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic : "";
   const region = story ? lang === "hi" ? story.region === "World" ? "विश्व" : "भारत" : story.region || "India" : "";
-  const NAV = [["home", STR[lang].navTop, false], ["blindspot", STR[lang].navOS, true], ["topics", ui("sections", lang), false], ["sources", STR[lang].navSrc, false], ["about", STR[lang].navMethod, false]];
+  // Primary nav priority: National/International (home-only feed filters) · Coverage
+  // Gaps · Sections · Search. Sources/Method demoted out of this row — still reachable
+  // from the footer's own link list — and Top Stories dropped as a nav item since the
+  // centered पक्ष wordmark already goes home.
+  const NAV = [["blindspot", STR[lang].navOS, true], ["topics", ui("sections", lang), false]];
+  const navCell = `relative text-[11px] font-semibold uppercase ${lang === "hi" ? "deva" : ""}`;
+  const navCellStyle = {
+    padding: "11px 20px",
+    borderRight: `1px solid ${t.line}`,
+    letterSpacing: lang === "hi" ? 0 : ".04em"
+  };
   const initials = email => {
     const s = (email || "").trim();
     return s ? s[0].toUpperCase() : "?";
   };
-  const shortDate = new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
-    month: "short",
-    day: "numeric"
-  });
+  // Desktop-only expandable search: collapsed to an icon by default, expands into an
+  // inline field on click (never a full-width overlay), collapses again on Escape,
+  // blur/outside-click, or a submitted search. Mobile search is untouched elsewhere.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
+  const searchWrapRef = useRef(null);
+  useEffect(() => {
+    if (searchOpen && searchRef.current) searchRef.current.focus();
+  }, [searchOpen]);
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onDown = e => {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setSearchOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [searchOpen]);
+  const runSearch = () => {
+    setSearchOpen(false);
+    go("search");
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: t.bg,
     style: {
@@ -2346,15 +2364,37 @@ function Masthead({
     style: {
       borderTop: `1px solid ${t.ink}`
     }
-  }, NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
+  }, view === "home" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRegionFilter && setRegionFilter("National"),
+    className: `${navCell} ${regionFilter !== "International" ? t.tp : t.ts} hover:${t.tp}`,
+    style: navCellStyle
+  }, ui("National", lang), regionFilter !== "International" && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: -1,
+      height: 2,
+      background: t.ink
+    }
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRegionFilter && setRegionFilter("International"),
+    className: `${navCell} ${regionFilter === "International" ? t.tp : t.ts} hover:${t.tp}`,
+    style: navCellStyle
+  }, ui("International", lang), regionFilter === "International" && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: -1,
+      height: 2,
+      background: t.ink
+    }
+  }))), NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
-    className: `relative text-[11px] font-semibold uppercase hover:${t.tp} ${view === k ? t.tp : clay ? t.blind : t.ts} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      padding: "11px 20px",
-      borderRight: `1px solid ${t.line}`,
-      letterSpacing: lang === "hi" ? 0 : ".04em"
-    }
+    className: `${navCell} hover:${t.tp} ${view === k ? t.tp : clay ? t.blind : t.ts}`,
+    style: navCellStyle
   }, label, view === k && /*#__PURE__*/React.createElement("span", {
     style: {
       position: "absolute",
@@ -2364,27 +2404,34 @@ function Masthead({
       height: 2,
       background: t.ink
     }
-  }))), view === "home" && /*#__PURE__*/React.createElement("div", {
-    className: "ml-auto flex items-center gap-3 px-4"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setRegionFilter && setRegionFilter("National"),
-    className: `mono text-[10px] uppercase hover:${t.tp} ${regionFilter !== "International" ? t.tp : t.tf} ${lang === "hi" ? "deva" : ""}`,
+  }))), /*#__PURE__*/React.createElement("div", {
+    ref: searchWrapRef,
+    className: "ml-auto flex items-center"
+  }, searchOpen ? /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 px-3",
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em"
+      transition: "width .2s ease"
     }
-  }, ui("National", lang)), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement(Search, {
+    size: 13,
     className: t.tf
-  }, "\xB7"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setRegionFilter && setRegionFilter("International"),
-    className: `mono text-[10px] uppercase hover:${t.tp} ${regionFilter === "International" ? t.tp : t.tf} ${lang === "hi" ? "deva" : ""}`,
+  }), /*#__PURE__*/React.createElement("input", {
+    ref: searchRef,
+    value: query || "",
+    onChange: e => setQuery && setQuery(e.target.value),
+    onKeyDown: e => {
+      if (e.key === "Enter") runSearch();else if (e.key === "Escape") setSearchOpen(false);
+    },
+    placeholder: STR[lang].search,
+    className: `bg-transparent outline-none text-[13px] ${t.tp} ${readCls(lang)}`,
     style: {
-      letterSpacing: lang === "hi" ? 0 : ".08em"
+      width: 200,
+      borderBottom: `1px solid ${t.ink}`,
+      paddingBottom: 2
     }
-  }, ui("International", lang)), /*#__PURE__*/React.createElement("span", {
-    className: `hidden lg:inline mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, shortDate)), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("search"),
-    className: `${view === "home" ? "" : "ml-auto "}flex items-center ${t.tf} hover:${t.tp}`,
+  })) : /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSearchOpen(true),
+    className: `flex items-center ${t.tf} hover:${t.tp}`,
     style: {
       padding: "0 18px",
       borderLeft: `1px solid ${t.line}`
@@ -2392,7 +2439,7 @@ function Masthead({
     "aria-label": STR[lang].search
   }, /*#__PURE__*/React.createElement(Search, {
     size: 14
-  })))));
+  }))))));
 }
 // Floating Support invitation (6.3B.6) — temporary, not a permanent masthead fixture.
 // Sits above BottomNav (lower z-index, offset clear of it on mobile) and disappears
@@ -2786,46 +2833,34 @@ function BriefRow({
     }
   }, story.headline));
 }
-// THE ONE REVERSAL — the ink-filled Coverage Gaps band at the fold. The page's only
-// ink area; it spends that emphasis on what Paksh exists to say: what one side didn't
-// run. Each label ("Missing: Left · 1 of 12") is computed from the real per-lean counts.
+// COVERAGE GAPS BAND — dark ink treatment on mobile only (so a reader's thumb recognises
+// the module while scrolling); a plain paper rail on desktop, same as the rest of the
+// front page. No count, no "X today" tally, no per-story "Missing: X · N of M" text —
+// the headline and that story's own coverage pill (present sides bright, the absent side
+// a neutral notch) carry the meaning. A visually-hidden label keeps the missing side
+// explicit for screen readers without printing it for sighted readers.
 function InkGapBand({
   items,
   t,
   lang,
   go,
-  open
+  open,
+  pad
 }) {
   if (!items.length) return null;
-  const paper = "#F4F1EA",
-    faint = "rgba(244,241,234,.28)";
   return /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "#15140F"
-    },
-    className: "px-4 sm:px-10 py-5 sm:py-6"
+    className: `${pad || "px-4 sm:px-10"} py-5 sm:py-6 bg-[#15140F] lg:bg-transparent`
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between gap-3 pb-3",
-    style: {
-      borderBottom: `1px solid ${faint}`
-    }
+    className: "flex items-baseline justify-between gap-3 pb-3 border-b border-[rgba(244,241,234,.28)] lg:border-[#DAD5C9]"
   }, /*#__PURE__*/React.createElement("span", {
-    className: `eyebrow ${lang === "hi" ? "deva" : ""}`,
+    className: `eyebrow text-[#F4F1EA] lg:text-[#15140F] ${lang === "hi" ? "deva" : ""}`,
     style: {
-      color: paper,
       letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, lang === "hi" ? "कवरेज गैप · जो एक पक्ष ने नहीं चलाया" : "Coverage gaps · what one side didn’t run"), /*#__PURE__*/React.createElement("button", {
+  }, STR[lang].osTitle), /*#__PURE__*/React.createElement("button", {
     onClick: () => go("blindspot"),
-    className: "mono text-[10.5px] shrink-0",
-    style: {
-      color: "rgba(244,241,234,.6)"
-    }
-  }, items.length, " ", lang === "hi" ? "आज" : "today", " \xB7 ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      borderBottom: "1px solid rgba(244,241,234,.5)"
-    }
-  }, lang === "hi" ? "सभी गैप" : "all gaps", " \u2192"))), /*#__PURE__*/React.createElement("div", {
+    className: "mono text-[10.5px] shrink-0 text-[rgba(244,241,234,.6)] lg:text-[#8A8371]"
+  }, lang === "hi" ? "सभी गैप" : "All gaps", " \u2192")), /*#__PURE__*/React.createElement("div", {
     className: "grid gap-y-5 sm:grid-cols-2 lg:grid-cols-3 pt-4"
   }, items.map((it, i) => /*#__PURE__*/React.createElement("a", {
     key: it.story.id,
@@ -2835,20 +2870,23 @@ function InkGapBand({
       e.preventDefault();
       open(it.story.id);
     },
-    className: `block no-underline group cursor-pointer ${i > 0 ? "sm:border-l sm:pl-8" : ""}`,
-    style: i > 0 ? {
-      borderColor: faint
-    } : {}
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `mono text-[10.5px] gap-accent ${lang === "hi" ? "deva" : ""}`
-  }, it.label), /*#__PURE__*/React.createElement("div", {
-    className: `headline mt-2 text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`,
+    className: `block no-underline group cursor-pointer ${i > 0 ? "sm:border-l sm:pl-8 border-[rgba(244,241,234,.28)] lg:border-[#DAD5C9]" : ""}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "sr-only"
+  }, lang === "hi" ? `ग़ायब: ${lbl(it.missingSide, lang)}` : `Missing: ${lbl(it.missingSide, lang)} coverage`), /*#__PURE__*/React.createElement("div", {
+    className: `headline text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2 text-[#F4F1EA] lg:text-[#15140F]`,
     style: {
-      color: paper,
       lineHeight: 1.3,
       textWrap: "pretty"
     }
-  }, it.story.headline)))));
+  }, it.story.headline), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5 max-w-[220px]"
+  }, /*#__PURE__*/React.createElement(BiasPill, {
+    counts: it.story.counts || {},
+    t: t,
+    lang: lang,
+    h: 5
+  }))))));
 }
 // Paksh 7: WidestAgreement removed as confirmed dead code - no call site anywhere in
 // the routed app, and its BiasSegments instrument was already superseded by BiasPill.
@@ -3108,25 +3146,20 @@ function HomeView({
   const forYou = _topTopics.length ? take(cards.filter(c => _topTopics.includes(c.topic)), 4) : [];
   const brief = take(cards, 15); // "In brief" tier
   const notUsed = arr => (arr || []).filter(c => !used.has(c.id));
-  // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
-  // are "Missing: Right". Labels read the real per-lean counts (N of total).
-  const nOf = c => {
-    const k = c.counts || {};
-    return (k.left || 0) + (k.center || 0) + (k.right || 0);
-  };
+  // Coverage-gap band items: right-heavier stories are missing Left, left-heavier are
+  // missing Right. Only the side key travels now — InkGapBand shows the story through
+  // its headline and coverage pill, not a printed "Missing: X · N of M" count.
   const gapItems = [];
   notUsed(gapRight).slice(0, 2).forEach(s => {
-    const k = s.counts || {};
     gapItems.push({
       story: s,
-      label: lang === "hi" ? `ग़ायब: वाम · ${k.left || 0}/${nOf(s)}` : `Missing: Left · ${k.left || 0} of ${nOf(s)}`
+      missingSide: "left"
     });
   });
   notUsed(gapLeft).slice(0, 1).forEach(s => {
-    const k = s.counts || {};
     gapItems.push({
       story: s,
-      label: lang === "hi" ? `ग़ायब: दक्षिण · ${k.right || 0}/${nOf(s)}` : `Missing: Right · ${k.right || 0} of ${nOf(s)}`
+      missingSide: "right"
     });
   });
   gapItems.slice(0, 3).forEach(g => used.add(g.story.id));
@@ -3158,7 +3191,7 @@ function HomeView({
       borderColor: t.line
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-baseline justify-between gap-3 pb-2",
+    className: "pb-2",
     style: {
       borderBottom: `2px solid ${t.ink}`
     }
@@ -3167,9 +3200,7 @@ function HomeView({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".08em"
     }
-  }, STR[lang].topNews), stats.updated && /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? `${timeAgo(stats.updated, lang)} अपडेट` : `Updated ${timeAgo(stats.updated, lang)}`)), lead && /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].topNews)), lead && /*#__PURE__*/React.createElement("div", {
     className: "py-5",
     style: {
       borderBottom: `1px solid ${t.line}`
@@ -3229,32 +3260,14 @@ function HomeView({
     t: t,
     lang: lang,
     onOpen: open
-  }))), gapItems.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "#15140F"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: `${pad} pt-7 pb-1`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "headline",
-    style: {
-      color: "#F4F1EA",
-      fontSize: "clamp(48px,7vw,88px)",
-      lineHeight: 1,
-      letterSpacing: "-0.02em"
-    }
-  }, stats.gaps), /*#__PURE__*/React.createElement("div", {
-    className: `mono text-[11px] uppercase tracking-[0.14em] mt-1 ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      color: "rgba(244,241,234,.55)"
-    }
-  }, lang === "hi" ? "आज ट्रैक किए गए कवरेज गैप" : "coverage gaps tracked today")), /*#__PURE__*/React.createElement(InkGapBand, {
+  }))), gapItems.length > 0 && /*#__PURE__*/React.createElement(InkGapBand, {
     items: gapItems,
     t: t,
     lang: lang,
     go: go,
-    open: open
-  })), forYou.length > 0 && /*#__PURE__*/React.createElement("div", {
+    open: open,
+    pad: pad
+  }), forYou.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "py-7",
@@ -3380,17 +3393,6 @@ function StoryPage({
     center: voteRow("center").votes,
     right: voteRow("right").votes
   };
-  // Phase 29B: the International/Unrated Coverage Breakdown rows below were gated on
-  // story.international / story.unrated, fields that aren't present in the exported
-  // story JSON (story.coverage.international.count / story.coverage.unrated.count is
-  // where this is actually computed, same place voteRow() above already reads L/C/R
-  // from) - so those rows, and the explanatory notes on them, never rendered for any
-  // story. Reading the same already-correct source voteRow() uses fixes the display
-  // only; `total` below is deliberately left exactly as it was (still effectively just
-  // story.sources) so the "Total news sources" figure itself does not change for any
-  // story - only these two previously-invisible informational rows becoming visible.
-  const intlCount = story.coverage && story.coverage.international && story.coverage.international.count || 0;
-  const unratedCount = story.coverage && story.coverage.unrated && story.coverage.unrated.count || 0;
   const [atab, setAtab] = useState("all");
   const arts = atab === "all" ? outlets : outlets.filter(o => o.lean === atab);
   const total = story.sources + (story.unrated || 0) + (story.international || 0);
@@ -3627,88 +3629,6 @@ function StoryPage({
   }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
   }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto mt-10 max-w-[840px]"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "pb-2",
-    style: {
-      borderBottom: `1px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
-    }
-  }, STR[lang].coverageBreakdown)), /*#__PURE__*/React.createElement("div", {
-    className: `mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[13px] font-semibold ${t.tp} ${readCls(lang)}`
-  }, STR[lang].totalSources), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[14px] font-semibold ${t.tp}`
-  }, total)), ["left", "center", "right"].map(k => {
-    const {
-      votes,
-      outlets: oc,
-      groups
-    } = voteRow(k);
-    if (votes === 0 && oc === 0) return null;
-    const coOwned = groups.some(([o, ms]) => ms.length > 1);
-    return /*#__PURE__*/React.createElement("div", {
-      key: k,
-      className: `border-b py-3 ${t.border}`
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center justify-between"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "flex items-center gap-2.5"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "shrink-0",
-      style: {
-        width: 14,
-        height: 14,
-        background: BIAS[k].color,
-        border: `1px solid ${t.ink}`
-      }
-    }), /*#__PURE__*/React.createElement("span", {
-      className: `text-[13px] ${t.ts} ${lang === "hi" ? "deva" : ""}`
-    }, lbl(k, lang))), /*#__PURE__*/React.createElement("span", {
-      className: `mono text-[14px] font-semibold ${t.tp}`
-    }, votes, oc > votes && /*#__PURE__*/React.createElement("span", {
-      className: `ml-1 text-[11px] font-normal ${t.tf}`
-    }, lang === "hi" ? `प्रकाशक · ${oc} मास्टहेड` : `${votes === 1 ? "publisher" : "publishers"} · ${oc} mastheads`))), coOwned && /*#__PURE__*/React.createElement("div", {
-      className: "mt-1.5 space-y-0.5 pl-6"
-    }, groups.filter(([o, ms]) => ms.length > 1).map(([o, ms], j) => /*#__PURE__*/React.createElement("div", {
-      key: j,
-      className: `text-[11px] leading-snug ${t.tf} ${isHi(lang)}`
-    }, ms.join(" · "), " ", /*#__PURE__*/React.createElement("span", {
-      className: "italic"
-    }, "(", o, ", ", lang === "hi" ? "1 वोट" : "1 vote", ")")))));
-  }), intlCount > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `border-b py-2.5 ${t.border}`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[13px] ${t.ts} ${isHi(lang)}`
-  }, STR[lang].intlTitle), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[14px] font-semibold ${t.tp}`
-  }, intlCount)), /*#__PURE__*/React.createElement("p", {
-    className: `mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].intlNote)), unratedCount > 0 && /*#__PURE__*/React.createElement("div", {
-    className: `border-b py-2.5 ${t.border}`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `text-[13px] ${t.ts} ${isHi(lang)}`
-  }, STR[lang].unratedTitle), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[14px] font-semibold ${t.tp}`
-  }, unratedCount)), /*#__PURE__*/React.createElement("p", {
-    className: `mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].unratedNote)), story.blindspot && /*#__PURE__*/React.createElement("div", {
-    className: `mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`
-  }, /*#__PURE__*/React.createElement(Eye, {
-    size: 15,
-    className: "mt-0.5 shrink-0"
-  }), /*#__PURE__*/React.createElement("span", null, STR[lang].osCalloutBody1, " ", /*#__PURE__*/React.createElement("strong", null, story.bias[story.blindspot], "%"), " ", STR[lang].osCalloutBody2)), /*#__PURE__*/React.createElement("p", {
-    className: `mt-4 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].aiNote)), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
@@ -4292,7 +4212,7 @@ function TopicPage({
     rest = items.slice(5, 5 + visible);
   const more = items.length - 5 - visible;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
+    className: "mx-auto max-w-[1280px] px-4 sm:px-10 py-10"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => go("topics"),
     className: `mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
@@ -8062,7 +7982,9 @@ function PakshApp() {
     saved: savedIds,
     onToggleSave: toggleSave,
     followingStory: !!(story && followedStories.has(String(story.id))),
-    onToggleFollowStory: toggleFollowStory
+    onToggleFollowStory: toggleFollowStory,
+    query: query,
+    setQuery: setQuery
   }), showFloatingSupport && !pastTop && route.view !== "story" && /*#__PURE__*/React.createElement(FloatingSupport, {
     t: t,
     lang: lang,

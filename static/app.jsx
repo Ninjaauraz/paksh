@@ -1,4 +1,4 @@
-const {useState,useEffect,useMemo}=React;
+const {useState,useEffect,useMemo,useRef}=React;
     // App context: save/clip state (feed cards get a ✂ CLIP action) + go() for nav from deep
     // components (e.g. a clicked ad box → the advertiser form) without prop-drilling.
     const SaveCtx = React.createContext({ saved:new Set(), toggle:()=>{}, on:false, go:()=>{} });
@@ -269,14 +269,10 @@ const {useState,useEffect,useMemo}=React;
         onlyLabel:"Only", back:"Back to feed", aiSummary:"Paksh neutral summary", aiSub:"neutral synthesis",
         autoTag:"Auto-summary", autoFrom:"from coverage",
         autoNote:"This headline comes straight from a covering outlet, a neutral Paksh summary is being prepared.",
-        unratedTitle:"Unrated outlets", unratedNote:"Outlets we found covering this story but don't rate yet, they add coverage but don't affect the bias bar.",
-        intlTitle:"International coverage", intlNote:"Foreign wire services (Reuters, AP, BBC…) covering this story, they add coverage but aren't rated on India's spectrum, so they don't affect the bias bar.",
         framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises, based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.", framingThin:"Not enough unique coverage to create a summary.",
-        sideBySide:"Side by Side", coverageBreakdown:"Coverage Breakdown", totalSources:"Total news sources",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
         whoCoveredNote:"Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
-        osCalloutBody1:"Only", osCalloutBody2:"of the covering outlets lean this way, a count of outlets, not a judgment about why a side did or didn't cover it.",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
         srcDisclaimer:"All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
         srcSignalsIntro:"“Signals” are the six weighted parts of that rubric (stance, framing, story selection, sourcing, ownership, a cross-spectrum panel check); the scales under each entry are the three axes Paksh tracks separately (ideological, economic, and stance toward the incumbent). Full rubric and weights →",
@@ -320,14 +316,10 @@ const {useState,useEffect,useMemo}=React;
         onlyLabel:"केवल", back:"फ़ीड पर वापस", aiSummary:"पक्ष तटस्थ सारांश", aiSub:"तटस्थ संश्लेषण",
         autoTag:"स्वतः सारांश", autoFrom:"कवरेज से",
         autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है, पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
-        unratedTitle:"बिना रेटिंग वाले आउटलेट", unratedNote:"ऐसे आउटलेट जो इस ख़बर को कवर कर रहे हैं पर अभी रेटेड नहीं हैं, ये कवरेज जोड़ते हैं पर बायस बार को प्रभावित नहीं करते।",
-        intlTitle:"अंतरराष्ट्रीय कवरेज", intlNote:"इस ख़बर को कवर करने वाली विदेशी समाचार एजेंसियाँ (Reuters, AP, BBC…), ये कवरेज जोड़ती हैं पर भारत के स्पेक्ट्रम पर रेटेड नहीं हैं, इसलिए बायस बार को प्रभावित नहीं करतीं।",
         framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।", framingThin:"सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
-        sideBySide:"आमने-सामने", coverageBreakdown:"कवरेज का ब्यौरा", totalSources:"कुल समाचार स्रोत",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
         whoCoveredNote:"इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
-        osCalloutBody1:"केवल", osCalloutBody2:"कवर करने वाले आउटलेट इस ओर झुके हैं, यह आउटलेट्स की गिनती है, इस बारे में निर्णय नहीं कि किसी पक्ष ने इसे क्यों कवर किया या नहीं।",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
         srcDisclaimer:"सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
         srcSignalsIntro:"“संकेत” उसी रूब्रिक के छह भाग हैं (रुख, फ़्रेमिंग, खबरों का चयन, स्रोत, स्वामित्व, क्रॉस-स्पेक्ट्रम पैनल जाँच); हर प्रविष्टि के नीचे के पैमाने वे तीन अक्ष हैं जिन्हें पक्ष अलग से देखता है (वैचारिक, आर्थिक, और सत्ता के प्रति रुख)। पूरा रूब्रिक और भार →",
@@ -579,22 +571,22 @@ const {useState,useEffect,useMemo}=React;
     function BiasPill({ counts, t, lang, h, className }) {
       const L=counts.left||0,C=counts.center||0,R=counts.right||0;
       const barH=h||8;
-      // Phase 32D (Change 1): a side with zero coverage used to simply not render, letting the
-      // remaining sides' flexGrow expand to fill the whole bar - a 2-of-3-sides story and a
-      // fully-3-sided story with a negligible third side became visually indistinguishable,
-      // with only the caption's small mono text telling them apart. When every side is absent
-      // (L=C=R=0) the bar stays exactly as before - a bare track, nothing to distinguish. When
-      // ONLY one or two sides are absent, each now gets a fixed-width neutral notch (the bar's
-      // own track colour, sized to its own height) instead of being omitted outright, so the
-      // missing side reads as an actual gap in the shape, not just a lighter caption number.
+      // Broken/segmented pill: three independently-rounded bars with a small visible gap
+      // between them, rather than one continuous track — the approved coverage-indicator
+      // redesign. Purely visual: the flexGrow proportions (and the Phase 32D neutral-notch
+      // behaviour for a genuinely absent side, so a 2-of-3 story never reads identically to
+      // a 3-of-3 story) are unchanged from the original single-bar version.
       const any=L>0||C>0||R>0;
-      const notch=<div style={{flexGrow:0,flexShrink:0,width:barH,background:t.line}}/>;
+      const gap=Math.max(2,Math.round(barH/3));
+      const r=Math.max(2,Math.round(barH/3));
+      const notch=<div style={{flexGrow:0,flexShrink:0,width:barH,borderRadius:r,background:t.line}}/>;
+      const summary=lang==="hi"?`वाम ${L}, केंद्र ${C}, दक्षिण ${R}`:`Left ${L}, Centre ${C}, Right ${R}`;
       return (
-        <div className={className||""}>
-          <div className="flex w-full overflow-hidden" style={{height:barH,borderRadius:999,background:t.line}}>
-            {any && (L>0 ? <div style={{flexGrow:L,flexBasis:0,background:BIAS.left.color}}/> : notch)}
-            {any && (C>0 ? <div style={{flexGrow:C,flexBasis:0,background:BIAS.center.color}}/> : notch)}
-            {any && (R>0 ? <div style={{flexGrow:R,flexBasis:0,background:BIAS.right.color}}/> : notch)}
+        <div className={className||""} role="img" aria-label={summary}>
+          <div aria-hidden="true" className="flex w-full" style={{height:barH,gap}}>
+            {any && (L>0 ? <div style={{flexGrow:L,flexBasis:0,borderRadius:r,background:BIAS.left.color}}/> : notch)}
+            {any && (C>0 ? <div style={{flexGrow:C,flexBasis:0,borderRadius:r,background:BIAS.center.color}}/> : notch)}
+            {any && (R>0 ? <div style={{flexGrow:R,flexBasis:0,borderRadius:r,background:BIAS.right.color}}/> : notch)}
           </div>
         </div>
       );
@@ -815,16 +807,34 @@ const {useState,useEffect,useMemo}=React;
     // navigation line (the 5 section links, National/International + date on home only, a
     // quiet search icon) - this is the "masthead + one line" shape the design explicitly
     // approves, not the old 4-band identity/nav/scope/search architecture.
-    function Masthead({ t, lang, setLang, go, view, auth, openHelp, savedCount, regionFilter, setRegionFilter, story, sectionLabel, openTopic, saved, onToggleSave, followingStory, onToggleFollowStory }) {
+    function Masthead({ t, lang, setLang, go, view, auth, openHelp, savedCount, regionFilter, setRegionFilter, story, sectionLabel, openTopic, saved, onToggleSave, followingStory, onToggleFollowStory, query, setQuery }) {
       const isReading = view==="story" || view==="blindspot" || view==="storyline";
       const [copied,setCopied]=useState(false);
       const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
       const tp = story ? (lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic) : "";
       const region = story ? (lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India")) : "";
-      const NAV=[["home",STR[lang].navTop,false],["blindspot",STR[lang].navOS,true],
-        ["topics",ui("sections",lang),false],["sources",STR[lang].navSrc,false],["about",STR[lang].navMethod,false]];
+      // Primary nav priority: National/International (home-only feed filters) · Coverage
+      // Gaps · Sections · Search. Sources/Method demoted out of this row — still reachable
+      // from the footer's own link list — and Top Stories dropped as a nav item since the
+      // centered पक्ष wordmark already goes home.
+      const NAV=[["blindspot",STR[lang].navOS,true],["topics",ui("sections",lang),false]];
+      const navCell=`relative text-[11px] font-semibold uppercase ${lang==="hi"?"deva":""}`;
+      const navCellStyle={padding:"11px 20px",borderRight:`1px solid ${t.line}`,letterSpacing:lang==="hi"?0:".04em"};
       const initials=(email)=>{ const s=(email||"").trim(); return s?s[0].toUpperCase():"?"; };
-      const shortDate=new Date().toLocaleDateString(lang==="hi"?"hi-IN":"en-IN",{month:"short",day:"numeric"});
+      // Desktop-only expandable search: collapsed to an icon by default, expands into an
+      // inline field on click (never a full-width overlay), collapses again on Escape,
+      // blur/outside-click, or a submitted search. Mobile search is untouched elsewhere.
+      const [searchOpen,setSearchOpen]=useState(false);
+      const searchRef=useRef(null);
+      const searchWrapRef=useRef(null);
+      useEffect(()=>{ if(searchOpen && searchRef.current) searchRef.current.focus(); },[searchOpen]);
+      useEffect(()=>{
+        if(!searchOpen) return;
+        const onDown=(e)=>{ if(searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setSearchOpen(false); };
+        document.addEventListener("mousedown",onDown);
+        return ()=>document.removeEventListener("mousedown",onDown);
+      },[searchOpen]);
+      const runSearch=()=>{ setSearchOpen(false); go("search"); };
       return (
         <div className={t.bg} style={{borderBottom:`1px solid ${t.ink}`}}>
           <div className="mx-auto max-w-[1280px] px-4 sm:px-10">
@@ -879,20 +889,36 @@ const {useState,useEffect,useMemo}=React;
             )}
             {!isReading && (
               <nav className="hidden items-stretch md:flex" style={{borderTop:`1px solid ${t.ink}`}}>
+                {view==="home" && (
+                  <>
+                    <button onClick={()=>setRegionFilter&&setRegionFilter("National")} className={`${navCell} ${regionFilter!=="International"?t.tp:t.ts} hover:${t.tp}`} style={navCellStyle}>
+                      {ui("National",lang)}{regionFilter!=="International" && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
+                    </button>
+                    <button onClick={()=>setRegionFilter&&setRegionFilter("International")} className={`${navCell} ${regionFilter==="International"?t.tp:t.ts} hover:${t.tp}`} style={navCellStyle}>
+                      {ui("International",lang)}{regionFilter==="International" && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
+                    </button>
+                  </>
+                )}
                 {NAV.map(([k,label,clay])=>(
-                  <button key={k} onClick={()=>go(k)} className={`relative text-[11px] font-semibold uppercase hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)} ${lang==="hi"?"deva":""}`} style={{padding:"11px 20px",borderRight:`1px solid ${t.line}`,letterSpacing:lang==="hi"?0:".04em"}}>
+                  <button key={k} onClick={()=>go(k)} className={`${navCell} hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)}`} style={navCellStyle}>
                     {label}{view===k && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
                   </button>
                 ))}
-                {view==="home" && (
-                  <div className="ml-auto flex items-center gap-3 px-4">
-                    <button onClick={()=>setRegionFilter&&setRegionFilter("National")} className={`mono text-[10px] uppercase hover:${t.tp} ${regionFilter!=="International"?t.tp:t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("National",lang)}</button>
-                    <span className={t.tf}>·</span>
-                    <button onClick={()=>setRegionFilter&&setRegionFilter("International")} className={`mono text-[10px] uppercase hover:${t.tp} ${regionFilter==="International"?t.tp:t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("International",lang)}</button>
-                    <span className={`hidden lg:inline mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{shortDate}</span>
-                  </div>
-                )}
-                <button onClick={()=>go("search")} className={`${view==="home"?"":"ml-auto "}flex items-center ${t.tf} hover:${t.tp}`} style={{padding:"0 18px",borderLeft:`1px solid ${t.line}`}} aria-label={STR[lang].search}><Search size={14}/></button>
+                {/* desktop expandable search — collapsed icon by default; click expands an
+                    inline field around it rather than navigating away or opening an overlay */}
+                <div ref={searchWrapRef} className="ml-auto flex items-center">
+                  {searchOpen ? (
+                    <div className="flex items-center gap-2 px-3" style={{transition:"width .2s ease"}}>
+                      <Search size={13} className={t.tf}/>
+                      <input ref={searchRef} value={query||""} onChange={e=>setQuery&&setQuery(e.target.value)}
+                        onKeyDown={e=>{ if(e.key==="Enter") runSearch(); else if(e.key==="Escape") setSearchOpen(false); }}
+                        placeholder={STR[lang].search} className={`bg-transparent outline-none text-[13px] ${t.tp} ${readCls(lang)}`}
+                        style={{width:200,borderBottom:`1px solid ${t.ink}`,paddingBottom:2}} />
+                    </div>
+                  ) : (
+                    <button onClick={()=>setSearchOpen(true)} className={`flex items-center ${t.tf} hover:${t.tp}`} style={{padding:"0 18px",borderLeft:`1px solid ${t.line}`}} aria-label={STR[lang].search}><Search size={14}/></button>
+                  )}
+                </div>
               </nav>
             )}
           </div>
@@ -1074,24 +1100,27 @@ const {useState,useEffect,useMemo}=React;
         </a>
       );
     }
-    // THE ONE REVERSAL — the ink-filled Coverage Gaps band at the fold. The page's only
-    // ink area; it spends that emphasis on what Paksh exists to say: what one side didn't
-    // run. Each label ("Missing: Left · 1 of 12") is computed from the real per-lean counts.
-    function InkGapBand({ items, t, lang, go, open }) {
+    // COVERAGE GAPS BAND — dark ink treatment on mobile only (so a reader's thumb recognises
+    // the module while scrolling); a plain paper rail on desktop, same as the rest of the
+    // front page. No count, no "X today" tally, no per-story "Missing: X · N of M" text —
+    // the headline and that story's own coverage pill (present sides bright, the absent side
+    // a neutral notch) carry the meaning. A visually-hidden label keeps the missing side
+    // explicit for screen readers without printing it for sighted readers.
+    function InkGapBand({ items, t, lang, go, open, pad }) {
       if(!items.length) return null;
-      const paper="#F4F1EA", faint="rgba(244,241,234,.28)";
       return (
-        <div style={{background:"#15140F"}} className="px-4 sm:px-10 py-5 sm:py-6">
-          <div className="flex items-baseline justify-between gap-3 pb-3" style={{borderBottom:`1px solid ${faint}`}}>
-            <span className={`eyebrow ${lang==="hi"?"deva":""}`} style={{color:paper,letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"कवरेज गैप · जो एक पक्ष ने नहीं चलाया":"Coverage gaps · what one side didn’t run"}</span>
-            <button onClick={()=>go("blindspot")} className="mono text-[10.5px] shrink-0" style={{color:"rgba(244,241,234,.6)"}}>{items.length} {lang==="hi"?"आज":"today"} · <span style={{borderBottom:"1px solid rgba(244,241,234,.5)"}}>{lang==="hi"?"सभी गैप":"all gaps"} →</span></button>
+        <div className={`${pad||"px-4 sm:px-10"} py-5 sm:py-6 bg-[#15140F] lg:bg-transparent`}>
+          <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-[rgba(244,241,234,.28)] lg:border-[#DAD5C9]">
+            <span className={`eyebrow text-[#F4F1EA] lg:text-[#15140F] ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{STR[lang].osTitle}</span>
+            <button onClick={()=>go("blindspot")} className="mono text-[10.5px] shrink-0 text-[rgba(244,241,234,.6)] lg:text-[#8A8371]">{lang==="hi"?"सभी गैप":"All gaps"} →</button>
           </div>
           <div className="grid gap-y-5 sm:grid-cols-2 lg:grid-cols-3 pt-4">
             {items.map((it,i)=>(
               <a key={it.story.id} href={"/story/"+encodeURIComponent(it.story.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(it.story.id); }}
-                 className={`block no-underline group cursor-pointer ${i>0?"sm:border-l sm:pl-8":""}`} style={i>0?{borderColor:faint}:{}}>
-                <div className={`mono text-[10.5px] gap-accent ${lang==="hi"?"deva":""}`}>{it.label}</div>
-                <div className={`headline mt-2 text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{color:paper,lineHeight:1.3,textWrap:"pretty"}}>{it.story.headline}</div>
+                 className={`block no-underline group cursor-pointer ${i>0?"sm:border-l sm:pl-8 border-[rgba(244,241,234,.28)] lg:border-[#DAD5C9]":""}`}>
+                <span className="sr-only">{lang==="hi"?`ग़ायब: ${lbl(it.missingSide,lang)}`:`Missing: ${lbl(it.missingSide,lang)} coverage`}</span>
+                <div className={`headline text-[17px] sm:text-[18px] ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2 text-[#F4F1EA] lg:text-[#15140F]`} style={{lineHeight:1.3,textWrap:"pretty"}}>{it.story.headline}</div>
+                <div className="mt-2.5 max-w-[220px]"><BiasPill counts={it.story.counts||{}} t={t} lang={lang} h={5} /></div>
               </a>
             ))}
           </div>
@@ -1224,12 +1253,12 @@ const {useState,useEffect,useMemo}=React;
       const forYou = _topTopics.length ? take(cards.filter(c=>_topTopics.includes(c.topic)),4) : [];
       const brief=take(cards,15);           // "In brief" tier
       const notUsed=arr=>(arr||[]).filter(c=>!used.has(c.id));
-      // Coverage-gap band items: right-heavier stories are "Missing: Left", left-heavier
-      // are "Missing: Right". Labels read the real per-lean counts (N of total).
-      const nOf=c=>{ const k=c.counts||{}; return (k.left||0)+(k.center||0)+(k.right||0); };
+      // Coverage-gap band items: right-heavier stories are missing Left, left-heavier are
+      // missing Right. Only the side key travels now — InkGapBand shows the story through
+      // its headline and coverage pill, not a printed "Missing: X · N of M" count.
       const gapItems=[];
-      notUsed(gapRight).slice(0,2).forEach(s=>{ const k=s.counts||{}; gapItems.push({story:s, label:(lang==="hi"?`ग़ायब: वाम · ${k.left||0}/${nOf(s)}`:`Missing: Left · ${k.left||0} of ${nOf(s)}`)}); });
-      notUsed(gapLeft).slice(0,1).forEach(s=>{ const k=s.counts||{}; gapItems.push({story:s, label:(lang==="hi"?`ग़ायब: दक्षिण · ${k.right||0}/${nOf(s)}`:`Missing: Right · ${k.right||0} of ${nOf(s)}`)}); });
+      notUsed(gapRight).slice(0,2).forEach(s=>{ gapItems.push({story:s, missingSide:"left"}); });
+      notUsed(gapLeft).slice(0,1).forEach(s=>{ gapItems.push({story:s, missingSide:"right"}); });
       gapItems.slice(0,3).forEach(g=>used.add(g.story.id));
       // HORIZONTAL STORY BREAK (6.3B.3) — one deliberate compositional beat between the
       // primary grid and the Coverage Gaps ink-reversal below. Same de-dup rule as every
@@ -1259,9 +1288,8 @@ const {useState,useEffect,useMemo}=React;
             <div className="grid lg:grid-cols-[2.1fr_1fr]">
               {/* main well */}
               <div className="min-w-0 py-4 lg:py-6 lg:border-r lg:pr-7" style={{borderColor:t.line}}>
-                <div className="flex items-baseline justify-between gap-3 pb-2" style={{borderBottom:`2px solid ${t.ink}`}}>
+                <div className="pb-2" style={{borderBottom:`2px solid ${t.ink}`}}>
                   <span className={`text-[13px] font-bold uppercase ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{STR[lang].topNews}</span>
-                  {stats.updated && <span className={`mono text-[10px] ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?`${timeAgo(stats.updated,lang)} अपडेट`:`Updated ${timeAgo(stats.updated,lang)}`}</span>}
                 </div>
                 {lead && <div className="py-5" style={{borderBottom:`1px solid ${t.line}`}}><LeadStory story={lead} t={t} lang={lang} onOpen={open} /></div>}
                 {major && <MajorStory story={major} t={t} lang={lang} onOpen={open} />}
@@ -1295,19 +1323,11 @@ const {useState,useEffect,useMemo}=React;
             </div>
           )}
 
-          {/* COVERAGE GAPS — the page's one ink-reversal moment (6.3B.3). InkGapBand already
-              existed, fully built, unused; reused here as-is. The real daily gap count (same
-              stats.gaps DateStrip already shows) gets one oversized editorial number directly
-              above it, inside the same ink field, instead of staying a small tally line only. */}
-          {gapItems.length>0 && (
-            <div style={{background:"#15140F"}}>
-              <div className={`${pad} pt-7 pb-1`}>
-                <div className="headline" style={{color:"#F4F1EA", fontSize:"clamp(48px,7vw,88px)", lineHeight:1, letterSpacing:"-0.02em"}}>{stats.gaps}</div>
-                <div className={`mono text-[11px] uppercase tracking-[0.14em] mt-1 ${lang==="hi"?"deva":""}`} style={{color:"rgba(244,241,234,.55)"}}>{lang==="hi"?"आज ट्रैक किए गए कवरेज गैप":"coverage gaps tracked today"}</div>
-              </div>
-              <InkGapBand items={gapItems} t={t} lang={lang} go={go} open={open} />
-            </div>
-          )}
+          {/* COVERAGE GAPS — dark on mobile only (the one place Paksh intentionally leaves the
+              paper canvas, so a reader's thumb recognises it while scrolling); a plain
+              editorial rail on desktop, same rules/margins as the rest of the page. No count,
+              no explanatory copy — the headline and each story's coverage pill do the work. */}
+          {gapItems.length>0 && <InkGapBand items={gapItems} t={t} lang={lang} go={go} open={open} pad={pad} />}
 
           {/* FOR YOU — additive personalization for signed-in readers; the arithmetic feed above
               is untouched (honours "we never hide stories"). Each card says why it's here. */}
@@ -1374,17 +1394,6 @@ const {useState,useEffect,useMemo}=React;
       // The bias bar's widths come from the distinct-OWNER votes (vc); percentages are
       // derived from those, so the printed scale matches the segments exactly.
       const vc={left:voteRow("left").votes,center:voteRow("center").votes,right:voteRow("right").votes};
-      // Phase 29B: the International/Unrated Coverage Breakdown rows below were gated on
-      // story.international / story.unrated, fields that aren't present in the exported
-      // story JSON (story.coverage.international.count / story.coverage.unrated.count is
-      // where this is actually computed, same place voteRow() above already reads L/C/R
-      // from) - so those rows, and the explanatory notes on them, never rendered for any
-      // story. Reading the same already-correct source voteRow() uses fixes the display
-      // only; `total` below is deliberately left exactly as it was (still effectively just
-      // story.sources) so the "Total news sources" figure itself does not change for any
-      // story - only these two previously-invisible informational rows becoming visible.
-      const intlCount=(story.coverage&&story.coverage.international&&story.coverage.international.count)||0;
-      const unratedCount=(story.coverage&&story.coverage.unrated&&story.coverage.unrated.count)||0;
       const [atab,setAtab]=useState("all");
       const arts = atab==="all"?outlets:outlets.filter(o=>o.lean===atab);
       const total=story.sources+(story.unrated||0)+(story.international||0);
@@ -1525,38 +1534,9 @@ const {useState,useEffect,useMemo}=React;
           </div>
           )}
 
-          {/* coverage breakdown — ONE VOTE PER OWNER (invariant display) */}
-          <div className="mx-auto mt-10 max-w-[840px]">
-            <div className="pb-2" style={{borderBottom:`1px solid ${t.ink}`}}><h2 className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{STR[lang].coverageBreakdown}</h2></div>
-            <div className={`mt-2 flex items-center justify-between border-b py-2.5 ${t.border}`}>
-              <span className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{STR[lang].totalSources}</span>
-              <span className={`mono text-[14px] font-semibold ${t.tp}`}>{total}</span>
-            </div>
-            {["left","center","right"].map((k)=>{ const {votes,outlets:oc,groups}=voteRow(k); if(votes===0 && oc===0) return null;
-              const coOwned=groups.some(([o,ms])=>ms.length>1);
-              return (
-              <div key={k} className={`border-b py-3 ${t.border}`}>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2.5"><span className="shrink-0" style={{width:14,height:14,background:BIAS[k].color,border:`1px solid ${t.ink}`}}/><span className={`text-[13px] ${t.ts} ${lang==="hi"?"deva":""}`}>{lbl(k,lang)}</span></span>
-                  <span className={`mono text-[14px] font-semibold ${t.tp}`}>{votes}{oc>votes && <span className={`ml-1 text-[11px] font-normal ${t.tf}`}>{lang==="hi"?`प्रकाशक · ${oc} मास्टहेड`:`${votes===1?"publisher":"publishers"} · ${oc} mastheads`}</span>}</span>
-                </div>
-                {coOwned && <div className="mt-1.5 space-y-0.5 pl-6">{groups.filter(([o,ms])=>ms.length>1).map(([o,ms],j)=>(
-                  <div key={j} className={`text-[11px] leading-snug ${t.tf} ${isHi(lang)}`}>{ms.join(" · ")} <span className="italic">({o}, {lang==="hi"?"1 वोट":"1 vote"})</span></div>
-                ))}</div>}
-              </div>
-              );
-            })}
-            {intlCount>0 && <div className={`border-b py-2.5 ${t.border}`}>
-              <div className="flex items-center justify-between"><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].intlTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{intlCount}</span></div>
-              <p className={`mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].intlNote}</p>
-            </div>}
-            {unratedCount>0 && <div className={`border-b py-2.5 ${t.border}`}>
-              <div className="flex items-center justify-between"><span className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{STR[lang].unratedTitle}</span><span className={`mono text-[14px] font-semibold ${t.tp}`}>{unratedCount}</span></div>
-              <p className={`mt-1 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].unratedNote}</p>
-            </div>}
-            {story.blindspot && <div className={`mt-4 flex items-start gap-2 p-3 text-[12px] leading-relaxed ${t.blindSoft} ${t.blind} ${isHi(lang)}`}><Eye size={15} className="mt-0.5 shrink-0"/><span>{STR[lang].osCalloutBody1} <strong>{story.bias[story.blindspot]}%</strong> {STR[lang].osCalloutBody2}</span></div>}
-            <p className={`mt-4 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].aiNote}</p>
-          </div>
+          {/* Coverage Breakdown (Total sources / per-side vote counts / international /
+              unrated) removed — user-facing presentation only. voteRow() is unchanged and
+              still powers the outlet list ("Who covered it") below via its owner grouping. */}
 
           {/* articles */}
           {/* AD — one in-content unit before the outlet list */}
@@ -1858,7 +1838,7 @@ const {useState,useEffect,useMemo}=React;
       const lead=items[0], section=items.slice(1,5), rest=items.slice(5,5+visible);
       const more=items.length-5-visible;
       return (
-        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-10">
           <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
           <div className="flex items-center justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
             <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
@@ -3627,7 +3607,7 @@ const {useState,useEffect,useMemo}=React;
           {/* 6.3B.6: the DEVELOPING ticker is gone - too noisy, made the site feel like a
               news terminal. BreakingTicker itself is untouched (dormant), not deleted, in
               case a future breaking-news treatment wants it. */}
-          <Masthead t={t} lang={lang} setLang={chooseLang} go={go} view={route.view} auth={auth} openHelp={()=>go("about")} savedCount={savedIds.size} regionFilter={regionFilter} setRegionFilter={setRegionFilter} story={story} sectionLabel={route.view==="blindspot"?STR[lang].osTitle:(route.view==="storyline"?ui("developingStories",lang):undefined)} openTopic={goTopic} saved={savedIds} onToggleSave={toggleSave} followingStory={!!(story && followedStories.has(String(story.id)))} onToggleFollowStory={toggleFollowStory} />
+          <Masthead t={t} lang={lang} setLang={chooseLang} go={go} view={route.view} auth={auth} openHelp={()=>go("about")} savedCount={savedIds.size} regionFilter={regionFilter} setRegionFilter={setRegionFilter} story={story} sectionLabel={route.view==="blindspot"?STR[lang].osTitle:(route.view==="storyline"?ui("developingStories",lang):undefined)} openTopic={goTopic} saved={savedIds} onToggleSave={toggleSave} followingStory={!!(story && followedStories.has(String(story.id)))} onToggleFollowStory={toggleFollowStory} query={query} setQuery={setQuery} />
           {/* Phase 24B/F3: never on the story route - a story's own lead paragraph/framing/
               source-list text is unpredictable-length running prose that can reach this fixed
               corner position even before any scrolling (confirmed live on 17019: the lead
