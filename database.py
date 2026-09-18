@@ -123,6 +123,18 @@ def init_db():
         cur.execute("ALTER TABLE events ADD COLUMN updated_at TEXT")
         cur.execute("UPDATE events SET updated_at = created_at WHERE updated_at IS NULL")
 
+    # Phase 40D-A: reframe attempt/failure bookkeeping, internal to the reframe
+    # pipeline only - see get_reframe_meta()/record_reframe_attempt() below. Nullable,
+    # no backfill needed (NULL simply means "no attempt recorded by this mechanism
+    # yet", true for every pre-existing row and a safe default). Deliberately NOT
+    # exposed via get_event()/get_events_by_ids() (which feed the public per-story
+    # JSON export) - kept as a separate narrow query so this can never leak into
+    # /data/events/<id>.json.
+    if "reframe_last_attempt_at" not in ev_cols:
+        cur.execute("ALTER TABLE events ADD COLUMN reframe_last_attempt_at TEXT")
+    if "reframe_last_failure_class" not in ev_cols:
+        cur.execute("ALTER TABLE events ADD COLUMN reframe_last_failure_class TEXT")
+
     # --- indexes (idempotent) ---------------------------------------------------
     # The tables had only their auto UNIQUE indexes (articles.url, embeddings.key), so
     # every pipeline query scanned all ~240k articles. These cover the hot paths:
@@ -407,6 +419,50 @@ def update_event(event_id, analysis, bump_created=True):
         params.append(datetime.utcnow().isoformat())
     params.append(event_id)
     conn.execute("UPDATE events SET %s WHERE id = ?" % ", ".join(sets), params)
+    conn.commit()
+    conn.close()
+
+
+def get_reframe_meta(event_ids):
+    """Phase 40D-A: {id: {"last_attempt_at": str|None, "last_failure_class": str|None}}
+    for reframe.py's OWN candidate-ranking use only. Deliberately separate from
+    get_event()/get_events_by_ids() - those feed export_static.py's public per-story
+    JSON output, and this bookkeeping (when a candidate last failed, and why) must
+    never appear there. Every id gets an entry (None/None for a row with no recorded
+    attempt yet), same no-membership-check contract as get_events_by_ids()."""
+    event_ids = list(event_ids)
+    out = {eid: {"last_attempt_at": None, "last_failure_class": None} for eid in event_ids}
+    if not event_ids:
+        return out
+    conn = get_connection()
+    CH = 400
+    for i in range(0, len(event_ids), CH):
+        chunk = event_ids[i:i + CH]
+        ph = ",".join("?" for _ in chunk)
+        for r in conn.execute(
+            f"SELECT id, reframe_last_attempt_at, reframe_last_failure_class "
+            f"FROM events WHERE id IN ({ph})", chunk
+        ):
+            out[r["id"]] = {"last_attempt_at": r["reframe_last_attempt_at"],
+                             "last_failure_class": r["reframe_last_failure_class"]}
+    conn.close()
+    return out
+
+
+def record_reframe_attempt(event_id, failure_class=None):
+    """Phase 40D-A: record the outcome of one reframe.py attempt against event_id.
+    Touches ONLY the two reframe_* bookkeeping columns - never analysis_json, title,
+    summary, framing, content_complete, created_at, or updated_at, so this can never
+    affect what a reader sees or the event's publication status. failure_class is one
+    of reframe.py's own category strings, or None on a successful repair (clearing
+    any previously-recorded failure, so a later-recovered event isn't still treated
+    as failing by the ranking in _rank_key())."""
+    conn = get_connection()
+    conn.execute(
+        "UPDATE events SET reframe_last_attempt_at = ?, reframe_last_failure_class = ? "
+        "WHERE id = ?",
+        (datetime.utcnow().isoformat(), failure_class, event_id),
+    )
     conn.commit()
     conn.close()
 

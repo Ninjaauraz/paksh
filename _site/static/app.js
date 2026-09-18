@@ -983,6 +983,11 @@ const STR = {
     framingSub: "A neutral read of what each side's coverage emphasises, based on the headlines collected, not opinion.",
     framingPending: "The side-by-side framing comparison appears once a full summary is generated for this story.",
     framingThin: "Not enough unique coverage to create a summary.",
+    // Phase 40D-B: exactly one lean covered - the section is a synthesis of that
+    // lean's sources, not a side-by-side comparison, so the heading/sub-copy say
+    // that instead of implying a comparison the page can't actually show.
+    framingTitleSingle: "How sources are covering it",
+    framingSubSingle: "A neutral read of what the coverage emphasises, based on the headlines collected, not opinion.",
     whereLean: "Where the sources lean",
     aiNote: "Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
     whoCoveredNote: "Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
@@ -1063,6 +1068,8 @@ const STR = {
     framingSub: "हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
     framingPending: "इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
     framingThin: "सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
+    framingTitleSingle: "स्रोत इसे कैसे कवर कर रहे हैं",
+    framingSubSingle: "कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
     whereLean: "स्रोत किस ओर झुके हैं",
     aiNote: "झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
     whoCoveredNote: "इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
@@ -3618,7 +3625,7 @@ function StoryPage({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, STR[lang].framingTitle), /*#__PURE__*/React.createElement("span", {
+  }, sides.length === 1 ? STR[lang].framingTitleSingle : STR[lang].framingTitle), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[10.5px] hidden sm:inline ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, lang === "hi" ? "बराबर कॉलम · क्रम बार जैसा" : "equal columns · order matches the bar")), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0 md:border",
@@ -3675,7 +3682,7 @@ function StoryPage({
     className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
   }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
+  }, sides.length === 1 ? STR[lang].framingSubSingle : STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(AdSlot, {
     t: t,

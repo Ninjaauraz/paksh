@@ -33,15 +33,97 @@ After --apply, rebuild and deploy as usual:
 """
 
 import argparse
+import datetime as _dt
+from collections import Counter
 
 from database import (
     init_db, get_all_events, get_events_by_ids, get_event_articles, update_event,
+    get_reframe_meta, record_reframe_attempt,
 )
 from analyze import (
     analyze_event, has_framing, postprocess, MIN_SIDE_OWNERS, reset_retry_stats, get_retry_stats,
 )
 
 SIDES = ("left", "center", "right")
+
+# Phase 40D-A: explicit failure classification for every attempted candidate, so a
+# skip's cause is diagnosable from the log without grepping raw exception text (Phase
+# 40C's audit had to reconstruct these by hand from 32 runs of raw log output).
+# UNKNOWN_FAILURE is the deliberate fallback for a signature that matches none of
+# these - never a guess at a more specific cause.
+FAILURE_BILLING_PERMISSION_DENIED = "BILLING_PERMISSION_DENIED"
+FAILURE_BILLING_CREDITS_EXHAUSTED = "BILLING_CREDITS_EXHAUSTED"
+FAILURE_PROVIDER_RESOURCE_EXHAUSTED = "PROVIDER_RESOURCE_EXHAUSTED"
+FAILURE_PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
+FAILURE_DNS_NETWORK = "DNS_NETWORK_FAILURE"
+FAILURE_MALFORMED_RESPONSE = "MALFORMED_RESPONSE"
+FAILURE_EMPTY_RESPONSE = "EMPTY_RESPONSE"
+FAILURE_UNUSABLE_FRAMING = "UNUSABLE_FRAMING"
+FAILURE_PLACEHOLDER_SOURCE = "PLACEHOLDER_SOURCE_CONTENT"
+FAILURE_NO_ARTICLES = "NO_ARTICLES"
+FAILURE_UNKNOWN = "UNKNOWN_FAILURE"
+
+# Classes an external/account fix is needed for - retrying tomorrow won't help, so
+# these get a LONGER ranking cooldown than a likely-transient network blip (see
+# _recently_failed / PERMANENT_COOLDOWN_HOURS below). Never excluded, only deprioritized.
+PERMANENT_FAILURE_CLASSES = {FAILURE_BILLING_PERMISSION_DENIED, FAILURE_BILLING_CREDITS_EXHAUSTED}
+
+
+def _classify_failure(exc):
+    """Map a caught exception (from analyze_event's on_failure hook) to one of this
+    module's failure categories, using the exact signatures Phase 40C's log audit
+    found: Gemini billing (PERMISSION_DENIED / "dunning", RESOURCE_EXHAUSTED +
+    "prepayment credits"), plain rate-limit RESOURCE_EXHAUSTED/429, provider
+    UNAVAILABLE/503/"high demand", DNS/socket failures, generic-placeholder source
+    titles, and empty/malformed model output. Never raises."""
+    s = str(exc)
+    sl = s.lower()
+    if "PERMISSION_DENIED" in s or "dunning" in sl:
+        return FAILURE_BILLING_PERMISSION_DENIED
+    if "RESOURCE_EXHAUSTED" in s and ("prepayment" in sl or "credits" in sl or "billing" in sl):
+        return FAILURE_BILLING_CREDITS_EXHAUSTED
+    if "RESOURCE_EXHAUSTED" in s or "429" in s:
+        return FAILURE_PROVIDER_RESOURCE_EXHAUSTED
+    if "UNAVAILABLE" in s or "503" in s or "high demand" in sl:
+        return FAILURE_PROVIDER_UNAVAILABLE
+    if "getaddrinfo failed" in s or "WinError" in s or "Server disconnected" in s or "connection" in sl:
+        return FAILURE_DNS_NETWORK
+    if "generic placeholder title" in sl:
+        return FAILURE_PLACEHOLDER_SOURCE
+    if "empty" in sl:
+        return FAILURE_EMPTY_RESPONSE
+    if "json" in sl:
+        return FAILURE_MALFORMED_RESPONSE
+    return FAILURE_UNKNOWN
+
+
+# Phase 40D-A: a candidate whose last attempt failed for a PERMANENT reason (billing)
+# is deprioritized for longer than one that failed for a likely-transient reason
+# (DNS/provider) - both remain fully eligible forever, never excluded, so recovery is
+# still possible the moment the underlying cause clears. This only changes what fills
+# a capped run's front-of-queue TODAY, so the same candidates don't get re-selected
+# and re-failed on every single run while (for example) a billing account is down -
+# Phase 40C found 18/18 sampled failures from ~4 weeks earlier were still unrepaired,
+# having been re-selected on every run since (candidate starvation, confirmed).
+PERMANENT_COOLDOWN_HOURS = 72
+TRANSIENT_COOLDOWN_HOURS = 18
+
+
+def _recently_failed(meta):
+    """True if this candidate's last attempt is still within its failure class's
+    cooldown window - i.e. it should sort BEHIND fresher/never-attempted candidates
+    in today's ranking, not be excluded."""
+    cls = meta.get("last_failure_class")
+    ts = meta.get("last_attempt_at")
+    if not cls or not ts:
+        return False
+    try:
+        t = _dt.datetime.fromisoformat(ts.replace("Z", ""))
+    except ValueError:
+        return False
+    age_h = (_dt.datetime.utcnow() - t).total_seconds() / 3600.0
+    cooldown = PERMANENT_COOLDOWN_HOURS if cls in PERMANENT_FAILURE_CLASSES else TRANSIENT_COOLDOWN_HOURS
+    return age_h < cooldown
 
 # Paksh 20D: analyze_event() is the SAME full-fresh-analysis pipeline used for a
 # brand-new cluster - it always re-derives title/summary/summary_points/topic/region
@@ -134,9 +216,13 @@ def _is_top_tier(ev):
 
 
 def _rank_key(ev):
-    """Sort key (used with reverse=True): top tier first, then more leans covered,
-    then newest - so a capped/quota-limited pass fixes what matters most, first."""
-    return (_is_top_tier(ev), len(_leans_present(ev)), ev.get("created_at") or "")
+    """Sort key (used with reverse=True): top tier first, THEN not-recently-failed
+    first (Phase 40D-A - see _recently_failed; existing editorial priority otherwise
+    unchanged), then more leans covered, then newest - so a capped/quota-limited pass
+    fixes what matters most, first, without the same handful of failing candidates
+    permanently occupying every run's front-of-queue."""
+    return (_is_top_tier(ev), not _recently_failed(ev.get("_reframe_meta") or {}),
+            len(_leans_present(ev)), ev.get("created_at") or "")
 
 
 def _collect(ids):
@@ -150,17 +236,25 @@ def _collect(ids):
     ones are returned or in what order."""
     if ids:
         by_id = get_events_by_ids(ids)
-        return [by_id[i] for i in ids if by_id.get(i)]
-    # Paksh 7B: include_incomplete=True - reframe's whole job is to find and repair
-    # events the publication gate is currently hiding, so it must see them, unlike
-    # every public-facing caller of get_all_events().
-    rows = get_all_events(include_incomplete=True)
-    by_id = get_events_by_ids([row["id"] for row in rows])
-    out = []
-    for row in rows:
-        ev = by_id.get(row["id"])
-        if ev and ev.get("content_complete") is False and _missing_sides(ev):
-            out.append(ev)
+        out = [by_id[i] for i in ids if by_id.get(i)]
+    else:
+        # Paksh 7B: include_incomplete=True - reframe's whole job is to find and repair
+        # events the publication gate is currently hiding, so it must see them, unlike
+        # every public-facing caller of get_all_events().
+        rows = get_all_events(include_incomplete=True)
+        by_id = get_events_by_ids([row["id"] for row in rows])
+        out = []
+        for row in rows:
+            ev = by_id.get(row["id"])
+            if ev and ev.get("content_complete") is False and _missing_sides(ev):
+                out.append(ev)
+    # Phase 40D-A: attach each candidate's reframe attempt/failure history for
+    # _rank_key()'s starvation check - a transient, in-memory-only key (never written
+    # back; _merge_reframe_result()/update_event() only ever read PRESERVE_FIELDS +
+    # framing/framing_hi off `ev`, so this can't leak into a saved event).
+    meta = get_reframe_meta([ev["id"] for ev in out])
+    for ev in out:
+        ev["_reframe_meta"] = meta.get(ev["id"], {})
     return out
 
 
@@ -217,20 +311,33 @@ def main():
         return
 
     done = skipped = 0
+    failure_counts = Counter()   # Phase 40D-A: per-category tally for the run summary
     for ev in targets:
         eid = ev["id"]
         want = set(_missing_sides(ev)) or set(SIDES)
         rows = get_event_articles(eid)
         if not rows:
             skipped += 1
+            failure_counts[FAILURE_NO_ARTICLES] += 1
+            record_reframe_attempt(eid, FAILURE_NO_ARTICLES)
             continue
-        fresh = analyze_event(rows)                 # fixed build_prompt + framing prompt
+        # Phase 40D-A: on_failure captures the exception analyze_event() itself caught
+        # (existing hook, Phase 30C-P - see analyze.py's analyze_event docstring) so a
+        # skip can be classified from the REAL cause, not just "no framing produced".
+        caught = []
+        fresh = analyze_event(rows, on_failure=caught.append)   # fixed build_prompt + framing prompt
         fresh_fr = fresh.get("framing") or {}
         filled = [s for s in want if has_framing(fresh_fr.get(s))]
         if not filled:
             # LLM produced no framing for the missing side(s) - do NOT overwrite a good
-            # brief with an empty/extractive one. Most common cause: backend not running.
-            print(f"  skip  #{eid}  (no framing produced - is the LLM backend up?)")
+            # brief with an empty/extractive one. caught[0] is set when analyze_event's
+            # OWN first attempt raised (the event became extractive); if it's empty, the
+            # model responded but the specific missing side(s) still came back unframed
+            # (a genuine UNUSABLE_FRAMING case, distinct from an outright failure).
+            failure_class = _classify_failure(caught[0]) if caught else FAILURE_UNUSABLE_FRAMING
+            failure_counts[failure_class] += 1
+            record_reframe_attempt(eid, failure_class)
+            print(f"  skip  #{eid}  [{failure_class}]  (no framing produced - is the LLM backend up?)")
             skipped += 1
             continue
         # Paksh 20D: write only the merged result (existing title/summary/topic/region/
@@ -239,10 +346,13 @@ def main():
         # and rewrite every side's framing, not just the missing ones.
         analysis = _merge_reframe_result(ev, fresh, want, rows)
         update_event(eid, analysis, bump_created=False)   # keep original timestamp
+        record_reframe_attempt(eid, None)   # Phase 40D-A: clear any prior failure record
         done += 1
         print(f"  ok    #{eid}  filled: {','.join(filled)}")
 
     print(f"\nDone. re-framed {done}, skipped {skipped}.")
+    if failure_counts:
+        print("Failure classes: " + ", ".join(f"{k}={v}" for k, v in failure_counts.most_common()))
     # Paksh 7B (F2): retry-observability summary - see analyze._RETRY_STATS.
     stats = get_retry_stats()
     llm_calls = stats["first_pass_complete"] + stats["retry_attempted"]

@@ -172,7 +172,14 @@ def _gemini_generate(prompt: str, as_json: bool) -> str:
                 thinking_config=types.ThinkingConfig(thinking_budget=0), **cfg_kwargs)
         except Exception:
             cfg = types.GenerateContentConfig(**cfg_kwargs)
-    # under concurrency a few calls may hit a transient 429/503 - back off and retry
+    # under concurrency a few calls may hit a transient 429/503 - back off and retry.
+    # Phase 40D-A: DNS/socket-level failures ("getaddrinfo failed", a dropped
+    # connection) added to the SAME bounded loop/backoff - Phase 40C's log audit found
+    # these were the single largest reframe failure cause (1,861 occurrences) and
+    # previously got ZERO retry at all, unlike 429/503/RESOURCE_EXHAUSTED/UNAVAILABLE.
+    # A brief local network blip is exactly the kind of thing 2-3 short retries can
+    # ride out; a genuinely down network still exhausts these 3 attempts and raises,
+    # same as before - this does not turn a real outage into an infinite retry.
     for attempt in range(3):
         try:
             if cfg is None:
@@ -180,7 +187,8 @@ def _gemini_generate(prompt: str, as_json: bool) -> str:
             return client.models.generate_content(model=GEMINI_MODEL, contents=prompt, config=cfg).text
         except Exception as e:
             transient = any(k in str(e) for k in
-                            ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"))
+                            ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE",
+                             "getaddrinfo failed", "Server disconnected", "WinError"))
             if transient and attempt < 2:
                 time.sleep(2 * (attempt + 1))
                 continue
