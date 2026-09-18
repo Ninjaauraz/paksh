@@ -785,8 +785,7 @@ const A11Y_LS = "paksh-a11y";
 const DEFAULT_A11Y = {
   textSize: "standard",
   highContrast: false,
-  dyslexiaFont: false,
-  readAloud: false
+  dyslexiaFont: false
 };
 const readA11y = () => {
   try {
@@ -822,30 +821,6 @@ const applyA11y = p => {
     el.setAttribute("data-pk-text", p.textSize || "standard");
     el.classList.toggle("pk-hc", !!p.highContrast);
     el.classList.toggle("pk-dys", !!p.dyslexiaFont);
-  } catch (e) {}
-};
-// Read a block of text aloud with the browser's speech synthesiser (no network, no library).
-const canSpeak = () => {
-  try {
-    return typeof window !== "undefined" && "speechSynthesis" in window;
-  } catch (e) {
-    return false;
-  }
-};
-const speak = (text, lang) => {
-  try {
-    if (!canSpeak()) return;
-    const sy = window.speechSynthesis;
-    sy.cancel();
-    const u = new SpeechSynthesisUtterance(String(text || ""));
-    u.lang = lang === "hi" ? "hi-IN" : "en-IN";
-    u.rate = 1;
-    sy.speak(u);
-  } catch (e) {}
-};
-const stopSpeak = () => {
-  try {
-    if (canSpeak()) window.speechSynthesis.cancel();
   } catch (e) {}
 };
 const UI = {
@@ -2223,9 +2198,16 @@ function Masthead({
   // Desktop-only expandable search: collapsed to an icon by default, expands into an
   // inline field on click (never a full-width overlay), collapses again on Escape,
   // blur/outside-click, or a submitted search. Mobile search is untouched elsewhere.
-  const [searchOpen, setSearchOpen] = useState(false);
+  // Seeded open on a cold load straight into /search (view is already "search" at the
+  // very first render in that case), and re-opened on any later arrival too - a direct
+  // link, or Back/Forward restoring a search URL - so the masthead field, not just the
+  // underlying query state, always shows what's actually active.
+  const [searchOpen, setSearchOpen] = useState(() => view === "search");
   const searchRef = useRef(null);
   const searchWrapRef = useRef(null);
+  useEffect(() => {
+    if (view === "search") setSearchOpen(true);
+  }, [view]);
   useEffect(() => {
     if (searchOpen && searchRef.current) searchRef.current.focus();
   }, [searchOpen]);
@@ -2237,10 +2219,35 @@ function Masthead({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [searchOpen]);
-  const runSearch = () => {
-    setSearchOpen(false);
-    go("search");
+  // Type-to-search: the moment a genuine keystroke leaves a real query in the field and
+  // we aren't already on the search route, jump there ONCE (a real pushState, so Back
+  // still returns to wherever the reader started). This lives in the change handler
+  // itself, NOT a useEffect keyed on `query`/`view` - an effect re-runs for reasons that
+  // have nothing to do with typing (most importantly Back/Forward changing `view`), and
+  // would otherwise immediately re-navigate to /search the instant the reader tries to
+  // leave it, since the field's stale text is still sitting in state. Tying the check to
+  // the change EVENT means it only ever fires from an actual keystroke.
+  // navigatingRef only guards the rapid-typing case: `view` is a prop and updates async,
+  // so a second keystroke fired before React re-renders would otherwise see the same
+  // stale "not on search yet" view and push a second history entry. It's re-armed once
+  // `view` genuinely confirms arrival - not on every render, so Back doesn't re-trip it.
+  const navigatingRef = useRef(false);
+  useEffect(() => {
+    if (view === "search") navigatingRef.current = false;
+  }, [view]);
+  const onSearchChange = v => {
+    setQuery && setQuery(v);
+    const q = (v || "").trim();
+    if (q && view !== "search" && !navigatingRef.current) {
+      navigatingRef.current = true;
+      go(`search?q=${encodeURIComponent(q)}`);
+    }
   };
+  const runSearch = () => {
+    const q = (query || "").trim();
+    go(q ? `search?q=${encodeURIComponent(q)}` : "search");
+  };
+  const clearSearch = () => setQuery && setQuery("");
   return /*#__PURE__*/React.createElement("div", {
     className: t.bg,
     style: {
@@ -2364,11 +2371,14 @@ function Masthead({
     style: {
       borderTop: `1px solid ${t.ink}`
     }
-  }, view === "home" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setRegionFilter && setRegionFilter("National"),
-    className: `${navCell} ${regionFilter !== "International" ? t.tp : t.ts} hover:${t.tp}`,
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setRegionFilter && setRegionFilter("National");
+      if (view !== "home") go("home");
+    },
+    className: `${navCell} ${view === "home" && regionFilter !== "International" ? t.tp : t.ts} hover:${t.tp}`,
     style: navCellStyle
-  }, ui("National", lang), regionFilter !== "International" && /*#__PURE__*/React.createElement("span", {
+  }, ui("National", lang), view === "home" && regionFilter !== "International" && /*#__PURE__*/React.createElement("span", {
     style: {
       position: "absolute",
       left: 0,
@@ -2378,10 +2388,13 @@ function Masthead({
       background: t.ink
     }
   })), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setRegionFilter && setRegionFilter("International"),
-    className: `${navCell} ${regionFilter === "International" ? t.tp : t.ts} hover:${t.tp}`,
+    onClick: () => {
+      setRegionFilter && setRegionFilter("International");
+      if (view !== "home") go("home");
+    },
+    className: `${navCell} ${view === "home" && regionFilter === "International" ? t.tp : t.ts} hover:${t.tp}`,
     style: navCellStyle
-  }, ui("International", lang), regionFilter === "International" && /*#__PURE__*/React.createElement("span", {
+  }, ui("International", lang), view === "home" && regionFilter === "International" && /*#__PURE__*/React.createElement("span", {
     style: {
       position: "absolute",
       left: 0,
@@ -2390,7 +2403,7 @@ function Masthead({
       height: 2,
       background: t.ink
     }
-  }))), NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
+  })), NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => go(k),
     className: `${navCell} hover:${t.tp} ${view === k ? t.tp : clay ? t.blind : t.ts}`,
@@ -2406,30 +2419,35 @@ function Masthead({
     }
   }))), /*#__PURE__*/React.createElement("div", {
     ref: searchWrapRef,
-    className: "ml-auto flex items-center"
+    className: `flex items-center ${searchOpen ? "flex-1 min-w-0" : "shrink-0 ml-auto"}`
   }, searchOpen ? /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2 px-3",
+    className: "ml-auto flex w-full items-center gap-2 px-3",
     style: {
-      transition: "width .2s ease"
+      maxWidth: 520
     }
   }, /*#__PURE__*/React.createElement(Search, {
     size: 13,
-    className: t.tf
+    className: `shrink-0 ${t.tf}`
   }), /*#__PURE__*/React.createElement("input", {
     ref: searchRef,
     value: query || "",
-    onChange: e => setQuery && setQuery(e.target.value),
+    onChange: e => onSearchChange(e.target.value),
     onKeyDown: e => {
       if (e.key === "Enter") runSearch();else if (e.key === "Escape") setSearchOpen(false);
     },
     placeholder: STR[lang].search,
-    className: `bg-transparent outline-none text-[13px] ${t.tp} ${readCls(lang)}`,
+    className: `min-w-0 flex-1 bg-transparent outline-none text-[13px] ${t.tp} ${readCls(lang)}`,
     style: {
-      width: 200,
       borderBottom: `1px solid ${t.ink}`,
       paddingBottom: 2
     }
-  })) : /*#__PURE__*/React.createElement("button", {
+  }), query && /*#__PURE__*/React.createElement("button", {
+    onClick: clearSearch,
+    "aria-label": lang === "hi" ? "खोज साफ़ करें" : "Clear search",
+    className: `shrink-0 ${t.tf} hover:${t.tp}`
+  }, /*#__PURE__*/React.createElement(X, {
+    size: 13
+  }))) : /*#__PURE__*/React.createElement("button", {
     onClick: () => setSearchOpen(true),
     className: `flex items-center ${t.tf} hover:${t.tp}`,
     style: {
@@ -5329,9 +5347,19 @@ function SearchPage({
   open
 }) {
   const browsing = searchStatus === "browsing";
+  // Mirror the query the reader is typing HERE back into the address bar, so the URL
+  // (and anything bookmarked/shared/reloaded from it) always matches what's on screen.
+  // replaceState, not pushState/nav - every keystroke shouldn't be its own history entry.
+  useEffect(() => {
+    const q = (query || "").trim();
+    const path = q ? `/search?q=${encodeURIComponent(q)}` : "/search";
+    if (window.location.pathname + window.location.search !== path) window.history.replaceState(null, "", path);
+  }, [query]);
   const list = browsing ? browseCards || [] : results;
   return /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
+    className: "mx-auto max-w-[1280px] px-4 sm:px-8 py-10"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "md:hidden"
   }, /*#__PURE__*/React.createElement("h1", {
     className: `headline mb-5 text-[30px] sm:text-[40px] ${t.tp} ${readCls(lang)}`,
     style: {
@@ -5349,8 +5377,14 @@ function SearchPage({
     value: query || "",
     onChange: e => setQuery(e.target.value),
     placeholder: STR[lang].search,
-    className: `w-full border py-2.5 pl-10 pr-3 text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }))), searchStatus === "pending" ? /*#__PURE__*/React.createElement("div", {
+    className: `w-full border py-2.5 pl-10 pr-3 ${query ? "sm:pr-9" : ""} text-[15px] outline-none ${t.surface} ${t.border} focus:border-[#15140F] ${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }), query && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setQuery(""),
+    "aria-label": lang === "hi" ? "खोज साफ़ करें" : "Clear search",
+    className: `hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 ${t.tf} hover:${t.tp}`
+  }, /*#__PURE__*/React.createElement(X, {
+    size: 15
+  }))))), searchStatus === "pending" ? /*#__PURE__*/React.createElement("div", {
     className: "py-24 text-center"
   }, /*#__PURE__*/React.createElement("p", {
     className: `headline text-[19px] ${t.ts} ${readCls(lang)}`
@@ -5600,31 +5634,6 @@ function SegChoice({
       }
     }, label);
   }));
-}
-// Read-aloud control (browser speech synthesis; no network, no library). Renders nothing
-// where speech isn't available. Shown next to summaries when "Read aloud" is on in Settings.
-function ListenButton({
-  text,
-  lang,
-  t
-}) {
-  const [on, setOn] = useState(false);
-  useEffect(() => () => stopSpeak(), []);
-  if (!canSpeak()) return null;
-  const toggle = () => {
-    if (on) {
-      stopSpeak();
-      setOn(false);
-    } else {
-      speak(text, lang);
-      setOn(true);
-    }
-  };
-  return /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    onClick: toggle,
-    className: `inline-flex items-center gap-1.5 border px-2.5 py-1 mono text-[10.5px] uppercase tracking-wide ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, on ? "■" : "▶", " ", lang === "hi" ? on ? "रोकें" : "सुनें" : on ? "Stop" : "Listen");
 }
 const prettyAuthErr = (ex, L) => {
   const m = String(ex && ex.message || "").toLowerCase();
@@ -6039,8 +6048,6 @@ function SettingsPage({
     hcS: "गाढ़ा पाठ, सफ़ेद पृष्ठभूमि।",
     dys: "डिस्लेक्सिया-अनुकूल फ़ॉन्ट",
     dysS: "अधिक सुपाठ्य अक्षर-आकृतियाँ।",
-    aloud: "ज़ोर से पढ़ें",
-    aloudS: "सारांश के पास ‘सुनें’ बटन जोड़ता है।",
     anon: "गुमनाम एनालिटिक्स",
     anonS: "गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।",
     prevH: "झलक",
@@ -6065,8 +6072,6 @@ function SettingsPage({
     hcS: "Darker text on a white surface.",
     dys: "Dyslexia-friendly font",
     dysS: "More distinguishable letterforms.",
-    aloud: "Read aloud",
-    aloudS: "Adds a ‘Listen’ button next to summaries.",
     anon: "Anonymous analytics",
     anonS: "Privacy-respecting, cookieless. Everything works with it off.",
     prevH: "Preview",
@@ -6185,11 +6190,6 @@ function SettingsPage({
     onChange: v => set("dyslexiaFont", v),
     label: L.dys,
     t: t
-  })), row(L.aloud, L.aloudS, /*#__PURE__*/React.createElement(Toggle, {
-    on: a11y.readAloud,
-    onChange: v => set("readAloud", v),
-    label: L.aloud,
-    t: t
   })), row(L.anon, L.anonS, /*#__PURE__*/React.createElement(Toggle, {
     on: consent === "granted",
     onChange: v => setConsent(v ? "granted" : "denied"),
@@ -6222,13 +6222,7 @@ function SettingsPage({
       fontSize: sample.b,
       lineHeight: sample.lh
     }
-  }, L.prevBody), a11y.readAloud && /*#__PURE__*/React.createElement("div", {
-    className: "mt-3"
-  }, /*#__PURE__*/React.createElement(ListenButton, {
-    text: (lang === "hi" ? "हर खबर, हर पक्ष। " : "Every story, every side. ") + L.prevBody,
-    lang: lang,
-    t: t
-  })))));
+  }, L.prevBody))));
 }
 
 // ACCOUNT - the avatar's landing. Signed-in menu; a guest is sent to sign in.
@@ -7201,7 +7195,17 @@ function parsePath() {
   if (seg.length === 0) return {
     view: "home"
   };
-  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "search", "contact", "privacy", "support", "login", "settings", "account", "saved", "lens", "storylines", "my-paksh"].includes(seg[0])) return {
+  // /search?q=... carries its query in the URL (shareable, bookmarkable, survives a
+  // hard reload or a direct link) rather than only in in-memory React state - the App
+  // component reads `q` here and syncs it into the shared query state on arrival.
+  if (seg.length === 1 && seg[0] === "search") {
+    const qs = new URLSearchParams((typeof window !== "undefined" ? window.location.search : "") || "");
+    return {
+      view: "search",
+      q: qs.get("q") || ""
+    };
+  }
+  if (seg.length === 1 && ["blindspot", "topics", "sources", "about", "contact", "privacy", "support", "login", "settings", "account", "saved", "lens", "storylines", "my-paksh"].includes(seg[0])) return {
     view: seg[0]
   };
   return {
@@ -7493,6 +7497,14 @@ function PakshApp() {
     window.addEventListener("popstate", on);
     return () => window.removeEventListener("popstate", on);
   }, []);
+  // Arriving at /search?q=... (a direct link, a hard reload, or Back/Forward restoring a
+  // different query) must populate the shared query state immediately - otherwise the
+  // reader lands on an empty search box next to a query sitting unused in the address bar,
+  // and has to type it again. One-way sync only (route -> query): SearchPage's own typing
+  // mirrors the other direction straight to the URL via replaceState, so there's no loop.
+  useEffect(() => {
+    if (route.view === "search" && typeof route.q === "string" && route.q !== query) setQuery(route.q);
+  }, [route.view, route.q]);
   // 6.3B.5/6.3B.10: light-mode background hardcoded here (independent of TOKENS.light.bg /
   // styles.css's own body{} rule - this JS inline style wins over both). Dark mode is
   // retired, so this now just sets the paper-white canvas once, no theme branching, no
@@ -7640,7 +7652,8 @@ function PakshApp() {
   }, [route.view, route.id, auth, detail]);
   const t = TOKENS.light;
   const nav = path => {
-    if (window.location.pathname !== path) {
+    const cur = window.location.pathname + window.location.search;
+    if (cur !== path) {
       window.history.pushState(null, "", path);
     }
     setRoute(parsePath());
