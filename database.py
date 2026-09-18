@@ -582,6 +582,13 @@ def get_all_events(include_incomplete: bool = False):
     rows = conn.execute("SELECT * FROM events ORDER BY created_at DESC").fetchall()
     conn.close()
     out = [_event_summary_row(r) for r in rows]
+    # Phase 40B: demo/fixture events (seed_demo.py, is_demo=1) must never reach the
+    # public export/sitemap - they're dev-only preview data, indistinguishable from
+    # real news once published. Every OTHER read path in this file already filters
+    # is_demo (see the WHERE clauses below); this was the one gap, since
+    # get_all_events() queries every column directly instead of through one of those.
+    # Non-destructive: rows stay in the DB, only hidden from this read path.
+    out = [e for e in out if not e["is_demo"]]
     # Hide events that lack a real bias comparison (<2 rated outlets) -- e.g.
     # all-unrated GDELT/syndication events saved before the rated-gate existed.
     # Non-destructive: rows stay in the DB, they're just not published.

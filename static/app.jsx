@@ -881,7 +881,7 @@ const {useState,useEffect,useMemo,useRef}=React;
                     <button onClick={copy} className={`inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}>{copied?<><Check size={13}/> {lang==="hi"?"कॉपी":"Copied"}</>:<><LinkIcon size={13}/> {lang==="hi"?"शेयर":"Share"}</>}</button>
                   </div>
                 )}
-                {openHelp && <button onClick={openHelp} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></button>}
+                {openHelp && <a href="/about" onClick={e=>{ e.preventDefault(); openHelp(); }} className={`hidden sm:inline ${t.tf} hover:${t.tp}`} aria-label={lang==="hi"?"पक्ष कैसे पढ़ें":"How Paksh works"}><Help size={15}/></a>}
                 {!isReading && authOn() && auth && <button onClick={()=>go("lens")} className={`hidden lg:inline text-[11px] font-medium ${view==="lens"?t.tp:`${t.ts} hover:${t.tp}`} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"मेरा रीडिंग लेंस":"My Reading Lens"}</button>}
                 {/* My Paksh nav entry point intentionally removed — current product decision,
                     independent of this rollback; the my-paksh view/page below is otherwise
@@ -919,10 +919,13 @@ const {useState,useEffect,useMemo,useRef}=React;
                 <button onClick={()=>{ setRegionFilter&&setRegionFilter("International"); if(view!=="home") go("home"); }} className={`${navCell} ${view==="home"&&regionFilter==="International"?t.tp:t.ts} hover:${t.tp}`} style={navCellStyle}>
                   {ui("International",lang)}{view==="home"&&regionFilter==="International" && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
                 </button>
+                {/* Phase 40B: real <a href> - these are public destinations (Coverage Gaps,
+                    Sections), unlike National/International above (feed filters, no URL of
+                    their own). Phase 40A found these onClick-only, invisible to a crawler. */}
                 {NAV.map(([k,label,clay])=>(
-                  <button key={k} onClick={()=>go(k)} className={`${navCell} hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)}`} style={navCellStyle}>
+                  <a key={k} href={"/"+k} onClick={e=>{ e.preventDefault(); go(k); }} className={`${navCell} hover:${t.tp} ${view===k?t.tp:(clay?t.blind:t.ts)}`} style={navCellStyle}>
                     {label}{view===k && <span style={{position:"absolute",left:0,right:0,bottom:-1,height:2,background:t.ink}}/>}
-                  </button>
+                  </a>
                 ))}
                 {/* desktop expandable search — collapsed icon by default; click expands an
                     inline field around it rather than navigating away or opening an overlay.
@@ -990,9 +993,14 @@ const {useState,useEffect,useMemo,useRef}=React;
                     the big footer CTA was a duplicate and has been removed. */}
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["support",lang==="hi"?"सहयोग":"Support"],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"],["settings",lang==="hi"?"सेटिंग्स":"Settings"]].map(([k,l])=>(
-                  <button key={k} onClick={()=>go(k)} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</button>
+                {/* Phase 40B: public destinations are real <a href> so crawlers can reach them
+                    without running JS (Phase 40A: every one of these was onClick-only, invisible
+                    to link-extraction). "settings" stays a button - it's a private/account
+                    destination (noindex,nofollow), not public editorial content. */}
+                {[["about",STR[lang].navMethod],["sources",STR[lang].navSrc],["blindspot",STR[lang].navOS],["topics",ui("sections",lang)],["support",lang==="hi"?"सहयोग":"Support"],["contact",lang==="hi"?"संपर्क":"Contact"],["privacy",lang==="hi"?"गोपनीयता":"Privacy"]].map(([k,l])=>(
+                  <a key={k} href={"/"+k} onClick={e=>{ e.preventDefault(); go(k); }} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</a>
                 ))}
+                <button onClick={()=>go("settings")} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"सेटिंग्स":"Settings"}</button>
               </div>
             </div>
             {/* Sponsor credit - renders nothing until a sponsor is configured in SPONSOR */}
@@ -1181,7 +1189,7 @@ const {useState,useEffect,useMemo,useRef}=React;
           <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"पक्ष में नए?":"New to Paksh?"}</div>
           <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{lang==="hi"?"पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।":"Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {openHelp && <button onClick={openHelp} className={`border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"यह कैसे काम करता है":"How it works"}</button>}
+            {openHelp && <a href="/about" onClick={e=>{ e.preventDefault(); openHelp(); }} className={`inline-block border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"यह कैसे काम करता है":"How it works"}</a>}
             {authOn() && !auth && <button onClick={()=>go("login")} className={`px-3 py-1.5 eyebrow ${t.cta} ${t.ctaT} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"साइन इन":"Sign in"}</button>}
           </div>
         </div>
@@ -1294,7 +1302,7 @@ const {useState,useEffect,useMemo,useRef}=React;
       const pad="px-4 sm:px-10";
       const browse=(
         <div className="mt-9 flex justify-center">
-          <button onClick={()=>go("topics")} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</button>
+          <a href="/topics" onClick={e=>{ e.preventDefault(); go("topics"); }} className={`inline-block border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"सभी सेक्शन देखें":"Browse all sections"} →</a>
         </div>
       );
 
@@ -1448,7 +1456,11 @@ const {useState,useEffect,useMemo,useRef}=React;
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-6">
           {/* headline block — left-aligned: kicker · region · time, 40px headline, 18px lead (prototype) */}
           <div className="mx-auto max-w-[840px]">
-            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{tp} · {region}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</div>
+            {/* Phase 40B: the topic label is a real link (Phase 40A: openTopic was passed
+                into StoryPage but never invoked - the topic was plain text). Tailwind
+                preflight resets <a> color/decoration to inherit, so this is visually
+                identical to the plain text it replaces. */}
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{story.topic ? <a href={"/topic/"+encodeURIComponent(story.topic)} onClick={e=>{ e.preventDefault(); openTopic&&openTopic(story.topic); }}>{tp}</a> : tp} · {region}{story.created_at?` · ${timeAgo(story.created_at,lang)}`:""}</div>
             {/* Paksh 7: adopts the pk-text-display scale (styles.css) - already matched this
                 page's own 30/40px values exactly, so this is a pure consolidation, not a
                 size change. Hindi's line-height/letter-spacing overrides stay inline (more
@@ -1829,23 +1841,23 @@ const {useState,useEffect,useMemo,useRef}=React;
           <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2" style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:32}}>
             {lead.map(tp=>{ const rc=recentFor(tp); const label=lang==="hi"?(TOPIC_HI[tp]||tp):tp;
               return (
-                <button key={tp} onClick={()=>goTopic(tp)} className="block text-left">
+                <a key={tp} href={"/topic/"+encodeURIComponent(tp)} onClick={e=>{ e.preventDefault(); goTopic(tp); }} className="block text-left">
                   <div className="flex items-baseline justify-between gap-3">
                     <span className={`headline text-[24px] sm:text-[28px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.014em"}}>{label}</span>
                     <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{counts[tp]||0}</span>
                   </div>
                   {rc && <div className={`mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`}>{rc.headline}</div>}
-                </button>
+                </a>
               );
             })}
           </div>
           {rest.length>0 && (
             <div className="mt-8 columns-2 lg:columns-3" style={{columnGap:"2.25rem"}}>
               {rest.map(tp=>(
-                <button key={tp} onClick={()=>goTopic(tp)} className={`mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`} style={{breakInside:"avoid"}}>
+                <a key={tp} href={"/topic/"+encodeURIComponent(tp)} onClick={e=>{ e.preventDefault(); goTopic(tp); }} className={`mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`} style={{breakInside:"avoid"}}>
                   <span className={`text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`}>{lang==="hi"?(TOPIC_HI[tp]||tp):tp}</span>
                   <span className={`mono text-[10.5px] shrink-0 ${t.tf}`}>{counts[tp]||0}</span>
-                </button>
+                </a>
               ))}
             </div>
           )}
@@ -1865,7 +1877,7 @@ const {useState,useEffect,useMemo,useRef}=React;
       const more=items.length-5-visible;
       return (
         <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-10">
-          <button onClick={()=>go("topics")} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</button>
+          <a href="/topics" onClick={e=>{ e.preventDefault(); go("topics"); }} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</a>
           <div className="flex items-center justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
             <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
             <div className="flex shrink-0 items-center gap-3">
@@ -2810,11 +2822,13 @@ const {useState,useEffect,useMemo,useRef}=React;
               <h1 className={`headline text-[30px] sm:text-[42px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{L.h}</h1>
             </div>
             <p className={`mx-auto max-w-[52ch] text-[15px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.p}</p>
-            <button onClick={()=>go("home")} className={`mt-7 border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.home}</button>
+            <a href="/" onClick={e=>{ e.preventDefault(); go("home"); }} className={`mt-7 inline-block border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.home}</a>
             <div className={`mt-9 border-t pt-5 ${t.border}`}>
               <div className={`eyebrow mb-3 ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{L.links}</div>
+              {/* Phase 40B: real hrefs - this page is noindex,follow, so these are exactly
+                  the links Google is being told it's still worth following. */}
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-                {quick.map(([k,l])=>(<button key={k} onClick={()=>go(k)} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</button>))}
+                {quick.map(([k,l])=>(<a key={k} href={"/"+k} onClick={e=>{ e.preventDefault(); go(k); }} className={`text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{l}</a>))}
               </div>
             </div>
           </div>
@@ -3613,6 +3627,28 @@ const {useState,useEffect,useMemo,useRef}=React;
       // only keeps it (and every other view, which had NO client-side title update before this)
       // correct after an in-app navigation, never on first paint of a server-rendered page.
       useEffect(()=>{
+        // Phase 40B: route-aware robots meta. static/index.html ships "index, follow" as the
+        // default for every client-only route (Phase 40A: nothing ever overrode it, so
+        // /login, /account, /saved etc. were silently indexable). Private/utility views get
+        // noindex,nofollow (nothing there is public editorial content, nothing worth Google
+        // following into); /search and the client-rendered 404 get noindex,follow (Google's
+        // own documented pattern for internal search-results pages - not indexed as their own
+        // result, but a search page's real story links are still worth following). An id that
+        // doesn't resolve is noindex too, matching the static /404.html this exact case is
+        // served from - otherwise this would flip that page's correct noindex back to
+        // index,follow the instant React hydrates, before the fetch even confirms the id is
+        // invalid. Runs BEFORE the title logic's own early return below (a valid/loading story
+        // still needs this to reach index,follow - the title branch returns early, this must not).
+        const PRIVATE_VIEWS = ["login","settings","account","saved","lens","my-paksh"];
+        const robotsContent = PRIVATE_VIEWS.includes(route.view) ? "noindex, nofollow"
+          : (route.view==="search" || route.view==="404" || storyNotFound) ? "noindex, follow"
+          : "index, follow";
+        try{
+          let tag = document.querySelector('meta[name="robots"]');
+          if(!tag){ tag=document.createElement("meta"); tag.setAttribute("name","robots"); document.head.appendChild(tag); }
+          tag.setAttribute("content", robotsContent);
+        }catch(e){}
+
         const suffix=(s)=> s ? `${s} | Paksh` : "Paksh";
         const home = lang==="hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: Every side of India's news";
         // Story pages already ship a correct, crawler-visible SSR title (headline | Paksh).
@@ -3641,7 +3677,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         else if(route.view==="my-paksh") title = suffix(lang==="hi"?"मेरा पक्ष":"My Paksh");
         else if(route.view==="404") title = suffix(lang==="hi"?"पेज नहीं मिला":"Page not found");
         try{ document.title = title; }catch(e){}
-      },[route.view, route.id, route.topic, lang, story, data.storylines]);
+      },[route.view, route.id, route.topic, lang, story, data.storylines, storyNotFound]);
 
       return (
         <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn(), go }}>

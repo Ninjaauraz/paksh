@@ -450,6 +450,42 @@ def _story_html(shell, ev, og_ids=None):
     return head + '<div id="root">' + body + '</div>\n<script src="/static/app.js"></script>' + tail
 
 
+def _page_meta_html(shell, title, description, canonical_url, noindex=False):
+    """Phase 40B: the metadata-only sibling of _story_html(), for routes that need their
+    OWN <title>/description/canonical/OG so they stop inheriting the homepage's (the
+    verified Phase 40A canonical-conflict). Unlike _story_html() this does NOT touch
+    #root's content - these pages' actual content legitimately stays client-rendered
+    (that's a content/architecture question for a later phase, not this one); only the
+    metadata a crawler reads before/without running JS changes. No NewsArticle JSON-LD
+    is added (these aren't articles) and no marketing copy is invented - description is
+    either reused verbatim or a straight template substitution of the existing sentence."""
+    esc = lambda x: _html.escape(str(x or ""), quote=True)
+    rep = [
+        ("<title>Paksh: Every side of India's news</title>",
+         "<title>%s</title>" % esc(title)),
+        ('<meta name="description" content="Paksh compares how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+         '<meta name="description" content="%s"/>' % esc(description)),
+        ('<link rel="canonical" href="%s/"/>' % SITE_URL,
+         ('<link rel="canonical" href="%s"/>' % canonical_url) if canonical_url else ""),
+        ('<meta property="og:title" content="Paksh: Every side of India\'s news"/>',
+         '<meta property="og:title" content="%s"/>' % esc(title)),
+        ('<meta property="og:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+         '<meta property="og:description" content="%s"/>' % esc(description)),
+        ('<meta property="og:url" content="%s/"/>' % SITE_URL,
+         ('<meta property="og:url" content="%s"/>' % canonical_url) if canonical_url else ""),
+        ('<meta name="twitter:title" content="Paksh: Every side of India\'s news"/>',
+         '<meta name="twitter:title" content="%s"/>' % esc(title)),
+        ('<meta name="twitter:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+         '<meta name="twitter:description" content="%s"/>' % esc(description)),
+    ]
+    if noindex:
+        rep.append(('<meta name="robots" content="index, follow"/>',
+                    '<meta name="robots" content="noindex, follow"/>'))
+    for a, b in rep:
+        shell = shell.replace(a, b, 1)
+    return shell
+
+
 def _precompile_jsx():
     """Compile static/app.jsx (JSX) to _site/static/app.js (plain React.createElement JS)
     with the vendored Babel UMD, so the browser never downloads or runs Babel. Fails LOUDLY
@@ -951,6 +987,57 @@ def main():
         if sm_conn is not None:
             sm_conn.close()
 
+        # 3b) Phase 40B: self-canonical HTML for topic + section hub pages, so they stop
+        # inheriting the homepage's canonical (the verified Phase 40A conflict: these were
+        # in the sitemap AND declaring themselves a duplicate of "/" at the same time).
+        # Content stays client-rendered exactly as before (in scope: metadata/canonical
+        # only, not a content/SSR change) - _page_meta_html() only rewrites <title>/
+        # description/canonical/OG, never #root. File names use the SAME percent-encoding
+        # as the sitemap/router already use for topic URLs (urllib.parse.quote), so the
+        # Vercel route below matches byte-for-byte with no decode/re-encode ambiguity.
+        from urllib.parse import quote as _quote
+        topic_names_sorted = sorted({e.get("topic") for e in events if e.get("topic")})
+        _DESC = "Paksh compares how India's media, left, centre and right, covers each story, side by side, in English and Hindi."
+        for name in topic_names_sorted:
+            enc = _quote(name, safe="")
+            tp = OUT / "topic" / f"{enc}.html"
+            tp.parent.mkdir(parents=True, exist_ok=True)
+            tp.write_text(_page_meta_html(
+                shell,
+                title="%s | Paksh" % name,
+                description="Paksh compares how India's media, left, centre and right, covers %s news, side by side, in English and Hindi." % name,
+                canonical_url="%s/topic/%s" % (SITE_URL, enc),
+            ), encoding="utf-8")
+        # Phase 40B: titles match the CLIENT's own title effect for each route exactly
+        # (static/app.jsx's document.title useEffect) - /about's own nav label is
+        # "Method", not "About", so the static and post-hydration titles agree instead
+        # of a crawler and a real visitor seeing two different titles for the same URL.
+        _section_pages = [
+            ("topics", "Sections | Paksh"),
+            ("blindspot", "Coverage Gaps | Paksh"),
+            ("about", "Method | Paksh"),
+            ("sources", "Sources | Paksh"),
+            ("support", "Support | Paksh"),
+        ]
+        for slug, title in _section_pages:
+            (OUT / f"{slug}.html").write_text(_page_meta_html(
+                shell, title=title, description=_DESC,
+                canonical_url="%s/%s" % (SITE_URL, slug),
+            ), encoding="utf-8")
+
+        # 3c) Phase 40B: a real 404 for invalid/deleted story ids (Phase 40A: a nonexistent
+        # or deleted /story/<id> was returning HTTP 200 with the homepage's OWN indexable
+        # title/canonical/robots - a soft-404). This file is only ever reached via the new
+        # vercel.json rule below, which fires exactly when the pre-rendered story file
+        # lookup for that id has already failed - never for a valid story.
+        (OUT / "404.html").write_text(_page_meta_html(
+            shell,
+            title="Story not found | Paksh",
+            description="This story doesn't exist or is no longer available on Paksh.",
+            canonical_url=None,
+            noindex=True,
+        ), encoding="utf-8")
+
         # 4) Vercel routing. IMPORTANT: we use the legacy `routes` array, NOT cleanUrls+rewrites.
         #    The modern `{cleanUrls:true, rewrites:[/(.*)->/index.html]}` combo SILENTLY FAILS on
         #    Vercel: cleanUrls shadows the catch-all rewrite, so every path without a real file
@@ -1002,19 +1089,58 @@ def main():
             "Content-Security-Policy": _CSP_ENFORCE,
             "Content-Security-Policy-Report-Only": _CSP_STRICT,
         }
+        # Phase 40B: every OTHER host this Vercel project answers on must redirect to the
+        # one canonical public origin (SITE_URL) instead of independently serving the same
+        # content at 200 - Phase 40A verified all of these return 200 today with no
+        # redirect, so Google can (and does) crawl/index duplicates of every page across
+        # multiple hosts. Exact allowlist, not a negative/regex match, on purpose: a
+        # mismatched negative pattern here could redirect SITE_URL to itself in a loop,
+        # which an explicit "these specific other hosts" list cannot do.
+        _ALT_HOSTS = [
+            "www.paksh.news",
+            "paksh.vercel.app",
+            "paksh-ninjaaurazs-projects.vercel.app",
+            "paksh-git-main-ninjaaurazs-projects.vercel.app",
+        ]
+        _topic_routes = [
+            {"src": "/topic/%s/?$" % re.escape(_quote(name, safe="")),
+             "dest": "/topic/%s.html" % _quote(name, safe=""), "check": True}
+            for name in topic_names_sorted
+        ]
+        _section_routes = [
+            {"src": "/%s/?$" % slug, "dest": "/%s.html" % slug, "check": True}
+            for slug, _ in _section_pages
+        ]
         write_json(OUT / "vercel.json", {
             "routes": [
+                # 0) canonical-domain enforcement: any request arriving on a non-canonical
+                #    host (an old/alias Vercel domain) gets a real 308 to the same path on
+                #    SITE_URL, before anything else runs. Requests already on SITE_URL never
+                #    match this rule (host not in the list) and fall straight through.
+                {"src": "/(.*)", "has": [{"type": "host", "value": {"inc": _ALT_HOSTS}}],
+                 "status": 308, "headers": {"Location": SITE_URL + "/$1"}},
                 # 1) security headers on every response, then keep routing
                 {"src": "/(.*)", "headers": _sec_headers, "continue": True},
                 # 2) serve any real file: /index.html, /static/*, /data/*, /story/<id>.html,
                 #    robots.txt, sitemap.xml, favicons, og.png ...
                 {"handle": "filesystem"},
                 # 3) pretty story URLs -> the pre-rendered crawlable page. check:true means
-                #    Vercel falls through to route 5 (the SPA shell) instead of a hard platform
-                #    404 when the event has no pre-rendered HTML (most of the DB - only the
-                #    exported/recent window gets a static page). The client-side router then
-                #    renders its own NotFoundPage for an unresolvable id (see app.jsx STORY_NOT_FOUND).
+                #    Vercel falls through to the NEXT route (3b, a real 404) instead of the
+                #    SPA shell when the event has no pre-rendered HTML.
                 {"src": "/story/([^/]+)/?$", "dest": "/story/$1.html", "check": True},
+                # 3b) Phase 40B: an invalid/deleted story id reaches here (3's check:true
+                #     found no matching file) -> a REAL HTTP 404 with its own noindex page,
+                #     not the homepage shell at 200 (the verified Phase 40A soft-404).
+                {"src": "/story/([^/]+)/?$", "status": 404, "dest": "/404.html"},
+                # 3c) Phase 40B: topic pages get their own self-canonical file (one exact
+                #     rule per known topic name, using the same percent-encoding as the
+                #     sitemap/router - no regex-vs-request encoding ambiguity possible).
+                #     An unlisted/typo'd topic name matches none of these and falls through
+                #     to the SPA shell exactly as before (unchanged for that case).
+                *_topic_routes,
+                # 3d) Phase 40B: the fixed set of section/hub pages, same self-canonical
+                #     pattern as topics above.
+                *_section_routes,
                 # 4) keep the (absent) API 404 so the SPA's static-mode probe stays a fast 404
                 {"src": "/api/(.*)", "status": 404},
                 # 5) SPA fallback: every other in-app route renders the shell (History API + SEO)
@@ -1023,8 +1149,16 @@ def main():
         })
 
         # 5) robots + sitemap (homepage + every story)
+        # Phase 40B: Disallow the private/utility routes (Phase 40A: none of these had ANY
+        # indexation policy - no robots.txt rule, no noindex, nothing stopping a crawl).
+        # /search is deliberately NOT here - it's handled by a client-side noindex,follow
+        # (see app.jsx) instead of a crawl block, so Google can still follow the real story
+        # links a search-results view contains; a private/account page has no such content
+        # worth crawling into, so blocking the crawl entirely is the stronger, correct tool.
+        _DISALLOW = ["/login", "/account", "/saved", "/lens", "/settings", "/my-paksh"]
         (OUT / "robots.txt").write_text(
-            "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\nRSS: %s/rss.xml\n"
+            "User-agent: *\nAllow: /\n" + "".join("Disallow: %s\n" % p for p in _DISALLOW)
+            + "\nSitemap: %s/sitemap.xml\nRSS: %s/rss.xml\n"
             % (SITE_URL, SITE_URL), encoding="utf-8")
         # Phase 35: ads.txt as a REAL file. Without one on disk, Vercel's SPA fallback (route 5
         # above) was serving index.html - real HTML, status 200 - for GET /ads.txt, which is not

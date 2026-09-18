@@ -2317,8 +2317,12 @@ function Masthead({
     size: 13
   }), " ", lang === "hi" ? "कॉपी" : "Copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(LinkIcon, {
     size: 13
-  }), " ", lang === "hi" ? "शेयर" : "Share"))), openHelp && /*#__PURE__*/React.createElement("button", {
-    onClick: openHelp,
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), openHelp && /*#__PURE__*/React.createElement("a", {
+    href: "/about",
+    onClick: e => {
+      e.preventDefault();
+      openHelp();
+    },
     className: `hidden sm:inline ${t.tf} hover:${t.tp}`,
     "aria-label": lang === "hi" ? "पक्ष कैसे पढ़ें" : "How Paksh works"
   }, /*#__PURE__*/React.createElement(Help, {
@@ -2403,9 +2407,13 @@ function Masthead({
       height: 2,
       background: t.ink
     }
-  })), NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("button", {
+  })), NAV.map(([k, label, clay]) => /*#__PURE__*/React.createElement("a", {
     key: k,
-    onClick: () => go(k),
+    href: "/" + k,
+    onClick: e => {
+      e.preventDefault();
+      go(k);
+    },
     className: `${navCell} hover:${t.tp} ${view === k ? t.tp : clay ? t.blind : t.ts}`,
     style: navCellStyle
   }, label, view === k && /*#__PURE__*/React.createElement("span", {
@@ -2533,11 +2541,18 @@ function Footer({
     className: `mt-2 text-[12.5px] leading-relaxed ${t.tf} ${isHi(lang)}`
   }, STR[lang].footIndependence)), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-x-6 gap-y-2"
-  }, [["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"], ["settings", lang === "hi" ? "सेटिंग्स" : "Settings"]].map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [["about", STR[lang].navMethod], ["sources", STR[lang].navSrc], ["blindspot", STR[lang].navOS], ["topics", ui("sections", lang)], ["support", lang === "hi" ? "सहयोग" : "Support"], ["contact", lang === "hi" ? "संपर्क" : "Contact"], ["privacy", lang === "hi" ? "गोपनीयता" : "Privacy"]].map(([k, l]) => /*#__PURE__*/React.createElement("a", {
     key: k,
-    onClick: () => go(k),
+    href: "/" + k,
+    onClick: e => {
+      e.preventDefault();
+      go(k);
+    },
     className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, l)))), /*#__PURE__*/React.createElement(SponsorSlot, {
+  }, l)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("settings"),
+    className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, lang === "hi" ? "सेटिंग्स" : "Settings"))), /*#__PURE__*/React.createElement(SponsorSlot, {
     t: t,
     lang: lang,
     className: "mt-7"
@@ -2978,9 +2993,13 @@ function RailPersonalize({
     }
   }, lang === "hi" ? "पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।" : "Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."), /*#__PURE__*/React.createElement("div", {
     className: "mt-3 flex flex-wrap gap-2"
-  }, openHelp && /*#__PURE__*/React.createElement("button", {
-    onClick: openHelp,
-    className: `border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+  }, openHelp && /*#__PURE__*/React.createElement("a", {
+    href: "/about",
+    onClick: e => {
+      e.preventDefault();
+      openHelp();
+    },
+    className: `inline-block border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".08em"
     }
@@ -3188,9 +3207,13 @@ function HomeView({
   const pad = "px-4 sm:px-10";
   const browse = /*#__PURE__*/React.createElement("div", {
     className: "mt-9 flex justify-center"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("topics"),
-    className: `border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "/topics",
+    onClick: e => {
+      e.preventDefault();
+      go("topics");
+    },
+    className: `inline-block border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".08em"
     }
@@ -3481,7 +3504,13 @@ function StoryPage({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
     }
-  }, tp, " \xB7 ", region, story.created_at ? ` · ${timeAgo(story.created_at, lang)}` : ""), /*#__PURE__*/React.createElement("h1", {
+  }, story.topic ? /*#__PURE__*/React.createElement("a", {
+    href: "/topic/" + encodeURIComponent(story.topic),
+    onClick: e => {
+      e.preventDefault();
+      openTopic && openTopic(story.topic);
+    }
+  }, tp) : tp, " \xB7 ", region, story.created_at ? ` · ${timeAgo(story.created_at, lang)}` : ""), /*#__PURE__*/React.createElement("h1", {
     className: `headline pk-text-display mt-3 ${t.tp} ${readCls(lang)}`,
     style: {
       lineHeight: lang === "hi" ? 1.16 : 1.08,
@@ -4172,9 +4201,13 @@ function TopicsHub({
   }, lead.map(tp => {
     const rc = recentFor(tp);
     const label = lang === "hi" ? TOPIC_HI[tp] || tp : tp;
-    return /*#__PURE__*/React.createElement("button", {
+    return /*#__PURE__*/React.createElement("a", {
       key: tp,
-      onClick: () => goTopic(tp),
+      href: "/topic/" + encodeURIComponent(tp),
+      onClick: e => {
+        e.preventDefault();
+        goTopic(tp);
+      },
       className: "block text-left"
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-baseline justify-between gap-3"
@@ -4193,9 +4226,13 @@ function TopicsHub({
     style: {
       columnGap: "2.25rem"
     }
-  }, rest.map(tp => /*#__PURE__*/React.createElement("button", {
+  }, rest.map(tp => /*#__PURE__*/React.createElement("a", {
     key: tp,
-    onClick: () => goTopic(tp),
+    href: "/topic/" + encodeURIComponent(tp),
+    onClick: e => {
+      e.preventDefault();
+      goTopic(tp);
+    },
     className: `mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`,
     style: {
       breakInside: "avoid"
@@ -4231,8 +4268,12 @@ function TopicPage({
   const more = items.length - 5 - visible;
   return /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1280px] px-4 sm:px-10 py-10"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("topics"),
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "/topics",
+    onClick: e => {
+      e.preventDefault();
+      go("topics");
+    },
     className: `mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".1em"
@@ -6336,9 +6377,13 @@ function NotFoundPage({
     style: {
       lineHeight: lang === "hi" ? 1.75 : 1.6
     }
-  }, L.p), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go("home"),
-    className: `mt-7 border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`
+  }, L.p), /*#__PURE__*/React.createElement("a", {
+    href: "/",
+    onClick: e => {
+      e.preventDefault();
+      go("home");
+    },
+    className: `mt-7 inline-block border px-5 py-2.5 text-[13px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} ${isHi(lang)}`
   }, L.home), /*#__PURE__*/React.createElement("div", {
     className: `mt-9 border-t pt-5 ${t.border}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -6348,9 +6393,13 @@ function NotFoundPage({
     }
   }, L.links), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap justify-center gap-x-6 gap-y-2"
-  }, quick.map(([k, l]) => /*#__PURE__*/React.createElement("button", {
+  }, quick.map(([k, l]) => /*#__PURE__*/React.createElement("a", {
     key: k,
-    onClick: () => go(k),
+    href: "/" + k,
+    onClick: e => {
+      e.preventDefault();
+      go(k);
+    },
     className: `text-[13px] font-medium ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, l))))));
 }
@@ -7943,6 +7992,29 @@ function PakshApp() {
   // only keeps it (and every other view, which had NO client-side title update before this)
   // correct after an in-app navigation, never on first paint of a server-rendered page.
   useEffect(() => {
+    // Phase 40B: route-aware robots meta. static/index.html ships "index, follow" as the
+    // default for every client-only route (Phase 40A: nothing ever overrode it, so
+    // /login, /account, /saved etc. were silently indexable). Private/utility views get
+    // noindex,nofollow (nothing there is public editorial content, nothing worth Google
+    // following into); /search and the client-rendered 404 get noindex,follow (Google's
+    // own documented pattern for internal search-results pages - not indexed as their own
+    // result, but a search page's real story links are still worth following). An id that
+    // doesn't resolve is noindex too, matching the static /404.html this exact case is
+    // served from - otherwise this would flip that page's correct noindex back to
+    // index,follow the instant React hydrates, before the fetch even confirms the id is
+    // invalid. Runs BEFORE the title logic's own early return below (a valid/loading story
+    // still needs this to reach index,follow - the title branch returns early, this must not).
+    const PRIVATE_VIEWS = ["login", "settings", "account", "saved", "lens", "my-paksh"];
+    const robotsContent = PRIVATE_VIEWS.includes(route.view) ? "noindex, nofollow" : route.view === "search" || route.view === "404" || storyNotFound ? "noindex, follow" : "index, follow";
+    try {
+      let tag = document.querySelector('meta[name="robots"]');
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("name", "robots");
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", robotsContent);
+    } catch (e) {}
     const suffix = s => s ? `${s} | Paksh` : "Paksh";
     const home = lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: Every side of India's news";
     // Story pages already ship a correct, crawler-visible SSR title (headline | Paksh).
@@ -7965,7 +8037,7 @@ function PakshApp() {
     try {
       document.title = title;
     } catch (e) {}
-  }, [route.view, route.id, route.topic, lang, story, data.storylines]);
+  }, [route.view, route.id, route.topic, lang, story, data.storylines, storyNotFound]);
   return /*#__PURE__*/React.createElement(SaveCtx.Provider, {
     value: {
       saved: savedIds,

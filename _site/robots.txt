@@ -1,5 +1,11 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /account
+Disallow: /saved
+Disallow: /lens
+Disallow: /settings
+Disallow: /my-paksh
 
 Sitemap: https://paksh.news/sitemap.xml
 RSS: https://paksh.news/rss.xml
