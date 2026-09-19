@@ -991,6 +991,15 @@ const STR = {
     whereLean: "Where the sources lean",
     aiNote: "Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
     whoCoveredNote: "Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
+    // Phase 41: comprehension copy - what the bar counts, where to verify, what "lean" is
+    // (and isn't). Plain description only; no rating/quality language.
+    barCaption: "Outlets covering this story, by leaning",
+    originalReports: "Original reports",
+    whoCoveredVerify: "Open any article to read the original reporting.",
+    leanBasis: "Leaning describes the publication and is set by Paksh's editors. It is not a rating of accuracy or reliability.",
+    leanBasisLink: "How leanings are assigned",
+    nonVoting: "International and unrated outlets are listed but not counted in the bar.",
+    gapHow: "How gaps are flagged",
     srcTitle: "Source ratings",
     srcIntro: "Every outlet Paksh tracks, how it's rated, and why.",
     srcDisclaimer: "All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
@@ -1073,6 +1082,13 @@ const STR = {
     whereLean: "स्रोत किस ओर झुके हैं",
     aiNote: "झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
     whoCoveredNote: "इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
+    barCaption: "इस ख़बर को कवर करने वाले आउटलेट, झुकाव के अनुसार",
+    originalReports: "मूल रिपोर्ट",
+    whoCoveredVerify: "मूल रिपोर्टिंग पढ़ने के लिए किसी भी लेख को खोलें।",
+    leanBasis: "झुकाव प्रकाशन का होता है और पक्ष के संपादक तय करते हैं। यह सटीकता या विश्वसनीयता की रेटिंग नहीं है।",
+    leanBasisLink: "झुकाव कैसे तय होते हैं",
+    nonVoting: "अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
+    gapHow: "कवरेज गैप कैसे तय होते हैं",
     srcTitle: "स्रोत रेटिंग",
     srcIntro: "पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
     srcDisclaimer: "सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
@@ -1137,6 +1153,29 @@ const loadVercelAnalytics = () => {
   const s = document.createElement("script");
   s.defer = true;
   s.src = "/_vercel/insights/script.js";
+  document.head.appendChild(s);
+};
+/* ---------------- advertising (consent-gated, OFF until the visitor allows it) ---------------- */
+// The analytics consent above is NOT ad consent: its banner text promises "no ad-tracking", so
+// it can never authorise an ad network. Advertising has its own choice, stored separately as
+// "paksh-consent-ads" ("" undecided | "granted" | "denied"), never pre-selected. Google AdSense
+// (whose cookies and cross-site measurement are the reason this needs consent) is not in
+// static/index.html any more; this is the ONLY place it can be loaded, and only after "granted".
+const ADSENSE_PUBLISHER = "ca-pub-3441154254234680";
+const adsConsentState = () => {
+  try {
+    return localStorage.getItem("paksh-consent-ads") || "";
+  } catch (e) {
+    return "";
+  }
+};
+const loadAdSense = () => {
+  if (window.__pakshAds) return;
+  window.__pakshAds = true;
+  const s = document.createElement("script");
+  s.async = true;
+  s.crossOrigin = "anonymous";
+  s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + ADSENSE_PUBLISHER;
   document.head.appendChild(s);
 };
 // track(name, props) - a no-op unless the user consented. Send only low-cardinality,
@@ -1945,7 +1984,9 @@ function LeadStory({
       lineHeight: lang === "hi" ? 1.85 : 1.6,
       textWrap: "pretty"
     }
-  }, story.lead), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(BiasPill, {
+  }, story.lead), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: `hidden md:block mb-2 mono text-[9.5px] leading-[1.5] tracking-[0.02em] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, STR[lang].barCaption), /*#__PURE__*/React.createElement(BiasPill, {
     counts: c,
     t: t,
     lang: lang,
@@ -1964,7 +2005,9 @@ function LeadStory({
       background: BIAS[k].color,
       display: "inline-block"
     }
-  }), lbl(k, lang)))), /*#__PURE__*/React.createElement("div", {
+  }), lbl(k, lang), /*#__PURE__*/React.createElement("span", {
+    className: "hidden md:inline"
+  }, " ", c[k] || 0)))), /*#__PURE__*/React.createElement("div", {
     className: `mt-3 text-[11px] font-medium uppercase tracking-[0.06em] ${t.tp} ${lang === "hi" ? "deva" : ""}`
   }, /*#__PURE__*/React.createElement("span", {
     style: {
@@ -2998,7 +3041,7 @@ function RailPersonalize({
     style: {
       lineHeight: lang === "hi" ? 1.7 : 1.55
     }
-  }, lang === "hi" ? "पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।" : "Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "पहले खबर को समझें। फिर देखें कि अलग-अलग आउटलेट उसे कैसे कवर कर रहे हैं, और खुद जाँचने के लिए मूल रिपोर्ट खोलें।" : "Understand the story first. Then see how different outlets are covering it, and open the original reports to check for yourself."), /*#__PURE__*/React.createElement("div", {
     className: "mt-3 flex flex-wrap gap-2"
   }, openHelp && /*#__PURE__*/React.createElement("a", {
     href: "/about",
@@ -3542,7 +3585,56 @@ function StoryPage({
     t: t,
     lang: lang,
     h: 14
-  })), story.img && /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: `mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "basis-full md:basis-auto"
+  }, STR[lang].barCaption), ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("span", {
+    key: k,
+    className: "inline-flex items-center gap-1.5 uppercase tracking-[0.06em]"
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true",
+    style: {
+      width: 7,
+      height: 7,
+      borderRadius: 1.5,
+      background: vc[k] > 0 ? BIAS[k].color : t.line,
+      display: "inline-block"
+    }
+  }), lbl(k, lang), " ", vc[k] || 0)), /*#__PURE__*/React.createElement("a", {
+    href: "#arts",
+    onClick: e => {
+      e.preventDefault();
+      const el = document.getElementById("arts");
+      if (el) el.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    },
+    className: `md:ml-auto ${t.ts} hover:${t.tp} underline underline-offset-2`
+  }, STR[lang].originalReports, " \u2193")), story.blindspot && (() => {
+    const gs = story.blindspot;
+    const gN = vc[gs] || 0;
+    const sideLab = lbl(gs, lang);
+    const covered = gs === "left" ? lang === "hi" ? `${vc.right} दक्षिण, ${vc.center} केंद्र` : `${vc.right} Right, ${vc.center} Centre` : lang === "hi" ? `${vc.left} वाम, ${vc.center} केंद्र` : `${vc.left} Left, ${vc.center} Centre`;
+    const tail = gN === 0 ? lang === "hi" ? `अभी ${sideLab} कवरेज नहीं।` : `no ${sideLab} coverage yet.` : lang === "hi" ? `${sideLab} कम।` : `${sideLab} thin.`;
+    return /*#__PURE__*/React.createElement("div", {
+      className: "mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
+    }, /*#__PURE__*/React.createElement(BlindspotBadge, {
+      side: gs,
+      t: t,
+      lang: lang
+    }), /*#__PURE__*/React.createElement("span", {
+      className: `text-[13px] ${t.ts} ${readCls(lang)}`
+    }, covered, " \u2014 ", tail), /*#__PURE__*/React.createElement("a", {
+      href: "/blindspot",
+      onClick: e => {
+        e.preventDefault();
+        go("blindspot");
+      },
+      className: `mono text-[10.5px] ${t.tf} hover:${t.tp} underline underline-offset-2 ${lang === "hi" ? "deva" : ""}`
+    }, STR[lang].gapHow, " \u2192"));
+  })()), story.img && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-6 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(Thumb, {
     src: story.img,
@@ -3704,8 +3796,17 @@ function StoryPage({
   }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("span", {
     className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("p", {
+    className: `mb-1.5 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, STR[lang].whoCoveredNote), /*#__PURE__*/React.createElement("p", {
     className: `mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].whoCoveredNote), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].whoCoveredVerify, " ", STR[lang].leanBasis, counts.international > 0 || counts.unrated > 0 ? ` ${STR[lang].nonVoting}` : "", " ", /*#__PURE__*/React.createElement("a", {
+    href: "/sources",
+    onClick: e => {
+      e.preventDefault();
+      go("sources");
+    },
+    className: `underline underline-offset-2 ${t.ts} hover:${t.tp}`
+  }, STR[lang].leanBasisLink, " \u2192")), /*#__PURE__*/React.createElement("div", {
     className: `flex items-center gap-5 overflow-x-auto border-b ${t.border}`,
     style: {
       scrollbarWidth: "none"
@@ -3732,7 +3833,7 @@ function StoryPage({
     className: "mt-4 space-y-2.5"
   }, arts.map((o, i) => /*#__PURE__*/React.createElement("a", {
     key: i,
-    href: o.url || "#",
+    href: /^https?:\/\//i.test(o.url || "") ? o.url : "#",
     target: "_blank",
     rel: "nofollow noopener noreferrer",
     onClick: () => track("source_open", {
@@ -5225,7 +5326,9 @@ function PrivacyPage({
   t,
   lang,
   consent,
-  setConsent
+  setConsent,
+  adsConsent,
+  setAdsConsent
 }) {
   const Row = ({
     h,
@@ -5247,6 +5350,8 @@ function PrivacyPage({
     c2: "विज्ञापन क्लासिफ़ाइड-शैली के और गैर-वैयक्तिकृत हैं। कॉन्फ़िगर व घोषित होने तक कोई विज्ञापन नेटवर्क लोड नहीं होता, अभी स्लॉट निष्क्रिय प्लेसहोल्डर हैं।",
     c3H: "आपका रीडिंग लेंस",
     c3: "साइन इन करने पर आप जो खबरें खोलते हैं वे आपके खाते में दर्ज होती हैं ताकि आपका पढ़ने का संतुलन निकले। यह निजी है, बेचा नहीं जाता, और यह नहीं बदलता कि आपको कौन-सी खबरें दिखें।",
+    adH: "विज्ञापन (Google)",
+    adSub: "बंद, जब तक आप अनुमति न दें",
     anH: "गुमनाम एनालिटिक्स",
     anSub: "गोपनीयता-सम्मानित गिनती, कोई विज्ञापन-ट्रैकिंग नहीं",
     note1: "आप एनालिटिक्स बंद करके भी हर सुविधा इस्तेमाल कर सकते हैं। बंद करने पर आपकी विज़िट की सारी समग्र माप रुक जाती है।",
@@ -5261,6 +5366,8 @@ function PrivacyPage({
     c2: "Ads are classifieds-style and non-personalised. No ad network is loaded until it's configured and disclosed, today the slots are inert placeholders.",
     c3H: "Your Reading Lens",
     c3: "If you sign in, the stories you open are recorded to your account to compute your reading balance. It is private to you, never sold, and never used to change which stories you're shown.",
+    adH: "Advertising (Google)",
+    adSub: "Off unless you allow it",
     anH: "Anonymous analytics",
     anSub: "Privacy-respecting counts, no ad tracking",
     note1: "You can switch analytics off and still use every feature. Turning it off stops all aggregate measurement of your visit.",
@@ -5338,6 +5445,24 @@ function PrivacyPage({
     on: consent === "granted",
     onChange: v => setConsent(v ? "granted" : "denied"),
     label: P.anH,
+    t: t
+  }))), setAdsConsent && /*#__PURE__*/React.createElement("div", {
+    className: `${t.surface} p-4`,
+    style: {
+      border: `1px solid ${t.line}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `text-[13px] font-semibold ${t.tp} ${readCls(lang)}`
+  }, P.adH), /*#__PURE__*/React.createElement("div", {
+    className: `mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`
+  }, P.adSub)), /*#__PURE__*/React.createElement(Toggle, {
+    on: adsConsent === "granted",
+    onChange: v => setAdsConsent(v ? "granted" : "denied"),
+    label: P.adH,
     t: t
   }))), /*#__PURE__*/React.createElement("p", {
     className: `text-[12.5px] ${t.tf} ${readCls(lang)}`,
@@ -6074,6 +6199,8 @@ function SettingsPage({
   onSignOut,
   consent,
   setConsent,
+  adsConsent,
+  setAdsConsent,
   go
 }) {
   const L = lang === "hi" ? {
@@ -6098,6 +6225,8 @@ function SettingsPage({
     dysS: "अधिक सुपाठ्य अक्षर-आकृतियाँ।",
     anon: "गुमनाम एनालिटिक्स",
     anonS: "गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।",
+    ads: "विज्ञापन (Google)",
+    adsS: "जब तक आप अनुमति न दें, बंद रहता है। Google विज्ञापन दिखाने व नापने के लिए कुकी का उपयोग कर सकता है। सब कुछ इसके बिना भी चलता है।",
     prevH: "झलक",
     prevBody: "यह नमूना पाठ ऊपर चुनी गई सेटिंग्स के साथ तुरंत बदलता है, ताकि असर तुरंत दिखे। पक्ष हर खबर को हर पक्ष से दिखाता है।"
   } : {
@@ -6122,6 +6251,8 @@ function SettingsPage({
     dysS: "More distinguishable letterforms.",
     anon: "Anonymous analytics",
     anonS: "Privacy-respecting, cookieless. Everything works with it off.",
+    ads: "Advertising (Google)",
+    adsS: "Off unless you allow it. Google may use cookies to show and measure ads. Everything works with it off.",
     prevH: "Preview",
     prevBody: "This sample text re-renders with the settings above so you can see the effect immediately. Paksh shows every side of every story."
   };
@@ -6242,6 +6373,11 @@ function SettingsPage({
     on: consent === "granted",
     onChange: v => setConsent(v ? "granted" : "denied"),
     label: L.anon,
+    t: t
+  })), setAdsConsent && row(L.ads, L.adsS, /*#__PURE__*/React.createElement(Toggle, {
+    on: adsConsent === "granted",
+    onChange: v => setAdsConsent(v ? "granted" : "denied"),
+    label: L.ads,
     t: t
   }))), /*#__PURE__*/React.createElement("div", {
     className: "mt-8 pt-6",
@@ -7422,26 +7558,41 @@ function ConsentBanner({
   t,
   lang,
   onChoose,
+  onChooseAds,
+  needAnalytics,
+  needAds,
   go
 }) {
   const L = lang === "hi" ? {
-    text: "पक्ष यह समझने के लिए कि लोग खबरें कैसे पढ़ते हैं, गोपनीयता-सम्मानित, कुकी-रहित एनालिटिक्स इस्तेमाल करना चाहता है। कोई व्यक्तिगत पहचान नहीं, कोई विज्ञापन-ट्रैकिंग नहीं।",
+    text: "पक्ष यह समझने के लिए कि लोग खबरें कैसे पढ़ते हैं, गोपनीयता-सम्मानित, कुकी-रहित एनालिटिक्स इस्तेमाल करता है। कोई निजी पहचान नहीं, कोई विज्ञापन-ट्रैकिंग नहीं।",
+    adText: "विज्ञापन (वैकल्पिक): पक्ष को चलाने के लिए Google के विज्ञापन दिखाए जा सकते हैं। Google विज्ञापन दिखाने और नापने के लिए कुकी का उपयोग कर सकता है, दूसरी साइटों पर भी। आप मना करेंगे तो कोई विज्ञापन नेटवर्क लोड नहीं होगा।",
     accept: "स्वीकार करें",
     decline: "मना करें",
+    allowAds: "विज्ञापन की अनुमति दें",
+    noAds: "विज्ञापन नहीं",
     more: "गोपनीयता"
   } : {
     text: "Paksh uses privacy-respecting, cookieless analytics to understand how people read the news. No personal identity, no ad-tracking.",
+    adText: "Ads (optional): to help fund Paksh we may show Google ads. Google can use cookies to show and measure ads, including across other sites. If you decline, no ad network is loaded.",
     accept: "Accept",
     decline: "Decline",
+    allowAds: "Allow ads",
+    noAds: "No ads",
     more: "Privacy"
   };
+  const btnNo = `border px-3.5 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
+  const btnYes = `px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`;
   return /*#__PURE__*/React.createElement("div", {
-    className: "fixed inset-x-0 bottom-16 z-50 px-4 md:bottom-4"
+    className: "fixed inset-x-0 bottom-16 z-50 px-4 md:bottom-4",
+    role: "region",
+    "aria-label": lang === "hi" ? "सहमति" : "Consent choices"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `mx-auto flex max-w-2xl flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:gap-4 ${t.surface} ${t.border}`,
+    className: `mx-auto flex max-w-2xl flex-col gap-4 border p-4 ${t.surface} ${t.border}`,
     style: {
       boxShadow: "0 6px 24px rgba(0,0,0,0.18)"
     }
+  }, needAnalytics && /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
   }, /*#__PURE__*/React.createElement("p", {
     className: `text-[12.5px] leading-[1.55] ${t.ts} ${isHi(lang)}`
   }, L.text, " ", /*#__PURE__*/React.createElement("button", {
@@ -7451,11 +7602,26 @@ function ConsentBanner({
     className: "flex shrink-0 gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => onChoose("denied"),
-    className: `border px-3.5 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`
+    className: btnNo
   }, L.decline), /*#__PURE__*/React.createElement("button", {
     onClick: () => onChoose("granted"),
-    className: `px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
-  }, L.accept))));
+    className: btnYes
+  }, L.accept))), needAds && /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 ${needAnalytics ? "border-t pt-4" : ""} ${t.border}`
+  }, /*#__PURE__*/React.createElement("p", {
+    className: `text-[12.5px] leading-[1.55] ${t.ts} ${isHi(lang)}`
+  }, L.adText, !needAnalytics && /*#__PURE__*/React.createElement(React.Fragment, null, " ", /*#__PURE__*/React.createElement("button", {
+    onClick: () => go("privacy"),
+    className: `underline underline-offset-2 ${t.tf} hover:${t.tp}`
+  }, L.more))), /*#__PURE__*/React.createElement("div", {
+    className: "flex shrink-0 gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onChooseAds("denied"),
+    className: btnNo
+  }, L.noAds), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onChooseAds("granted"),
+    className: btnYes
+  }, L.allowAds)))));
 }
 function PakshApp() {
   const [route, setRoute] = useState(parsePath());
@@ -7533,9 +7699,22 @@ function PakshApp() {
     storylines: []
   });
   const [detail, setDetail] = useState({});
+  // Coverage Gaps: blindspots.json carries only a 40-per-column teaser list (loaded on every page).
+  // The Coverage Gaps page needs EVERY gap its own header counts, so it fetches the complete,
+  // identically-ranked list once, on first visit. null = not requested, "error" = keep the teaser.
+  const [gapsAll, setGapsAll] = useState(null);
+  useEffect(() => {
+    if (route.view !== "blindspot" || gapsAll !== null) return;
+    setGapsAll("loading");
+    apiGet("blindspots-all").then(g => setGapsAll({
+      left: g.left_heavier || [],
+      right: g.right_heavier || []
+    })).catch(() => setGapsAll("error"));
+  }, [route.view, gapsAll]);
   const [archive, setArchive] = useState(null); // older events, lazy-loaded for search/topic browsing
   const [ready, setReady] = useState(false);
   const [consent, setConsent] = useState(consentState); // "" undecided | "granted" | "denied"
+  const [adsConsent, setAdsConsent] = useState(adsConsentState); // advertising: its own choice, "" until the visitor decides
 
   useEffect(() => {
     loadAll().then(d => {
@@ -7548,6 +7727,11 @@ function PakshApp() {
   useEffect(() => {
     if (consent === "granted") loadVercelAnalytics();
   }, [consent]);
+  // Google AdSense: injected ONLY after an explicit "granted" for advertising. Undecided/denied
+  // visitors never load the ad network (no script, no cookies, no requests to Google).
+  useEffect(() => {
+    if (adsConsent === "granted") loadAdSense();
+  }, [adsConsent]);
   useEffect(() => {
     const on = () => setRoute(parsePath());
     window.addEventListener("popstate", on);
@@ -7806,6 +7990,21 @@ function PakshApp() {
     } catch (e) {}
     setConsent(v);
   };
+  // Withdrawing ad consent after the ad script has already run: a loaded script cannot be
+  // unloaded, so reload the page (a fresh page never loads it). Cookies Google already set on
+  // its own domains can only be cleared by the visitor in their browser.
+  const setAdsChoice = v => {
+    const wasLoaded = !!window.__pakshAds;
+    try {
+      localStorage.setItem("paksh-consent-ads", v);
+    } catch (e) {}
+    setAdsConsent(v);
+    if (v !== "granted" && wasLoaded) {
+      try {
+        window.location.reload();
+      } catch (e) {}
+    }
+  };
   const finishOnboarding = () => {
     try {
       localStorage.setItem("paksh-onboarded", "1");
@@ -7882,8 +8081,12 @@ function PakshApp() {
   const allEvents = Array.isArray(archive) && archive.length ? data.events.concat(archive) : data.events;
   const baseCards = allEvents.map(e => toCard(e, lang)).filter(c => c.srclang === lang);
   const baseOne = data.blindspots.map(e => toCard(e, lang)).filter(c => c.srclang === lang);
-  const gapL = (data.gaps.left || []).map(e => toCard(e, lang)).filter(c => c.srclang === lang);
-  const gapR = (data.gaps.right || []).map(e => toCard(e, lang)).filter(c => c.srclang === lang);
+  const gapSrc = gapsAll && typeof gapsAll === "object" ? gapsAll : {
+    left: data.gaps.left,
+    right: data.gaps.right
+  };
+  const gapL = (gapSrc.left || []).map(e => toCard(e, lang)).filter(c => c.srclang === lang);
+  const gapR = (gapSrc.right || []).map(e => toCard(e, lang)).filter(c => c.srclang === lang);
   const gapAgg = data.gaps.agg || {};
   // --- India-first home ranking ------------------------------------------
   // Top Stories is strictly India-centric. Foreign stories (region "World", set
@@ -8102,6 +8305,8 @@ function PakshApp() {
     onSignOut: onSignOut,
     consent: consent,
     setConsent: setConsentChoice,
+    adsConsent: adsConsent,
+    setAdsConsent: setAdsChoice,
     go: go
   }) : route.view === "account" ? /*#__PURE__*/React.createElement(AccountPage, {
     t: t,
@@ -8230,7 +8435,9 @@ function PakshApp() {
     t: t,
     lang: lang,
     consent: consent,
-    setConsent: setConsentChoice
+    setConsent: setConsentChoice,
+    adsConsent: adsConsent,
+    setAdsConsent: setAdsChoice
   }) : route.view === "support" ? /*#__PURE__*/React.createElement(SupportPage, {
     t: t,
     lang: lang,
@@ -8282,12 +8489,17 @@ function PakshApp() {
     onDone: finishOnboarding,
     interests: interests,
     onToggleInterest: toggleInterest
-  }), !onboard && consent === "" && /*#__PURE__*/React.createElement(ConsentBanner, {
+  }), !onboard && (consent === "" || adsConsent === "") && /*#__PURE__*/React.createElement(ConsentBanner, {
     t: t,
     lang: lang,
     go: go,
+    needAnalytics: consent === "",
+    needAds: adsConsent === "",
     onChoose: v => {
       setConsentChoice(v);
+    },
+    onChooseAds: v => {
+      setAdsChoice(v);
     }
   })));
 }
