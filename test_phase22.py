@@ -45,6 +45,23 @@ def check(label, cond):
         FAILURES.append(label)
 
 
+def _real_orphans():
+    """Orphaned articles in the REAL paksh.db, read-only (mode=ro: no init/migration side effects).
+    None when there is no real DB (fresh clone / sandbox)."""
+    import sqlite3
+    p = Path(database.DB_PATH)
+    if not p.exists():
+        return None
+    c = sqlite3.connect("file:%s?mode=ro" % p.as_posix(), uri=True, timeout=30)
+    try:
+        return c.execute("SELECT COUNT(*) FROM articles WHERE event_id IS NOT NULL AND NOT EXISTS "
+                         "(SELECT 1 FROM events e WHERE e.id=articles.event_id)").fetchone()[0]
+    finally:
+        c.close()
+
+
+REAL_ORPHANS_BEFORE = _real_orphans()     # baseline BEFORE anything below runs
+
 # ============================================================ A/B/C: fixture DB
 print("=== A/B/C: release_event_articles() + cleanup --recycle (isolated fixture DB) ===")
 
@@ -145,14 +162,17 @@ finally:
     except OSError:
         pass
 
-print("\n=== confirming the REAL production events (2459/3523/3521/3287) were never touched ===")
-real_conn = database.get_connection()
-real_check = real_conn.execute(
-    "SELECT COUNT(*) c FROM articles WHERE event_id IS NOT NULL AND NOT EXISTS "
-    "(SELECT 1 FROM events e WHERE e.id=articles.event_id)"
-).fetchone()["c"]
-real_conn.close()
-check("real DB still has exactly 9,933 orphaned articles (untouched by this test)", real_check == 9933)
+print("\n=== confirming the REAL database was never touched by the fixture tests above ===")
+# Phase 2.2 pinned this to an absolute 9,933. That count is a snapshot of a live database and drifts
+# whenever consolidate/cleanup/recount run (it was 10,015 on 2026-09-19), so a fixed number can no
+# longer say whether THIS test touched anything. The intent - "the isolated tests never write to the
+# real paksh.db" - is verified exactly by comparing the count before and after.
+_after = _real_orphans()
+if REAL_ORPHANS_BEFORE is None:
+    print("  SKIPPED: no real paksh.db in this environment (nothing to protect)")
+else:
+    check("real DB orphaned-article count is identical before and after this test (%d)" % REAL_ORPHANS_BEFORE,
+          _after == REAL_ORPHANS_BEFORE)
 
 
 # ============================================================ D/E: storylines shape

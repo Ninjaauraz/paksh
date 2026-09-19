@@ -290,27 +290,37 @@ finally:
 check("16: CONTENT_BACKEND restored", main_module.CONTENT_BACKEND == _orig_backend)
 
 
-# ============================================================ 17: Supabase healthy -> Supabase stays primary
-print("\n=== 17: Supabase healthy - Supabase remains primary, SQLite not consulted ===")
+# ============================================================ 17: Supabase tier answers -> SQLite not consulted
+print("\n=== 17: when the Supabase tier answers, main.search() returns it and never consults SQLite ===")
+# Updated 2026-09-19 (production hardening). This check used to make a LIVE call to Supabase's
+# search_events RPC and require it to succeed. Supabase content was retired (the events/storylines
+# tables were dropped; the project now holds only account tables), so that call can never succeed
+# again and the check failed for a reason unrelated to the code under test. The ROUTING CONTRACT it
+# protects still exists in main.py (Supabase tier first when CONTENT_BACKEND=="supabase", SQLite only on
+# SupabaseUnavailable), so it is now tested deterministically with a stubbed Supabase tier: same
+# assertion (the answer is the Supabase tier's and SQLite is never called), no network, no dependency
+# on retired infrastructure. Nothing here is weakened - a routing regression still fails this check.
 main_module.CONTENT_BACKEND = "supabase"
 _orig_sqlite_search = main_module.sqlite_search_events
+_orig_sb_search17 = sb.search_events
+_CANNED = {"query": "india", "count": 1, "limit": 20, "results": [{"id": 424242, "title": "stubbed supabase-tier row"}]}
 
 
 def _sqlite_must_not_be_called(*a, **kw):
-    raise AssertionError("main.search() must not fall through to SQLite when Supabase succeeds")
+    raise AssertionError("main.search() must not fall through to SQLite when the Supabase tier answers")
 
 
 main_module.sqlite_search_events = _sqlite_must_not_be_called
+sb.search_events = lambda *a, **kw: _CANNED
 try:
     r = main_module.search(q="india")
-    check("17: main.search() succeeded without ever falling through to SQLite", True)
+    check("17: main.search() returned the Supabase tier's answer without falling through to SQLite", r == _CANNED)
     check("17: response shape matches the established contract", set(r.keys()) == {"query", "count", "limit", "results"})
 except AssertionError as e:
     check(f"17: {e}", False)
-except sb.SupabaseUnavailable as e:
-    print(f"  SKIPPED 17 (Supabase genuinely unreachable right now: {e})")
 finally:
     main_module.sqlite_search_events = _orig_sqlite_search
+    sb.search_events = _orig_sb_search17
     main_module.CONTENT_BACKEND = _orig_backend
 check("17: CONTENT_BACKEND restored", main_module.CONTENT_BACKEND == _orig_backend)
 
