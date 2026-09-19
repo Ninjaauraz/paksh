@@ -1658,7 +1658,7 @@ const {useState,useEffect,useMemo,useRef}=React;
             </div>
             <div className="mt-4 space-y-2.5">
               {arts.map((o,i)=>(
-                <a key={i} href={o.url||"#"} target="_blank" rel="nofollow noopener noreferrer" onClick={()=>track("source_open",{side:o.lean})} className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
+                <a key={i} href={/^https?:\/\//i.test(o.url||"")?o.url:"#"} target="_blank" rel="nofollow noopener noreferrer" onClick={()=>track("source_open",{side:o.lean})} className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
                   <OutletAvatar o={o} side={o.lean} size={30} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
