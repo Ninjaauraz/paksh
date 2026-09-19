@@ -44,6 +44,13 @@ REM unconditionally after the pipeline; a failed backup surfaces in the exit cod
 REM NOTE: same-disk backups do not protect against disk loss - copy backups\ off-machine too.
 py backup_db.py --keep 5 >> reframe_log.txt 2>&1
 set BRC=%ERRORLEVEL%
+REM Off-machine copy (encrypted before it leaves this PC; see offsite_backup.py / docs\BACKUP_AND_RESTORE.md).
+REM Runs ONLY if the credentials file exists (created by hand, outside the repo) - until then this
+REM step does nothing, uploads nothing, and cannot fail the job. Once configured, a failed upload
+REM turns the job's exit code red like every other check.
+set OBRC=0
+if exist "%LOCALAPPDATA%\Paksh\offsite_backup.env" py offsite_backup.py --run >> reframe_log.txt 2>&1
+if exist "%LOCALAPPDATA%\Paksh\offsite_backup.env" set OBRC=%ERRORLEVEL%
 py verify_fresh.py deploy-check >> reframe_log.txt 2>&1
 set VRC=%ERRORLEVEL%
 REM Phase 25B-C: schedule-health check (missed/failed scheduled task detection,
@@ -56,6 +63,7 @@ py check_scheduled_health.py >> reframe_log.txt 2>&1
 set SRC=%ERRORLEVEL%
 set FINAL=%RC%
 if not "%BRC%"=="0" set FINAL=%BRC%
+if not "%OBRC%"=="0" set FINAL=%OBRC%
 if not "%VRC%"=="0" set FINAL=%VRC%
 if not "%SRC%"=="0" set FINAL=%SRC%
 echo Run finished (exit %FINAL%): %date% %time% >> reframe_log.txt

@@ -11,3 +11,5 @@ requests>=2.31       # supabase_content.py's pooled Session (perf phase 4D) -
 Pillow>=10.0        # draws the 1200x630 card
 fonttools>=4.40     # converts the brand woff2 fonts -> ttf in memory
 brotli>=1.1         # fonttools needs it to read woff2
+# offsite_backup.py: client-side AES-256-GCM encryption of the off-machine DB copy
+cryptography>=41
