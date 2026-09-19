@@ -43,6 +43,37 @@ from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
 ROOT = Path(__file__).parent
 OUT = ROOT / "_site"
 SITE_URL = "https://paksh.news"
+
+# --- Content-Security-Policy (ENFORCED) ------------------------------------------------------------
+# Promoted from Report-Only after live evidence: with ads actually being served, the full strict policy
+# produced NO violation for scripts (self-hosted React/app.js, /_vercel/insights), styles, fonts, images,
+# Supabase, Formspree or Vercel vitals - the only violations were Google's ad hosts, allowlisted below.
+# Those hosts are needed ONLY after a visitor allows advertising (static/app.jsx loadAdSense injects the
+# AdSense script after explicit consent; index.html no longer contains it). A static header cannot depend
+# on consent, so the allowlist is present for everyone, but nothing is contacted until consent is given.
+#   script-src : pagead2.googlesyndication.com (adsbygoogle.js, show_ads_impl), *.adtrafficquality.google
+#                (sodar - Google's ad-traffic-quality script). No 'unsafe-inline', no 'unsafe-eval':
+#                neither was observed to be required.
+#   frame-src  : the ad iframes (googleads.g.doubleclick.net, tpc.googlesyndication.com) and the two
+#                helper frames Google opens (*.adtrafficquality.google, www.google.com).
+#   connect-src: *.adtrafficquality.google (sodar config), pagead2.googlesyndication.com.
+# style-src keeps 'unsafe-inline' because the React app renders inline style attributes.
+# default-src 'self' is safe now precisely because every legitimate source is listed explicitly.
+CSP_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' https://pagead2.googlesyndication.com https://*.adtrafficquality.google; "
+    "style-src 'self' 'unsafe-inline'; "
+    "font-src 'self' data:; "
+    "img-src 'self' data: https:; "                        # publisher thumbnails + ad creatives come from many hosts
+    "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com "
+    "https://zzjsjqqcpyyodatlmcux.supabase.co https://pagead2.googlesyndication.com "
+    "https://*.adtrafficquality.google; "
+    "frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com "
+    "https://*.adtrafficquality.google https://www.google.com; "
+    "frame-ancestors 'none'; object-src 'none'; "
+    "base-uri 'self'; form-action 'self' https://formspree.io; "
+    "manifest-src 'self'; worker-src 'self'"
+)
 # Phase 35: must match the "ca-pub-..." id in the AdSense loader <script> hardcoded in
 # static/index.html (without the "ca-" prefix - ads.txt uses the bare "pub-..." form), and,
 # once it goes live, the ADSENSE_CLIENT constant in static/app.jsx. Google's ads.txt crawler
@@ -1076,35 +1107,7 @@ def main():
         #    real files win first, then the shell renders every in-app route. `routes` is mutually
         #    exclusive with cleanUrls/rewrites/headers/trailingSlash, so headers live here too.
         #    Verify after deploy:  curl -I https://paksh.vercel.app/about   -> HTTP/2 200
-        # --- Content-Security-Policy ---------------------------------------------------------
-        # Rolled out SAFELY. `Content-Security-Policy` (ENFORCING) carries only the STRUCTURAL
-        # directives that cannot break resource loading: no clickjacking (frame-ancestors none +
-        # X-Frame-Options DENY), no plugins (object-src none), no <base> hijack (base-uri self),
-        # no form hijack (form-action). The full resource policy (script/style/img/font/connect)
-        # ships as `Content-Security-Policy-Report-Only` FIRST so we can watch the live console for
-        # violations and fix any missed source BEFORE it can white-screen the site. Once a clean
-        # deploy shows no report-only violations, copy _CSP_STRICT into the enforcing header.
-        # (Enabled by self-hosting React + moving the theme script to a file, so script-src='self'.)
-        # ENFORCING: NO default-src here on purpose. default-src 'self' would fall through to
-        # style-src and block the app's (heavy) inline styles -> broken/blank page. Only the
-        # STRUCTURAL directives that don't govern resource loading are enforced; the full
-        # resource policy (which sets style-src 'unsafe-inline' etc.) rides in Report-Only until
-        # verified, then gets promoted.
-        _CSP_ENFORCE = ("frame-ancestors 'none'; object-src 'none'; "
-                        "base-uri 'self'; form-action 'self' https://formspree.io")
-        _CSP_STRICT = (
-            "default-src 'self'; "
-            "script-src 'self'; "                                    # self-hosted React + app.js + /_vercel/insights
-            "style-src 'self' 'unsafe-inline'; "                     # React inline styles + self-hosted fonts.css
-            "font-src 'self' data:; "                                # fonts are self-hosted (fetch_fonts.py)
-            "img-src 'self' data: https:; "                          # publisher thumbnails come from many domains
-            # Supabase Auth (GoTrue) + PostgREST for accounts / Reading Lens / Saved (direct REST,
-            # no SDK). Publishable anon key only; RLS guards every table. Formspree = contact form.
-            "connect-src 'self' https://formspree.io https://vitals.vercel-insights.com https://zzjsjqqcpyyodatlmcux.supabase.co; "
-            "frame-ancestors 'none'; frame-src 'none'; object-src 'none'; "
-            "base-uri 'self'; form-action 'self' https://formspree.io; "
-            "manifest-src 'self'; worker-src 'self'"
-        )
+        # Content-Security-Policy: see CSP_POLICY at the top of this file (enforced, not report-only).
         _sec_headers = {
             "X-Content-Type-Options": "nosniff",
             "X-Frame-Options": "DENY",
@@ -1115,8 +1118,7 @@ def main():
             "Cross-Origin-Opener-Policy": "same-origin",
             "X-Permitted-Cross-Domain-Policies": "none",
             "X-DNS-Prefetch-Control": "off",
-            "Content-Security-Policy": _CSP_ENFORCE,
-            "Content-Security-Policy-Report-Only": _CSP_STRICT,
+            "Content-Security-Policy": CSP_POLICY,
         }
         # Phase 40B: every OTHER host this Vercel project answers on must redirect to the
         # one canonical public origin (SITE_URL) instead of independently serving the same

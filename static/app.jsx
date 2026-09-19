@@ -375,6 +375,22 @@ const {useState,useEffect,useMemo,useRef}=React;
       const s = document.createElement("script"); s.defer = true; s.src = "/_vercel/insights/script.js";
       document.head.appendChild(s);
     };
+    /* ---------------- advertising (consent-gated, OFF until the visitor allows it) ---------------- */
+    // The analytics consent above is NOT ad consent: its banner text promises "no ad-tracking", so
+    // it can never authorise an ad network. Advertising has its own choice, stored separately as
+    // "paksh-consent-ads" ("" undecided | "granted" | "denied"), never pre-selected. Google AdSense
+    // (whose cookies and cross-site measurement are the reason this needs consent) is not in
+    // static/index.html any more; this is the ONLY place it can be loaded, and only after "granted".
+    const ADSENSE_PUBLISHER = "ca-pub-3441154254234680";
+    const adsConsentState = () => { try { return localStorage.getItem("paksh-consent-ads") || ""; } catch(e){ return ""; } };
+    const loadAdSense = () => {
+      if (window.__pakshAds) return;
+      window.__pakshAds = true;
+      const s = document.createElement("script");
+      s.async = true; s.crossOrigin = "anonymous";
+      s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + ADSENSE_PUBLISHER;
+      document.head.appendChild(s);
+    };
     // track(name, props) - a no-op unless the user consented. Send only low-cardinality,
     // non-identifying props (topic, side, device class) - NEVER the search query text, a URL,
     // or anything that could single out a person. This is the one place events are emitted.
@@ -2371,7 +2387,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         </div>
       );
     }
-    function PrivacyPage({ t, lang, consent, setConsent }) {
+    function PrivacyPage({ t, lang, consent, setConsent, adsConsent, setAdsConsent }) {
       const Row=({h,children})=>(<div className={`border-b py-6 ${t.border}`}><h2 className={`headline text-[20px] ${t.tp} serif mb-2`}>{h}</h2><div className={`text-[15px] leading-[1.62] serif ${t.ts}`}>{children}</div></div>);
       const P = lang==="hi" ? {
         eyebrow:"गोपनीयता", title:"हम क्या इकट्ठा करते हैं, और क्या नहीं",
@@ -2379,6 +2395,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         c1H:"सेल्फ-होस्टेड फ़ॉन्ट व कोड", c1:"फ़ॉन्ट और ऐप कोड पक्ष के अपने डोमेन से आते हैं, पेज लोड करने के लिए किसी तीसरे-पक्ष CDN से संपर्क नहीं होता।",
         c2H:"विज्ञापन", c2:"विज्ञापन क्लासिफ़ाइड-शैली के और गैर-वैयक्तिकृत हैं। कॉन्फ़िगर व घोषित होने तक कोई विज्ञापन नेटवर्क लोड नहीं होता, अभी स्लॉट निष्क्रिय प्लेसहोल्डर हैं।",
         c3H:"आपका रीडिंग लेंस", c3:"साइन इन करने पर आप जो खबरें खोलते हैं वे आपके खाते में दर्ज होती हैं ताकि आपका पढ़ने का संतुलन निकले। यह निजी है, बेचा नहीं जाता, और यह नहीं बदलता कि आपको कौन-सी खबरें दिखें।",
+        adH:"विज्ञापन (Google)", adSub:"बंद, जब तक आप अनुमति न दें",
         anH:"गुमनाम एनालिटिक्स", anSub:"गोपनीयता-सम्मानित गिनती, कोई विज्ञापन-ट्रैकिंग नहीं",
         note1:"आप एनालिटिक्स बंद करके भी हर सुविधा इस्तेमाल कर सकते हैं। बंद करने पर आपकी विज़िट की सारी समग्र माप रुक जाती है।",
         note2:"डेटा के बारे में सवाल? लिखें"
@@ -2388,6 +2405,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         c1H:"Self-hosted fonts & code", c1:"Fonts and app code are served from Paksh's own domain, no third-party CDN is contacted just to load the page, so reading leaks nothing to outside servers.",
         c2H:"Advertising", c2:"Ads are classifieds-style and non-personalised. No ad network is loaded until it's configured and disclosed, today the slots are inert placeholders.",
         c3H:"Your Reading Lens", c3:"If you sign in, the stories you open are recorded to your account to compute your reading balance. It is private to you, never sold, and never used to change which stories you're shown.",
+        adH:"Advertising (Google)", adSub:"Off unless you allow it",
         anH:"Anonymous analytics", anSub:"Privacy-respecting counts, no ad tracking",
         note1:"You can switch analytics off and still use every feature. Turning it off stops all aggregate measurement of your visit.",
         note2:"Questions about your data? Write to"
@@ -2416,6 +2434,14 @@ const {useState,useEffect,useMemo,useRef}=React;
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0"><div className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{P.anH}</div><div className={`mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`}>{P.anSub}</div></div>
                     <Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={P.anH} t={t} />
+                  </div>
+                </div>
+              )}
+              {setAdsConsent && (
+                <div className={`${t.surface} p-4`} style={{border:`1px solid ${t.line}`}}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0"><div className={`text-[13px] font-semibold ${t.tp} ${readCls(lang)}`}>{P.adH}</div><div className={`mt-0.5 text-[10.5px] ${t.tf} ${isHi(lang)}`}>{P.adSub}</div></div>
+                    <Toggle on={adsConsent==="granted"} onChange={v=>setAdsConsent(v?"granted":"denied")} label={P.adH} t={t} />
                   </div>
                 </div>
               )}
@@ -2756,7 +2782,7 @@ const {useState,useEffect,useMemo,useRef}=React;
     }
 
     // SETTINGS - account + accessibility that actually works on every page (applied to <html>).
-    function SettingsPage({ t, lang, setLang, a11y, setA11y, auth, onSignOut, consent, setConsent, go }) {
+    function SettingsPage({ t, lang, setLang, a11y, setA11y, auth, onSignOut, consent, setConsent, adsConsent, setAdsConsent, go }) {
       const L = lang==="hi" ? {
         title:"सेटिंग्स", acc:"खाता", free:"मुफ़्त", email:"ईमेल", signout:"साइन आउट", support:"पक्ष का सहयोग करें →",
         guestH:"साइन इन नहीं हैं", guestP:"खाता निजीकरण जोड़ता है (रीडिंग लेंस, सहेजी खबरें)। खबरें हमेशा बिना खाते के खुली रहती हैं।", signin:"साइन इन",
@@ -2765,6 +2791,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         hc:"उच्च कंट्रास्ट", hcS:"गाढ़ा पाठ, सफ़ेद पृष्ठभूमि।",
         dys:"डिस्लेक्सिया-अनुकूल फ़ॉन्ट", dysS:"अधिक सुपाठ्य अक्षर-आकृतियाँ।",
         anon:"गुमनाम एनालिटिक्स", anonS:"गोपनीयता-सम्मानित, कुकी-रहित। सब कुछ इसके बिना भी चलता है।",
+        ads:"विज्ञापन (Google)", adsS:"जब तक आप अनुमति न दें, बंद रहता है। Google विज्ञापन दिखाने व नापने के लिए कुकी का उपयोग कर सकता है। सब कुछ इसके बिना भी चलता है।",
         prevH:"झलक", prevBody:"यह नमूना पाठ ऊपर चुनी गई सेटिंग्स के साथ तुरंत बदलता है, ताकि असर तुरंत दिखे। पक्ष हर खबर को हर पक्ष से दिखाता है।"
       } : {
         title:"Settings", acc:"Account", free:"Free", email:"Email", signout:"Sign out", support:"Support Paksh →",
@@ -2774,6 +2801,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         hc:"High contrast", hcS:"Darker text on a white surface.",
         dys:"Dyslexia-friendly font", dysS:"More distinguishable letterforms.",
         anon:"Anonymous analytics", anonS:"Privacy-respecting, cookieless. Everything works with it off.",
+        ads:"Advertising (Google)", adsS:"Off unless you allow it. Google may use cookies to show and measure ads. Everything works with it off.",
         prevH:"Preview", prevBody:"This sample text re-renders with the settings above so you can see the effect immediately. Paksh shows every side of every story."
       };
       const set=(k,v)=>setA11y(Object.assign({},a11y,{[k]:v}));
@@ -2823,6 +2851,7 @@ const {useState,useEffect,useMemo,useRef}=React;
             {row(L.hc,L.hcS,<Toggle on={a11y.highContrast} onChange={v=>set("highContrast",v)} label={L.hc} t={t} />)}
             {row(L.dys,L.dysS,<Toggle on={a11y.dyslexiaFont} onChange={v=>set("dyslexiaFont",v)} label={L.dys} t={t} />)}
             {row(L.anon,L.anonS,<Toggle on={consent==="granted"} onChange={v=>setConsent(v?"granted":"denied")} label={L.anon} t={t} />)}
+            {setAdsConsent && row(L.ads,L.adsS,<Toggle on={adsConsent==="granted"} onChange={v=>setAdsConsent(v?"granted":"denied")} label={L.ads} t={t} />)}
           </div>
 
           {/* Live preview - the one place a border earns its keep: a sample needs a visible
@@ -3418,22 +3447,39 @@ const {useState,useEffect,useMemo,useRef}=React;
 
     // Consent gate. Nothing is tracked until the visitor accepts here; "Decline" is honoured
     // for the whole session and remembered. Copy is deliberately plain about what's collected.
-    function ConsentBanner({ t, lang, onChoose, go }) {
+    function ConsentBanner({ t, lang, onChoose, onChooseAds, needAnalytics, needAds, go }) {
       const L = lang==="hi" ? {
-        text:"पक्ष यह समझने के लिए कि लोग खबरें कैसे पढ़ते हैं, गोपनीयता-सम्मानित, कुकी-रहित एनालिटिक्स इस्तेमाल करना चाहता है। कोई व्यक्तिगत पहचान नहीं, कोई विज्ञापन-ट्रैकिंग नहीं।",
-        accept:"स्वीकार करें", decline:"मना करें", more:"गोपनीयता"
+        text:"पक्ष यह समझने के लिए कि लोग खबरें कैसे पढ़ते हैं, गोपनीयता-सम्मानित, कुकी-रहित एनालिटिक्स इस्तेमाल करता है। कोई निजी पहचान नहीं, कोई विज्ञापन-ट्रैकिंग नहीं।",
+        adText:"विज्ञापन (वैकल्पिक): पक्ष को चलाने के लिए Google के विज्ञापन दिखाए जा सकते हैं। Google विज्ञापन दिखाने और नापने के लिए कुकी का उपयोग कर सकता है, दूसरी साइटों पर भी। आप मना करेंगे तो कोई विज्ञापन नेटवर्क लोड नहीं होगा।",
+        accept:"स्वीकार करें", decline:"मना करें", allowAds:"विज्ञापन की अनुमति दें", noAds:"विज्ञापन नहीं", more:"गोपनीयता"
       } : {
         text:"Paksh uses privacy-respecting, cookieless analytics to understand how people read the news. No personal identity, no ad-tracking.",
-        accept:"Accept", decline:"Decline", more:"Privacy"
+        adText:"Ads (optional): to help fund Paksh we may show Google ads. Google can use cookies to show and measure ads, including across other sites. If you decline, no ad network is loaded.",
+        accept:"Accept", decline:"Decline", allowAds:"Allow ads", noAds:"No ads", more:"Privacy"
       };
+      const btnNo = `border px-3.5 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`;
+      const btnYes = `px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`;
       return (
-        <div className="fixed inset-x-0 bottom-16 z-50 px-4 md:bottom-4">
-          <div className={`mx-auto flex max-w-2xl flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:gap-4 ${t.surface} ${t.border}`} style={{boxShadow:"0 6px 24px rgba(0,0,0,0.18)"}}>
-            <p className={`text-[12.5px] leading-[1.55] ${t.ts} ${isHi(lang)}`}>{L.text} <button onClick={()=>go("privacy")} className={`underline underline-offset-2 ${t.tf} hover:${t.tp}`}>{L.more}</button></p>
-            <div className="flex shrink-0 gap-2">
-              <button onClick={()=>onChoose("denied")} className={`border px-3.5 py-1.5 text-[12.5px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.decline}</button>
-              <button onClick={()=>onChoose("granted")} className={`px-3.5 py-1.5 text-[12.5px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.accept}</button>
-            </div>
+        <div className="fixed inset-x-0 bottom-16 z-50 px-4 md:bottom-4" role="region" aria-label={lang==="hi"?"सहमति":"Consent choices"}>
+          <div className={`mx-auto flex max-w-2xl flex-col gap-4 border p-4 ${t.surface} ${t.border}`} style={{boxShadow:"0 6px 24px rgba(0,0,0,0.18)"}}>
+            {needAnalytics && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <p className={`text-[12.5px] leading-[1.55] ${t.ts} ${isHi(lang)}`}>{L.text} <button onClick={()=>go("privacy")} className={`underline underline-offset-2 ${t.tf} hover:${t.tp}`}>{L.more}</button></p>
+                <div className="flex shrink-0 gap-2">
+                  <button onClick={()=>onChoose("denied")} className={btnNo}>{L.decline}</button>
+                  <button onClick={()=>onChoose("granted")} className={btnYes}>{L.accept}</button>
+                </div>
+              </div>
+            )}
+            {needAds && (
+              <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 ${needAnalytics?"border-t pt-4":""} ${t.border}`}>
+                <p className={`text-[12.5px] leading-[1.55] ${t.ts} ${isHi(lang)}`}>{L.adText}{!needAnalytics && <> <button onClick={()=>go("privacy")} className={`underline underline-offset-2 ${t.tf} hover:${t.tp}`}>{L.more}</button></>}</p>
+                <div className="flex shrink-0 gap-2">
+                  <button onClick={()=>onChooseAds("denied")} className={btnNo}>{L.noAds}</button>
+                  <button onClick={()=>onChooseAds("granted")} className={btnYes}>{L.allowAds}</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -3489,11 +3535,15 @@ const {useState,useEffect,useMemo,useRef}=React;
       const [archive,setArchive]=useState(null);   // older events, lazy-loaded for search/topic browsing
       const [ready,setReady]=useState(false);
       const [consent,setConsent]=useState(consentState);   // "" undecided | "granted" | "denied"
+      const [adsConsent,setAdsConsent]=useState(adsConsentState);   // advertising: its own choice, "" until the visitor decides
 
       useEffect(()=>{ loadAll().then(d=>{ setData(d); setReady(true); }); },[]);
       // Load cookieless Vercel Web Analytics ONLY after the visitor accepts. Denied/undecided
       // visitors get zero analytics script and zero beacons.
       useEffect(()=>{ if(consent==="granted") loadVercelAnalytics(); },[consent]);
+      // Google AdSense: injected ONLY after an explicit "granted" for advertising. Undecided/denied
+      // visitors never load the ad network (no script, no cookies, no requests to Google).
+      useEffect(()=>{ if(adsConsent==="granted") loadAdSense(); },[adsConsent]);
       useEffect(()=>{ const on=()=>setRoute(parsePath()); window.addEventListener("popstate",on); return ()=>window.removeEventListener("popstate",on); },[]);
       // Arriving at /search?q=... (a direct link, a hard reload, or Back/Forward restoring a
       // different query) must populate the shared query state immediately - otherwise the
@@ -3580,6 +3630,10 @@ const {useState,useEffect,useMemo,useRef}=React;
         setInterestsState(next); writeInterests(next); if(auth) savePrefsRemote({ interests:next }); };
       const onSignOut=()=>{ authSignOut().finally(()=>{ setAuth(null); setSavedIds(new Set()); setSavedRows(null); setLensStats({topics:[],sides:{left:0,center:0,right:0},total:0}); setFollowedTopics(new Set()); setFollowedStories(new Set()); setFollowedStoryRows(null); go("home"); }); };
       const setConsentChoice=(v)=>{ try{ localStorage.setItem("paksh-consent",v); }catch(e){} setConsent(v); };
+      // Withdrawing ad consent after the ad script has already run: a loaded script cannot be
+      // unloaded, so reload the page (a fresh page never loads it). Cookies Google already set on
+      // its own domains can only be cleared by the visitor in their browser.
+      const setAdsChoice=(v)=>{ const wasLoaded=!!window.__pakshAds; try{ localStorage.setItem("paksh-consent-ads",v); }catch(e){} setAdsConsent(v); if(v!=="granted" && wasLoaded){ try{ window.location.reload(); }catch(e){} } };
       const finishOnboarding=()=>{ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); };
       // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is not).
       const toggleSave=(story)=>{ if(!auth){ go("login"); return; } const id=String(story.id); const on=savedIds.has(id);
@@ -3769,7 +3823,7 @@ const {useState,useEffect,useMemo,useRef}=React;
           <main id="main" className="pb-24 md:pb-10">
             <div className="pk-page" key={route.view+(route.id||route.topic||"")}>
             {route.view==="login" ? <LoginPage t={t} lang={lang} go={go} onAuthed={onAuthed} />
-            : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} go={go} />
+            : route.view==="settings" ? <SettingsPage t={t} lang={lang} setLang={chooseLang} a11y={a11y} setA11y={setA11y} auth={auth} onSignOut={onSignOut} consent={consent} setConsent={setConsentChoice} adsConsent={adsConsent} setAdsConsent={setAdsChoice} go={go} />
             : route.view==="account" ? <AccountPage t={t} lang={lang} auth={auth} go={go} onSignOut={onSignOut} />
             : route.view==="storyline" ? <StorylinePage id={route.id} lean={(data.storylines||[]).find(s=>s.id===route.id)} t={t} lang={lang} open={open} go={go} />
             : route.view==="storylines" ? <StorylinesHub storylines={data.storylines} t={t} lang={lang} goStoryline={goStoryline} />
@@ -3793,7 +3847,7 @@ const {useState,useEffect,useMemo,useRef}=React;
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} go={go} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} go={go} />
             : route.view==="contact" ? <ContactPage t={t} lang={lang} />
-            : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} consent={consent} setConsent={setConsentChoice} />
+            : route.view==="privacy" ? <PrivacyPage t={t} lang={lang} consent={consent} setConsent={setConsentChoice} adsConsent={adsConsent} setAdsConsent={setAdsChoice} />
             : route.view==="support" ? <SupportPage t={t} lang={lang} go={go} />
             : route.view==="search" ? <SearchPage t={t} lang={lang} query={query} setQuery={setQuery} results={results} browseCards={browseCards} searchStatus={searchStatus} open={open} />
             : (!homeCards.length ? <PageWrap><div className={`py-28 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div></PageWrap>
@@ -3803,8 +3857,9 @@ const {useState,useEffect,useMemo,useRef}=React;
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} auth={auth} />
           {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} interests={interests} onToggleInterest={toggleInterest} />}
-          {!onboard && consent==="" && <ConsentBanner t={t} lang={lang} go={go}
-            onChoose={(v)=>{ setConsentChoice(v); }} />}
+          {!onboard && (consent==="" || adsConsent==="") && <ConsentBanner t={t} lang={lang} go={go}
+            needAnalytics={consent===""} needAds={adsConsent===""}
+            onChoose={(v)=>{ setConsentChoice(v); }} onChooseAds={(v)=>{ setAdsChoice(v); }} />}
         </div>
         </SaveCtx.Provider>
       );
