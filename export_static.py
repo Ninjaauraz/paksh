@@ -1150,6 +1150,16 @@ def main():
                  "status": 308, "headers": {"Location": SITE_URL + "/$1"}},
                 # 1) security headers on every response, then keep routing
                 {"src": "/(.*)", "headers": _sec_headers, "continue": True},
+                # 1b) caching (production hardening): everything was max-age=0/must-revalidate, so a
+                #     returning reader re-checked ~8 font files and React on every page view. Font
+                #     filenames are content-hashed by their source (a changed font = a new name), so
+                #     they are safe to cache for a year. The pinned React builds are not hashed, so a
+                #     day (never immutable). app.js / tailwind.css / data stay revalidated so every
+                #     deploy and every pipeline refresh is picked up immediately.
+                {"src": "/static/fonts/(.*)",
+                 "headers": {"Cache-Control": "public, max-age=31536000, immutable"}, "continue": True},
+                {"src": "/static/vendor/(.*)",
+                 "headers": {"Cache-Control": "public, max-age=86400"}, "continue": True},
                 # 2) serve any real file: /index.html, /static/*, /data/*, /story/<id>.html,
                 #    robots.txt, sitemap.xml, favicons, og.png ...
                 {"handle": "filesystem"},
