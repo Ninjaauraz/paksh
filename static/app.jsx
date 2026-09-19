@@ -271,6 +271,13 @@ const {useState,useEffect,useMemo,useRef}=React;
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
         whoCoveredNote:"Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
+        // Phase 41: comprehension copy - what the bar counts, where to verify, what "lean" is
+        // (and isn't). Plain description only; no rating/quality language.
+        barCaption:"Outlets covering this story, by leaning", originalReports:"Original reports",
+        whoCoveredVerify:"Open any article to read the original reporting.",
+        leanBasis:"Leaning describes the publication and is set by Paksh's editors. It is not a rating of accuracy or reliability.",
+        leanBasisLink:"How leanings are assigned", nonVoting:"International and unrated outlets are listed but not counted in the bar.",
+        gapHow:"How gaps are flagged",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
         srcDisclaimer:"All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
         srcSignalsIntro:"“Signals” are the six weighted parts of that rubric (stance, framing, story selection, sourcing, ownership, a cross-spectrum panel check); the scales under each entry are the three axes Paksh tracks separately (ideological, economic, and stance toward the incumbent). Full rubric and weights →",
@@ -319,6 +326,11 @@ const {useState,useEffect,useMemo,useRef}=React;
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
         whoCoveredNote:"इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
+        barCaption:"इस ख़बर को कवर करने वाले आउटलेट, झुकाव के अनुसार", originalReports:"मूल रिपोर्ट",
+        whoCoveredVerify:"मूल रिपोर्टिंग पढ़ने के लिए किसी भी लेख को खोलें।",
+        leanBasis:"झुकाव प्रकाशन का होता है और पक्ष के संपादक तय करते हैं। यह सटीकता या विश्वसनीयता की रेटिंग नहीं है।",
+        leanBasisLink:"झुकाव कैसे तय होते हैं", nonVoting:"अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
+        gapHow:"कवरेज गैप कैसे तय होते हैं",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
         srcDisclaimer:"सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
         srcSignalsIntro:"“संकेत” उसी रूब्रिक के छह भाग हैं (रुख, फ़्रेमिंग, खबरों का चयन, स्रोत, स्वामित्व, क्रॉस-स्पेक्ट्रम पैनल जाँच); हर प्रविष्टि के नीचे के पैमाने वे तीन अक्ष हैं जिन्हें पक्ष अलग से देखता है (वैचारिक, आर्थिक, और सत्ता के प्रति रुख)। पूरा रूब्रिक और भार →",
@@ -690,11 +702,15 @@ const {useState,useEffect,useMemo,useRef}=React;
               {/* one rounded BiasPill - the bar alone carries the distribution; the
                   legend below is what teaches a new reader what the colours mean, shown
                   once here rather than as a repeated caption on every card site-wide. */}
+              {/* Phase 41: the legend named the colours but never said what the bar counts.
+                  Desktop only (md+) - the mobile lead is deliberately left exactly as it was:
+                  a one-line caption above the bar, and the per-lean counts beside each label. */}
+              <div className={`hidden md:block mb-2 mono text-[9.5px] leading-[1.5] tracking-[0.02em] ${t.tf} ${lang==="hi"?"deva":""}`}>{STR[lang].barCaption}</div>
               <BiasPill counts={c} t={t} lang={lang} h={10} />
               <div className="mt-2.5 flex items-center gap-3.5">
                 {["left","center","right"].map(k=>(
                   <span key={k} className={`inline-flex items-center gap-1.5 mono text-[9.5px] font-medium uppercase tracking-[0.06em] ${t.tf} ${lang==="hi"?"deva":""}`}>
-                    <span aria-hidden="true" style={{width:7,height:7,borderRadius:1.5,background:BIAS[k].color,display:"inline-block"}}/>{lbl(k,lang)}
+                    <span aria-hidden="true" style={{width:7,height:7,borderRadius:1.5,background:BIAS[k].color,display:"inline-block"}}/>{lbl(k,lang)}<span className="hidden md:inline">{" "}{c[k]||0}</span>
                   </span>
                 ))}
               </div>
@@ -1192,7 +1208,7 @@ const {useState,useEffect,useMemo,useRef}=React;
       return (
         <div className={`border p-4 ${t.surface} ${t.border}`}>
           <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"पक्ष में नए?":"New to Paksh?"}</div>
-          <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{lang==="hi"?"पक्ष एक ही खबर को हर पक्ष से दिखाता है, कौन कवर कर रहा है और कौन नहीं, ताकि आप पूरी तस्वीर देख सकें।":"Paksh shows every side of the same story, who's covering it and who isn't, so you see the whole picture."}</p>
+          <p className={`mt-2 text-[13px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.7:1.55}}>{lang==="hi"?"पहले खबर को समझें। फिर देखें कि अलग-अलग आउटलेट उसे कैसे कवर कर रहे हैं, और खुद जाँचने के लिए मूल रिपोर्ट खोलें।":"Understand the story first. Then see how different outlets are covering it, and open the original reports to check for yourself."}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {openHelp && <a href="/about" onClick={e=>{ e.preventDefault(); openHelp(); }} className={`inline-block border px-3 py-1.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"यह कैसे काम करता है":"How it works"}</a>}
             {authOn() && !auth && <button onClick={()=>go("login")} className={`px-3 py-1.5 eyebrow ${t.cta} ${t.ctaT} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{lang==="hi"?"साइन इन":"Sign in"}</button>}
@@ -1479,6 +1495,36 @@ const {useState,useEffect,useMemo,useRef}=React;
               no printed scale. Detailed per-owner arithmetic lives below, in Coverage Breakdown. */}
           <div className="mx-auto mt-6 max-w-[840px]">
             <BiasPill counts={vc} t={t} lang={lang} h={14} />
+            {/* Phase 41: a story page reached directly (a shared link, a search hit) showed
+                this bar with no key at all - the colour->lean mapping was taught only on the
+                homepage lead and in a skippable first-run modal. One quiet line: what it
+                counts, the per-lean numbers (an absent lean reads as 0, matching the bar's
+                neutral notch), and a jump to the original reports. Plain description only. */}
+            <div className={`mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>
+              <span className="basis-full md:basis-auto">{STR[lang].barCaption}</span>
+              {["left","center","right"].map(k=>(
+                <span key={k} className="inline-flex items-center gap-1.5 uppercase tracking-[0.06em]">
+                  <span aria-hidden="true" style={{width:7,height:7,borderRadius:1.5,background:vc[k]>0?BIAS[k].color:t.line,display:"inline-block"}}/>{lbl(k,lang)} {vc[k]||0}
+                </span>
+              ))}
+              <a href="#arts" onClick={e=>{ e.preventDefault(); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} className={`md:ml-auto ${t.ts} hover:${t.tp} underline underline-offset-2`}>{STR[lang].originalReports} ↓</a>
+            </div>
+            {/* Level 4 of the reading path: the existing Coverage Gap finding, restated where the
+                reader actually is. Same wording pattern as the Coverage Gaps cards ("5 Left,
+                7 Centre - no Right coverage yet."); the formula itself is untouched, this only
+                displays the flag the story already carries. */}
+            {story.blindspot && (()=>{ const gs=story.blindspot; const gN=vc[gs]||0; const sideLab=lbl(gs,lang);
+              const covered = gs==="left"
+                ? (lang==="hi"?`${vc.right} दक्षिण, ${vc.center} केंद्र`:`${vc.right} Right, ${vc.center} Centre`)
+                : (lang==="hi"?`${vc.left} वाम, ${vc.center} केंद्र`:`${vc.left} Left, ${vc.center} Centre`);
+              const tail = gN===0 ? (lang==="hi"?`अभी ${sideLab} कवरेज नहीं।`:`no ${sideLab} coverage yet.`) : (lang==="hi"?`${sideLab} कम।`:`${sideLab} thin.`);
+              return (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <BlindspotBadge side={gs} t={t} lang={lang} />
+                  <span className={`text-[13px] ${t.ts} ${readCls(lang)}`}>{covered} — {tail}</span>
+                  <a href="/blindspot" onClick={e=>{ e.preventDefault(); go("blindspot"); }} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} underline underline-offset-2 ${lang==="hi"?"deva":""}`}>{STR[lang].gapHow} →</a>
+                </div>
+              ); })()}
           </div>
 
           {/* hero image — contained in the reading column, restrained crop. No image, no
@@ -1594,7 +1640,14 @@ const {useState,useEffect,useMemo,useRef}=React;
               <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
               <span className={`md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पक्ष बदलने को स्वाइप करें ⇄":"swipe to change side ⇄"}</span>
             </div>
-            <p className={`mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].whoCoveredNote}</p>
+            <p className={`mb-1.5 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].whoCoveredNote}</p>
+            {/* Phase 41: names the verify step, and says what the lean badge on each card is (the
+                publication's editor-set label, not a per-article or accuracy judgement) with a
+                path to the registry that shows the rationale. International / unrated outlets
+                carry no voting lean, so say so when they appear rather than leave them looking
+                like an omission. */}
+            <p className={`mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].whoCoveredVerify} {STR[lang].leanBasis}{(counts.international>0||counts.unrated>0)?` ${STR[lang].nonVoting}`:""}{" "}
+              <a href="/sources" onClick={e=>{ e.preventDefault(); go("sources"); }} className={`underline underline-offset-2 ${t.ts} hover:${t.tp}`}>{STR[lang].leanBasisLink} →</a></p>
             <div className={`flex items-center gap-5 overflow-x-auto border-b ${t.border}`} style={{scrollbarWidth:"none"}}>
               <ATab k="all" n={outlets.length} />
               {counts.left>0 && <ATab k="left" n={counts.left} />}

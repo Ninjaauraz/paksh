@@ -3,8 +3,7 @@ test_phase8.py - Paksh 8: summary & framing quality upgrade.
 
 Phase 8 changed build_prompt()'s INSTRUCTION TEXT only (event-type-aware fact
 extraction guidance, an explicit FACT/ALLEGATION/CLAIM/DISPUTED-CLAIM
-framework, cross-article synthesis instruction, and a 5-8 sentence summary
-target instead of 4-6) - it did not change the JSON output schema, postprocess()'s
+framework, cross-article synthesis instruction) - it did not change the JSON output schema, postprocess()'s
 parsing/validation, content_complete, framing cleaning, extractive fallback, or
 region/lean logic. This suite tests what's actually testable without a live LLM:
 prompt construction (the instructions the model receives) and postprocess()'s
@@ -15,6 +14,11 @@ real paksh.db.
 Live LLM-quality verification (does the model actually follow this guidance
 better?) is out of scope for a unit suite by nature - see the Phase 8 report's
 "Live sample results" section for that evidence instead.
+
+Phase 41.4 update: the "5-8 sentence summary target" Phase 8 introduced was
+replaced by evidence-bounded depth (no sentence target) and `summary_points` was
+dropped from the model's output schema. Checks 1-4 and 22 below now pin THAT
+contract; everything else here is unchanged. See test_phase41_synthesis_prompt.py.
 
 Run:  py test_phase8.py
 """
@@ -48,15 +52,16 @@ try:
     PROMPT = build_prompt(_ARTICLES)
 
     # ============================================================ A/B: summary format & length
-    print("=== A/B: main summary stays a paragraph, target length raised (not shortened) ===")
-    check("1: prompt does NOT ask for bullet-point summary (still prose)",
-          "in 5-8 sentences" not in PROMPT.replace("approximately 5-8 sentences", ""))
-    check("2: prompt targets ~5-8 sentences (raised from the old 4-6)",
-          "5-8 sentences" in PROMPT)
-    check("3: prompt explicitly forbids padding to reach a sentence count",
-          "never pad to reach a sentence count" in PROMPT)
-    check("4: prompt explicitly forbids cutting a real fact to stay short",
-          "never cut a real fact to stay short" in PROMPT)
+    NP = " ".join(PROMPT.split())      # whitespace-normalised: the prompt hard-wraps its lines
+    print("=== A/B: main summary stays a paragraph; depth follows the evidence (no sentence target) ===")
+    check("1: summary is still prose (schema describes an account, not bullets)",
+          '"summary": "a direct, information-dense neutral account' in PROMPT)
+    check("2: prompt sets NO fixed sentence target (Phase 41.4: replaced 5-8 sentences)",
+          "5-8 sentences" not in PROMPT and "There is no target length" in NP)
+    check("3: prompt explicitly forbids padding thin material",
+          "do not pad a thin one" in NP)
+    check("4: prompt explicitly forbids squeezing a well-documented story into a bare gist",
+          "Do not squeeze a well-documented story into a bare gist" in NP)
 
     # ============================================================ C-G: event-aware extraction guidance
     print("\n=== C-G: general event-aware fact-extraction guidance is present ===")
@@ -107,12 +112,12 @@ try:
           "BILINGUAL OUTPUT IS MANDATORY" in PROMPT and PROMPT.count("REQUIRED") >= 3)
 
     # ============================================================ 17: output contract / schema unchanged
-    print("\n=== Schema: exact same 10 top-level JSON keys as before Phase 8 ===")
-    expected_keys = {"title", "summary", "summary_points", "title_hi", "summary_hi",
-                      "summary_points_hi", "framing", "framing_hi", "topic", "region"}
+    print("\n=== Schema: the 8 top-level JSON keys (summary_points/_hi no longer requested) ===")
+    expected_keys = {"title", "summary", "title_hi", "summary_hi",
+                      "framing", "framing_hi", "topic", "region"}
     found_keys = {k for k in expected_keys if f'"{k}"' in PROMPT}
-    check(f"22: all {len(expected_keys)} expected top-level keys present in the schema block",
-          found_keys == expected_keys)
+    check(f"22: all {len(expected_keys)} expected top-level keys present, and summary_points is NOT requested",
+          found_keys == expected_keys and "summary_points" not in PROMPT)
 
     # ============================================================ postprocess() end-to-end (mocked raw)
     print("\n=== postprocess() correctly handles a realistic Phase-8-style detailed response ===")
