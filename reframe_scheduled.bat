@@ -35,6 +35,15 @@ echo ===================================================== >> reframe_log.txt
 echo Run started:  %date% %time% >> reframe_log.txt
 py runlocked.py reframe -- cmd /c "py reframe.py --apply --limit 300 && py export_static.py && py safe_autopush.py reframe" >> reframe_log.txt 2>&1
 set RC=%ERRORLEVEL%
+REM Production hardening (2026-09-19): backup_db.py existed and is documented as scheduled,
+REM but nothing invoked it - the newest backup was 14 days old. paksh.db (the accumulated
+REM story/coverage history) is the one thing a copied frontend cannot reproduce. Uses SQLite's
+REM own online-backup API (safe while other jobs write), verifies the copy, keeps the newest 5
+REM (~2.3 GB each; C: is nearly full so do NOT raise this without freeing disk). Runs
+REM unconditionally after the pipeline; a failed backup surfaces in the exit code below.
+REM NOTE: same-disk backups do not protect against disk loss - copy backups\ off-machine too.
+py backup_db.py --keep 5 >> reframe_log.txt 2>&1
+set BRC=%ERRORLEVEL%
 py verify_fresh.py deploy-check >> reframe_log.txt 2>&1
 set VRC=%ERRORLEVEL%
 REM Phase 25B-C: schedule-health check (missed/failed scheduled task detection,
@@ -46,6 +55,7 @@ REM started to run them).
 py check_scheduled_health.py >> reframe_log.txt 2>&1
 set SRC=%ERRORLEVEL%
 set FINAL=%RC%
+if not "%BRC%"=="0" set FINAL=%BRC%
 if not "%VRC%"=="0" set FINAL=%VRC%
 if not "%SRC%"=="0" set FINAL=%SRC%
 echo Run finished (exit %FINAL%): %date% %time% >> reframe_log.txt
