@@ -365,6 +365,24 @@ def _story_html(shell, ev, og_ids=None):
           "publisher": {"@type": "Organization", "name": "Paksh",
                         "logo": {"@type": "ImageObject", "url": SITE_URL + "/static/apple-touch-icon.png"}},
           "isAccessibleForFree": True}
+    # Provenance (production hardening): who wrote this analysis, who holds the rights, and what it
+    # was built from. The summary/framing text is Paksh's own synthesis; the outlets whose
+    # reporting it compares are the CITED inputs, not co-authors. Capped so a 60-outlet story does
+    # not bloat every page; the full outlet list is already in the crawlable body below.
+    ld["author"] = {"@type": "Organization", "name": "Paksh", "url": SITE_URL + "/"}
+    ld["copyrightHolder"] = {"@type": "Organization", "name": "Redstocks Technology LLP"}
+    _pub = str(ld.get("datePublished") or "")[:4]
+    if _pub.isdigit():
+        ld["copyrightYear"] = int(_pub)
+    _based = []
+    for _s in (ev.get("sources") or []):
+        _u = (_s or {}).get("url") or ""
+        if _u.startswith(("http://", "https://")) and len(_based) < 8:
+            _based.append({"@type": "NewsArticle", "url": _u,
+                           "headline": str(_s.get("headline") or "")[:110],
+                           "publisher": {"@type": "Organization", "name": str(_s.get("source") or "")}})
+    if _based:
+        ld["isBasedOn"] = _based
     # SECURITY: json.dumps does NOT escape < > &, so a story title/summary containing the
     # literal "</script>" (an adversarial or spoofed ingested source could craft one) would
     # close this <script> block and inject arbitrary JS into every reader's page. Escape the
