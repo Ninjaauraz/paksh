@@ -91,3 +91,43 @@ Paksh is built for a wide Indian audience, much of which hasn't used a "media bi
 - Paksh works in **English and Hindi** (more languages to come), because seeing every side only matters if it's in a language you read comfortably.
 
 The goal isn't to tell you what to think. It's to show you what you might be missing.
+
+## 9. How stories, the bias bar and Coverage Gaps are computed
+
+Section 1-8 explain how an *outlet* is rated. This section explains what Paksh does with those
+ratings. Everything here is arithmetic or a stated rule; where an AI model is used, it is named.
+
+**Where AI is used (and where it is not).** A language-embedding model groups articles about the
+same happening into one *event*. A language model writes the neutral summary and the per-side
+framing text, in English and Hindi. **No AI decides an outlet's lean, the bias bar, or whether
+something is a Coverage Gap.** Lean labels come only from the editorial roster in section 3-4.
+
+**The bias bar.** For each event Paksh counts *distinct outlet owners* on each side (Left, Centre,
+Right). One vote per owner: co-owned mastheads count once, and a second article from the same
+outlet adds nothing. International wires and unrated outlets are shown but never vote.
+
+**A Coverage Gap.** An event is flagged when it is lopsided between Left and Right:
+(Left owners + Right owners) is at least 4, **and** the smaller of the two is at most 25% of the
+larger. Centre, international and unrated outlets never enter this test. Gaps are ranked by
+(Left - Right)^2 / (Left + Right), lightly favouring recent stories (the weight halves every
+72 hours), and the Coverage Gaps page lists every qualifying event in both directions.
+
+**What a Coverage Gap does *not* say.** It is a count of who covered a story, not a judgement
+about why. A story can be under-covered by one side because it is local, because it broke recently,
+or because it is of little interest to that side. Paksh does not infer motive or claim bias.
+
+**Developing stories.** Two events are linked into one storyline only when they share a topic, fall
+within a rolling window of days, are semantically close (embedding similarity at or above a fixed
+threshold), *and* share several distinguishing words in their headlines. Chains that grow too large
+are discarded as topic drift rather than published as a false thread. A storyline is chronology; it
+never changes any event's bias bar.
+
+**Summaries and framing.** The summary uses only facts present in the coverage given to the model:
+it separates fact, allegation, claim and disputed claim, names no publication, and states only what
+the supplied reporting supports (it is told not to add background or consequences of its own). The
+per-side framing describes what each side emphasises *relative to the others*, and says so plainly
+when a side simply repeats the shared facts.
+
+**Known limits.** Summaries can be thin when outlets supply little text beyond a headline; the
+model sees short excerpts, not full articles. Editorial ratings, though rubric-based, involve
+judgement (section 5-6 describe review and appeals).

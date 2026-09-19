@@ -1,3 +1,7 @@
+> **OBSOLETE - kept for history.** This describes a GitHub Pages + GitHub Actions setup that Paksh no longer uses.
+> Production is a static export served by **Vercel** (Root Directory `_site`, auto-deploy on push to `main`).
+> The current architecture, commands and invariants are in `CLAUDE.md`; see also `PAKSH_EXECUTION_STATUS.md`.
+
 # Deploying Paksh (free, auto-refreshing)
 
 This puts Paksh on the internet for **free**, with **no server to manage** and
