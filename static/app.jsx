@@ -3477,6 +3477,15 @@ const {useState,useEffect,useMemo,useRef}=React;
       const [query,setQuery]=useState("");
       const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]});
       const [detail,setDetail]=useState({});
+      // Coverage Gaps: blindspots.json carries only a 40-per-column teaser list (loaded on every page).
+      // The Coverage Gaps page needs EVERY gap its own header counts, so it fetches the complete,
+      // identically-ranked list once, on first visit. null = not requested, "error" = keep the teaser.
+      const [gapsAll,setGapsAll]=useState(null);
+      useEffect(()=>{
+        if(route.view!=="blindspot" || gapsAll!==null) return;
+        setGapsAll("loading");
+        apiGet("blindspots-all").then(g=>setGapsAll({left:g.left_heavier||[],right:g.right_heavier||[]})).catch(()=>setGapsAll("error"));
+      },[route.view,gapsAll]);
       const [archive,setArchive]=useState(null);   // older events, lazy-loaded for search/topic browsing
       const [ready,setReady]=useState(false);
       const [consent,setConsent]=useState(consentState);   // "" undecided | "granted" | "denied"
@@ -3593,8 +3602,9 @@ const {useState,useEffect,useMemo,useRef}=React;
       const allEvents=(Array.isArray(archive)&&archive.length)?data.events.concat(archive):data.events;
       const baseCards=allEvents.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const baseOne=data.blindspots.map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
-      const gapL=(data.gaps.left||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
-      const gapR=(data.gaps.right||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      const gapSrc=(gapsAll && typeof gapsAll==="object") ? gapsAll : {left:data.gaps.left, right:data.gaps.right};
+      const gapL=(gapSrc.left||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
+      const gapR=(gapSrc.right||[]).map(e=>toCard(e,lang)).filter(c=>c.srclang===lang);
       const gapAgg=data.gaps.agg||{};
       // --- India-first home ranking ------------------------------------------
       // Top Stories is strictly India-centric. Foreign stories (region "World", set

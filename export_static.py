@@ -887,8 +887,12 @@ def main():
         # Coverage Gaps (symmetric blindspots): the SAME formula surfaces both directions.
         # Each column is ranked by gap * recency so the lopsided lists stay fresh instead of
         # freezing for weeks. The honest aggregate (pool sizes) is disclosed for the Method page.
-        _COL_N = 40   # data headroom per direction; the UI shows 15 per column AFTER the
-                      # per-language filter, so each language gets a full, equal-length column
+        _COL_N = 40   # the SMALL list that ships in blindspots.json (loaded on every page for the
+                      # homepage teasers). The Coverage Gaps page itself loads the COMPLETE ranked
+                      # list from blindspots-all.json (below) - before that file existed the page
+                      # could show at most 40 per column while its own header counted every gap
+                      # (e.g. "314"), and the per-language filter then trimmed each column further.
+        _ALL_CAP = 1000   # sanity ceiling on the complete list only (never reached today)
         buckets = {"left": [], "right": []}
         agg = {"left_heavier": 0, "right_heavier": 0}
         for e in events:
@@ -921,6 +925,13 @@ def main():
                 "left_outlets": left_outlets, "right_outlets": right_outlets,
                 "shown": _COL_N,
             },
+        })
+        # The complete, identically-ranked list, fetched lazily by the Coverage Gaps page only.
+        write_json(OUT / "data" / "blindspots-all.json", {
+            "left_heavier": [r for _, r in buckets["left"][:_ALL_CAP]],
+            "right_heavier": [r for _, r in buckets["right"][:_ALL_CAP]],
+            "aggregate": {"total": agg["left_heavier"] + agg["right_heavier"],
+                          "left_heavier": agg["left_heavier"], "right_heavier": agg["right_heavier"]},
         })
         write_json(OUT / "data" / "topics.json", {"topics": get_topics()})
         write_json(OUT / "data" / "sources.json", {
