@@ -4,6 +4,153 @@ Audit date: 2026-09-19. Method: repository read, live probes of https://paksh.ne
 Supabase project inspection (read-only), scheduler/log inspection. Labels: **OBSERVED** (seen
 directly), **INFERRED** (reasoned from observation), **UNKNOWN** (not checkable from here).
 
+## PRE-PUSH REPORT (2026-09-19, second pass) - read this first
+
+> Sections A-E further down are the original audit written earlier the same day. Their item statuses are
+> **superseded by this report**; they are kept as the record of what was found.
+
+### PUSH DECISION: **READY TO PUSH**
+
+Nothing technical blocks pushing. Two items need you but do not gate the push (section "Manual steps").
+**Important:** the commits change *source*; production serves the generated `_site/`, which is not rebuilt
+until the next pipeline export. The ads/consent fix, the enforced CSP, the cache rules and the Coverage Gaps
+fix become live only after `py export_static.py` **and** a push of the regenerated `_site` (the scheduled
+job does both at its next run). The post-push checklist below assumes that.
+
+Nothing here has been pushed or deployed, so **no live-production claim is made for any change in this
+pass.** Everything below was verified in a sandbox (a copy of the code with a copy of the verified database
+backup, a freshly built `_site`, and scratch servers); the live site was not touched.
+
+### Resolved since the first report
+
+| Blocker | Resolution | Evidence |
+|---|---|---|
+| AdSense loaded before consent, contradicting the privacy policy | Loader removed from `static/index.html`; injected by `loadAdSense()` in `app.jsx` only after an explicit **advertising** consent (own key `paksh-consent-ads`, undecided by default). The old consent is analytics-only and its text says "no ad-tracking", so it could not authorise ads. Banner asks the ad question separately; Settings and Privacy have a toggle; withdrawing reloads the page. English + Hindi | Browser, real build: 0 Google requests before consent and after decline; after "Allow ads" the script, sodar and 2 ad frames load; withdrawal reloads with no ad traffic; 10 routes at 375 px clean. `test_ads_consent_csp.py` (21 checks) |
+| CSP report-only "because of ads" | Promoted to **enforced** (`CSP_POLICY` in `export_static.py`). Live report-only evidence showed the only violations were Google's ad hosts, now allowlisted explicitly | Browser: no violations across 12 routes + the consent flow; a foreign script, an inline script and a foreign frame are blocked (`disposition: enforce`) |
+| Off-machine backup did not exist | `offsite_backup.py` built and tested; **inactive until you create one config file** (see below) | 32-check test file; real-size trial (see Backup status) |
+| 3 obsolete test failures | All three confirmed obsolete and resolved without changing production code (see Test status) | 46/46 test files pass in the sandbox |
+| Coverage Gaps capped at 40 per column | Full ranked list in `blindspots-all.json`, fetched lazily (first pass) | 314/314 gaps; English page reaches all 187 |
+
+### Remaining blockers
+
+**None that stop the push.** Open items (none is a code defect):
+
+1. **Off-machine backup credentials** - one manual step (below). Until done, the dataset exists on one disk plus
+   same-disk backups. Not a push blocker; a data-safety one.
+2. **Privacy-policy wording** - deliberately **not edited** (per instruction). With consent-gating in place the
+   site now does what the policy *promises* ("ask for your consent before any advertising cookies are set"),
+   but two sentences become inaccurate for a visitor who allows ads and need your review: "Paksh sets no
+   advertising cookies and does not track you across other websites" and the Advertising card "No ad network is
+   loaded until it's configured and disclosed, today the slots are inert placeholders". Google, not Paksh,
+   sets the cookies; the wording is your/legal's call.
+3. **Google's EEA/UK consent rule (UNKNOWN)** - Google requires a certified consent platform to serve ads to
+   EEA/UK visitors. I did not add one (you asked for no framework unless insufficient); the audience is
+   India-focused, but ad delivery to EEA/UK visitors may be limited. Not verifiable from here.
+
+### Security status
+
+| Check | Result |
+|---|---|
+| Secrets | **Clean.** 919 built files scanned (every top-level/static/data file + a 1-in-25 sample of ~17k per-story files); the only JWT is the public `anon` key; `service_role` appears only in a code comment saying it is never used. Git history clean for Groq/Gemini/Cerebras/Supabase-secret key shapes (earlier pass) |
+| Sensitive paths | 19,087 files in the deploy root: none of `.py .db .env .jsx .map .md .bat .pem .key .log`. (Live probes of `/.env` etc. were done in the first pass; they will be re-run after deploy) |
+| `javascript:` URLs | Verified on the new build: a story whose first source is `javascript:alert(...)` renders 0 such links; the 9 real links are intact |
+| RLS (live Supabase, read-only, re-run) | 5/5 tables RLS on; every policy scoped to `auth.uid()` (0 unscoped). Advisors unchanged: mutable `search_path` on the leftover `search_events()` and leaked-password protection (irrelevant to OTP-only login) |
+| CSP | Enforced; no `unsafe-inline`/`unsafe-eval` in `script-src` |
+| Local API (`main.py`, sandbox, not deployed) | Reads 200; POST/PUT/DELETE/PATCH = 405; unknown route 404; unpublished (`content_complete=false`) stories 404 by id. Notes: `CORS *`, FastAPI `/docs` exposed, `/api/events` is 27.8 MB unpaginated - all irrelevant while the app is not deployed, but fix before anyone deploys it |
+| Production/staging separation | Production = static `_site` + Supabase accounts only; no production API exists. Staging = local `main.py` on the local SQLite (the same physical file production exports from) and the **same** Supabase project (no staging project). The bundle has no localhost/staging URL in executable code (one comment names a staging URL); the API base defaults to same-origin |
+
+### Backup status
+
+- **Layer 1 (local, on this disk):** `backup_db.py --keep 5`, scheduled daily; a verified backup was taken today.
+- **Layer 2 (off-machine, encrypted):** `offsite_backup.py` - built, tested, **not active**. AES-256-GCM chunked
+  encryption on this PC, S3-compatible target (R2/B2), size verified after upload, retention (default newest 7),
+  `--restore-test`, `--restore` (never overwrites). Credentials live in
+  `%LOCALAPPDATA%\Paksh\offsite_backup.env` (the tool refuses a config inside the repo). The scheduled job runs it
+  only if that file exists.
+- **Tested:** signing reproduces AWS's two published SigV4 vectors; encryption rejects wrong passphrase, bit flips,
+  truncation, appended data and reordered chunks; full cycle vs a signature-verifying fake S3; the `.bat` block
+  executed under `cmd.exe` in both states. **Real-size trial** (local fake S3): 2.32 GB -> 1.29 GB encrypted in
+  45 s; restore-test PASSED in 55 s, `integrity_check = ok`, 19,652 events and 599,590 articles matching exactly.
+- **Not tested (needs your account):** the real R2/B2 endpoint, real upload speed, the first scheduled run.
+- Procedure, retention and restore steps: `docs/BACKUP_AND_RESTORE.md`.
+
+### Test status
+
+**46 of 46 test files pass** in the sandbox (a copy of the code + a copy of the verified database backup + a
+freshly built `_site`), including the 5 new/replaced ones. Run there, not against the live database.
+
+| Was failing | What it was | What happened |
+|---|---|---|
+| `test_phase22` | pinned "exactly 9,933 orphaned articles" in the real DB (a Phase 2.2 snapshot; 10,015 now after consolidate/cleanup). Intent: "this test never touches the real DB" | **Updated:** a read-only before/after comparison, which verifies that intent exactly (10,015 == 10,015) |
+| `test_phase6b` (check 17) | made a live Supabase `search_events` call that can never succeed again (content tables retired) | **Updated:** the routing contract it protects still exists in `main.py`, so it is tested with a stubbed Supabase tier. Checks 1-16, 17b, 18 unchanged |
+| `test_phase6d` | pinned the server-driven `/api/search` design Phase 18B reversed; its "compile check" ran the whole export | **Removed and replaced** by `test_search_client_side.py`: runs the app's real matcher in Node (AND, case, Hindi, hostile input), checks debounce/status states and archive loading, compiles into a temp file |
+
+No assertion was weakened and no production code was changed to satisfy a test. New this pass:
+`test_ads_consent_csp.py` (21), `test_offsite_backup.py` (32), `test_search_client_side.py`.
+
+### Ads / consent status
+
+Implemented and browser-verified (details above). Decision points still yours: the policy wording (blocker 2),
+whether to add a certified consent platform for EEA/UK (blocker 3). Google cookies already set cannot be cleared
+by withdrawal; the visitor clears them in their browser.
+
+### CSP status
+
+**Enforced**, not report-only. There is no demonstrated technical reason to keep report-only: the only
+violations ever observed came from Google's ad hosts, which are now explicitly allowlisted (script:
+`pagead2.googlesyndication.com`, `*.adtrafficquality.google`; frame: `googleads.g.doubleclick.net`,
+`tpc.googlesyndication.com`, `*.adtrafficquality.google`, `www.google.com`; connect: sodar hosts).
+**One thing only a deploy can prove:** whether *ad fill* on `paksh.news` needs any further Google host. If it
+does, ads (not the site) degrade; the fix is one line in `CSP_POLICY`, and the rollback is reverting commit
+`cd75db9252`'s `export_static.py` change and re-exporting.
+
+### Production readiness
+
+Sandbox verification of the rebuilt output: **static checks 30/30** (files, secrets, ad tags, canonical/OG/
+JSON-LD provenance, sitemap 8,670 URLs unique and canonical-host, robots, 308 redirect config, real-404 route,
+CSP enforced with no report-only header, cache rules, Coverage Gaps data); **browser checks** on desktop and
+375 px (consent, Coverage Gaps totals, story page, search EN/HI/hostile, login form, settings, 10 routes, zero
+CSP violations); watchdog script HEALTHY against the local build; workflow YAML valid. Verified **against the
+generated configuration**, not against Vercel: cache-header and redirect behavior on the real platform, and
+everything on the live domain, are confirmable only after deploy.
+
+Not verified: real email sign-in (needs an inbox); Lighthouse; the GitHub Action running (it has not been
+pushed; **no external execution is claimed**).
+
+### Story Evolution design status
+
+`docs/STORY_EVOLUTION_DESIGN.md` written; **not implemented**. Measured on the real data: derivation for all
+19,637 stories takes 2.4 s; ~390 B per story; no schema change for v1; article-derived owner sets equal the
+stored coverage in 99.98% of stories; median first-to-last outlet span 13.7 h; in 9,606 stories a second side
+appears >3 h after the first. Reuses `storylines.py`/`StorylineTimeline`, not the shadow story-memory tables.
+Four decisions needed before implementation are listed at the end of that document.
+
+### Manual steps (yours)
+
+1. **Backup (data safety, not a push gate):** create an R2/B2 bucket + bucket-scoped token, create
+   `%LOCALAPPDATA%\Paksh\offsite_backup.env`, save the passphrase in your password manager, then
+   `py offsite_backup.py --check`, `--run`, `--restore-test`. Full steps: `docs/BACKUP_AND_RESTORE.md`.
+2. **Privacy wording review** (blocker 2 above).
+3. Enable 2FA on GitHub, Vercel and Supabase (not checkable from here).
+
+### Post-push verification (do not skip; nothing above has been checked on the live site)
+
+1. Publish the regenerated site: `py export_static.py`, then commit/push the `_site` changes with GitHub Desktop
+   (or let the next scheduled job do it). Wait for the Vercel deployment to be READY.
+2. Headers and no ad tag (expect one enforced `content-security-policy`, no `-report-only`, and **no** ad host in the page):
+   `curl -sI https://paksh.news/ | grep -i content-security-policy` and `curl -s https://paksh.news/ | grep -c -i googlesyndication` (expect 0).
+3. Cache rule (expect `max-age=31536000, immutable`; if it is not there nothing breaks, the rule just has no effect):
+   `curl -sI https://paksh.news/static/fonts/-F63fjptAgt5VM-kVkqdyU8n1i8q1w.woff2 | grep -i cache-control`
+4. Coverage Gaps file exists and totals match: `curl -s https://paksh.news/data/blindspots-all.json | py -c "import sys,json;a=json.load(sys.stdin)['aggregate'];print(a)"`
+5. External watchdog: `py site_watch.py`, and confirm the **Site watch** workflow appears and passes under GitHub -> Actions (enable Actions if prompted).
+6. **In a fresh/private browser window on https://paksh.news:** DevTools -> Network: before touching the banner there must be **no** request to google/doubleclick/googlesyndication; click **Decline** + **No ads** and reload (still none); then in a new private window click **Allow ads** and confirm ads request Google **and the Console shows no "Content Security Policy" errors** (if it does, note the blocked host and tell me).
+7. Repeat step 6 at phone width, and open a story, Coverage Gaps, search and Settings.
+8. Rollback if needed: revert the relevant commit in GitHub Desktop, run `py export_static.py`, push.
+
+---
+
+## Original audit (earlier on 2026-09-19)
+
 > **Headline.** Paksh is *already in production* and is a **static export**, not a
 > frontend + API + database system. The "staging to production cutover" in the brief describes an
 > architecture that no longer exists here (the Render API and Supabase content tables were

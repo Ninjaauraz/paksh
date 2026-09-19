@@ -1,5 +1,7 @@
 # PAKSH_PRODUCTION_AND_MOAT_REPORT.md
 
+> **Update (second pass, same day):** the two blockers named below (ads/consent and the missing off-machine backup) have since been addressed in code and tested; see the PRE-PUSH REPORT at the top of `PAKSH_EXECUTION_STATUS.md` for the current status and the push decision. This report is otherwise unchanged.
+
 Date: 2026-09-19. Companion to `PAKSH_EXECUTION_STATUS.md` (the audit). Labels: **OBSERVED**
 (seen directly), **VERIFIED** (tested, result recorded), **INFERRED** (reasoned), **UNKNOWN**.
 
