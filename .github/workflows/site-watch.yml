@@ -1,0 +1,26 @@
+# External watchdog for the PUBLISHED site (see site_watch.py for exactly what it checks).
+# Every other alert lives on the publisher PC and cannot fire if that PC is down; this runs on
+# GitHub's machines. It needs no secrets and changes nothing - a failed run emails the repo owner
+# (GitHub's default notification for failed scheduled workflows).
+name: Site watch
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"     # every 3 hours (UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch only the watchdog script (the repo holds thousands of generated pages)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: site_watch.py
+          sparse-checkout-cone-mode: false
+      - name: Check paksh.news
+        run: python3 site_watch.py --url https://paksh.news
