@@ -263,20 +263,17 @@ const {useState,useEffect,useMemo,useRef}=React;
         onlyLabel:"Only", back:"Back to feed", aiSummary:"Paksh neutral summary", aiSub:"neutral synthesis",
         autoTag:"Auto-summary", autoFrom:"from coverage",
         autoNote:"This headline comes straight from a covering outlet, a neutral Paksh summary is being prepared.",
-        framingTitle:"How each side is framing it", framingSub:"A neutral read of what each side's coverage emphasises, based on the headlines collected, not opinion.", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.", framingThin:"Not enough unique coverage to create a summary.",
+        framingTitle:"How each side is framing it", framingPending:"The side-by-side framing comparison appears once a full summary is generated for this story.", framingThin:"Not enough unique coverage to create a summary.",
         // Phase 40D-B: exactly one lean covered - the section is a synthesis of that
         // lean's sources, not a side-by-side comparison, so the heading/sub-copy say
         // that instead of implying a comparison the page can't actually show.
-        framingTitleSingle:"How sources are covering it", framingSubSingle:"A neutral read of what the coverage emphasises, based on the headlines collected, not opinion.",
+        framingTitleSingle:"How sources are covering it",
         whereLean:"Where the sources lean",
         aiNote:"Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
-        whoCoveredNote:"Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
         // Phase 41: comprehension copy - what the bar counts, where to verify, what "lean" is
         // (and isn't). Plain description only; no rating/quality language.
         barCaption:"Outlets covering this story, by leaning", originalReports:"Original reports",
-        whoCoveredVerify:"Open any article to read the original reporting.",
-        leanBasis:"Leaning describes the publication and is set by Paksh's editors. It is not a rating of accuracy or reliability.",
-        leanBasisLink:"How leanings are assigned", nonVoting:"International and unrated outlets are listed but not counted in the bar.",
+        nonVoting:"International and unrated outlets are listed but not counted in the bar.",
         gapHow:"How gaps are flagged",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
         srcDisclaimer:"All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
@@ -321,15 +318,12 @@ const {useState,useEffect,useMemo,useRef}=React;
         onlyLabel:"केवल", back:"फ़ीड पर वापस", aiSummary:"पक्ष तटस्थ सारांश", aiSub:"तटस्थ संश्लेषण",
         autoTag:"स्वतः सारांश", autoFrom:"कवरेज से",
         autoNote:"यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है, पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
-        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingSub:"हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।", framingThin:"सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
-        framingTitleSingle:"स्रोत इसे कैसे कवर कर रहे हैं", framingSubSingle:"कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
+        framingTitle:"हर पक्ष इसे कैसे पेश कर रहा है", framingPending:"इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।", framingThin:"सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
+        framingTitleSingle:"स्रोत इसे कैसे कवर कर रहे हैं",
         whereLean:"स्रोत किस ओर झुके हैं",
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
-        whoCoveredNote:"इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
         barCaption:"इस ख़बर को कवर करने वाले आउटलेट, झुकाव के अनुसार", originalReports:"मूल रिपोर्ट",
-        whoCoveredVerify:"मूल रिपोर्टिंग पढ़ने के लिए किसी भी लेख को खोलें।",
-        leanBasis:"झुकाव प्रकाशन का होता है और पक्ष के संपादक तय करते हैं। यह सटीकता या विश्वसनीयता की रेटिंग नहीं है।",
-        leanBasisLink:"झुकाव कैसे तय होते हैं", nonVoting:"अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
+        nonVoting:"अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
         gapHow:"कवरेज गैप कैसे तय होते हैं",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
         srcDisclaimer:"सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
@@ -1639,7 +1633,6 @@ const {useState,useEffect,useMemo,useRef}=React;
                 </div>
               ))}
             </div>
-            <p className={`mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{sides.length===1 ? STR[lang].framingSubSingle : STR[lang].framingSub}</p>
           </div>
           )}
 
@@ -1652,18 +1645,13 @@ const {useState,useEffect,useMemo,useRef}=React;
           <div className="mx-auto mt-10 max-w-[840px]"><AdSlot t={t} lang={lang} h={110} format="horizontal" /></div>
 
           <div className="mx-auto mt-10 max-w-[840px]" id="arts" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-            <div className="mb-1 flex items-baseline justify-between gap-3">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
               <div className={`eyebrow ${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".14em"}}>{lang==="hi"?"किसने कवर किया":"Who covered it"}</div>
               <span className={`md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang==="hi"?"deva":""}`}>{lang==="hi"?"पक्ष बदलने को स्वाइप करें ⇄":"swipe to change side ⇄"}</span>
             </div>
-            <p className={`mb-1.5 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].whoCoveredNote}</p>
-            {/* Phase 41: names the verify step, and says what the lean badge on each card is (the
-                publication's editor-set label, not a per-article or accuracy judgement) with a
-                path to the registry that shows the rationale. International / unrated outlets
-                carry no voting lean, so say so when they appear rather than leave them looking
-                like an omission. */}
-            <p className={`mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].whoCoveredVerify} {STR[lang].leanBasis}{(counts.international>0||counts.unrated>0)?` ${STR[lang].nonVoting}`:""}{" "}
-              <a href="/sources" onClick={e=>{ e.preventDefault(); go("sources"); }} className={`underline underline-offset-2 ${t.ts} hover:${t.tp}`}>{STR[lang].leanBasisLink} →</a></p>
+            {/* International / unrated outlets carry no voting lean, so say so when they appear
+                rather than leave them looking like an omission (the only note kept here). */}
+            {(counts.international>0||counts.unrated>0) && <p className={`mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`}>{STR[lang].nonVoting}</p>}
             <div className={`flex items-center gap-5 overflow-x-auto border-b ${t.border}`} style={{scrollbarWidth:"none"}}>
               <ATab k="all" n={outlets.length} />
               {counts.left>0 && <ATab k="left" n={counts.left} />}
