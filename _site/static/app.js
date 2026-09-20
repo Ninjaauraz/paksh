@@ -980,24 +980,18 @@ const STR = {
     autoFrom: "from coverage",
     autoNote: "This headline comes straight from a covering outlet, a neutral Paksh summary is being prepared.",
     framingTitle: "How each side is framing it",
-    framingSub: "A neutral read of what each side's coverage emphasises, based on the headlines collected, not opinion.",
     framingPending: "The side-by-side framing comparison appears once a full summary is generated for this story.",
     framingThin: "Not enough unique coverage to create a summary.",
     // Phase 40D-B: exactly one lean covered - the section is a synthesis of that
     // lean's sources, not a side-by-side comparison, so the heading/sub-copy say
     // that instead of implying a comparison the page can't actually show.
     framingTitleSingle: "How sources are covering it",
-    framingSubSingle: "A neutral read of what the coverage emphasises, based on the headlines collected, not opinion.",
     whereLean: "Where the sources lean",
     aiNote: "Lean describes each publisher and is set by Paksh's editors, not generated per story. Summaries are generated automatically from the outlets' own coverage; the counts come from the sources.",
-    whoCoveredNote: "Every article Paksh found on this story. A publisher with more than one piece still counts once above.",
     // Phase 41: comprehension copy - what the bar counts, where to verify, what "lean" is
     // (and isn't). Plain description only; no rating/quality language.
     barCaption: "Outlets covering this story, by leaning",
     originalReports: "Original reports",
-    whoCoveredVerify: "Open any article to read the original reporting.",
-    leanBasis: "Leaning describes the publication and is set by Paksh's editors. It is not a rating of accuracy or reliability.",
-    leanBasisLink: "How leanings are assigned",
     nonVoting: "International and unrated outlets are listed but not counted in the bar.",
     gapHow: "How gaps are flagged",
     srcTitle: "Source ratings",
@@ -1074,19 +1068,13 @@ const STR = {
     autoFrom: "कवरेज से",
     autoNote: "यह शीर्षक सीधे कवरेज करने वाले एक आउटलेट से लिया गया है, पक्ष का तटस्थ सारांश तैयार किया जा रहा है।",
     framingTitle: "हर पक्ष इसे कैसे पेश कर रहा है",
-    framingSub: "हर झुकाव की कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
     framingPending: "इस ख़बर का पूरा सारांश तैयार होने पर पक्षों की तुलना यहाँ दिखाई देगी।",
     framingThin: "सारांश बनाने के लिए पर्याप्त स्वतंत्र कवरेज नहीं।",
     framingTitleSingle: "स्रोत इसे कैसे कवर कर रहे हैं",
-    framingSubSingle: "कवरेज किस बात पर ज़ोर दे रही है, इसका तटस्थ विश्लेषण, एकत्र की गई हेडलाइनों के आधार पर, राय नहीं।",
     whereLean: "स्रोत किस ओर झुके हैं",
     aiNote: "झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
-    whoCoveredNote: "इस ख़बर पर पक्ष को मिला हर लेख यहाँ शामिल है। एक ही प्रकाशक के कई लेख भी ऊपर कुल में एक बार ही गिने जाते हैं।",
     barCaption: "इस ख़बर को कवर करने वाले आउटलेट, झुकाव के अनुसार",
     originalReports: "मूल रिपोर्ट",
-    whoCoveredVerify: "मूल रिपोर्टिंग पढ़ने के लिए किसी भी लेख को खोलें।",
-    leanBasis: "झुकाव प्रकाशन का होता है और पक्ष के संपादक तय करते हैं। यह सटीकता या विश्वसनीयता की रेटिंग नहीं है।",
-    leanBasisLink: "झुकाव कैसे तय होते हैं",
     nonVoting: "अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
     gapHow: "कवरेज गैप कैसे तय होते हैं",
     srcTitle: "स्रोत रेटिंग",
@@ -3772,9 +3760,7 @@ function StoryPage({
     }
   }, fr[k]) : /*#__PURE__*/React.createElement("p", {
     className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
-  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending))))), /*#__PURE__*/React.createElement("p", {
-    className: `mt-3 mono text-[10.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`
-  }, sides.length === 1 ? STR[lang].framingSubSingle : STR[lang].framingSub)), /*#__PURE__*/React.createElement("div", {
+  }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending)))))), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
@@ -3787,7 +3773,7 @@ function StoryPage({
     onTouchStart: onTouchStart,
     onTouchEnd: onTouchEnd
   }, /*#__PURE__*/React.createElement("div", {
-    className: "mb-1 flex items-baseline justify-between gap-3"
+    className: "mb-3 flex items-baseline justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
     style: {
@@ -3795,18 +3781,9 @@ function StoryPage({
     }
   }, lang === "hi" ? "किसने कवर किया" : "Who covered it"), /*#__PURE__*/React.createElement("span", {
     className: `md:hidden mono text-[9.5px] uppercase tracking-wide ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), /*#__PURE__*/React.createElement("p", {
-    className: `mb-1.5 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].whoCoveredNote), /*#__PURE__*/React.createElement("p", {
+  }, lang === "hi" ? "पक्ष बदलने को स्वाइप करें ⇄" : "swipe to change side ⇄")), (counts.international > 0 || counts.unrated > 0) && /*#__PURE__*/React.createElement("p", {
     className: `mb-3 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
-  }, STR[lang].whoCoveredVerify, " ", STR[lang].leanBasis, counts.international > 0 || counts.unrated > 0 ? ` ${STR[lang].nonVoting}` : "", " ", /*#__PURE__*/React.createElement("a", {
-    href: "/sources",
-    onClick: e => {
-      e.preventDefault();
-      go("sources");
-    },
-    className: `underline underline-offset-2 ${t.ts} hover:${t.tp}`
-  }, STR[lang].leanBasisLink, " \u2192")), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].nonVoting), /*#__PURE__*/React.createElement("div", {
     className: `flex items-center gap-5 overflow-x-auto border-b ${t.border}`,
     style: {
       scrollbarWidth: "none"
