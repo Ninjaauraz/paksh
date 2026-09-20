@@ -274,7 +274,6 @@ const {useState,useEffect,useMemo,useRef}=React;
         // (and isn't). Plain description only; no rating/quality language.
         barCaption:"Outlets covering this story, by leaning", originalReports:"Original reports",
         nonVoting:"International and unrated outlets are listed but not counted in the bar.",
-        gapHow:"How gaps are flagged",
         srcTitle:"Source ratings", srcIntro:"Every outlet Paksh tracks, how it's rated, and why.",
         srcDisclaimer:"All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
         srcSignalsIntro:"“Signals” are the six weighted parts of that rubric (stance, framing, story selection, sourcing, ownership, a cross-spectrum panel check); the scales under each entry are the three axes Paksh tracks separately (ideological, economic, and stance toward the incumbent). Full rubric and weights →",
@@ -324,7 +323,6 @@ const {useState,useEffect,useMemo,useRef}=React;
         aiNote:"झुकाव हर प्रकाशक का वर्णन करता है और पक्ष के संपादक तय करते हैं, हर खबर के लिए नहीं। सारांश आउटलेट्स की अपनी कवरेज से स्वचालित रूप से तैयार होते हैं; आँकड़े स्रोतों से आते हैं।",
         barCaption:"इस ख़बर को कवर करने वाले आउटलेट, झुकाव के अनुसार", originalReports:"मूल रिपोर्ट",
         nonVoting:"अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
-        gapHow:"कवरेज गैप कैसे तय होते हैं",
         srcTitle:"स्रोत रेटिंग", srcIntro:"पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
         srcDisclaimer:"सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
         srcSignalsIntro:"“संकेत” उसी रूब्रिक के छह भाग हैं (रुख, फ़्रेमिंग, खबरों का चयन, स्रोत, स्वामित्व, क्रॉस-स्पेक्ट्रम पैनल जाँच); हर प्रविष्टि के नीचे के पैमाने वे तीन अक्ष हैं जिन्हें पक्ष अलग से देखता है (वैचारिक, आर्थिक, और सत्ता के प्रति रुख)। पूरा रूब्रिक और भार →",
@@ -1505,36 +1503,18 @@ const {useState,useEffect,useMemo,useRef}=React;
               no printed scale. Detailed per-owner arithmetic lives below, in Coverage Breakdown. */}
           <div className="mx-auto mt-6 max-w-[840px]">
             <BiasPill counts={vc} t={t} lang={lang} h={14} />
-            {/* Phase 41: a story page reached directly (a shared link, a search hit) showed
-                this bar with no key at all - the colour->lean mapping was taught only on the
-                homepage lead and in a skippable first-run modal. One quiet line: what it
-                counts, the per-lean numbers (an absent lean reads as 0, matching the bar's
-                neutral notch), and a jump to the original reports. Plain description only. */}
-            <div className={`mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>
-              <span className="basis-full md:basis-auto">{STR[lang].barCaption}</span>
+            {/* Coverage at a glance: the per-lean numbers (an absent lean reads as 0, matching the
+                bar's neutral notch), the story's existing Coverage Gap flag if it carries one
+                (display only - the formula is untouched), and the one jump to the original reports. */}
+            <div className={`mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 mono text-[10.5px] ${t.tf} ${lang==="hi"?"deva":""}`}>
               {["left","center","right"].map(k=>(
                 <span key={k} className="inline-flex items-center gap-1.5 uppercase tracking-[0.06em]">
                   <span aria-hidden="true" style={{width:7,height:7,borderRadius:1.5,background:vc[k]>0?BIAS[k].color:t.line,display:"inline-block"}}/>{lbl(k,lang)} {vc[k]||0}
                 </span>
               ))}
+              {story.blindspot && <BlindspotBadge side={story.blindspot} t={t} lang={lang} />}
               <a href="#arts" onClick={e=>{ e.preventDefault(); const el=document.getElementById("arts"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }} className={`md:ml-auto ${t.ts} hover:${t.tp} underline underline-offset-2`}>{STR[lang].originalReports} ↓</a>
             </div>
-            {/* Level 4 of the reading path: the existing Coverage Gap finding, restated where the
-                reader actually is. Same wording pattern as the Coverage Gaps cards ("5 Left,
-                7 Centre - no Right coverage yet."); the formula itself is untouched, this only
-                displays the flag the story already carries. */}
-            {story.blindspot && (()=>{ const gs=story.blindspot; const gN=vc[gs]||0; const sideLab=lbl(gs,lang);
-              const covered = gs==="left"
-                ? (lang==="hi"?`${vc.right} दक्षिण, ${vc.center} केंद्र`:`${vc.right} Right, ${vc.center} Centre`)
-                : (lang==="hi"?`${vc.left} वाम, ${vc.center} केंद्र`:`${vc.left} Left, ${vc.center} Centre`);
-              const tail = gN===0 ? (lang==="hi"?`अभी ${sideLab} कवरेज नहीं।`:`no ${sideLab} coverage yet.`) : (lang==="hi"?`${sideLab} कम।`:`${sideLab} thin.`);
-              return (
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <BlindspotBadge side={gs} t={t} lang={lang} />
-                  <span className={`text-[13px] ${t.ts} ${readCls(lang)}`}>{covered} — {tail}</span>
-                  <a href="/blindspot" onClick={e=>{ e.preventDefault(); go("blindspot"); }} className={`mono text-[10.5px] ${t.tf} hover:${t.tp} underline underline-offset-2 ${lang==="hi"?"deva":""}`}>{STR[lang].gapHow} →</a>
-                </div>
-              ); })()}
           </div>
 
           {/* hero image — contained in the reading column, restrained crop. No image, no
