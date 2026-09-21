@@ -29,7 +29,7 @@ import urllib.request
 
 import feedparser
 
-from database import init_db, insert_article, count_articles
+from database import init_db, insert_article, count_articles, ArticleWriter
 from sources import SOURCES, get_source
 from feeds import FEEDS, VERIFIED
 
@@ -224,8 +224,11 @@ def fetch_feed(feed_url: str):
         return None
 
 
-def ingest_feed(feed_url: str, source: dict, seen: set):
-    """Ingest one feed URL into the DB. Returns (new, considered)."""
+def ingest_feed(feed_url: str, source: dict, seen: set, writer=None):
+    """Ingest one feed URL into the DB. Returns (new, considered).
+    `writer` (a database.ArticleWriter) batches the commits; without one every article is inserted with
+    insert_article() exactly as before. Either way the same rows and the same 'new' count result."""
+    add = writer.insert if writer is not None else insert_article
     parsed = fetch_feed(feed_url)
     if parsed is None:
         return 0, 0
@@ -243,16 +246,18 @@ def ingest_feed(feed_url: str, source: dict, seen: set):
         if norm["url"] in seen:        # duplicate within this run
             continue
         seen.add(norm["url"])
-        rowid = insert_article(
+        rowid = add(
             norm["source"], norm["language"], norm["title"], norm["url"],
             norm["summary"], norm["image_url"], norm["published"],
         )
         if rowid is not None:          # None => already in DB (cross-run dupe)
             new += 1
+    if writer is not None:
+        writer.flush()                 # commit at the end of every feed: the write lock is never held across a network wait
     return new, considered
 
 
-def ingest_source(source: dict, seen: set) -> int:
+def ingest_source(source: dict, seen: set, writer=None) -> int:
     urls = FEEDS.get(source["id"], [])
     tag = "verified" if source["id"] in VERIFIED else "candidate"
     if not urls:
@@ -261,7 +266,7 @@ def ingest_source(source: dict, seen: set) -> int:
     print(f"  > {source['name']} ({source['language']}, {tag})")
     total_new = 0
     for u in urls:
-        new, considered = ingest_feed(u, source, seen)
+        new, considered = ingest_feed(u, source, seen, writer)
         total_new += new
         print(f"      {new:>3} new / {considered:>3} items   {u}")
         time.sleep(POLITE_DELAY)
@@ -316,7 +321,8 @@ def main():
     print("\n=== Paksh ingestion ===")
     init_db()
     seen: set = set()
-    total_new = sum(ingest_source(s, seen) for s in SOURCES)
+    with ArticleWriter() as writer:            # batched commits (see database.ArticleWriter); closes and flushes on exit
+        total_new = sum(ingest_source(s, seen, writer) for s in SOURCES)
     print("-" * 40)
     print(f"Added {total_new} new articles. Database holds {count_articles()} total.")
     configured = sum(1 for s in SOURCES if FEEDS.get(s["id"]))

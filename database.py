@@ -223,6 +223,80 @@ def insert_article(source, language, title, url, summary, image_url, published):
         conn.close()
 
 
+INGEST_BATCH_SIZE = 200      # rows per commit for ArticleWriter (measured on the D: SD card, see benchmark_ingest.py)
+
+
+class ArticleWriter:
+    """Batched replacement for a loop of insert_article() calls (ingest.py, gdelt_source.py).
+
+    SAME semantics as insert_article(): same INSERT, same columns, `fetched_at` stamped per row at the moment insert() is
+    called, a duplicate url (or any other IntegrityError) returns None and does not stop the run, the row id comes back
+    immediately (so callers keep counting "new" articles exactly as before). What changes is only WHEN the data is
+    committed: every `batch_size` rows and at every flush() (the callers flush after each feed / query), on ONE connection,
+    instead of open + 3 PRAGMAs + insert + commit + close per row. On the SD card that per-row cycle costs ~250 ms.
+
+    Bounded by design: never one giant transaction (the write lock is held only for a few hundred rows or one feed's
+    worth), and if anything other than an IntegrityError goes wrong the rows already inserted are committed before the
+    error propagates - exactly what the per-row version had already persisted. A crash loses at most the un-flushed
+    rows, which the next cycle simply re-ingests (feeds re-serve them; duplicates are ignored).
+    The connection is opened lazily, so a run that inserts nothing never touches the database."""
+
+    def __init__(self, batch_size=None):
+        self.batch_size = max(1, int(batch_size or INGEST_BATCH_SIZE))
+        self._conn = None
+        self._pending = 0
+        self.commits = 0
+        self.inserted = 0
+
+    def _connect(self):
+        if self._conn is None:
+            self._conn = get_connection()
+        return self._conn
+
+    def insert(self, source, language, title, url, summary, image_url, published):
+        conn = self._connect()
+        try:
+            cur = conn.execute(
+                """INSERT INTO articles (source, language, title, url, summary, image_url, published, fetched_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (source, language, title, url, summary, image_url, published, datetime.utcnow().isoformat()),
+            )
+        except sqlite3.IntegrityError:
+            return None
+        except BaseException:
+            try:
+                self.flush()                      # keep what the per-row version would already have committed
+            finally:
+                raise
+        self._pending += 1
+        self.inserted += 1
+        rowid = cur.lastrowid
+        if self._pending >= self.batch_size:
+            self.flush()
+        return rowid
+
+    def flush(self):
+        if self._conn is not None and self._pending:
+            self._conn.commit()
+            self.commits += 1
+            self._pending = 0
+
+    def close(self):
+        try:
+            self.flush()
+        finally:
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+
 WINDOW_TAIL_SHARE = 0.10   # share of the window reserved for vetted (registry) outlets that carry no vote
 
 

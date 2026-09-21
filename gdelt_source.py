@@ -32,7 +32,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
-from database import init_db, insert_article
+from database import init_db, insert_article, ArticleWriter
 from sources import resolve_source
 from ingest import is_junk, tidy_title, clean_text, canonical_url
 
@@ -195,6 +195,14 @@ def normalize_gdelt(art):
 
 def run(queries=QUERIES, timespan=TIMESPAN, verbose=True):
     init_db()
+    writer = ArticleWriter()          # batched commits (see database.ArticleWriter); connects lazily, closes + flushes below
+    try:
+        return _run(queries, timespan, verbose, writer)
+    finally:
+        writer.close()
+
+
+def _run(queries, timespan, verbose, writer):
     seen = set()
     added = rated_n = unrated_n = 0
     unrated_domains = set()
@@ -226,7 +234,7 @@ def run(queries=QUERIES, timespan=TIMESPAN, verbose=True):
             if not norm or norm["url"] in seen:
                 continue
             seen.add(norm["url"])
-            rowid = insert_article(
+            rowid = writer.insert(
                 norm["source"], norm["language"], norm["title"], norm["url"],
                 norm["summary"], norm["image_url"], norm["published"],
             )
@@ -237,6 +245,7 @@ def run(queries=QUERIES, timespan=TIMESPAN, verbose=True):
                 else:
                     unrated_n += 1
                     unrated_domains.add(norm["domain"])
+        writer.flush()                 # commit after every query: the write lock is never held across the sleep
         time.sleep(SLEEP)
 
     if verbose:
