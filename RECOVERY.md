@@ -3,6 +3,14 @@
 Practical steps only. For the full reasoning behind the backup design, see
 the docstring at the top of `backup_db.py`.
 
+> **Where the data lives (since 2026-09-21).** If `%LOCALAPPDATA%\Paksh\data_dir.txt` exists (it currently says
+> `D:\Paksh_Data`), the live database is `D:\Paksh_Data\database\paksh.db` and managed backups are in
+> `D:\Paksh_Data\backups\daily\`; adapt every path below accordingly (`py -c "import paksh_paths;
+> print(paksh_paths.describe())"` prints the exact paths in use). If that file is deleted the code falls back to
+> `C:\paksh_project\paksh\paksh.db`. The pre-migration copy is kept as `paksh.db.migration_backup` next to the code.
+> If the D: card is missing the pipeline **stops on purpose** (it never creates an empty database).
+> Note the SD card is not journaled (exFAT) and is on the same machine: it is working storage, not disaster recovery.
+
 ## How do I know the DB is damaged?
 
 - Any pipeline script (`refresh.py`, `analyze.py`, `export_static.py`, ...)
