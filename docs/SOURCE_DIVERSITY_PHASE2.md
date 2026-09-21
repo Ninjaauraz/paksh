@@ -313,7 +313,7 @@ On the NEW code's sandbox after one real cycle, versus the snapshot:
 
 ## 14. PRE-PUSH DECISION
 
-**READY TO PUSH** — the six local commits (`0594fac948` … `e8ab2462e7`). Push the source and docs; do not push anything from `_site` as part of this.
+**READY TO PUSH** — the local commits not yet on GitHub (`git log origin/main..HEAD` — eight at the time of writing, from `0594fac948`, the fair window, onward). Push the source and docs; do not push anything from `_site` as part of this.
 
 Checked against the pre-push rule:
 
