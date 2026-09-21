@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-ENGINE_VERSION = "si-1"
+ENGINE_VERSION = "si-2"           # si-2: adds evidence provenance columns + evidence-aware evaluation; with no evidence the verdicts are exactly si-1's
 MAX_ARTICLES = 80            # a story larger than this is analysed on its 80 earliest articles (bounded work)
 
 INDEPENDENT = "INDEPENDENT"
@@ -401,9 +401,198 @@ def _ambiguous(x, y):
     return (weak(x) or weak(y)) and x.order.date() == y.order.date()
 
 
-def analyze_story(rows, owner_of=None, publisher_names=None):
+# ---- evidence-aware evaluation (Evidence Retrieval v2) -----------------------------------------------------------------
+# With no evidence the engine is exactly Story Intelligence v1 (tested). With fetched article text it can add stronger REASONS
+# for the same four classes. Fetched text never erases the metadata verdict: it is kept beside the new one
+# (`metadata_role` / `metadata_reason`, evidence.metadata_verdict) and `evidence_source` says which one produced the verdict.
+EVIDENCE_LOGIC_VERSION = "ev-logic-1"
+SHINGLE_WORDS = 8            # words per shingle
+SHARED_SHINGLES = 5          # >= 5 shared 8-word shingles = a verbatim run of >= 12 words (copy evidence, not a coincidental phrase)
+ALLOW_EVIDENCE_INDEPENDENCE = False  # may fetched text PROMOTE an UNCERTAIN article to INDEPENDENT? OFF: the canary showed false independence (see docs)
+MIN_EVIDENCE_CHARS = 200
+
+
+def _norm_words(text):
+    return re.findall(r"[a-z0-9ऀ-ॿ]+", (text or "").lower())
+
+
+def shingles(text, k=SHINGLE_WORDS):
+    w = _norm_words(text)
+    return {" ".join(w[i:i + k]) for i in range(len(w) - k + 1)} if len(w) >= k else set()
+
+
+def shared_shingles(a, b):
+    return len(shingles(a) & shingles(b))
+
+
+_QUOTE_RX = re.compile("[“\"]([^”\"]{45,300})[”\"]")
+
+
+def quotes_in(text):
+    return [q for q in _QUOTE_RX.findall(text or "") if len(q.split()) >= 8]
+
+
+def evidence_hash(evidence):
+    """Stable hash of the evidence used, so the input signature changes when evidence arrives or changes."""
+    if not evidence:
+        return ""
+    h = hashlib.sha256()
+    for k in sorted(evidence):
+        h.update(f"|{k}:{hashlib.sha256((evidence[k] or '').encode('utf-8', 'replace')).hexdigest()[:12]}".encode())
+    return h.hexdigest()[:12]
+
+
+_FETCHED_WIRE_TAGS = "PTI|ANI|IANS|UNI|Reuters|AFP|AP|Bloomberg|Associated Press"
+_FETCHED_DATELINE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ,.'-]{2,60}\((" + _FETCHED_WIRE_TAGS + r")\)")
+_FETCHED_CITED = re.compile(r"(?:according to|reported by|told|said|via|news agency|agency)\s+(" + _FETCHED_WIRE_TAGS + r")")
+_FETCHED_DASH = re.compile(r"\s[-–—]\s?(PTI|ANI|IANS|UNI)")
+_QUOTED_SPAN = re.compile("[“\"][^”\"]{0,600}[”\"]")
+
+
+def find_attribution_fetched(text, source, pub_names):
+    """Attribution in the FIRST paragraphs of a fetched article. Stricter than the headline scan on purpose: a photo credit
+    ("(AP: Name)", "(Reuters: Name)", "(AP Photo/...)") is NOT attribution of the article, so a wire tag only counts as a dateline
+    "City, Aug 31 (PTI)", an explicit citation ("according to PTI", "told Reuters") or a trailing "- PTI" credit."""
+    lede = (text or "")[:900]
+    out, seen = [], set()
+    for rx in (_FETCHED_DATELINE, _FETCHED_CITED, _FETCHED_DASH):
+        for m in rx.finditer(lede):
+            key = WIRES.get(m.group(1).upper(), "AP" if m.group(1) == "Associated Press" else m.group(1))
+            if key.lower() != (source or "").lower() and ("wire", key) not in seen:
+                seen.add(("wire", key))
+                out.append({"kind": "wire", "name": key, "cue": m.group(0).strip()[:60]})
+    for x in find_attribution({"title": lede, "summary": "", "source": source}, pub_names):
+        if x["kind"] == "outlet":
+            out.append(x)
+    return out
+
+
+def _unquoted(text):
+    """The text with quotation-marked spans removed: two outlets quoting the same statement share words without either copying the other."""
+    return _QUOTED_SPAN.sub(" ", text or "")
+
+
+def _apply_evidence(arts, roles, evidence, pub_names):
+    """Re-evaluate UNCERTAIN / INDEPENDENT verdicts for articles whose text was fetched. Mutates `roles`; returns a note dict."""
+    notes = {"used": [], "changed": [], "logic_version": EVIDENCE_LOGIC_VERSION}
+    ev = {a.id: evidence[a.id] for a in arts if evidence and evidence.get(a.id) and len(evidence[a.id]) >= MIN_EVIDENCE_CHARS}
+    if not ev:
+        return notes
+    index = {a.id: i for i, a in enumerate(arts)}
+    for b in arts:
+        tb = ev.get(b.id)
+        r = roles[b.id]
+        if tb is None or r["reason"] == "SAME_OWNER" or r["role"] == ATTRIBUTED_REPETITION:
+            continue
+        notes["used"].append(b.id)
+        meta = {"role": r["role"], "reason": r["reason"], "confidence": r["confidence"]}
+        earlier_ev = [a for a in arts[:index[b.id]] if a.id in ev]
+        fetched = {"chars": len(tb), "compared_with": [a.id for a in earlier_ev][:6]}
+        movable = r["role"] in (INDEPENDENT, UNCERTAIN) and r["reason"] not in ("LOOSELY_RELATED", "CROSS_LANGUAGE_NO_TEXTUAL_BASIS")
+        # 1. the article itself says where it came from (dateline / "according to X" in its first paragraphs)
+        att = find_attribution_fetched(tb, b.source, pub_names)
+        if att and r["role"] in (INDEPENDENT, UNCERTAIN):
+            x = att[0]
+            tgt = None
+            if x["kind"] == "outlet":
+                tgt = next((a for a in arts[:index[b.id]] if a.source.lower() == x["name"].lower()), None)
+            roles[b.id] = dict(role=ATTRIBUTED_REPETITION, target=tgt.id if tgt else None, external=None if tgt else x["name"],
+                               reason="FETCHED_ATTRIBUTION", confidence=0.8, evidence_source="FETCHED_ARTICLE",
+                               evidence={"attribution": x, "metadata_verdict": meta, "fetched": fetched})
+            notes["changed"].append(b.id)
+            continue
+        if not movable and r["role"] != DERIVED:
+            continue
+        # 2. verbatim shared passages with an earlier fetched article = copy evidence
+        best = None
+        for a in earlier_ev:
+            n = shared_shingles(_unquoted(tb), _unquoted(ev[a.id]))
+            if n >= SHARED_SHINGLES and (best is None or n > best[0]):
+                best = (n, a)
+        fetched["max_shared_shingles"] = best[0] if best else max([shared_shingles(_unquoted(tb), _unquoted(ev[a.id])) for a in earlier_ev] or [0])
+        if best and r["role"] in (INDEPENDENT, UNCERTAIN) and movable:
+            n, a = best
+            roles[b.id] = dict(role=DERIVED, target=a.id, external=None, reason="FETCHED_SHARED_TEXT", confidence=round(min(0.9, 0.7 + 0.02 * n), 2),
+                               evidence_source="FETCHED_ARTICLE",
+                               evidence={"shared_shingles": n, "earlier_source": a.source, "metadata_verdict": meta, "fetched": fetched})
+            notes["changed"].append(b.id)
+            continue
+        # 3. promotion of an UNCERTAIN article: only with two fetched texts, no shared passage, no attribution, and text of its own
+        if (ALLOW_EVIDENCE_INDEPENDENCE and r["role"] == UNCERTAIN and r["reason"] in ("POSSIBLE_PARAPHRASE", "NO_POSITIVE_EVIDENCE")
+                and earlier_ev and fetched["max_shared_shingles"] == 0):
+            others = " ".join(ev[a.id] for a in earlier_ev)
+            other_sh = shingles(others, 6)
+            nov_quotes = [q for q in quotes_in(tb) if not (shingles(q, 6) & other_sh)]
+            nov_nums = sorted(numbers_in(tb) - numbers_in(others) - {x for x in b.anchors if x[0].isdigit()})
+            if nov_quotes or len(nov_nums) >= 2:
+                roles[b.id] = dict(role=INDEPENDENT, target=None, external=None, reason="FETCHED_DISTINCT_REPORTING", confidence=0.5,
+                                   evidence_source="FETCHED_ARTICLE",
+                                   evidence={"novel_quotes": [q[:80] for q in nov_quotes[:2]], "novel_figures": nov_nums[:5],
+                                             "metadata_verdict": meta, "fetched": fetched,
+                                             "note": "no shared passages, no attribution, and states quotes/figures no earlier fetched report has"})
+                notes["changed"].append(b.id)
+                continue
+        r.setdefault("evidence", {})
+        r["evidence"] = {**r["evidence"], "fetched": {**fetched, "checked": True, "outcome": "no_change"}}
+    return notes
+
+
+TRIGGER_ELIGIBLE_MIN_OWNERS = 3   # a story with fewer distinct publishers has little independence question left to resolve
+
+
+def needs_evidence(article, story_ctx):
+    """Deterministic decision for ONE analysed article (a dict from analyze_story()['articles']).
+    -> ("FETCH" | "NO_FETCH", reason).  Different publisher / different headline / different url are never reasons on their own."""
+    role, reason = article["role"], article["reason"]
+    if reason == "SAME_OWNER":
+        return "NO_FETCH", "same_owner_is_voice_accounting"
+    if role == ATTRIBUTED_REPETITION:
+        return "NO_FETCH", "already_attributed_by_metadata"
+    if role == DERIVED:
+        return "NO_FETCH", "already_resolved_by_metadata"
+    if reason == "LOOSELY_RELATED":
+        return "NO_FETCH", "loosely_related_not_same_event"
+    if reason == "CROSS_LANGUAGE_NO_TEXTUAL_BASIS":
+        return "NO_FETCH", "cross_language_text_not_comparable"
+    if story_ctx.get("distinct_owners", 0) < TRIGGER_ELIGIBLE_MIN_OWNERS:
+        return "NO_FETCH", "too_few_publishers_to_matter"
+    if role == UNCERTAIN and reason in ("POSSIBLE_PARAPHRASE", "NO_POSITIVE_EVIDENCE"):
+        return "FETCH", "uncertain_needs_text"
+    if role == INDEPENDENT and reason == "NEW_SPECIFIC_FIGURES":
+        return "FETCH", "verify_potential_independent_report"
+    if role == INDEPENDENT and reason == "EARLIEST_IN_CORPUS" and article.get("id") == story_ctx.get("earliest_id"):
+        return "FETCH", "verify_earliest_is_not_a_wire_copy"
+    return "NO_FETCH", "no_trigger"
+
+
+def plan_evidence(result, urls, cached_ids=()):
+    """From a metadata-only analysis, decide which articles to fetch. -> (plan, decisions)
+    plan = ordered [(article_id, reason)] (triggered articles first, then the earlier article each is compared with);
+    decisions = {reason: count} for logging. Fetch eligibility (a direct url) is checked by the fetcher, not here."""
+    arts = result["articles"]
+    by_id = {a["id"]: a for a in arts}
+    ctx = {"distinct_owners": result["stats"]["distinct_owners"], "earliest_id": arts[0]["id"] if arts else None}
+    plan, partners, decisions = [], [], {}
+    for a in arts:
+        d, why = needs_evidence(a, ctx)
+        decisions[f"{d}:{why}"] = decisions.get(f"{d}:{why}", 0) + 1
+        if d == "FETCH":
+            plan.append((a["id"], why))
+            pid = (a.get("evidence") or {}).get("nearest_article_id")
+            if pid in by_id:
+                partners.append((pid, "comparison_partner_of_%d" % a["id"]))
+    seen, ordered = set(), []
+    for aid, why in plan + partners:
+        if aid not in seen:
+            seen.add(aid)
+            ordered.append((aid, why))
+    return ordered, decisions
+
+
+def analyze_story(rows, owner_of=None, publisher_names=None, evidence=None):
     """rows: list of dicts with id, source, language, title, summary, published, fetched_at, optional vec (np.ndarray).
-    -> dict with keys: articles, reporting_events, developments, claims, relationships, stats.  Pure and deterministic."""
+    -> dict with keys: articles, reporting_events, developments, claims, relationships, stats.  Pure and deterministic.
+    evidence: optional {article_id: fetched article text}. None / empty = metadata-only, identical to si-1."""
     owner_of = owner_of or (lambda n: n)
     arts = []
     for r in rows:
@@ -528,18 +717,25 @@ def analyze_story(rows, owner_of=None, publisher_names=None):
                                    evidence={"note": "distinct publisher, but nothing shows it reported independently"})
         elif best_c >= PARAPHRASE_COS:
             roles[b.id] = dict(role=UNCERTAIN, target=None, external=None, reason="POSSIBLE_PARAPHRASE", confidence=0.35,
-                               evidence={"similarity": round(best_c, 3), "nearest_source": best_a.source, "novel_anchors": novel[:6]})
+                               evidence={"similarity": round(best_c, 3), "nearest_source": best_a.source, "nearest_article_id": best_a.id, "novel_anchors": novel[:6]})
         elif best_c >= SAME_EVENT_COS and novel_nums:
             roles[b.id] = dict(role=INDEPENDENT, target=None, external=None, reason="NEW_SPECIFIC_FIGURES",
                                confidence=round(min(0.65, 0.5 + 0.05 * (len(novel_nums) - 1)), 2),
-                               evidence={"similarity_to_nearest_earlier": round(best_c, 3), "novel_figures": novel_nums[:6],
+                               evidence={"similarity_to_nearest_earlier": round(best_c, 3), "nearest_article_id": best_a.id, "novel_figures": novel_nums[:6],
                                          "note": "same event, and states figures no earlier report in Paksh carried"})
         elif best_c >= SAME_EVENT_COS:
             roles[b.id] = dict(role=UNCERTAIN, target=None, external=None, reason="NO_POSITIVE_EVIDENCE", confidence=0.4,
-                               evidence={"similarity": round(best_c, 3), "note": "distinct publisher and wording, but no new figures or facts to show independent reporting"})
+                               evidence={"similarity": round(best_c, 3), "nearest_article_id": best_a.id, "note": "distinct publisher and wording, but no new figures or facts to show independent reporting"})
         else:
             roles[b.id] = dict(role=UNCERTAIN, target=None, external=None, reason="LOOSELY_RELATED", confidence=0.3,
                                evidence={"similarity": round(best_c, 3), "note": "a feature/angle/related piece rather than a report of the same event"})
+
+    ev_notes = _apply_evidence(arts, roles, evidence, pub_names)
+    for a in arts:                                       # provenance: which kind of evidence produced each verdict
+        r_ = roles[a.id]
+        r_.setdefault("evidence_source", "METADATA")
+        r_.setdefault("metadata_role", r_["evidence"].get("metadata_verdict", {}).get("role", r_["role"]) if isinstance(r_.get("evidence"), dict) else r_["role"])
+        r_.setdefault("metadata_reason", r_["evidence"].get("metadata_verdict", {}).get("reason", r_["reason"]) if isinstance(r_.get("evidence"), dict) else r_["reason"])
 
     # ---- reporting events: connected components over in-story links, plus one group per external origin ----
     parent = {a.id: a.id for a in arts}
@@ -684,12 +880,13 @@ def analyze_story(rows, owner_of=None, publisher_names=None):
     stats = {"articles": len(arts), "reporting_events": len(reporting_events), "role_counts": counts,
              "independent_events": len(indep_events), "developments": len(developments), "claims": len(claims),
              "contradictions": sum(1 for r in relationships if r[0] == "CONTRADICTS"),
-             "distinct_owners": len({a.owner for a in arts})}
+             "distinct_owners": len({a.owner for a in arts}),
+             "evidence_used": len(ev_notes["used"]), "evidence_changed": len(ev_notes["changed"])}
     return {"articles": [{"id": a.id, "source": a.source, "owner": a.owner, "language": a.language, "title": a.title,
                           "published": a.published or None, "fetched_at": a.fetched_at or None, "order_time": a.order.isoformat(),
                           "order_basis": a.basis, **roles[a.id]} for a in arts],
             "reporting_events": reporting_events, "developments": developments, "claims": claims,
-            "relationships": relationships, "stats": stats}
+            "relationships": relationships, "stats": stats, "evidence_notes": ev_notes}
 
 
 # =====================================================================================
@@ -733,8 +930,15 @@ CREATE INDEX IF NOT EXISTS idx_si_rea_event ON si_reporting_event_articles(event
 SI_TABLES = ["si_story_state", "si_reporting_events", "si_reporting_event_articles", "si_developments", "si_claims", "si_relationships"]
 
 
+_REA_EXTRA_COLUMNS = (("evidence_source", "TEXT DEFAULT 'METADATA'"), ("metadata_role", "TEXT"), ("metadata_reason", "TEXT"), ("evidence_version", "TEXT"))
+
+
 def init_si_schema(conn):
     conn.executescript(_SCHEMA)
+    have = {r[1] for r in conn.execute("PRAGMA table_info(si_reporting_event_articles)")}
+    for col, decl in _REA_EXTRA_COLUMNS:                  # si-2 provenance columns; additive, idempotent
+        if col not in have:
+            conn.execute(f"ALTER TABLE si_reporting_event_articles ADD COLUMN {col} {decl}")
     conn.commit()
 
 
@@ -742,9 +946,13 @@ def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
-def input_signature(rows):
+def input_signature(rows, evidence=None):
+    """Story input fingerprint. Includes a hash of the fetched evidence used (if any), so a story is re-processed when its
+    evidence arrives or changes, and only then."""
     h = hashlib.sha256()
     h.update(ENGINE_VERSION.encode())
+    if evidence:
+        h.update(b"|ev:" + evidence_hash(evidence).encode() + b":" + EVIDENCE_LOGIC_VERSION.encode())
     for r in sorted(rows, key=lambda r: r["id"]):
         h.update(f"|{r['id']}:{r['source']}:{r.get('title') or ''}:{r.get('published') or ''}".encode("utf-8", "replace"))
     return h.hexdigest()[:24]
@@ -772,10 +980,14 @@ def persist_story(conn, event_id, result, sig, now=None):
                          len(e["members"]), e["first_published_at"], e["first_order_time"], e["order_basis"], ENGINE_VERSION,
                          p_re.get((e["root_article_id"],), now), now))
         for a in result["articles"]:
-            cur.execute("INSERT INTO si_reporting_event_articles VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            cur.execute("INSERT INTO si_reporting_event_articles (event_id, article_id, reporting_event_root, role, derives_from_article_id, "
+                        "derives_from_external, reason, confidence, evidence_json, published_at, first_seen_at, order_time, order_basis, "
+                        "engine_version, detected_at, updated_at, evidence_source, metadata_role, metadata_reason, evidence_version) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (event_id, a["id"], a["reporting_event_root"], a["role"], a["target"], a["external"], a["reason"], a["confidence"],
                          json.dumps(a["evidence"], ensure_ascii=False, default=str), a["published"], a["fetched_at"], a["order_time"], a["order_basis"],
-                         ENGINE_VERSION, p_rea.get((a["id"],), now), now))
+                         ENGINE_VERSION, p_rea.get((a["id"],), now), now, a.get("evidence_source", "METADATA"), a.get("metadata_role", a["role"]),
+                         a.get("metadata_reason", a["reason"]), EVIDENCE_LOGIC_VERSION if a.get("evidence_source") == "FETCHED_ARTICLE" else None))
         for d in result["developments"]:
             cur.execute("INSERT INTO si_developments VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (event_id, d["dev_key"], d["type"], d["description"], d["trigger_article_id"], d["event_time"], d["published_at"],
@@ -807,7 +1019,7 @@ def _load_rows(conn, event_ids):
     for i in range(0, len(event_ids), CH):
         chunk = event_ids[i:i + CH]
         ph = ",".join("?" for _ in chunk)
-        for r in conn.execute(f"SELECT id, event_id, source, language, title, summary, published, fetched_at FROM articles WHERE event_id IN ({ph})", chunk):
+        for r in conn.execute(f"SELECT id, event_id, source, language, title, summary, published, fetched_at, url FROM articles WHERE event_id IN ({ph})", chunk):
             out.setdefault(r["event_id"], []).append(dict(r))
     return out
 
@@ -875,20 +1087,20 @@ def recent_event_ids(conn, days=14, limit=200):
 
 
 def run_cycle_step(days=14, limit=200, budget_s=180):
-    """The pipeline hook: bounded, non-fatal, never blocks publication. Returns a summary (or an error note)."""
+    """The pipeline hook: bounded, non-fatal, never blocks publication. Updates the reprocessing queue (si_queue.py) and processes
+    a bounded slice of it. Returns a summary (or an error note); never raises."""
     try:
-        import database
-        conn = database.get_connection()
-        try:
-            return process_events(conn, recent_event_ids(conn, days, limit), budget_s=budget_s)
-        finally:
-            conn.close()
+        import si_queue
+        return si_queue.run_cycle(limit=limit, budget_s=budget_s)
     except Exception as e:                                        # noqa: BLE001 - the step must never break a cycle
         return {"error": f"{type(e).__name__}: {e}"}
 
 
 if __name__ == "__main__":
     import sys
+    if len(sys.argv) > 1 and sys.argv[1] in ("queue", "enqueue", "process", "retry", "pause", "resume", "inspect", "evidence"):
+        import si_queue
+        sys.exit(si_queue.cli(sys.argv[1:]))
     if "--cycle" in sys.argv:                 # the pipeline step: bounded, prints a one-line summary, ALWAYS exits 0
         print("story_intelligence:", run_cycle_step())
         sys.exit(0)

@@ -244,6 +244,108 @@ check("11b: the step is registered as OPTIONAL (after analyze), so it can never 
 r_ = subprocess.run([_sys.executable, "-c", "import refresh; refresh.run_optional('x','nonexistent_script_zzz.py')"], capture_output=True, text=True)
 check("11c: an optional step that fails does not raise or exit non-zero", r_.returncode == 0 and "continuing without it" in r_.stdout, r_.stdout + r_.stderr)
 
+print("\nTEST 5b: embedding tiers (restatement / paraphrase / distinct content)")
+rs = np.random.RandomState(5)
+base = rs.randn(1024).astype("float32")
+base /= np.linalg.norm(base)
+
+
+def near(c):                                   # a vector at cosine c from base
+    o = rs.randn(1024).astype("float32")
+    o -= o.dot(base) * base
+    o /= np.linalg.norm(o)
+    return (c * base + (1 - c * c) ** .5 * o).astype("float32")
+
+
+def two(c, t2):
+    return si.analyze_story([art(1, "NDTV", "Lane report on the school board vote", published="2026-09-20T08:00:00", vec=base),
+                             art(2, "The Hindu", t2, published="2026-09-20T10:00:00", vec=near(c))], owner_of, NAMES)
+
+
+r92 = roles(two(0.92, "Board vote at the school explained by Priya Sharma"))[2]
+r78 = roles(two(0.78, "Board vote at the school explained by Priya Sharma"))[2]
+r73 = roles(two(0.73, "Priya Sharma questions 45 parents after the closing vote"))[2]
+r73b = roles(two(0.73, "Discussion continues over the decision by trustees"))[2]
+r50 = roles(two(0.50, "Something about 45 unrelated things"))[2]
+check("5c: cosine >= 0.80 from another publisher = RESTATES_EARLIER_REPORT (DERIVED, target recorded)", r92["role"] == si.DERIVED and r92["reason"] == "RESTATES_EARLIER_REPORT" and r92["target"] == 1)
+check("5d: 0.76-0.80 = POSSIBLE_PARAPHRASE, UNCERTAIN", r78["role"] == si.UNCERTAIN and r78["reason"] == "POSSIBLE_PARAPHRASE")
+check("5e: same event + figures no earlier report carried = INDEPENDENT / NEW_SPECIFIC_FIGURES", r73["role"] == si.INDEPENDENT and r73["reason"] == "NEW_SPECIFIC_FIGURES")
+check("5f: distinct-looking but adding nothing = UNCERTAIN, not INDEPENDENT", r73b["role"] == si.UNCERTAIN)
+check("5i: a loosely related piece (cos < 0.70) is never independent, even with numbers", r50["role"] == si.UNCERTAIN and r50["reason"] == "LOOSELY_RELATED")
+r_conf = si.analyze_story([art(1, "NDTV", "Thieves steal four paintings from museum", published="2026-09-20T08:00:00", vec=base),
+                           art(2, "The Hindu", "Three paintings stolen from museum", published="2026-09-20T10:00:00", vec=near(0.92))], owner_of, NAMES)
+check("5l: a restatement that states different figures is not called a restatement", roles(r_conf)[2]["reason"] != "RESTATES_EARLIER_REPORT")
+check("5g: Title Case headlines do not fake 'new names'", not [x for x in si._anchors("Google To Pay Million To Settle App Developer Class Action") if not x[0].isdigit()])
+check("5h: 'media reports say' is a secondhand cue (ATTRIBUTED_REPETITION)",
+      roles(si.analyze_story([art(1, "NDTV", "Army chief quits", published="2026-09-20T08:00:00"),
+                              art(2, "The Hindu", "Army chief submits resignation, media reports say", published="2026-09-20T09:00:00")], owner_of, NAMES))[2]["role"] == si.ATTRIBUTED_REPETITION)
+check("5k: numbers keep their value through unit suffixes and formatting", si.numbers_in("Pay 260mn") == si.numbers_in("Pay 260 Million") and "75" in si.numbers_in("75th anniversary") and si.numbers_in("$5K") == si.numbers_in("$5,000"))
+check("5j: an outlet's own name is not a 'new fact'", "hindu" not in si.analyze_story([art(1, "NDTV", "Fire in Delhi", published="2026-09-20T08:00:00"), art(2, "The Hindu", "Fire in Delhi says The Hindu BusinessLine 7", published="2026-09-20T09:00:00")], owner_of, NAMES)["articles"][1]["evidence"].get("novel_anchors", []))
+
+print("\nTEST 12: evidence-aware evaluation (fetched article text)")
+LEDE_A = ("The chemical plant on the outskirts of the city caught fire early on Monday morning and rescue teams were rushed to the spot "
+          "where dozens of workers were reportedly trapped inside the burning building while the district administration sealed the area.")
+LEDE_B = ("Officials said the blaze started in a storage unit and spread quickly to neighbouring sheds, and a senior fire officer told reporters "
+          "that “we found the second floor completely gutted and the stairwell blocked by melted equipment overnight” during the search.")
+
+
+def three(evid):
+    stories = [art(1, "NDTV", "Fire at chemical plant, rescue on", published="2026-09-20T08:00:00", vec=base),
+               art(2, "The Hindu", "Blaze at chemical unit, workers trapped", published="2026-09-20T09:00:00", vec=near(0.78)),
+               art(3, "Indian Express", "Chemical plant fire: rescue teams at spot", published="2026-09-20T10:00:00", vec=near(0.78))]
+    return si.analyze_story(stories, owner_of, NAMES, evidence=evid)
+
+
+plain = three(None)
+check("12a: evidence=None and evidence={} give exactly the metadata-only verdicts",
+      [(a["role"], a["reason"], a["confidence"]) for a in plain["articles"]] == [(a["role"], a["reason"], a["confidence"]) for a in three({})["articles"]]
+      and all(a["evidence_source"] == "METADATA" for a in plain["articles"]))
+r_ = roles(three({1: LEDE_A, 2: LEDE_A}))
+check("12b: verbatim shared passages with an earlier fetched article = DERIVED / FETCHED_SHARED_TEXT, provenance FETCHED_ARTICLE",
+      r_[2]["role"] == si.DERIVED and r_[2]["reason"] == "FETCHED_SHARED_TEXT" and r_[2]["target"] == 1 and r_[2]["evidence_source"] == "FETCHED_ARTICLE")
+check("12c: the metadata verdict is kept beside the new one", r_[2]["metadata_role"] == plain["articles"][1]["role"] and "metadata_verdict" in r_[2]["evidence"])
+r_ = roles(three({3: "NEW DELHI (PTI) " + LEDE_A}))
+check("12d: a dateline in the fetched text = ATTRIBUTED_REPETITION / FETCHED_ATTRIBUTION with the external origin", r_[3]["role"] == si.ATTRIBUTED_REPETITION and r_[3]["reason"] == "FETCHED_ATTRIBUTION" and r_[3]["external"] == "PTI")
+si.ALLOW_EVIDENCE_INDEPENDENCE = True
+r_ = roles(three({1: LEDE_A, 2: LEDE_B}))
+si.ALLOW_EVIDENCE_INDEPENDENCE = False
+check("12e: two fetched texts with no shared passage and text of its own (a long quote) may PROMOTE an UNCERTAIN article", r_[2]["role"] == si.INDEPENDENT
+      and r_[2]["reason"] == "FETCHED_DISTINCT_REPORTING" and r_[2]["confidence"] <= 0.5 and r_[2]["metadata_role"] == si.UNCERTAIN)
+r_ = roles(three({2: LEDE_B}))
+check("12f: ...but never with only ONE fetched text (nothing to compare with)", r_[2]["role"] == plain["articles"][1]["role"] and r_[2]["evidence_source"] == "METADATA")
+r_ = roles(three({1: LEDE_A, 2: LEDE_A.replace("dozens", "several")}))
+check("12g: a near-copy still counts as shared text (>= a 12-word verbatim run), not as independent", r_[2]["role"] == si.DERIVED)
+r_ = roles(three({1: LEDE_A, 2: LEDE_B}))
+check("12h: promotion to INDEPENDENT is OFF by default (the canary showed false independence) and only the flag changes that", si.ALLOW_EVIDENCE_INDEPENDENCE is False and r_[2]["role"] == plain["articles"][1]["role"])
+PHOTO = "A student searches for her school bag at the school in Nepal. (AP: Niranjan Shrestha) A teacher saved about 1,600 students in Nepal at a school that has now been completely swept away by the flood waters that came down the valley."
+check("12p: a photo credit '(AP: Name)' / '(AP Photo)' is NOT attribution of the article", not si.find_attribution_fetched(PHOTO, "ABC Australia", NAMES)
+      and not si.find_attribution_fetched("FILE - Designer poses. (AP Photo/Thibault Camus) The eight-month exhibition was scheduled to open in May.", "CNA", NAMES))
+check("12q: a dateline / explicit citation IS attribution", si.find_attribution_fetched("New Delhi, Aug 31 (PTI) Stocks fell on Monday.", "Pioneer", NAMES)[0]["name"] == "PTI"
+      and si.find_attribution_fetched("The minister resigned, according to Reuters, after a long row.", "X", NAMES)[0]["name"] == "Reuters")
+STMT = "“After much reflection and discussion with all those involved in this exhibition we have decided together to cancel the project and I am deeply sorry”"
+r_ = roles(three({1: "The designer announced on Monday that " + STMT + " ending months of debate about the show in the city.",
+                  2: "Officials confirmed the decision late on Monday evening, adding that " + STMT + " and that the museum would issue its own statement soon."}))
+check("12r: two outlets quoting the same statement are NOT derived from each other (quoted spans are ignored)", r_[2]["reason"] != "FETCHED_SHARED_TEXT")
+r_ = roles(si.analyze_story([art(1, "Times of India", "Fire at plant", published="2026-09-20T08:00:00"), art(2, "Navbharat Times", "Fire at plant again", published="2026-09-20T09:00:00")],
+                            owner_of, NAMES, evidence={1: LEDE_A, 2: LEDE_B}))
+check("12i: SAME_OWNER stays voice accounting whatever the text says", r_[2]["reason"] == "SAME_OWNER" and r_[2]["evidence_source"] == "METADATA")
+check("12j: the evidence hash changes the story signature (evidence arriving re-queues the story) and is stable",
+      si.input_signature(story, {1: LEDE_A}) != si.input_signature(story) and si.input_signature(story, {1: LEDE_A}) == si.input_signature(story, {1: LEDE_A})
+      and si.input_signature(story, {1: LEDE_A}) != si.input_signature(story, {1: LEDE_B}))
+ctx = {"distinct_owners": 4, "earliest_id": 1}
+A = lambda role, reason, i=2: {"id": i, "role": role, "reason": reason}
+check("12k: needs_evidence: UNCERTAIN paraphrase / no-positive-evidence -> FETCH", si.needs_evidence(A("UNCERTAIN", "POSSIBLE_PARAPHRASE"), ctx)[0] == "FETCH" and si.needs_evidence(A("UNCERTAIN", "NO_POSITIVE_EVIDENCE"), ctx)[0] == "FETCH")
+check("12l: needs_evidence: a potential independent report and the earliest article -> FETCH", si.needs_evidence(A("INDEPENDENT", "NEW_SPECIFIC_FIGURES"), ctx)[0] == "FETCH" and si.needs_evidence(A("INDEPENDENT", "EARLIEST_IN_CORPUS", 1), ctx)[0] == "FETCH")
+check("12m: needs_evidence: already resolved / owner accounting / loose / cross-language -> NO_FETCH with a reason",
+      all(si.needs_evidence(A(r, why), ctx)[0] == "NO_FETCH" and si.needs_evidence(A(r, why), ctx)[1] for r, why in
+          [("DERIVED", "RESTATES_EARLIER_REPORT"), ("DERIVED", "SAME_OWNER"), ("ATTRIBUTED_REPETITION", "WIRE_ATTRIBUTION"), ("UNCERTAIN", "LOOSELY_RELATED"), ("UNCERTAIN", "CROSS_LANGUAGE_NO_TEXTUAL_BASIS")]))
+check("12n: needs_evidence: a story with too few publishers is not worth the fetch; a different publisher alone is never a trigger",
+      si.needs_evidence(A("UNCERTAIN", "NO_POSITIVE_EVIDENCE"), {"distinct_owners": 2, "earliest_id": 1}) == ("NO_FETCH", "too_few_publishers_to_matter")
+      and si.needs_evidence(A("INDEPENDENT", "SOMETHING_ELSE"), ctx)[0] == "NO_FETCH")
+plan, dec = si.plan_evidence(three(None), {})
+check("12o: plan_evidence lists triggered articles (and their comparison partner) and logs every decision by reason", isinstance(plan, list) and sum(dec.values()) == 3
+      and all(k.split(":")[0] in ("FETCH", "NO_FETCH") for k in dec))
+
 print()
 if FAILURES:
     print(f"FAILED: {len(FAILURES)} check(s): {FAILURES}")
