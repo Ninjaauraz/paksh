@@ -214,54 +214,120 @@ def insert_article(source, language, title, url, summary, image_url, published):
         conn.close()
 
 
+WINDOW_TAIL_SHARE = 0.10   # share of the window reserved for vetted (registry) outlets that carry no vote
+
+
+def _fair_take(candidates, cap_total, per_source):
+    """Pick up to `cap_total` rows from `candidates` (given newest-first) so that every
+    outlet gets an EQUAL share, instead of the newest rows winning regardless of outlet.
+
+    Round-robin by recency rank: round 0 takes each outlet's newest row, round 1 its
+    second newest, and so on (at most `per_source` rounds). Inside a round, outlets are
+    ordered by how recent that round's row is, so when the cap lands mid-round the
+    fresher rows win. Each outlet's own picks stay newest-first, and the result is
+    returned in the input (newest-first) order.
+
+    Why: the old take ('newest N rows, <= per_source per outlet') was decided by
+    `fetched_at`, and ingest runs outlets one after another, so the outlets ingested
+    LAST always carried the newest timestamps and filled the window. Measured on the
+    live DB (docs/SOURCE_UTILIZATION_AUDIT.md): outlets early in the registry reached
+    clustering 32% of the time against 87% for the last ones, every run hit the cap.
+    Pure function - no DB access - so it is unit-testable."""
+    by_src = {}
+    for pos, r in enumerate(candidates):
+        s = r["source"]
+        lst = by_src.setdefault(s, [])
+        if len(lst) < per_source:
+            lst.append((pos, r))
+    picked, rank = [], 0
+    live = list(by_src.values())
+    while live and len(picked) < cap_total:
+        layer = sorted((lst[rank] for lst in live if len(lst) > rank), key=lambda pr: pr[0])
+        for pos, r in layer:
+            if len(picked) >= cap_total:
+                break
+            picked.append((pos, r))
+        rank += 1
+        live = [lst for lst in live if len(lst) > rank]
+    picked.sort(key=lambda pr: pr[0])
+    return [dict(r) for _, r in picked]
+
+
+WINDOW_MAX_AGE_HOURS = 72   # older un-grouped rows never enter the window (see select_unclustered_window)
+
+
+def select_unclustered_window(rows, limit=3000, per_source=60, rated_first=True,
+                              is_rated=None, is_vetted=None, tail_share=WINDOW_TAIL_SHARE,
+                              max_age_hours=WINDOW_MAX_AGE_HOURS, now=None):
+    """The window of un-grouped articles handed to clustering (pure; `rows` newest-first).
+
+    Order of claims: RATED outlets first (they can form events), then a bounded reserve
+    for VETTED outlets that carry no vote (the editor-verified foreign registry - they add
+    regional breadth and can never create an event on their own), then whatever is left to
+    unknown long-tail domains. Inside every tier the allocation is per-outlet fair
+    (see _fair_take).
+
+    Recency bound: fair sharing would otherwise hand an outlet whose newest rows are days old
+    its full quota of STALE rows (the old 'newest N' cut-off excluded them implicitly). Rows whose
+    `fetched_at` is older than `max_age_hours` are dropped, so old news can never form a 'new'
+    event stamped as fresh. Rows without a `fetched_at` are kept (nothing to judge)."""
+    if max_age_hours:
+        from datetime import datetime, timedelta
+        cutoff = ((now or datetime.utcnow()) - timedelta(hours=max_age_hours)).isoformat()
+        rows = [r for r in rows if not r.get("fetched_at") or r["fetched_at"] >= cutoff]
+    if not rated_first:
+        return _fair_take(rows, limit, per_source)
+    is_rated = is_rated or (lambda s: False)
+    is_vetted = is_vetted or (lambda s: False)
+    rated = [r for r in rows if is_rated(r["source"])]
+    vetted = [r for r in rows if not is_rated(r["source"]) and is_vetted(r["source"])]
+    other = [r for r in rows if not is_rated(r["source"]) and not is_vetted(r["source"])]
+    # The reserve is only held back for vetted rows that actually exist: an unused reserve goes
+    # back to the RATED outlets first (as before), never to unknown domains.
+    v_res = _fair_take(vetted, int(limit * tail_share), per_source)
+    out = _fair_take(rated, limit - len(v_res), per_source)              # rated get first claim
+    slack = limit - len(out) - len(v_res)
+    v = _fair_take(vetted, len(v_res) + slack, per_source) if slack > 0 else v_res   # vetted reserve (+ slack rated left)
+    out += v
+    out += _fair_take(other, limit - len(out), per_source)               # unknown domains fill only what is left
+    return out
+
+
 def get_unclustered_articles(limit=3000, per_source=60, rated_first=True):
     """Return un-grouped articles, BALANCED across outlets, RATED sources first.
 
-    A naive 'most recent N' lets a prolific outlet flood the window, so we take
-    each outlet's most-recent `per_source` articles. On top of that, RATED
-    outlets (registry sources, plus GDELT articles that resolved to one) get
-    their quota BEFORE any unrated long-tail fills the remaining capacity.
-    Without this, a GDELT flood of unrated domains — much heavier in English than
-    Hindi — crowds rated articles out of the window and their events stop forming
-    (which is exactly how the English feed went stale while Hindi kept working).
+    A naive 'most recent N' lets a prolific outlet flood the window, and so does 'newest N
+    with a per-outlet cap' (the cap only bites the biggest outlets; the cut-off still falls on
+    whoever was ingested last). So every tier is filled per-outlet fair - see _fair_take and
+    select_unclustered_window. RATED outlets (registry sources, plus GDELT articles that
+    resolved to one) still get their quota BEFORE any unrated long-tail fills the remaining
+    capacity. Without that, a GDELT flood of unrated domains - much heavier in English than
+    Hindi - crowds rated articles out of the window and their events stop forming (which is
+    exactly how the English feed went stale while Hindi kept working).
     """
     import sources
     sources._load_verified_registry()   # perf phase 4A: registry is lazy now - see sources.py
-    from sources import LEAN_BY_SOURCE
+    from sources import LEAN_BY_SOURCE, VERIFIED_BY_NAME
     conn = get_connection()
     # ~60% of articles sit unclustered, so ORDER BY fetched_at over that set is the pipeline's
     # hottest read. INDEXED BY forces the PARTIAL index (fetched_at, WHERE event_id IS NULL),
     # which is already in fetched_at order -> no temp-B-tree sort of 100k+ rows (measured
     # 358ms -> ~1ms). We force it because the planner otherwise picks the plain event_id index
     # and re-sorts. init_db() always creates this index, so INDEXED BY can't fail to find it.
+    # The recency bound is pushed into the query too (a range scan on the same partial index), so a
+    # 400k-row backlog is never even loaded; select_unclustered_window re-applies it (pure/testable).
+    from datetime import datetime, timedelta
+    cutoff = (datetime.utcnow() - timedelta(hours=WINDOW_MAX_AGE_HOURS)).isoformat()
     rows = conn.execute(
-        """SELECT id, source, language, title, summary
+        """SELECT id, source, language, title, summary, fetched_at
            FROM articles INDEXED BY idx_articles_unclustered
-           WHERE event_id IS NULL
-           ORDER BY fetched_at DESC"""
+           WHERE event_id IS NULL AND fetched_at >= ?
+           ORDER BY fetched_at DESC""", (cutoff,)
     ).fetchall()
     conn.close()
-
-    def _take(candidates, cap_total):
-        by_source, picked = {}, []
-        for r in candidates:
-            if len(picked) >= cap_total:
-                break
-            s = r["source"]
-            if by_source.get(s, 0) >= per_source:
-                continue
-            by_source[s] = by_source.get(s, 0) + 1
-            picked.append(dict(r))
-        return picked
-
-    if not rated_first:
-        return _take(rows, limit)
-
-    rated = [r for r in rows if r["source"] in LEAN_BY_SOURCE]
-    unrated = [r for r in rows if r["source"] not in LEAN_BY_SOURCE]
-    out = _take(rated, limit)                       # rated get first claim
-    out += _take(unrated, limit - len(out))         # unrated fill the remainder
-    return out
+    return select_unclustered_window(
+        rows, limit=limit, per_source=per_source, rated_first=rated_first,
+        is_rated=lambda s: s in LEAN_BY_SOURCE, is_vetted=lambda s: s in VERIFIED_BY_NAME)
 
 
 def get_articles_by_ids(ids):
