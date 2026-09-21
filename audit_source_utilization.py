@@ -13,6 +13,8 @@ Use it before and after a change to see whether the pipeline uses more of the re
                     (had an embedding) and how many ended up in a story. The old window starved early outlets.
   3. stories      - diversity of the N newest published stories: publishers/story, concentration, India share,
                     sides covered, World-vs-India split
+  4. gate         - how many analysed stories the completeness gate hides, by publisher count and region, and the
+                    World share created vs published (the retry-label fix should drive World hidden toward 0)
 """
 import argparse
 import collections as C
@@ -137,13 +139,48 @@ def section_stories(c, n_stories):
     print("  most frequent publishers:", ", ".join(f"{n} {100*v/N:.0f}%" for n, v in inc.most_common(8)))
 
 
+def section_gate(c, days):
+    def has(v):
+        return (isinstance(v, list) and any(str(x).strip() for x in v)) or (isinstance(v, str) and v.strip() != "")
+    rows = []
+    for r in c.execute("SELECT analysis_json FROM events WHERE COALESCE(is_demo,0)=0 AND created_at>=date('now', ?)", (f"-{days} day",)):
+        aj = json.loads(r["analysis_json"])
+        cov = aj.get("coverage") or {}
+        if sum((cov.get(s) or {}).get("count", 0) for s in ("left", "center", "right")) < 2 or aj.get("summary_method") != "llm":
+            continue
+        pubs = len({s["source"] for s in aj.get("sources") or []})
+        covered = [s for s in ("left", "center", "right") if (cov.get(s) or {}).get("count", 0) >= 1]
+        rows.append({"hidden": aj.get("content_complete") is False, "pubs": pubs, "region": aj.get("region"), "sides": len(covered)})
+    n = len(rows)
+    if not n:
+        print()
+        print("== 4. GATE: no LLM-analysed stories in the window")
+        return
+    hid = [r for r in rows if r["hidden"]]
+    print()
+    print(f"== 4. COMPLETENESS GATE: LLM-analysed stories (>=2 voting outlets) created in the last {days} days: {n} ==")
+    print(f"  hidden: {len(hid)} ({100*len(hid)/n:.1f}%)   mean publishers: published {st.mean(r['pubs'] for r in rows if not r['hidden']):.2f} | hidden {st.mean(r['pubs'] for r in hid) if hid else 0:.2f}")
+    for lo, hi in ((2, 2), (3, 3), (4, 5), (6, 8), (9, 12), (13, 999)):
+        x = [r for r in rows if lo <= r["pubs"] <= hi]
+        if x:
+            print(f"    {lo:>2}-{hi:<3} publishers: {len(x):>5} stories, hidden {100*sum(r['hidden'] for r in x)/len(x):5.1f}%")
+    for reg in ("India", "World"):
+        x = [r for r in rows if r["region"] == reg]
+        if x:
+            print(f"  region {reg:<5}: {len(x):>5} stories, hidden {100*sum(r['hidden'] for r in x)/len(x):5.1f}%")
+    pub = [r for r in rows if not r["hidden"]]
+    print(f"  World share: created {100*sum(1 for r in rows if r['region']=='World')/n:.1f}% -> published {100*sum(1 for r in pub if r['region']=='World')/max(1,len(pub)):.1f}%")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", default=str(ROOT / "paksh.db"))
     ap.add_argument("--stories", type=int, default=500)
     ap.add_argument("--since", default=None, help="admission window start (ISO date); default: 7 days ago")
+    ap.add_argument("--gate-days", type=int, default=14, help="days of stories for the completeness-gate section")
     a = ap.parse_args()
     conn = connect(a.db)
     section_utilization(conn)
     section_admission(conn, a.since or (datetime.utcnow() - timedelta(days=7)).isoformat())
     section_stories(conn, a.stories)
+    section_gate(conn, a.gate_days)

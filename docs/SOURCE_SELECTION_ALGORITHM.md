@@ -69,6 +69,15 @@ the pick. It is deterministic — the same articles always give the same pick.
 The "Who covered it" list shows **every** article in the event, not just the prompt's 12. The bias bar counts **distinct owners**
 from all of them. Neither is affected by step 2.
 
+## 4. What the model is told on the retry (labels and region)
+
+The first LLM attempt does not know whether a story is India or World — that is the model's own output. If it comes back with a covered side lacking framing, the story is retried with the region now known. Two rules keep the retry consistent with the bias arithmetic:
+
+* **Outlet labels follow the region.** On a World story an international outlet with a known lean *votes* on it (`analyze.lean_of(name, region)`), so the `OUTLET:` block shows that lean ("left-leaning", "centrist"…) instead of "international wire". First attempts and India stories are unchanged. Before this rule the model was told the side existed but could not tell which outlet belonged to it, and 40% of such sides ended with no framing.
+* **The retry keeps the region it was prompted with.** Otherwise a World story can be re-classified as India on the retry, its international outlets stop voting, and it can never publish.
+
+Neither rule decides an outlet's lean: the labels are the registry's, and the bar is still one vote per owner.
+
 ## What this does not do
 
 * It does not add publishers. Widening the set of outlets that *exist* in the pipeline (more feeds) is an editorial decision — see the audit.

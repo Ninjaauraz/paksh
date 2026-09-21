@@ -39,7 +39,7 @@ Visible symptoms in the 500 newest published stories: **57% are World stories** 
 | F2 | **Prompt source picker** — independent reports first, then richness, regional spread, ideological guarantee (kept), freshness, credibility | `source_selection.py` (new), `analyze.py` |
 | F3 | **GDELT resilience** — overload page is a failure not "0 articles"; stop the stage after 3 straight failures | `gdelt_source.py` |
 | F4 | **Syndication-farm blocklist +42 domains**, found by measurement | `gdelt_source.py` |
-| — | Read-only audit tool + 49 new regression checks | `audit_source_utilization.py`, `test_source_utilization.py` |
+| — | Read-only audit tool + 59 regression checks (49 in phase 1, 10 added in phase 2) | `audit_source_utilization.py`, `test_source_utilization.py` |
 
 ### Measured effect `[SHADOW]` — same snapshot, same clustering engine, only the window rule differs
 
@@ -365,7 +365,7 @@ Africa and Latin America are at 0% and stay there: Paksh's *fed* outlets are 124
 
 ## 8. Regression testing
 
-* **New:** `test_source_utilization.py` — 49 checks, offline, no real DB access: window fairness, recency bound, reserve and slack, ordering, public signature, copy collapse, side guarantee, World-story handling, determinism, `build_prompt` still counts owners from *all* articles, GDELT failure handling, blocklist.
+* **New:** `test_source_utilization.py` — 59 checks (49 in phase 1, +10 in phase 2), offline, no real DB access: window fairness, recency bound, reserve and slack, ordering, public signature, copy collapse, side guarantee, World-story handling, determinism, `build_prompt` still counts owners from *all* articles, GDELT failure handling, blocklist.
 * **Full suite:** all 44 `test_*.py` files (43 existing + the new one) run in a **sandbox** — a copy of the working tree plus a copy of the 2026-09-19 verified DB backup; the live DB was never opened for writing — **44/44 pass**.
 * No existing test was changed; none pinned the old window.
 * **Not run against a real deploy:** the static export and story pages are not touched by this change; nothing here is live until the next pipeline cycle. Verify after it runs with `py audit_source_utilization.py` (compare section 2: admission should be flat across registry positions, and section 3 should show a lower World share).
@@ -395,3 +395,21 @@ Africa and Latin America are at 0% and stay there: Paksh's *fed* outlets are 124
 * The 6,301 unused verified entries cost nothing at run time (the registry is lazy-loaded, ~0.2 s only when needed) and are the domain→outlet/lean lookup GDELT depends on. Deleting them removes the ability to label a domain the day it does show up.
 * Do **not** delete the 2,349 unknown domains' articles wholesale either; `prune_cache.py` already exists for DB size, and it is the right tool if the 2.3 GB database needs trimming.
 * What *is* worth pruning or replacing is **feeds** that never return items (§9.3) and, after Sameer's review, obviously non-news domains.
+
+---
+
+## Phase 2 — pre-push validation, story composition, source quality
+
+Full report: **[SOURCE_DIVERSITY_PHASE2.md](SOURCE_DIVERSITY_PHASE2.md)** · ANI: [ANI_SOURCE_ANALYSIS.md](ANI_SOURCE_ANALYSIS.md).
+
+**Corrections to phase 1**
+* **My phase-1 window change crashed the 2026-09-21 nightly refresh** (`sqlite3.Row` has no `.get`; my tests used dicts). Fixed in `6162f2c261` with tests that run the real query; nothing half-built was published, but that night's refresh did not run.
+* The phase-1 summary said the fixes were "not live until you push". They run from this working tree, so the local pipeline (nightly, `live.py`) uses them as soon as the files are on disk — which is how the crash happened.
+
+**Findings**
+* **The registry-order bias is fixed.** Admission to clustering by registry position went from 40 / 40 / 39 / 34 / 49 / 68% to a flat 45 / 49 / 47 / 48 / 47 / 45%.
+* **The completeness gate is the largest diversity loss:** it hides 32% of analysed stories and 58% of those with ≥ 5 publishers (published stories average 4.08 publishers, hidden ones 6.96). Cause: on a World story the retry prompt still labelled international outlets "international wire", so a covered side had no outlet the model could attribute — 40% of such sides ended with no framing. Fixed (`analyze.py`); a production-faithful canary went from 40/55 to 55/55 publishable stories, 0 regressions.
+* Same-story articles from other publishers exist for most stories: 58% have some that never entered any clustering window, 22% have some sitting in a different event.
+* **World skew:** stories with no India outlet fell from 44% to 28% (two experiments), about a third of the skew; but un-hiding World stories pushes the published World share up (55% → ≈ 68% of analysed stories).
+
+**Decisions kept:** merge cap stays 400; all 8 candidate India feeds stay disabled (India TV and India.Com are the only evidence-supported trial candidates); ANI and webindia123 are not enabled or blocked.
