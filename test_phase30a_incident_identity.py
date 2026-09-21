@@ -12,6 +12,7 @@ Never touches paksh.db, never calls a real embedder, never mutates production.
 Run:  py test_phase30a_incident_identity.py
 """
 import sqlite3
+import paksh_paths
 import numpy as np
 
 import cluster
@@ -27,7 +28,7 @@ def check(label, cond):
         FAILURES.append(label)
 
 
-conn = sqlite3.connect("file:paksh.db?mode=ro", uri=True, timeout=30)
+conn = sqlite3.connect("file:" + paksh_paths.db_path().as_posix() + "?mode=ro", uri=True, timeout=30)
 c = conn.cursor()
 
 

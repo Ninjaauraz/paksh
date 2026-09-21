@@ -11,6 +11,7 @@ replay against event #18165's actual member articles (read-only query).
 Run:  py test_phase30cf_fallback_integrity.py
 """
 import sqlite3
+import paksh_paths
 
 import analyze
 
@@ -87,7 +88,7 @@ check("12: extractive summary_method still always yields content_complete=True "
 
 print("\n=== Real-data replay: event #18165 (the actual production case this fix addresses) ===")
 try:
-    conn = sqlite3.connect("file:paksh.db?mode=ro", uri=True, timeout=30)
+    conn = sqlite3.connect("file:" + paksh_paths.db_path().as_posix() + "?mode=ro", uri=True, timeout=30)
     c = conn.cursor()
     c.execute("SELECT source, language, title, summary FROM articles WHERE event_id=18165")
     real_rows = [art(s, lang, t, summ) for s, lang, t, summ in c.fetchall()]
