@@ -993,7 +993,6 @@ const STR = {
     barCaption: "Outlets covering this story, by leaning",
     originalReports: "Original reports",
     nonVoting: "International and unrated outlets are listed but not counted in the bar.",
-    gapHow: "How gaps are flagged",
     srcTitle: "Source ratings",
     srcIntro: "Every outlet Paksh tracks, how it's rated, and why.",
     srcDisclaimer: "All ratings are provisional, a documented starting point reviewed against our rubric, not a final verdict. Lean describes the publication, not any single article, and is open to appeal.",
@@ -1076,7 +1075,6 @@ const STR = {
     barCaption: "इस ख़बर को कवर करने वाले आउटलेट, झुकाव के अनुसार",
     originalReports: "मूल रिपोर्ट",
     nonVoting: "अंतरराष्ट्रीय और बिना रेटिंग वाले आउटलेट सूची में दिखते हैं, पर बार में गिने नहीं जाते।",
-    gapHow: "कवरेज गैप कैसे तय होते हैं",
     srcTitle: "स्रोत रेटिंग",
     srcIntro: "पक्ष जिन आउटलेट्स को ट्रैक करता है, उनकी रेटिंग और कारण।",
     srcDisclaimer: "सभी रेटिंग अस्थायी हैं, रूब्रिक के विरुद्ध समीक्षित एक प्रलेखित शुरुआती बिंदु, अंतिम फ़ैसला नहीं। झुकाव प्रकाशन का वर्णन करता है, किसी एक लेख का नहीं, और अपील के लिए खुला है।",
@@ -3574,10 +3572,8 @@ function StoryPage({
     lang: lang,
     h: 14
   }), /*#__PURE__*/React.createElement("div", {
-    className: `mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "basis-full md:basis-auto"
-  }, STR[lang].barCaption), ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("span", {
+    className: `mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
+  }, ["left", "center", "right"].map(k => /*#__PURE__*/React.createElement("span", {
     key: k,
     className: "inline-flex items-center gap-1.5 uppercase tracking-[0.06em]"
   }, /*#__PURE__*/React.createElement("span", {
@@ -3589,7 +3585,11 @@ function StoryPage({
       background: vc[k] > 0 ? BIAS[k].color : t.line,
       display: "inline-block"
     }
-  }), lbl(k, lang), " ", vc[k] || 0)), /*#__PURE__*/React.createElement("a", {
+  }), lbl(k, lang), " ", vc[k] || 0)), story.blindspot && /*#__PURE__*/React.createElement(BlindspotBadge, {
+    side: story.blindspot,
+    t: t,
+    lang: lang
+  }), /*#__PURE__*/React.createElement("a", {
     href: "#arts",
     onClick: e => {
       e.preventDefault();
@@ -3600,29 +3600,7 @@ function StoryPage({
       });
     },
     className: `md:ml-auto ${t.ts} hover:${t.tp} underline underline-offset-2`
-  }, STR[lang].originalReports, " \u2193")), story.blindspot && (() => {
-    const gs = story.blindspot;
-    const gN = vc[gs] || 0;
-    const sideLab = lbl(gs, lang);
-    const covered = gs === "left" ? lang === "hi" ? `${vc.right} दक्षिण, ${vc.center} केंद्र` : `${vc.right} Right, ${vc.center} Centre` : lang === "hi" ? `${vc.left} वाम, ${vc.center} केंद्र` : `${vc.left} Left, ${vc.center} Centre`;
-    const tail = gN === 0 ? lang === "hi" ? `अभी ${sideLab} कवरेज नहीं।` : `no ${sideLab} coverage yet.` : lang === "hi" ? `${sideLab} कम।` : `${sideLab} thin.`;
-    return /*#__PURE__*/React.createElement("div", {
-      className: "mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
-    }, /*#__PURE__*/React.createElement(BlindspotBadge, {
-      side: gs,
-      t: t,
-      lang: lang
-    }), /*#__PURE__*/React.createElement("span", {
-      className: `text-[13px] ${t.ts} ${readCls(lang)}`
-    }, covered, " \u2014 ", tail), /*#__PURE__*/React.createElement("a", {
-      href: "/blindspot",
-      onClick: e => {
-        e.preventDefault();
-        go("blindspot");
-      },
-      className: `mono text-[10.5px] ${t.tf} hover:${t.tp} underline underline-offset-2 ${lang === "hi" ? "deva" : ""}`
-    }, STR[lang].gapHow, " \u2192"));
-  })()), story.img && /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].originalReports, " \u2193"))), story.img && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-6 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(Thumb, {
     src: story.img,
