@@ -90,10 +90,26 @@ _BLOCKLIST = {
     "saltlakecitysun.com", "sandiegosun.com", "southeastasiapost.com", "tennesseedaily.com",
     "texasguardian.com", "utahindependent.com", "arabherald.com", "azerbaijannews.net",
     "afghanistannews.net", "bruneinews.net", "dominicanrepublicpost.com",
+    # Same family, missed by the list above. Found by measuring the DB (docs/SOURCE_UTILIZATION_AUDIT.md):
+    # 42 unrated domains that republished >=15 identical headlines shared with >=2 other unrated
+    # domains over 45 days (~3,100 articles, ~19% of the unrated GDELT flow, all fake breadth).
+    # Deliberately NOT added: aninews.in (ANI, a real wire agency the copies come FROM) and
+    # webindia123.com (aggregator) - whether those count is Sameer's editorial call.
+    "argentinastar.com", "austinglobe.com", "australiannews.net", "batonrougepost.com",
+    "bignewsnetwork.com", "brazilsun.com", "britainnews.net", "cambodiantimes.com",
+    "caribbeanherald.com", "greekherald.com", "hongkongherald.com", "iranherald.com", "iraqsun.com",
+    "irishsun.com", "jamaicantimes.com", "laosnews.net", "mainemirror.com", "malaysiasun.com",
+    "mexicostar.com", "milwaukeesun.com", "nepalnational.com", "newyorkstatesman.com",
+    "newyorktelegraph.com", "newzealandstar.com", "nigeriasun.com", "northkoreatimes.com",
+    "ohiostandard.com", "oklahomacitysun.com", "pakistantelegraph.com", "sanantoniopost.com",
+    "shanghainews.net", "shanghaisun.com", "sierraleonetimes.com", "singaporestar.com",
+    "srilankasource.com", "sydneysun.com", "taiwansun.com", "thailandnews.net", "trinidadtimes.com",
+    "tucsonpost.com", "vietnamtribune.com", "zimbabwestar.com",
 }
 TIMESPAN = "1d"        # last 24 hours
 MAXRECORDS = 250       # GDELT hard cap per call
 SLEEP = 6              # be polite between queries (~1 query / 6s)
+MAX_CONSECUTIVE_FAILURES = 3   # circuit breaker: stop the stage after this many failed queries in a row
 
 # GDELT's DOC API returns HTTP 429 for non-browser User-Agents, so we must send
 # a browser-like UA (see github.com/alex9smith/gdelt-doc-api issue #22).
@@ -118,8 +134,14 @@ def _fetch(query, timespan=TIMESPAN, maxrecords=MAXRECORDS, retries=4):
             try:
                 return json.loads(body).get("articles", [])
             except json.JSONDecodeError:
-                # GDELT returns an HTML notice (not JSON) when overloaded.
-                return []
+                # GDELT returns an HTML notice (not JSON) when overloaded. That is a FAILED
+                # query, not an empty one: it used to return [] silently, which made an
+                # overloaded stage look like "GDELT had nothing new" (audit: 8 days at zero).
+                if attempt < retries - 1:
+                    time.sleep(delay + random.uniform(0, 3))
+                    delay *= 2
+                    continue
+                raise urllib.error.URLError("GDELT returned a non-JSON (overload) page")
         except urllib.error.HTTPError as e:
             if e.code in (429, 503) and attempt < retries - 1:
                 wait = int(e.headers.get("Retry-After", 0) or 0) or delay
@@ -176,14 +198,27 @@ def run(queries=QUERIES, timespan=TIMESPAN, verbose=True):
     seen = set()
     added = rated_n = unrated_n = 0
     unrated_domains = set()
+    ok_q = failed_q = consec_fail = 0
     for q in queries:
         try:
             arts = _fetch(q, timespan)
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
+            failed_q += 1
+            consec_fail += 1
             if verbose:
                 print(f"  ! GDELT query failed ({q[:42]}...): {e}")
+            if consec_fail >= MAX_CONSECUTIVE_FAILURES:
+                # Rate-limited (429) or offline: every further query only adds retry back-offs
+                # (one failing stage measured 34 minutes) and keeps the limiter angry. Give up
+                # for this cycle; the next one starts clean. Nothing already fetched is lost.
+                if verbose:
+                    print(f"  ! GDELT: {consec_fail} queries in a row failed - stopping this stage "
+                          f"({len(queries) - ok_q - failed_q} query(ies) not attempted).")
+                break
             time.sleep(SLEEP)
             continue
+        ok_q += 1
+        consec_fail = 0
         if verbose:
             print(f"  > GDELT [{q[:48]}] -> {len(arts)} articles")
         for art in arts:
@@ -205,7 +240,8 @@ def run(queries=QUERIES, timespan=TIMESPAN, verbose=True):
         time.sleep(SLEEP)
 
     if verbose:
-        print(f"\nGDELT added {added} new articles "
+        print(f"\nGDELT queries: {ok_q} ok, {failed_q} failed, of {len(queries)}.")
+        print(f"GDELT added {added} new articles "
               f"({rated_n} to rated outlets; "
               f"{unrated_n} from {len(unrated_domains)} unrated outlets).")
         print("Unrated outlets add coverage + cluster density but never vote in the bias bar.")
