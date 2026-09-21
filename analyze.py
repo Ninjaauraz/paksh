@@ -399,8 +399,15 @@ def build_prompt(articles, region=None) -> str:
         except Exception:
             return a["summary"] or "(none)"
 
+    # The lean shown here must be the one postprocess() will COUNT. `region` is known only on the
+    # retry (it is the first attempt's own output); for a World story an international outlet with a
+    # known underlying lean votes on it (see lean_of), and the owner-count line below already says so.
+    # Labelling those outlets "international wire" regardless left the model with a covered side and
+    # no outlet it could attribute to that side, so it wrote no framing for it and the story was hidden
+    # by the completeness gate: 40% of World-story sides held only by such outlets ended up with no
+    # framing (docs/SOURCE_DIVERSITY_PHASE2.md). region=None (first attempt) and India are unchanged.
     blocks = [
-        f'OUTLET: {a["source"]}  [lean: {_LEANWORD[lean_of(a["source"])]}, language: {a["language"]}]\n'
+        f'OUTLET: {a["source"]}  [lean: {_LEANWORD[lean_of(a["source"], region)]}, language: {a["language"]}]\n'
         f'HEADLINE: {a["title"]}\nSUMMARY: {_summary_for_prompt(a)[:SUMMARY_TRUNC]}'
         for a in picked
     ]
@@ -1324,6 +1331,13 @@ def analyze_event(articles, backend=None, on_failure=None) -> dict:
         try:
             retry_raw = _call_json(build_prompt(articles, region=result.get("region")), backend=backend)
             if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
+                # The retry's outlet labels and owner counts were built for the region the FIRST attempt
+                # resolved, so its counts must use that same region. Left free, the model sometimes
+                # re-classifies a World story as India on the retry: its international outlets then stop
+                # voting, the story has no voting side, and it can never publish (measured on a canary:
+                # 3 of 45 World stories, up from 1 without the label fix). Region is unchanged everywhere else.
+                if result.get("region") in ("India", "World"):
+                    retry_raw["region"] = result["region"]
                 result = postprocess(retry_raw, articles)
             _record_retry_stat("retry_rescued" if result["content_complete"] else "retry_not_rescued")
         except Exception as e:

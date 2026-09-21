@@ -12,10 +12,13 @@ What is pinned here:
      represents its report, a new home region is preferred, output is deterministic and only
      ever contains the event's own articles.
   C. analyze.build_prompt still tells the model the per-side owner counts from ALL articles
-     (the bias arithmetic is not computed from the picked subset) and keeps every covered side.
+     (the bias arithmetic is not computed from the picked subset) and keeps every covered side;
+     on a retry (region known) outlets are labelled with the lean the arithmetic will COUNT, and
+     analyze_event keeps the region the retry was prompted with (C5-C11).
   D. gdelt_source: a non-JSON (overload) reply is a FAILED query, and 3 failed queries in a row
-     stop the stage; a success resets the counter.
-Pure / offline: no real DB access (init_db and insert_article are stubbed for GDELT), no network.
+     stop the stage; a success resets the counter; the measured farm domains are blocked.
+Offline: no network and no LLM (the model call is faked). The only database used is an ISOLATED temp
+file (A20-A22 exercise the real sqlite3.Row query path); the real paksh.db is never opened.
 
 Run:  py test_source_utilization.py
 """
@@ -258,6 +261,44 @@ check("C2: outlets of every covered side reach the prompt",
 check("C3: no more than MAX_ARTICLES_PER_EVENT outlets are in the prompt", prompt.count("OUTLET:") <= analyze.MAX_ARTICLES_PER_EVENT)
 check("C4: a duplicated wire headline is shown once", prompt.count("HEADLINE: Same wire story headline about floods in Assam today") == 1 or
       analyze.lean_of("The Hindu") != analyze.lean_of("The Indian Express"))
+
+# The label the model sees must be the lean the arithmetic will COUNT. On a World story (region known only on the retry) an
+# international outlet with a known underlying lean votes on it; labelling it "international wire" left a covered side with no
+# attributable outlet, no framing was written and the completeness gate hid the story (40% of such sides).
+import re as _re
+import source_enrichment as _se
+_se.get_combined_summary_for_article = lambda a: a.get("summary") or ""                # no network / no DB cache writes
+lab_arts = [art(900, "Sky News", "Fire at hotel treated as suspicious", "x" * 90), art(901, "Daily Mirror", "Locals flee hotel blaze", "x" * 90),
+            art(902, "The Hindu", "Hindu view of the hotel fire", "x" * 90)]
+def _labels(region):
+    return dict(_re.findall(r"OUTLET: ([A-Za-z ]+?)  \[lean: ([^,]+),", analyze.build_prompt(lab_arts, region=region)))
+check("C5: first attempt (region unknown) still labels international outlets 'international wire' (unchanged)",
+      _labels(None)["Sky News"] == "international wire" and _labels(None)["Daily Mirror"] == "international wire")
+check("C6: an India story keeps international outlets non-voting: 'international wire' (unchanged)",
+      _labels("India")["Sky News"] == "international wire")
+check("C7: a World story labels them with the underlying lean the arithmetic counts (Sky centrist, Mirror left-leaning)",
+      _labels("World")["Sky News"] == "centrist" and _labels("World")["Daily Mirror"] == "left-leaning")
+check("C8: labels of India outlets never depend on region", _labels(None)["The Hindu"] == _labels("India")["The Hindu"] == _labels("World")["The Hindu"])
+
+# analyze_event's retry must keep the region it was PROMPTED with (labels + owner counts were built for it).
+_calls = []
+def _fake_call(prompt, retries=1, backend=None):
+    _calls.append(prompt)
+    base = {"title": "Hotel fire treated as suspicious", "summary": "Police say the blaze is suspicious.", "topic": "Crime & Law",
+            "framing": {"left": [], "center": ["Centre framing text."], "right": []}, "region": "World"}
+    if len(_calls) == 1:
+        return dict(base)                                                          # first pass: World, left side has no framing -> incomplete
+    return dict(base, region="India", framing={"left": ["Left framing."], "center": ["Centre framing."], "right": []})   # retry flips to India
+_real_call = analyze._call_json
+analyze._call_json = _fake_call
+try:
+    res_flip = analyze.analyze_event([dict(a) for a in world], backend="test")
+finally:
+    analyze._call_json = _real_call
+check("C9: the retry prompt was built for the first attempt's region (World labels)", len(_calls) == 2 and "centrist" in _calls[1] and "left-leaning" in _calls[1])
+check("C10: a retry that re-classifies the story keeps the region it was prompted with (World stays World)", res_flip["region"] == "World")
+check("C11: so the international outlets still vote (the story is not left with zero voting sides)",
+      sum(res_flip["coverage"][s]["count"] for s in ("left", "center", "right")) >= 2)
 
 # ---------------------------------------------------------------- D. GDELT failure handling
 print("\n=== D: GDELT failure handling ===")
