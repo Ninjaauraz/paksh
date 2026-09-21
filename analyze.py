@@ -59,6 +59,7 @@ try:
 except ImportError:                              # older sources.py / registry not generated yet
     VERIFIED_BY_NAME = {}
 import cluster
+from source_selection import select_sources
 
 # ---- LLM backend for the bilingual summary --------------------------------
 # "ollama" = LOCAL text model (default; free, no API key, no bill)
@@ -365,24 +366,17 @@ def build_prompt(articles, region=None) -> str:
                  "right": "right-leaning", "unrated": "unrated",
                  "international": "international wire"}
     # Balance the budget across leans: guarantee up to MIN_PER_LEAN articles from EACH
-    # covered lean before filling the rest rated-first, so a side whose articles sort
-    # past the cap is never dropped from the prompt (which would leave the model with
-    # no framing for a side the coverage list still shows).
+    # covered lean before filling the rest, so a side whose articles sort past the cap
+    # is never dropped from the prompt (which would leave the model with no framing for a
+    # side the coverage list still shows). WHICH articles fill those slots is decided by
+    # source_selection.select_sources: independent reports first (a wire story republished
+    # under several mastheads is one report), then factual richness, regional spread,
+    # freshness and registry credibility - see docs/SOURCE_SELECTION_ALGORITHM.md.
+    # It chooses only among this event's own articles; the bias bar is unaffected.
     MIN_PER_LEAN = 2
-    by_lean = {}
-    for a in articles:
-        by_lean.setdefault(lean_of(a["source"]), []).append(a)
-    picked, seen = [], set()
-    for lean in ("left", "center", "right", "international", "unrated"):
-        for a in by_lean.get(lean, [])[:MIN_PER_LEAN]:
-            if id(a) not in seen and len(picked) < MAX_ARTICLES_PER_EVENT:
-                picked.append(a); seen.add(id(a))
-    rest = sorted((a for a in articles if id(a) not in seen),
-                  key=lambda a: lean_of(a["source"]) == "unrated")
-    for a in rest:
-        if len(picked) >= MAX_ARTICLES_PER_EVENT:
-            break
-        picked.append(a); seen.add(id(a))
+    picked = select_sources(articles, lean_of=lean_of,
+                            owner_of=lambda n: OWNER_BY_SOURCE.get(n, n),
+                            k=MAX_ARTICLES_PER_EVENT, min_per_lean=MIN_PER_LEAN)
     # Phase 22C: optional direct-URL metadata enrichment for thin/empty article
     # summaries (source_enrichment.py). Additive only - articles.summary itself is
     # never touched; this returns a derived, in-memory string only, and only for
