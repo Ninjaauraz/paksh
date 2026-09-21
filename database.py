@@ -274,7 +274,15 @@ def select_unclustered_window(rows, limit=3000, per_source=60, rated_first=True,
     if max_age_hours:
         from datetime import datetime, timedelta
         cutoff = ((now or datetime.utcnow()) - timedelta(hours=max_age_hours)).isoformat()
-        rows = [r for r in rows if not r.get("fetched_at") or r["fetched_at"] >= cutoff]
+
+        def _fetched(r):
+            # rows are plain dicts in tests but sqlite3.Row in production (no .get, and a missing
+            # column raises IndexError, not KeyError) - a dict-only test once hid exactly this
+            try:
+                return r["fetched_at"]
+            except (KeyError, IndexError):
+                return None
+        rows = [r for r in rows if not _fetched(r) or _fetched(r) >= cutoff]
     if not rated_first:
         return _fair_take(rows, limit, per_source)
     is_rated = is_rated or (lambda s: False)

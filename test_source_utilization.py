@@ -115,6 +115,42 @@ check("A18: max_age_hours=0 turns the bound off",
       len(d.select_unclustered_window(aged, limit=10, is_rated=is_rated, now=NOW, max_age_hours=0)) == 4)
 check("A19: the bound is 72 hours by default", d.WINDOW_MAX_AGE_HOURS == 72)
 
+# The production path returns sqlite3.Row objects, not dicts. A dict-only version of this test once let
+# `r.get("fetched_at")` ship and crash cluster.py in the nightly run - so exercise the REAL query on an isolated DB.
+import shutil
+import sqlite3
+import tempfile
+from pathlib import Path
+_orig_path, _orig_init = d.DB_PATH, d._db_initialized
+_tmp = tempfile.mkdtemp()
+d.DB_PATH, d._db_initialized = Path(_tmp) / "window_test.db", False
+try:
+    d.init_db()
+    for i in range(6):
+        d.insert_article("The Hindu" if i % 2 == 0 else "The Indian Express", "en", f"Story number {i} about topic{i}",
+                         f"https://x.test/{i}", "an excerpt", "", "2026-09-20T00:00:00+00:00")
+    _c = sqlite3.connect(d.DB_PATH)
+    _c.execute("UPDATE articles SET fetched_at='2020-01-01T00:00:00' WHERE id=1")     # one stale row
+    _c.commit(); _c.close()
+    _rc = None
+    try:
+        got = d.get_unclustered_articles(limit=100, per_source=60)
+        _rc = True
+    except Exception as e:                                                          # noqa: BLE001
+        print("   raised:", type(e).__name__, e)
+        got = []
+    check("A20: get_unclustered_articles runs on the real sqlite3.Row query path (no exception)", _rc is True)
+    check("A21: it returns plain dicts carrying fetched_at, and drops the stale row (5 of 6)",
+          len(got) == 5 and all(type(r) is dict and "fetched_at" in r for r in got) and 1 not in {r["id"] for r in got})
+    _cn = sqlite3.connect(d.DB_PATH); _cn.row_factory = sqlite3.Row
+    _rows = _cn.execute("SELECT id, source, fetched_at FROM articles ORDER BY fetched_at DESC").fetchall()
+    _cn.close()
+    check("A22: real sqlite3.Row rows go through the recency filter and the fair take",
+          {r["id"] for r in d.select_unclustered_window(_rows, limit=10, is_rated=lambda s: True)} == {2, 3, 4, 5, 6})
+finally:
+    d.DB_PATH, d._db_initialized = _orig_path, _orig_init
+    shutil.rmtree(_tmp, ignore_errors=True)
+
 # ---------------------------------------------------------------- B. source selection
 print("\n=== B: prompt source selection ===")
 OWN = lambda n: {"TOI": "Times", "NBT": "Times", "HT": "HT", "Mint": "HT"}.get(n, n)
