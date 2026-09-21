@@ -228,6 +228,22 @@ check("Q10 provenance path article -> outlet -> reporting event -> origin", prov
 check("summary counts independent origins separately from articles", g.summary()["articles"] == 3 and g.summary()["independent_origins"] >= 1)
 conn.close()
 
+print("\nTEST 11: pipeline integration is non-fatal and bounded")
+import database as _db
+_orig = _db.get_connection
+_db.get_connection = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("disk unplugged"))
+try:
+    out = si.run_cycle_step()
+finally:
+    _db.get_connection = _orig
+check("11a: run_cycle_step swallows any failure and reports it", isinstance(out, dict) and "disk unplugged" in out.get("error", ""))
+import subprocess, sys as _sys
+import refresh
+check("11b: the step is registered as OPTIONAL (after analyze), so it can never stop a cycle",
+      any(s == "story_intelligence.py" for _, s, *_a in refresh.OPTIONAL_AFTER_ANALYZE) and all(s != "story_intelligence.py" for _, s in refresh.STEPS))
+r_ = subprocess.run([_sys.executable, "-c", "import refresh; refresh.run_optional('x','nonexistent_script_zzz.py')"], capture_output=True, text=True)
+check("11c: an optional step that fails does not raise or exit non-zero", r_.returncode == 0 and "continuing without it" in r_.stdout, r_.stdout + r_.stderr)
+
 print()
 if FAILURES:
     print(f"FAILED: {len(FAILURES)} check(s): {FAILURES}")

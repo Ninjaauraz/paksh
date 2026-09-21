@@ -888,6 +888,10 @@ def run_cycle_step(days=14, limit=200, budget_s=180):
 
 
 if __name__ == "__main__":
+    import sys
+    if "--cycle" in sys.argv:                 # the pipeline step: bounded, prints a one-line summary, ALWAYS exits 0
+        print("story_intelligence:", run_cycle_step())
+        sys.exit(0)
     import argparse
     import database
     ap = argparse.ArgumentParser(description="Story Intelligence: derive independence / developments / claims for recent stories.")

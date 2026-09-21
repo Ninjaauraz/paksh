@@ -36,6 +36,12 @@ STEPS = [
     ("Exporting static site",    "export_static.py"),
 ]
 
+# Optional steps: derive extra data (never publishes anything, never changes the site). If one fails or is slow the
+# cycle carries on - they are never allowed to block ingest / analyse / export. Inserted right after "Summaries + topics".
+OPTIONAL_AFTER_ANALYZE = [
+    ("Story intelligence (optional)", "story_intelligence.py", "--cycle"),
+]
+
 
 def run(title: str, script: str) -> None:
     print(f"\n=== {title}  ({script}) ===", flush=True)
@@ -47,6 +53,18 @@ def run(title: str, script: str) -> None:
               f"Stopping so nothing half-built gets published.", flush=True)
         sys.exit(result.returncode)
     print(f"[OK] {script} done in {elapsed:.0f}s", flush=True)
+
+
+def run_optional(title: str, script: str, *args: str) -> None:
+    """Like run(), but a failure is reported and swallowed: the pipeline continues."""
+    print(f"\n=== {title}  ({script}) ===", flush=True)
+    started = time.time()
+    try:
+        result = subprocess.run([sys.executable, str(ROOT / script), *args], cwd=str(ROOT), timeout=600)
+        note = "done" if result.returncode == 0 else f"FAILED (exit {result.returncode}) - continuing without it"
+    except Exception as e:                                        # noqa: BLE001 - must never stop the cycle
+        note = f"FAILED ({type(e).__name__}: {e}) - continuing without it"
+    print(f"[optional] {script} {note} after {time.time() - started:.0f}s", flush=True)
 
 
 def main() -> None:
@@ -65,6 +83,9 @@ def main() -> None:
     start = time.time()
     for title, script in steps:
         run(title, script)
+        if script == "analyze.py":
+            for t, s, *a in OPTIONAL_AFTER_ANALYZE:
+                run_optional(t, s, *a)
 
     total = time.time() - start
     print(f"\n[DONE] Pipeline finished in {total:.0f}s. _site/ is rebuilt.")
