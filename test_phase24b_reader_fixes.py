@@ -65,7 +65,8 @@ events_json = json.loads((SITE / "data" / "events.json").read_text(encoding="utf
 exported_ids = {e["id"] for e in events_json["events"]}
 check("F2a: event 16001 (grab-bag: crosswords/Wordle/TV listings) absent from the exported feed",
       16001 not in exported_ids)
-conn = sqlite3.connect(ROOT / "paksh.db")
+import paksh_paths
+conn = sqlite3.connect(paksh_paths.db_path())
 row = conn.execute("SELECT COUNT(*) FROM events WHERE id=16001").fetchone()
 check("F2b: event 16001 absent from the database", row[0] == 0)
 for legit_id in (8798, 8672):

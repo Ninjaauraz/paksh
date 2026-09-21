@@ -27,6 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
+import paksh_paths                        # noqa: E402
 import sources as S                       # noqa: E402
 import source_selection as SS             # noqa: E402
 
@@ -174,7 +175,7 @@ def section_gate(c, days):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--db", default=str(ROOT / "paksh.db"))
+    ap.add_argument("--db", default=str(paksh_paths.db_path()))
     ap.add_argument("--stories", type=int, default=500)
     ap.add_argument("--since", default=None, help="admission window start (ISO date); default: 7 days ago")
     ap.add_argument("--gate-days", type=int, default=14, help="days of stories for the completeness-gate section")

@@ -12,7 +12,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "paksh.db"
+import paksh_paths
+
+# Where the database lives is decided by paksh_paths (default: <repo>/paksh.db, exactly as before; a machine can
+# point it at another drive via %LOCALAPPDATA%\Paksh\data_dir.txt). Kept as a module attribute because tests re-point it.
+DB_PATH = paksh_paths.db_path()
 LEAN_ORDER = ["left", "center", "right"]
 
 # Paksh perf phase 4C: main.py no longer calls init_db() eagerly at startup when
@@ -27,6 +31,11 @@ _db_initialized = False
 
 def get_connection():
     global _db_initialized
+    if not _db_initialized:
+        # Once per process, BEFORE the first connect: if a data directory is configured but its database is missing
+        # (card unplugged / drive letter changed), stop loudly - sqlite3.connect would otherwise happily create an
+        # empty database there and the pipeline would publish from nothing. No-op in the default layout and in tests.
+        paksh_paths.require_ready(DB_PATH)
     # timeout=30: without a busy-timeout, the moment ANOTHER process holds the write lock
     # (reframe/analyze/live all touch paksh.db), the very next commit raises
     # "database is locked" instantly. This makes a would-be writer WAIT up to 30s instead.

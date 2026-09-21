@@ -56,8 +56,10 @@ import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
+import paksh_paths
+
 ROOT = Path(__file__).resolve().parent
-BACKUP_DIR = ROOT / "backups"
+BACKUP_DIR = paksh_paths.backup_dir()      # where backup_db.py writes (default <repo>/backups; see paksh_paths.py)
 CHUNK = 4 * 1024 * 1024                    # plaintext bytes per encrypted chunk
 TAG = 16                                   # AES-GCM tag
 MAGIC = b"PKBK1\n"

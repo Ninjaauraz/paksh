@@ -20,7 +20,9 @@ import time
 import ai_providers          # side effect: loads GEMINI_API_KEY from ai_keys.env
 import relationship_judgment as rj
 
-DB = "paksh.db"
+import paksh_paths
+
+DB = str(paksh_paths.db_path())
 
 
 def fetch(eid):

@@ -43,7 +43,8 @@ def _sha256(path: Path):
 
 
 def _db_counts():
-    p = ROOT / "paksh.db"
+    import paksh_paths
+    p = paksh_paths.db_path()
     if not p.exists():
         return {"available": False}
     try:

@@ -51,10 +51,12 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import paksh_paths
+
 ROOT = Path(__file__).parent
-DB_PATH = ROOT / "paksh.db"
-BACKUP_DIR = ROOT / "backups"
-LOG_PATH = ROOT / "backup_log.txt"
+DB_PATH = paksh_paths.db_path()          # default <repo>/paksh.db; another drive if configured (paksh_paths.py)
+BACKUP_DIR = paksh_paths.backup_dir()    # default <repo>/backups; <data dir>/backups/daily if configured
+LOG_PATH = ROOT / "backup_log.txt"       # stays in the repo so a missing data drive can still be reported
 NAME_PREFIX = "paksh_backup_"
 NAME_SUFFIX = ".db"
 
@@ -79,7 +81,7 @@ def _backup_name(ts: datetime.datetime) -> str:
 def take_backup() -> Path:
     """Runs sqlite3's native hot-backup API. Returns the path to the new file.
     Raises on failure (caller decides what to do)."""
-    BACKUP_DIR.mkdir(exist_ok=True)
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)   # parents: <data dir>/backups/daily may not exist yet
     dest = BACKUP_DIR / _backup_name(datetime.datetime.now())
     src_conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True, timeout=30)
     dst_conn = sqlite3.connect(dest)
