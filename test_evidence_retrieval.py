@@ -2,6 +2,7 @@
 test_evidence_retrieval.py - bounded, polite, fail-closed evidence retrieval (fetch policy, extraction, cache, budget).
 No network: a fake session stands in for requests. Temp SQLite only. Run:  py test_evidence_retrieval.py
 """
+import ipaddress
 import sqlite3
 import tempfile
 from datetime import timedelta
@@ -195,6 +196,32 @@ check("5k: allow_fetch=False never touches the network", x4 == "NO_FETCH:fetchin
 st = ev.cache_stats(conn)
 check("5l: cache statistics are available", st["rows"] >= 4 and st["extracted_ok"] >= 1)
 conn.close()
+
+print("\nTEST 6: address guard (public / private / NAT64)")
+ip = ipaddress.ip_address
+check("6a: ordinary public IPv4 / IPv6 are allowed", ev._ip_is_public(ip("151.101.208.81")) and ev._ip_is_public(ip("2606:4700::1111")))
+check("6b: private, loopback, link-local, metadata-service addresses are refused",
+      not any(ev._ip_is_public(ip(x)) for x in ("10.0.0.5", "192.168.1.1", "172.16.0.9", "127.0.0.1", "169.254.169.254", "::1", "fe80::1", "fc00::1", "0.0.0.0")))
+check("6c: NAT64 (64:ff9b::/96) of a PUBLIC IPv4 is allowed (this network resolves everything that way)", ev._ip_is_public(ip("64:ff9b::9765:d051")))
+check("6d: NAT64 / IPv4-mapped forms of a PRIVATE IPv4 are still refused", not ev._ip_is_public(ip("64:ff9b::a00:5")) and not ev._ip_is_public(ip("64:ff9b::7f00:1")) and not ev._ip_is_public(ip("::ffff:10.0.0.5")))
+
+print("\nTEST 7: extraction hygiene")
+LIVE = "<html><head><title>India News Live Updates: today's top stories</title></head><body><article>" + "<p>" + ("Ten different things happened across the country today and each of them gets a paragraph here. " * 5) + "</p></article></body></html>"
+check("7a: a live blog / ticker page is 'not_article' (never evidence for one story)", ev.extract_article(LIVE, "https://x.test/live-updates/today")["status"] == "not_article")
+MARK = ("<html><head><script type='application/ld+json'>{\"@type\":\"NewsArticle\",\"articleBody\":\"<p>The minister <a href='x'>announced</a> a new scheme on Sunday. " + "It will cover every district. " * 12 + "</p>\"}</script></head></html>")
+xm = ev.extract_article(MARK)
+check("7b: markup inside a JSON-LD articleBody is stripped", xm["status"] == "ok" and "<" not in xm["text"] and "announced a new scheme" in xm["text"])
+check("7c: the extractor version is bumped when extraction changes", ev.EXTRACTOR_VERSION == "ev-extract-3")
+
+print("\nTEST 8: encoding and paywall boilerplate")
+UTF = "<html><article><p>" + ("The president said the country’s ‘new’ plan would cover every district and every village by the end of the year. " * 4) + "</p></article></html>"
+ev._robots.clear()
+r = ev.fetch_page("https://daily.test/a/1", session=Session({ROB: Resp(404), "https://daily.test/a/1": Resp(200, UTF.encode("utf-8"), {"Content-Type": "text/html"})}))
+check("8a: UTF-8 without a charset header is decoded as UTF-8 (no mojibake)", r.status == "ok" and "’" in r.html and "â" not in r.html)
+PAY = "<html><article><p>Save now on essential digital access to trusted journalism on any device. Savings based on annual price plans.</p><p>" + ("Real reporting about the fund and what it plans to sell in the coming months, according to the manager. " * 4) + "</p></article></html>"
+xp = ev.extract_article(PAY)
+check("8b: subscription / paywall promo lines are dropped, the real paragraph stays", "Save now" not in xp["text"] and "Real reporting" in xp["text"])
+check("8c: a page that is ONLY a paywall promo is not usable evidence", ev.extract_article("<html><article><p>Save now on essential digital access to trusted journalism. Discover all the plans currently available in your country today.</p></article></html>")["status"] in ("empty", "short"))
 
 print()
 if FAILURES:

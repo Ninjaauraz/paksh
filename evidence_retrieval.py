@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
-EXTRACTOR_VERSION = "ev-extract-1"
+EXTRACTOR_VERSION = "ev-extract-3"
 USER_AGENT = "Mozilla/5.0 (compatible; PakshBot/1.0; +https://paksh.news)"     # same identity as source_enrichment.py
 
 # ---- limits (small on purpose; see docs/PHASE11 for how they were chosen) ----
@@ -73,6 +73,21 @@ def is_eligible_url(url):
     return True, None
 
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _ip_is_public(ip):
+    """Public-address test. IPv6 forms that merely CARRY an IPv4 address (NAT64 64:ff9b::/96, IPv4-mapped ::ffff:a.b.c.d) are judged
+    by that embedded IPv4 - some networks (this one) resolve every public host through NAT64, and those must not be mistaken for
+    private space."""
+    if ip.version == 6:
+        if ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        elif ip in _NAT64:
+            ip = ipaddress.ip_address(int(ip) & 0xFFFFFFFF)
+    return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified)
+
+
 def _host_is_public(host):
     """Reject loopback / private / link-local / reserved addresses (literals and anything the name resolves to)."""
     try:
@@ -81,10 +96,10 @@ def _host_is_public(host):
         return False
     for info in infos:
         try:
-            ip = ipaddress.ip_address(info[4][0])
+            ip = ipaddress.ip_address(info[4][0].split("%")[0])
         except ValueError:
             return False
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+        if not _ip_is_public(ip):
             return False
     return bool(infos)
 
@@ -156,6 +171,29 @@ class FetchResult:
 
 _BOT_MARKERS = re.compile(r"(cf-chl|just a moment\.\.\.|attention required|captcha|access denied|are you a robot|"
                           r"enable javascript and cookies|please verify you are (a )?human)", re.I)
+
+
+def _decode(body, r):
+    """requests guesses ISO-8859-1 for text/html WITHOUT a charset header, which turns UTF-8 apostrophes into mojibake. Honour an
+    explicit charset; otherwise try UTF-8 first, then the statistical detector, then latin-1."""
+    ctype = (r.headers.get("Content-Type") or "").lower()
+    if "charset=" in ctype:
+        try:
+            return body.decode(ctype.split("charset=")[1].split(";")[0].strip(" '\""), errors="replace")
+        except (LookupError, ValueError):
+            pass
+    try:
+        return body.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    try:
+        import charset_normalizer
+        best = charset_normalizer.from_bytes(body).best()
+        if best is not None:
+            return str(best)
+    except Exception:
+        pass
+    return body.decode("latin-1", errors="replace")
 
 
 def fetch_page(url, session=None, deadline_s=FETCH_DEADLINE_S):
@@ -240,7 +278,7 @@ def fetch_page(url, session=None, deadline_s=FETCH_DEADLINE_S):
                     res.status, res.error_class = "failed", "deadline"
                     return res
             res.nbytes = len(body)
-            text = body.decode(r.encoding or "utf-8", errors="replace")
+            text = _decode(body, r)
             if _BOT_MARKERS.search(text[:4000]) and len(text) < 40_000:
                 res.status, res.error_class, res.ttl = "blocked", "bot_protection_or_interstitial", TTL_BLOCKED
                 return res
@@ -262,9 +300,15 @@ def fetch_page(url, session=None, deadline_s=FETCH_DEADLINE_S):
 _SKIP_TAGS = {"script", "style", "nav", "header", "footer", "aside", "form", "noscript", "svg", "iframe", "button", "select", "template"}
 _SKIP_ATTR = re.compile(r"(^|[\s_-])(ad|ads|advert\w*|cookie\w*|consent|banner|promo\w*|related|recommend\w*|newsletter|share|social|"
                         r"comment\w*|subscribe\w*|paywall|sidebar|breadcrumb\w*|menu|widget|popup|modal)($|[\s_-])", re.I)
-_BOILER = re.compile(r"(read more|also read|follow us|subscribe|sign up|share this|all rights reserved|copyright|advertisement|"
-                     r"click here|download the app|whatsapp|join our|terms of use|privacy policy|cookie|©)", re.I)
+_BOILER = re.compile(r"(read more|also read|follow us|subscribe|subscription|sign up|sign in|log in to|already a subscriber|share this|"
+                     r"all rights reserved|copyright|advertisement|click here|download the app|whatsapp|join our|terms of use|"
+                     r"privacy policy|cookie|digital access|save now|free app|breaking news email|live blog for latest|unlock|"
+                     r"premium content|register to read|©)", re.I)
 _VOID = {"br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "param", "source", "track", "wbr"}
+
+
+_LIVEBLOG = re.compile(r"(live (updates|blog|coverage|stream|tracker)|liveblog|share price|stock price|latest news today|top headlines)", re.I)
+_LIVEBLOG_URL = re.compile(r"(/live[-/]|-live-|/liveblog|live-updates|/live$)", re.I)
 
 
 class _Extractor(HTMLParser):
@@ -368,12 +412,12 @@ def extract_article(html_text, url=None):
         for a in arts:
             b = a.get("articleBody")
             if isinstance(b, str) and len(" ".join(b.split())) >= MIN_USABLE_TEXT:
-                body, method = " ".join(_html.unescape(b).split()), "json-ld:articleBody"
+                body, method = " ".join(_html.unescape(re.sub(r"<[^>]+>", " ", b)).split()), "json-ld:articleBody"    # bodies often carry markup
                 break
         if not body:
             paras = ex.p_article if sum(map(len, ex.p_article)) >= MIN_USABLE_TEXT else ex.p_all
             body, method = " ".join(paras), ("dom:article-paragraphs" if paras is ex.p_article else "dom:paragraphs")
-        body = body[:MAX_TEXT]
+        body = " ".join(re.sub(r"<[^>]+>", " ", body).split())[:MAX_TEXT]
         if body and len(body) == MAX_TEXT and " " in body:
             body = body[:body.rfind(" ")]
         pub = None
@@ -384,6 +428,9 @@ def extract_article(html_text, url=None):
             au = a.get("author")
             author = author or (au[0].get("name") if isinstance(au, list) and au and isinstance(au[0], dict) else au.get("name") if isinstance(au, dict) else au if isinstance(au, str) else None)
         status = "ok" if len(body) >= MIN_USABLE_TEXT else ("short" if body else "empty")
+        title_l = (ex.meta.get("og:title") or ex.title or "").lower()
+        if status == "ok" and (_LIVEBLOG.search(title_l) or (url and _LIVEBLOG_URL.search(url))):
+            status = "not_article"                          # live blogs / ticker pages cover many stories: never evidence for one
         return {"status": status, "title": (ex.meta.get("og:title") or " ".join(ex.title.split()) or "")[:300], "text": body,
                 "canonical_url": ex.canonical or ex.meta.get("og:url"), "publisher": pub or ex.meta.get("og:site_name"),
                 "author": author if isinstance(author, str) else None,
