@@ -459,6 +459,10 @@ CREATE INDEX IF NOT EXISTS idx_si_evidence_updated ON si_evidence(updated_at);
 
 def init_evidence_schema(conn):
     conn.executescript(_SCHEMA)
+    have = {r[1] for r in conn.execute("PRAGMA table_info(si_evidence)")}
+    for col, decl in (("url_source", "TEXT DEFAULT 'ORIGINAL'"), ("original_url", "TEXT")):     # Phase 12 provenance: which URL was really fetched
+        if col not in have:
+            conn.execute(f"ALTER TABLE si_evidence ADD COLUMN {col} {decl}")
     conn.commit()
 
 
@@ -504,7 +508,7 @@ def cache_state(row, now=None):
     return "FAILED_FRESH" if (exp is not None and exp > now) else "FAILED_EXPIRED"
 
 
-def store(conn, article_id, url, fetch, extracted=None, now=None):
+def store(conn, article_id, url, fetch, extracted=None, now=None, url_source="ORIGINAL", original_url=None):
     """Write the outcome of one attempt. A failure NEVER replaces a good previous extraction: it only records the attempt."""
     now = now or _now()
     old = cache_get(conn, article_id)
@@ -521,12 +525,12 @@ def store(conn, article_id, url, fetch, extracted=None, now=None):
     chash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:24] if text else None
     conn.execute(
         "INSERT OR REPLACE INTO si_evidence (article_id, url, canonical_url, final_url, status, extraction_status, http_status, title, text, "
-        "content_hash, extractor_version, fetched_at, expires_at, error_class, attempts, last_attempt_at, last_error, nbytes, updated_at) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "content_hash, extractor_version, fetched_at, expires_at, error_class, attempts, last_attempt_at, last_error, nbytes, updated_at, "
+        "url_source, original_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (article_id, url, ex.get("canonical_url"), fetch.final_url, fetch.status, ex.get("status") if fetch.status == "ok" else None,
          fetch.http_status, (ex.get("title") or None) if got_good else None, text, chash, EXTRACTOR_VERSION,
          _iso(now) if fetch.status == "ok" else None, _iso(now + fetch.ttl), fetch.error_class or (None if got_good else ex.get("status")),
-         attempts, _iso(now), None, fetch.nbytes, _iso(now)))
+         attempts, _iso(now), None, fetch.nbytes, _iso(now), url_source, original_url))
     conn.commit()
     return "stored" if got_good else "stored_failure"
 
@@ -567,13 +571,21 @@ class FetchBudget:
 
 
 def get_evidence(conn, article, budget=None, story_id=None, session=None, allow_fetch=True):
-    """article: dict with id, url. -> (row_or_None, action) where action is one of
+    """article: dict with id, url and optionally publisher_url (a VERIFIED real publisher URL recovered by publisher_url.py for a
+    news.google.com wrapper article). The stored url is used when it is fetchable; otherwise the verified publisher_url, recorded as
+    url_source='PUBLISHER_URL' with the original url kept. A wrapper URL is never fetched.
+    -> (row_or_None, action) where action is one of
     CACHE_HIT | CACHED_FAILURE | FETCHED_OK | FETCHED_FAILED | NO_FETCH:<reason>.  Never raises; never fetches the same
     url twice inside its TTL; a failed re-fetch keeps the previous good text."""
     try:
         init_evidence_schema(conn)
         aid, url = article["id"], article.get("url")
+        original, url_source = url, "ORIGINAL"
         ok, why = is_eligible_url(url)
+        if not ok and article.get("publisher_url"):
+            ok2, _ = is_eligible_url(article["publisher_url"])
+            if ok2:
+                url, url_source, ok = article["publisher_url"], "PUBLISHER_URL", True
         if not ok:
             return None, f"NO_FETCH:{why}"
         row = cache_get(conn, aid)
@@ -592,7 +604,7 @@ def get_evidence(conn, article, budget=None, story_id=None, session=None, allow_
         if budget is not None:
             budget.charge(res, story_id)
         ex = extract_article(res.html, url) if res.status == "ok" else None
-        store(conn, aid, url, res, ex)
+        store(conn, aid, url, res, ex, url_source=url_source, original_url=original)
         row = cache_get(conn, aid)
         return (row if usable_text(row) else None), ("FETCHED_OK" if usable_text(row) and res.status == "ok" else "FETCHED_FAILED")
     except Exception as e:                                        # noqa: BLE001

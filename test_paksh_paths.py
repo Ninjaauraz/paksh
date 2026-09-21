@@ -114,6 +114,39 @@ try:
     reset()
     check("6c: with nothing configured, backup_db defaults resolve to today's layout",
           pp.backup_dir() == pp.ROOT / "backups" and pp.db_path() == pp.ROOT / "paksh.db")
+    print("\nTEST 7: storage status and backup free-space guard (Phase 12B)")
+    reset(PAKSH_DATA_DIR=str(data))
+    st = pp.storage_status()
+    check("7a: storage_status reports configured / exists / free space and never creates anything", st["configured"] and st["guard_active"] and st["free_bytes"] and not (TMP / "Paksh_Data" / "x").exists())
+    check("7b: it flags a stale repo copy of paksh.db next to the code while a data dir is configured", "ambiguous_repo_copy" in st and st["repo_db_present"] == (pp.ROOT / "paksh.db").exists())
+    reset()
+    check("7c: unconfigured -> guard_active False", pp.storage_status()["guard_active"] is False)
+    import shutil as _sh
+    import backup_db as _bk
+    _fix = TMP / "space.db"
+    _c = sqlite3.connect(_fix)
+    _c.execute("CREATE TABLE events (id INTEGER PRIMARY KEY)")
+    _c.execute("CREATE TABLE articles (id INTEGER PRIMARY KEY)")
+    _c.execute("INSERT INTO events VALUES (1)")
+    _c.execute("INSERT INTO articles VALUES (1)")
+    _c.commit()
+    _c.close()
+    _o = (_bk.DB_PATH, _bk.BACKUP_DIR, _bk.LOG_PATH, _sh.disk_usage)
+    _bk.DB_PATH, _bk.BACKUP_DIR, _bk.LOG_PATH = _fix, TMP / "bk", TMP / "bk.log"
+    _sh.disk_usage = lambda p: type("U", (), {"free": 10})()
+    _sys_argv = __import__("sys").argv
+    __import__("sys").argv = ["backup_db.py"]
+    try:
+        try:
+            _bk.main()
+            _refused = False
+        except SystemExit as e:
+            _refused = e.code == 1
+    finally:
+        _bk.DB_PATH, _bk.BACKUP_DIR, _bk.LOG_PATH, _sh.disk_usage = _o
+        __import__("sys").argv = _sys_argv
+    check("7d: a backup that cannot fit is refused BEFORE writing anything", _refused and not (TMP / "bk").exists())
+
 finally:
     for k, v in _saved.items():
         if v is None:

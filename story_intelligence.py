@@ -946,13 +946,15 @@ def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
-def input_signature(rows, evidence=None):
+def input_signature(rows, evidence=None, extra=None):
     """Story input fingerprint. Includes a hash of the fetched evidence used (if any), so a story is re-processed when its
     evidence arrives or changes, and only then."""
     h = hashlib.sha256()
     h.update(ENGINE_VERSION.encode())
     if evidence:
         h.update(b"|ev:" + evidence_hash(evidence).encode() + b":" + EVIDENCE_LOGIC_VERSION.encode())
+    if extra:                                              # e.g. verified publisher urls (Phase 12): they change what may be fetched
+        h.update(b"|x:" + json.dumps(sorted(extra.items()), default=str).encode())
     for r in sorted(rows, key=lambda r: r["id"]):
         h.update(f"|{r['id']}:{r['source']}:{r.get('title') or ''}:{r.get('published') or ''}".encode("utf-8", "replace"))
     return h.hexdigest()[:24]

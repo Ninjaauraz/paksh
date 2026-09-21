@@ -163,6 +163,17 @@ def main():
         _log(f"BACKUP FAILED - {DB_PATH} does not exist.")
         sys.exit(1)
 
+    # Refuse to start a backup that cannot fit: a card that fills mid-backup leaves a partial file and starves the live database.
+    import shutil
+    need = int(DB_PATH.stat().st_size * 1.2) + 1_000_000_000
+    try:
+        free = shutil.disk_usage(BACKUP_DIR if BACKUP_DIR.exists() else BACKUP_DIR.parent if BACKUP_DIR.parent.exists() else ROOT).free
+    except OSError:
+        free = None
+    if free is not None and free < need:
+        _log(f"BACKUP FAILED - not enough free space at {BACKUP_DIR} ({free / 1e9:.1f} GB free, need {need / 1e9:.1f} GB). Nothing was written.")
+        sys.exit(1)
+
     started = datetime.datetime.now()
     try:
         dest = take_backup()

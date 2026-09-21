@@ -153,8 +153,13 @@ def scan_and_enqueue(conn, days=DEFAULT_SCAN_DAYS, limit=DEFAULT_SCAN_LIMIT, max
     now = now or _now()
     since = _iso(now - timedelta(days=days))
     has_ev = conn.execute("SELECT 1 FROM sqlite_master WHERE name='si_evidence'").fetchone() is not None
-    ev_col = ("EXISTS(SELECT 1 FROM si_evidence v JOIN articles a2 ON a2.id = v.article_id WHERE a2.event_id = e.id AND v.updated_at > s.computed_at) AS ev_new"
-              if has_ev else "0 AS ev_new")
+    has_pu = conn.execute("SELECT 1 FROM sqlite_master WHERE name='article_publisher_url'").fetchone() is not None
+    ev_parts = []
+    if has_ev:
+        ev_parts.append("EXISTS(SELECT 1 FROM si_evidence v JOIN articles a2 ON a2.id = v.article_id WHERE a2.event_id = e.id AND v.updated_at > s.computed_at)")
+    if has_pu:                                       # a newly verified publisher URL can make an article fetchable
+        ev_parts.append("EXISTS(SELECT 1 FROM article_publisher_url u JOIN articles a3 ON a3.id = u.article_id WHERE a3.event_id = e.id AND u.status = 'VERIFIED_SIBLING' AND u.verified_at > s.computed_at)")
+    ev_col = ("(" + " OR ".join(ev_parts) + ") AS ev_new") if ev_parts else "0 AS ev_new"
     counts, queued = {}, 0
     ev_on = 1 if evidence_enabled(conn) else 0
     rows = conn.execute(_SCAN_SQL.format(ev_col=ev_col), (since, si.ENGINE_VERSION, ev_on, si.EVIDENCE_LOGIC_VERSION, si.TRIGGER_ELIGIBLE_MIN_OWNERS, limit)).fetchall()
@@ -282,7 +287,9 @@ def process_one(conn, eid, rows, owner_of, pub_names, budget=None, allow_fetch=F
     if len(rows) < 2:
         return {"outcome": "too_small"}
     evidence = _cached_evidence(conn, [r["id"] for r in rows])
-    sig = si.input_signature(rows, evidence)
+    import publisher_url as pu
+    pubmap = pu.lookup(conn, [r["id"] for r in rows if (r.get("url") or "").startswith(pu.WRAPPER_PREFIX)])
+    sig = si.input_signature(rows, evidence, pubmap)
     st = conn.execute("SELECT engine_version, input_sig, stats_json FROM si_story_state WHERE event_id=?", (eid,)).fetchone()
     plan_done = True
     if allow_fetch and st:
@@ -299,12 +306,13 @@ def process_one(conn, eid, rows, owner_of, pub_names, budget=None, allow_fetch=F
     plan_info = {"decisions": {}, "actions": {}}
     if allow_fetch and budget is not None:
         urls = {r["id"]: r.get("url") for r in rows}
+        pub = pubmap                                                                                       # verified real URLs (Phase 12)
         plan, decisions = si.plan_evidence(result, urls)
         plan_info["decisions"] = decisions
         fetched_new = False
         by_id = {r["id"]: r for r in rows}
         for aid, why in plan:
-            row, action = er.get_evidence(conn, {"id": aid, "url": urls.get(aid)}, budget=budget, story_id=eid)
+            row, action = er.get_evidence(conn, {"id": aid, "url": urls.get(aid), "publisher_url": pub.get(aid)}, budget=budget, story_id=eid)
             key = action.split(":")[0] if action.startswith("NO_FETCH") else action
             plan_info["actions"][action if action.startswith("NO_FETCH") else key] = plan_info["actions"].get(action if action.startswith("NO_FETCH") else key, 0) + 1
             t = er.usable_text(row)
@@ -312,7 +320,7 @@ def process_one(conn, eid, rows, owner_of, pub_names, budget=None, allow_fetch=F
                 evidence[aid] = t
                 fetched_new = True
         if fetched_new:
-            sig = si.input_signature(rows, evidence)
+            sig = si.input_signature(rows, evidence, pubmap)
             result = si.analyze_story(rows, owner_of, pub_names, evidence=evidence)
     if allow_fetch:                                       # only a story that was actually planned is marked planned
         plan_info["logic"] = si.EVIDENCE_LOGIC_VERSION
@@ -384,9 +392,14 @@ def run_cycle(limit=200, budget_s=180, scan_days=DEFAULT_SCAN_DAYS, scan_limit=D
             init_queue_schema(conn)
             if is_paused(conn):
                 return {"paused": True}
+            try:
+                import publisher_url as pu
+                pu_stats = pu.recover_recent(conn, days=3)             # cheap, deterministic, additive (Phase 12)
+            except Exception as e:                                       # noqa: BLE001 - never blocks the queue
+                pu_stats = {"error": f"{type(e).__name__}: {e}"}
             scan = scan_and_enqueue(conn, days=scan_days, limit=scan_limit)
             proc = process_queue(conn, limit=limit, budget_s=budget_s)
-            return {"scan": scan, "process": proc, "queue": queue_counts(conn)}
+            return {"publisher_url": pu_stats, "scan": scan, "process": proc, "queue": queue_counts(conn)}
         finally:
             conn.close()
     except Exception as e:                                            # noqa: BLE001

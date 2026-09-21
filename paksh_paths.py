@@ -83,6 +83,36 @@ def describe():
             "backup_dir": str(backup_dir()), "config_file": str(config_file()) if config_file() else None}
 
 
+def storage_status(path=None):
+    """Read-only health report for the configured data location (Phase 12B): what it is, whether it is removable, how full,
+    and whether anything could silently fall back to the repository copy. Never creates anything."""
+    import shutil
+    d = configured_data_dir()
+    db = db_path()
+    out = {"configured": d is not None, "data_dir": str(d) if d else None, "db_path": str(db), "data_dir_exists": bool(d and Path(d).exists()) if d else True,
+           "db_exists": db.exists(), "db_bytes": db.stat().st_size if db.exists() else None,
+           "repo_db_present": (ROOT / DB_NAME).exists(), "filesystem": None, "removable": None, "free_bytes": None}
+    root = os.path.splitdrive(str(d if d else ROOT))[0] + "\\"
+    try:
+        out["free_bytes"] = shutil.disk_usage(str(d) if d and Path(d).exists() else str(ROOT)).free
+    except OSError:
+        pass
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        out["removable"] = k.GetDriveTypeW(root) == 2                       # DRIVE_REMOVABLE
+        fs = ctypes.create_unicode_buffer(32)
+        if k.GetVolumeInformationW(root, None, 0, None, None, None, fs, 32):
+            out["filesystem"] = fs.value
+    except Exception:
+        pass
+    # The guard (require_ready) stops every process when a configured location is unavailable. The one situation in which a fallback
+    # could be mistaken for the live database is a stale copy of paksh.db sitting next to the code while a data dir is configured.
+    out["guard_active"] = d is not None
+    out["ambiguous_repo_copy"] = bool(d is not None and out["repo_db_present"])
+    return out
+
+
 def _same(a, b):
     return os.path.normcase(os.path.abspath(str(a))) == os.path.normcase(os.path.abspath(str(b)))
 
@@ -106,3 +136,14 @@ def require_ready(path=None):
         raise DataDirError(
             f"Paksh data directory {d} exists but the database {target} is missing. Refusing to create an empty database. "
             f"Restore it from {backup_dir(d)}, or set PAKSH_ALLOW_NEW_DB=1 to create a new one on purpose.")
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+    if "--check" in sys.argv:
+        st = storage_status()
+        print(json.dumps(st, indent=1))
+        bad = (st["configured"] and not (st["data_dir_exists"] and st["db_exists"])) or st["ambiguous_repo_copy"]
+        sys.exit(1 if bad else 0)
+    print(json.dumps(describe(), indent=1))
