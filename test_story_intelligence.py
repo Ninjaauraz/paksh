@@ -282,6 +282,54 @@ check("5h: 'media reports say' is a secondhand cue (ATTRIBUTED_REPETITION)",
 check("5k: numbers keep their value through unit suffixes and formatting", si.numbers_in("Pay 260mn") == si.numbers_in("Pay 260 Million") and "75" in si.numbers_in("75th anniversary") and si.numbers_in("$5K") == si.numbers_in("$5,000"))
 check("5j: an outlet's own name is not a 'new fact'", "hindu" not in si.analyze_story([art(1, "NDTV", "Fire in Delhi", published="2026-09-20T08:00:00"), art(2, "The Hindu", "Fire in Delhi says The Hindu BusinessLine 7", published="2026-09-20T09:00:00")], owner_of, NAMES)["articles"][1]["evidence"].get("novel_anchors", []))
 
+print("\nTEST 13: Phase 13 - information delta, tighter developments, same-event figures")
+rs13 = np.random.RandomState(13)
+b13 = rs13.randn(1024).astype("float32")
+b13 /= np.linalg.norm(b13)
+
+
+def near13(c):
+    o = rs13.randn(1024).astype("float32")
+    o -= o.dot(b13) * b13
+    o /= np.linalg.norm(o)
+    return (c * b13 + (1 - c * c) ** .5 * o).astype("float32")
+
+
+def delta_of(cos2, t2="Something else entirely about it"):
+    r = si.analyze_story([art(1, "NDTV", "Fire at chemical plant, rescue on", published="2026-09-20T08:00:00", vec=b13),
+                          art(2, "The Hindu", t2, published="2026-09-20T10:00:00", vec=near13(cos2))], owner_of, NAMES)
+    return r["articles"][1]["adds"], r["articles"][0]["adds"]
+
+
+d_hi, first = delta_of(0.90, "Blaze at chemical plant as rescue continues")
+d_lo, _ = delta_of(0.55, "Owner of the plant questioned by police over safety lapses")
+check("13a: the first article of a story has no 'adds' verdict (basis first_in_story)", first["adds_information"] is None and first["first_in_story"])
+check("13b: a restatement (high similarity to an earlier article) does NOT add information", d_hi["adds_information"] is False and d_hi["basis"] == "embedding")
+check("13c: distinct content (similarity < ADDS_COS) DOES add information, and the similarity is recorded", d_lo["adds_information"] is True and d_lo["max_similarity_to_earlier"] < si.ADDS_COS)
+r_nv = si.analyze_story([art(1, "NDTV", "Fire at chemical plant", published="2026-09-20T08:00:00"),
+                         art(2, "The Hindu", "Fire at chemical plant leaves 25 workers injured", published="2026-09-20T10:00:00")], owner_of, NAMES)["articles"][1]["adds"]
+check("13d: without vectors it falls back to figures/developments and says so", r_nv["basis"] == "figures_and_developments_no_vectors" and r_nv["adds_information"] is True)
+r_own = si.analyze_story([art(1, "NDTV", "Fire at chemical plant, rescue on", published="2026-09-20T08:00:00", vec=b13),
+                          art(2, "NDTV", "Owner of the plant questioned by police over safety lapses", published="2026-09-20T10:00:00", vec=near13(0.5))], owner_of, NAMES)["articles"][1]
+check("13e: information and independence are different axes: a same-publisher follow-up can add information and still be DERIVED/SAME_OWNER",
+      r_own["adds"]["adds_information"] is True and r_own["reason"] == "SAME_OWNER")
+cues = lambda t: si.find_dev_cues({"title": t})
+check("13f: descriptors and abbreviations are not developments ('convicted war criminal', 'SC-HC traffic', 'Seahawks HC', 'house arrest claim')",
+      not cues("Funeral of convicted war criminal Mladic") and not cues("SC-HC traffic plan for summit") and not cues("Seahawks HC gives update") and not cues("Iqra claims house arrest"))
+check("13g: real steps still are ('convicted of', 'Supreme Court strikes down', 'arrested', 'moves Supreme Court')",
+      "COURT_OR_LEGAL_ORDER" in cues("Man convicted of fraud") and "COURT_OR_LEGAL_ORDER" in cues("Supreme Court strikes down rules") and "ARREST" in cues("Man arrested in Delhi")
+      and "COURT_OR_LEGAL_ORDER" in cues("Mamata moves Supreme Court against EC decision"))
+check("13h: 'denied access' is not an official denial; roundups and live blogs never trigger", not cues("Journalists were denied access to the White House") and not cues("World in Brief: court rejects postal voting rules")
+      and not cues("India News Live Updates: two MLCs arrested"))
+check("13i: 'death toll rises to six, 11 rescued' reads 6 deaths, not 11", si.extract_claims({"title": "Delhi building collapse: Death toll rises to six, 11 rescued", "summary": ""})[0]["value"] == 6.0)
+fig_hi = si.analyze_story([art(1, "NDTV", "10 killed in fire at chemical plant in Gujarat", published="2026-09-20T08:00:00", fetched="2026-09-20T18:00:00", vec=b13),
+                           art(2, "The Hindu", "14 killed in fire at chemical plant in Gujarat", published="2026-09-20T14:00:00", fetched="2026-09-20T18:00:00", vec=near13(0.9))], owner_of, NAMES)
+fig_lo = si.analyze_story([art(1, "NDTV", "10 killed in fire at chemical plant in Gujarat", published="2026-09-20T08:00:00", fetched="2026-09-20T18:00:00", vec=b13),
+                           art(2, "The Hindu", "14 killed in fire at chemical plant in Gujarat", published="2026-09-20T14:00:00", fetched="2026-09-20T18:00:00", vec=near13(0.4))], owner_of, NAMES)
+check("13j: tallies are compared only when the two articles are clearly the same event (cos >= FIGURE_SAME_EVENT_COS)",
+      any(x[0] == "UPDATES" for x in fig_hi["relationships"]) and not any(x[0] in ("UPDATES", "CONTRADICTS") for x in fig_lo["relationships"]))
+check("13k: the engine version records these rule changes", si.ENGINE_VERSION == "si-3")
+
 print("\nTEST 12: evidence-aware evaluation (fetched article text)")
 LEDE_A = ("The chemical plant on the outskirts of the city caught fire early on Monday morning and rescue teams were rushed to the spot "
           "where dozens of workers were reportedly trapped inside the burning building while the district administration sealed the area.")

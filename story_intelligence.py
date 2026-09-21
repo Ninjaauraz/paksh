@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
-ENGINE_VERSION = "si-2"           # si-2: adds evidence provenance columns + evidence-aware evaluation; with no evidence the verdicts are exactly si-1's
+ENGINE_VERSION = "si-3"           # si-3: figure edges need the same event, tighter development cues, information_delta; evidence logic unchanged
 MAX_ARTICLES = 80            # a story larger than this is analysed on its 80 earliest articles (bounded work)
 
 INDEPENDENT = "INDEPENDENT"
@@ -266,7 +266,7 @@ CUMULATIVE = {"deaths", "injured", "arrested", "missing"}      # tolls only ever
 _CLAIM_PATTERNS = [
     ("deaths", re.compile(_N + r"\s+(?:people\s+|persons\s+|passengers\s+|workers\s+|devotees\s+)?(?:were\s+|are\s+)?(?:killed|dead|died|dies|lost their lives)\b", re.I)),
     ("deaths", re.compile(r"\b(?:kills?|killing|killed)\s+(?:at least\s+|over\s+)?" + _N + r"\b", re.I)),
-    ("deaths", re.compile(r"death toll[^\d]{0,30}" + _N, re.I)),
+    ("deaths", re.compile(r"death toll\s+(?:(?:rises|climbs|reaches|hits|now|at|to|of|up to|stands at|jumps to|swells to)\s+){0,3}" + _N, re.I)),
     ("deaths", re.compile(r"(\d[\d,]*)\s*(?:लोगों\s*)?की\s*मौत")),
     ("injured", re.compile(_N + r"\s+(?:people\s+|persons\s+)?(?:were\s+|are\s+)?(?:injured|hurt|wounded)\b", re.I)),
     ("injured", re.compile(r"(\d[\d,]*)\s*(?:लोग\s*)?घायल")),
@@ -277,6 +277,42 @@ _CLAIM_PATTERNS = [
     ("percent", re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|per\s?cent|percent)", re.I)),
     ("seats", re.compile(r"\b(\d{1,3})\s+seats\b", re.I)),
 ]
+
+
+# ---- who says it? (claim attribution, Phase 15) -------------------------------------------------------------------------------
+# The kind of source a headline/excerpt attributes a figure to. Deterministic, headline level, and deliberately coarse:
+# PUBLISHER_ASSERTION means the text states the figure with NO named source (the publisher says it), which is different from
+# "officials say it". None of these is a statement that the figure is true.
+_ATTRIB_TYPES = [
+    ("POLICE", r"police|cops|constabulary|highway patrol"),
+    ("MILITARY", r"army|military|IDF|Pentagon|defen[cs]e (?:ministry|forces|department)|armed forces|air force|navy|command"),
+    ("HEALTH_AUTHORITY_OR_MEDICS", r"health (?:ministry|officials|department|authorit\w+)|medics|doctors|paramedics|hospital(?: officials)?|civil defen[cs]e"),
+    ("EMERGENCY_SERVICES", r"rescuers?|emergency services|fire (?:brigade|department|service)|firefighters"),
+    ("STATE_MEDIA", r"state (?:media|tv|television|news agency)|iranian media|xinhua|official news agency|local media"),
+    ("INTERNATIONAL_BODY", r"UN|United Nations|WHO|Red Cross|Red Crescent|UNICEF|NGO|charity|watchdog|monitor"),
+    ("OFFICIAL", r"officials?|authorities|government|minister|governor|mayor|president|spokesperson|spokesman|ministry|administration|prosecutors?|court|commissioner|chief|secretary"),
+    ("DOCUMENT_OR_STUDY", r"report|study|survey|data|census|poll|analysis|figures|statement|filing|documents?"),
+    ("SOURCES_OR_MEDIA_REPORT", r"sources|media reports?|reportedly|newspaper|local reports?|eyewitness(?:es)?|witnesses|residents"),
+]
+_ATTRIB_VERB = r"(?:say|says|said|told|according to|reports?|reported|confirm(?:s|ed)?|announce[sd]?|state[sd]?|show(?:s|ed)?|find(?:s|ings)?|estimate[sd]?|cite[sd]?|per)"
+_ATTRIB_RXS = [(t, re.compile(r"(?:\b(?:" + a + r")\b\s+" + _ATTRIB_VERB + r"\b)|(?:\b" + _ATTRIB_VERB + r"\s+(?:the\s+)?(?:" + a + r")\b)|(?:[:,\-–—]\s*(?:" + a + r")\s*(?:\|.*)?$)", re.I))
+               for t, a in _ATTRIB_TYPES]
+
+
+_NAMED_SPEAKER = re.compile(r"\b([A-Z][A-Za-z'’.-]{2,}(?: [A-Z][A-Za-z'’.-]{2,}){0,2}) (?:says|said|claims|claimed|announced|confirmed|warns|warned|alleges)\b")
+
+
+def claim_attribution(text):
+    """-> {'type': one of the taxonomy or 'PUBLISHER_ASSERTION', 'cue': matched text}. First matching type in taxonomy order."""
+    t = (text or "")
+    for typ, rx in _ATTRIB_RXS:
+        m = rx.search(t)
+        if m:
+            return {"type": typ, "cue": m.group(0).strip()[:60]}
+    m = _NAMED_SPEAKER.search(t)
+    if m:
+        return {"type": "NAMED_PARTY", "cue": m.group(0).strip()[:60], "speaker": m.group(1)}
+    return {"type": "PUBLISHER_ASSERTION", "cue": ""}
 
 
 def extract_claims(a):
@@ -297,7 +333,7 @@ def extract_claims(a):
         if key == "percent" and val > 100:
             continue
         seen.add(key)
-        out.append({"key": key, "value": val, "span": text[max(0, m.start() - 20):m.end() + 20].strip()})
+        out.append({"key": key, "value": val, "span": text[max(0, m.start() - 20):m.end() + 20].strip(), "attribution": claim_attribution(text)})
     return out
 
 
@@ -305,7 +341,7 @@ def extract_claims(a):
 # Extensible taxonomy: name -> compiled cue. A development is a cue present in an article and absent from every earlier
 # article of the story. Keep cues specific: a vague word (say, announce) would turn ordinary coverage into "developments".
 DEVELOPMENT_TYPES = {}          # name -> (strict cue that can TRIGGER a development, lenient cue used to decide "was it already there?")
-_NOT_A_CHANGE = re.compile(r"^(?:opinion|analysis|editorial|explained|watch|live)\b|\?|\b(?:calls? for|call for|demands?|urges?|could|may|might|would|"
+_NOT_A_CHANGE = re.compile(r"^(?:opinion|analysis|editorial|explained|watch|live)\b|world in brief|live updates|morning rundown|newsletter|roundup|top headlines|\bkey numbers\b|\?|\b(?:calls? for|call for|demands?|urges?|could|may|might|would|"
                            r"if|plans? to|set to|likely to|threatens?|seeks?|pleads?|what (?:is|are|to)|why|how)\b[^.]{0,40}$"
                            r"|(?:कब|क्या|कैसे|क्यों|जानें)", re.I)
 
@@ -314,20 +350,23 @@ def register_development_type(name, patterns, seen_patterns=None):
     DEVELOPMENT_TYPES[name] = (re.compile("|".join(patterns), re.I), re.compile("|".join(seen_patterns or patterns), re.I))
 
 
-register_development_type("ARREST", [r"\barrest(?:ed|s)?\b", r"\bnabbed\b", r"\btaken into custody\b", r"गिरफ्तार", r"हिरासत में"],
-                          [r"\barrest", r"\bnabbed\b", r"\bcustody\b", r"\bheld\b", r"\bdetain", r"\bcaught\b", r"गिरफ्तार", r"हिरासत", r"पकड़"])
+register_development_type("ARREST", [r"(?<!house )\barrest(?:ed|s)?\b", r"\bnabbed\b", r"\btaken into custody\b", r"गिरफ्तार", r"हिरासत में"],
+                          [r"\barrest", r"\bnabbed\b", r"\bcustody\b", r"\bheld\b", r"\bdetain", r"\bcaught\b", r"\bextradit", r"गिरफ्तार", r"हिरासत", r"पकड़"])
 register_development_type("RESIGNATION_OR_REMOVAL", [r"\bresign(?:s|ed|ation)?\b", r"\bsacked\b", r"\bdismissed from\b", r"\bremoved as\b", r"\bsuspended\b",
                                                       r"इस्तीफ", r"बर्खास्त", r"निलंबित"],
                           [r"\bresign", r"\bquits?\b", r"\bstep(?:s|ped)? down\b", r"\bsack", r"\bremov", r"\bsuspen", r"\boust", r"इस्तीफ", r"बर्खास्त", r"निलंबित"])
-register_development_type("COURT_OR_LEGAL_ORDER", [r"\b(?:high|supreme) court\b(?! must)", r"\b(?:SC|HC)\b", r"\bcourt (?:orders|directs|stays|quashes|rejects|dismisses|grants|refuses)\b",
-                                                    r"\bbail\b", r"\bconvicted\b", r"\bsentenced\b", r"\bverdict\b", r"\bjudge (?:blocks|rules|orders|sets)\b",
-                                                    r"जमानत", r"दोषी", r"सजा सुनाई", r"हाईकोर्ट", r"सुप्रीम कोर्ट"],
-                          [r"\bcourt\b", r"\b(?:SC|HC)\b", r"\bjudge", r"\bbail\b", r"\bconvict", r"\bsentenc", r"\bverdict", r"\bruling\b", r"\bblocks\b", r"जमानत",
-                           r"दोषी", r"सजा", r"कोर्ट", r"अदालत"])
+_COURT_VERB = r"(?:orders?|directs?|stays?|quash\w*|rejects?|dismiss\w*|grants?|refus\w*|upholds?|strikes? down|sets? aside|rules?|denies|allows?|clears?|issues?|bars?|blocks?|halts?)"
+register_development_type("COURT_OR_LEGAL_ORDER", [r"\b(?:high|supreme) court\b[^.]{0,40}?\b" + _COURT_VERB + r"\b", r"\b(?:moves|approaches|petitions) (?:the )?(?:high|supreme) court\b", r"\bcourt (?:orders|directs|stays|quashes|rejects|dismisses|grants|refuses)\b",
+                                                    r"\bbail (?:granted|denied|refused|plea)\b", r"\b(?:grants|gets|secures|denies|refuses) (?:interim |default |anticipatory )?bail\b",
+                                                    r"\bconvicted (?:of|in|on)\b", r"\bconvicts\b", r"\bsentenced\b", r"\bjudge (?:blocks|rules|orders|sets)\b",
+                                                    r"जमानत", r"सजा सुनाई", r"हाईकोर्ट ने", r"सुप्रीम कोर्ट ने"],
+                          [r"\bcourt\b", r"\b(?:SC|HC)\b", r"\bjudge", r"\bbail\b", r"\bconvict", r"\bsentenc", r"\bjail", r"\bprotection\b", r"\bverdict", r"\bruling\b", r"\bblocks\b",
+                           r"\bstrikes? down\b", r"\bstay", r"जमानत", r"दोषी", r"सजा", r"कोर्ट", r"अदालत"])
 register_development_type("INVESTIGATION_LAUNCHED", [r"\bFIR\b", r"\bprobe (?:ordered|launched|begins)\b", r"\b(?:orders|ordered|launches|launched) (?:a )?(?:probe|inquiry|investigation)\b",
                                                       r"\bSIT\b", r"\bCBI\b", r"\braid(?:s|ed)?\b", r"मामला दर्ज", r"जांच के आदेश", r"छापेमारी"],
                           [r"\bFIR\b", r"\bprobe\b", r"\binquiry\b", r"\binvestigat", r"\bSIT\b", r"\bCBI\b", r"\braid", r"\bcase (?:registered|filed)\b", r"मामला दर्ज", r"जांच", r"छापे"])
-register_development_type("OFFICIAL_DENIAL_OR_CLARIFICATION", [r"\bdenies\b", r"\bdenied\b", r"\brejects claim\b", r"\bclarif(?:ies|ied)\b", r"\bapolog(?:ise|ises|ised|ize|izes|ized)\b",
+_NOT_CLAIM = r"(?!\s+(?:access|entry|bail|permission|visa|request|petition|appeal|juror))"
+register_development_type("OFFICIAL_DENIAL_OR_CLARIFICATION", [r"\bdenies\b" + _NOT_CLAIM, r"\bdenied\b" + _NOT_CLAIM, r"\brejects claim\b", r"\bclarif(?:ies|ied)\b", r"\bapolog(?:ise|ises|ised|ize|izes|ized)\b",
                                                                 r"खंडन", r"सफाई दी", r"माफी"],
                           [r"\bden(?:y|ies|ied|ial)\b", r"\bclarif", r"\bapolog", r"\bdismisses claim", r"खंडन", r"सफाई", r"माफी"])
 register_development_type("POLICY_OR_FORMAL_DECISION", [r"\bcabinet (?:approves|clears|okays)\b", r"\bnotif(?:ies|ied)\b", r"(?<!calls for )(?<!call for )\b(?:bans|banned|banning)\b",
@@ -444,8 +483,8 @@ def evidence_hash(evidence):
 
 _FETCHED_WIRE_TAGS = "PTI|ANI|IANS|UNI|Reuters|AFP|AP|Bloomberg|Associated Press"
 _FETCHED_DATELINE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ,.'-]{2,60}\((" + _FETCHED_WIRE_TAGS + r")\)")
-_FETCHED_CITED = re.compile(r"(?:according to|reported by|told|said|via|news agency|agency)\s+(" + _FETCHED_WIRE_TAGS + r")")
-_FETCHED_DASH = re.compile(r"\s[-–—]\s?(PTI|ANI|IANS|UNI)")
+_FETCHED_CITED = re.compile(r"(?:according to|reported by|told|said|via|news agency|agency)\s+(" + _FETCHED_WIRE_TAGS + r")\b")
+_FETCHED_DASH = re.compile(r"\s[-–—]\s?(PTI|ANI|IANS|UNI)\b")
 _QUOTED_SPAN = re.compile("[“\"][^”\"]{0,600}[”\"]")
 
 
@@ -587,6 +626,46 @@ def plan_evidence(result, urls, cached_ids=()):
             seen.add(aid)
             ordered.append((aid, why))
     return ordered, decisions
+
+
+FIGURE_SAME_EVENT_COS = 0.75  # two claims are only compared when their articles are clearly about the same event
+ADDS_COS = 0.70      # an article adds information when it is NOT a restatement of anything earlier: max cosine to earlier articles < 0.70
+
+
+def information_delta(arts, roles, developments):
+    """What does each article ADD to what the story already said (headline + excerpt level)? -> {article_id: dict}.
+    Measured (docs/PHASE13): the best deterministic signal is SEMANTIC novelty - the highest embedding cosine to any earlier article
+    of the story is below ADDS_COS (precision 0.82 / recall 0.69 / accuracy 0.80 against 108 hand-judged articles; figure-novelty
+    alone was 0.61 / 0.69 / 0.67, so figures and entities are reported but are not the decision).
+    Without cached vectors the flag falls back to 'a new figure >= 10 (not a year) or a new development type' and says so (basis).
+    This is independent of the independence classes: a same-publisher follow-up can add information and still be DERIVED/SAME_OWNER.
+    Nothing here says anything is true; it says the text contains something earlier articles' text did not."""
+    out, seen_nums, seen_ent = {}, set(), {}
+    dev_by_article = {}
+    for d in developments:
+        dev_by_article.setdefault(d["trigger_article_id"], []).append(d["type"])
+    earlier = []
+    for a in arts:
+        nums = sorted(x for x in a.anchors if x[0].isdigit() and x not in seen_nums)
+        ents_seen = seen_ent.setdefault(a.language, set())
+        ents = sorted(x for x in a.anchors if not x[0].isdigit() and x not in ents_seen)
+        devs = sorted(set(dev_by_article.get(a.id, [])))
+        first = not earlier
+        sims = [c for c in (_cos(e.vec, a.vec) for e in earlier) if c is not None]
+        maxsim = max(sims) if sims else None
+        big = [f for f in nums if float(f) >= 10 and not (1900 <= float(f) <= 2100)]
+        if first:
+            adds, basis = None, "first_in_story"
+        elif maxsim is not None:
+            adds, basis = maxsim < ADDS_COS, "embedding"
+        else:
+            adds, basis = bool(big or devs), "figures_and_developments_no_vectors"
+        out[a.id] = {"adds_information": adds, "basis": basis, "max_similarity_to_earlier": round(maxsim, 3) if maxsim is not None else None,
+                     "figures": nums[:6], "entities": ents[:6], "dev_types": devs, "first_in_story": first}
+        seen_nums |= {x for x in a.anchors if x[0].isdigit()}
+        ents_seen |= {x for x in a.anchors if not x[0].isdigit()}
+        earlier.append(a)
+    return out
 
 
 def analyze_story(rows, owner_of=None, publisher_names=None, evidence=None):
@@ -792,7 +871,8 @@ def analyze_story(rows, owner_of=None, publisher_names=None, evidence=None):
     claims = []
     for a in arts:
         for c in extract_claims(a.d()):
-            claims.append({"article_id": a.id, "key": c["key"], "value": c["value"], "span": c["span"], "reporting_event_root": ev_of[a.id]})
+            claims.append({"article_id": a.id, "key": c["key"], "value": c["value"], "span": c["span"], "reporting_event_root": ev_of[a.id],
+                           "attribution": c["attribution"]["type"], "attribution_cue": c["attribution"]["cue"]})
     relationships, developments = [], []
     for key in sorted(CUMULATIVE):
         groups = {}
@@ -804,10 +884,11 @@ def analyze_story(rows, owner_of=None, publisher_names=None, evidence=None):
         run_v = seq[0]
         for v in seq[1:]:
             ea, la = by_id[groups[run_v][0]], by_id[groups[v][0]]
-            if ea.language != la.language and (_cos(ea.vec, la.vec) or 0) < 0.75:
-                continue
-            if ea.language == la.language and len(ea.toks & la.toks) < 2:
-                continue                                       # not demonstrably about the same thing
+            cc = _cos(ea.vec, la.vec)
+            if cc is not None and cc < FIGURE_SAME_EVENT_COS:
+                continue                                       # two tallies of different events inside one grab-bag story
+            if cc is None and (ea.language != la.language or len(ea.toks & la.toks) < 3):
+                continue                                       # no vectors: needs clear textual overlap
             if min(v, run_v) >= 100 and abs(v - run_v) / max(v, run_v) < 0.05:
                 continue                                       # 903 vs '900 mark': rounding, not a different figure
             amb = _ambiguous(ea, la)
@@ -882,9 +963,10 @@ def analyze_story(rows, owner_of=None, publisher_names=None, evidence=None):
              "contradictions": sum(1 for r in relationships if r[0] == "CONTRADICTS"),
              "distinct_owners": len({a.owner for a in arts}),
              "evidence_used": len(ev_notes["used"]), "evidence_changed": len(ev_notes["changed"])}
+    delta = information_delta(arts, roles, developments)
     return {"articles": [{"id": a.id, "source": a.source, "owner": a.owner, "language": a.language, "title": a.title,
                           "published": a.published or None, "fetched_at": a.fetched_at or None, "order_time": a.order.isoformat(),
-                          "order_basis": a.basis, **roles[a.id]} for a in arts],
+                          "order_basis": a.basis, "adds": delta[a.id], **roles[a.id]} for a in arts],
             "reporting_events": reporting_events, "developments": developments, "claims": claims,
             "relationships": relationships, "stats": stats, "evidence_notes": ev_notes}
 
