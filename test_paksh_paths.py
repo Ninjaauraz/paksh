@@ -147,6 +147,65 @@ try:
         __import__("sys").argv = _sys_argv
     check("7d: a backup that cannot fit is refused BEFORE writing anything", _refused and not (TMP / "bk").exists())
 
+    print("\nTEST 8: fail CLOSED when configuration cannot be determined at all (2026-09-22 fix)")
+    # 8a/8b: LOCALAPPDATA itself unavailable - the exact condition behind the incident.
+    for k in _saved:
+        os.environ.pop(k, None)
+    check("8a: config_file() is None when LOCALAPPDATA is unset", pp.config_file() is None)
+    check("8b: configured_data_dir() still reads as 'nothing configured' (unchanged for ordinary callers)",
+          pp.configured_data_dir() is None)
+    check("8c: db_path() still resolves to the in-repo default (unchanged - db_path() itself never fails)",
+          pp.db_path() == pp.ROOT / "paksh.db")
+    check("8d: require_ready() now FAILS instead of silently no-op'ing",
+          raises(lambda: pp.require_ready(pp.db_path())))
+    os.environ["PAKSH_ALLOW_NEW_DB"] = "1"
+    check("8e: PAKSH_ALLOW_NEW_DB=1 remains the explicit escape hatch even here",
+          pp.require_ready(pp.db_path()) is None)
+    os.environ.pop("PAKSH_ALLOW_NEW_DB")
+    check("8f: describe() reports the specific reason (no_localappdata), not just 'unconfigured'",
+          pp.describe()["config_resolution"] == pp._NO_ENV)
+
+    # 8g/8h: config file exists but cannot be read (simulated: point LOCALAPPDATA at a
+    # location where the "file" is actually a directory, so reading it raises OSError).
+    os.environ["LOCALAPPDATA"] = str(TMP / "localappdata_unreadable")
+    unreadable_cfg = pp.config_file()
+    unreadable_cfg.parent.mkdir(parents=True)
+    unreadable_cfg.mkdir()   # a directory where a file is expected -> read_text() raises OSError
+    check("8g: describe() reports config_unreadable, not 'unconfigured'",
+          pp.describe()["config_resolution"] == pp._UNREADABLE)
+    check("8h: require_ready() fails closed for an unreadable config file too",
+          raises(lambda: pp.require_ready(pp.db_path())))
+    os.environ.pop("LOCALAPPDATA", None)
+
+    print("\nTEST 9: database.get_connection() also fails closed when LOCALAPPDATA is unavailable, "
+          "and does NOT create a repo-local database even if a stray one already exists")
+    for k in _saved:
+        os.environ.pop(k, None)
+    stray = TMP / "stray_repo_paksh.db"
+    sqlite3.connect(stray).close()   # simulate a pre-existing stray repo-local paksh.db
+    orig2 = database.DB_PATH, database._db_initialized
+    database.DB_PATH = stray
+    database._db_initialized = False
+    check("9a: get_connection() raises rather than silently opening the stray local DB",
+          raises(lambda: database.get_connection()))
+    database.DB_PATH, database._db_initialized = orig2
+
+    print("\nTEST 10: explicit dev/test mode is unaffected - PAKSH_ALLOW_NEW_DB=1 still works "
+          "even with no LOCALAPPDATA at all, and a temp/test DB_PATH is still exempt")
+    for k in _saved:
+        os.environ.pop(k, None)
+    os.environ["PAKSH_ALLOW_NEW_DB"] = "1"
+    check("10a: PAKSH_ALLOW_NEW_DB=1 + no LOCALAPPDATA -> still a no-op (deliberate dev/test)",
+          pp.require_ready(pp.db_path()) is None)
+    os.environ.pop("PAKSH_ALLOW_NEW_DB")
+    # a configured-but-mismatched path (the tests/temp-DB exemption) must still work even
+    # when a REAL external data dir is configured and reachable.
+    reset(PAKSH_DATA_DIR=str(data))
+    (data / "database").mkdir(parents=True, exist_ok=True)
+    sqlite3.connect(data / "database" / "paksh.db").close()
+    check("10b: a real configured+ready external dir still exempts an unrelated temp DB path",
+          pp.require_ready(TMP / "some_other_fixture.db") is None)
+
 finally:
     for k, v in _saved.items():
         if v is None:

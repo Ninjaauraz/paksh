@@ -42,23 +42,47 @@ def config_file():
     return Path(base) / "Paksh" / CONFIG_NAME if base else None
 
 
-def _read_config_file(path):
+_NO_ENV = "no_localappdata"          # LOCALAPPDATA itself unavailable - cannot even locate the config file
+_UNREADABLE = "config_unreadable"    # config file exists but could not be read (permissions, I/O error, ...)
+_NOT_CONFIGURED = "not_configured"   # environment checked fine; genuinely nothing configured here
+_CONFIGURED = "configured"           # a data dir value was found (env var or config file)
+
+
+def _resolve_config():
+    """How the configured data directory would be determined, distinguishing
+    'checked and there's genuinely nothing configured' (_NOT_CONFIGURED - the normal,
+    fine default for a fresh checkout/CI/dev machine) from 'could not check at all'
+    (_NO_ENV / _UNREADABLE). configured_data_dir() collapses all three "nothing found"
+    cases to None because most callers only care whether something is configured.
+    require_ready() is the one caller that must NOT make that collapse: silently
+    treating "could not check" the same as "nothing configured" is exactly how a
+    production run can fall back to, and silently create, a repo-local paksh.db while
+    a real external database sits unused elsewhere (2026-09-22 incident - both of one
+    day's live.py cycles forked into a fresh repo-local paksh.db this way). Returns
+    (status, value_or_None)."""
+    env_val = (os.environ.get("PAKSH_DATA_DIR") or "").strip()
+    if env_val:
+        return _CONFIGURED, env_val
+    cf = config_file()
+    if cf is None:
+        return _NO_ENV, None
+    if not cf.exists():
+        return _NOT_CONFIGURED, None
     try:
-        for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                return line
+        text = cf.read_text(encoding="utf-8-sig")
     except OSError:
-        pass
-    return None
+        return _UNREADABLE, None
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            return _CONFIGURED, line
+    return _NOT_CONFIGURED, None
 
 
 def configured_data_dir():
-    """The configured data directory as a Path, or None (= the default in-repo layout)."""
-    val = (os.environ.get("PAKSH_DATA_DIR") or "").strip()
-    if not val:
-        cf = config_file()
-        val = _read_config_file(cf) if cf else None
+    """The configured data directory as a Path, or None (= the default in-repo layout).
+    See _resolve_config() for the finer-grained status require_ready() actually needs."""
+    _, val = _resolve_config()
     return Path(val) if val else None
 
 
@@ -78,18 +102,23 @@ def archive_dir(data_dir=None):
 
 
 def describe():
-    d = configured_data_dir()
+    status, val = _resolve_config()
+    d = Path(val) if val else None
     return {"configured": d is not None, "data_dir": str(d) if d else None, "db_path": str(db_path()),
-            "backup_dir": str(backup_dir()), "config_file": str(config_file()) if config_file() else None}
+            "backup_dir": str(backup_dir()), "config_file": str(config_file()) if config_file() else None,
+            "config_resolution": status}
 
 
 def storage_status(path=None):
     """Read-only health report for the configured data location (Phase 12B): what it is, whether it is removable, how full,
     and whether anything could silently fall back to the repository copy. Never creates anything."""
     import shutil
-    d = configured_data_dir()
+    status, val = _resolve_config()
+    d = Path(val) if val else None
     db = db_path()
-    out = {"configured": d is not None, "data_dir": str(d) if d else None, "db_path": str(db), "data_dir_exists": bool(d and Path(d).exists()) if d else True,
+    out = {"configured": d is not None, "config_resolution": status,
+           "config_could_not_be_determined": status in (_NO_ENV, _UNREADABLE),
+           "data_dir": str(d) if d else None, "db_path": str(db), "data_dir_exists": bool(d and Path(d).exists()) if d else True,
            "db_exists": db.exists(), "db_bytes": db.stat().st_size if db.exists() else None,
            "repo_db_present": (ROOT / DB_NAME).exists(), "filesystem": None, "removable": None, "free_bytes": None}
     root = os.path.splitdrive(str(d if d else ROOT))[0] + "\\"
@@ -118,16 +147,39 @@ def _same(a, b):
 
 
 def require_ready(path=None):
-    """Raise DataDirError if a data directory is configured and the database that `path` names is missing.
-    Does nothing when no data directory is configured, or when `path` is not the configured database (tests point
-    database.DB_PATH at a temp file), or when PAKSH_ALLOW_NEW_DB=1."""
-    d = configured_data_dir()
-    if d is None or os.environ.get("PAKSH_ALLOW_NEW_DB") == "1":
+    """Raise DataDirError if:
+      (a) an external data directory IS configured and the database `path` names is
+          missing (the original guard - card unplugged, drive letter changed), or
+      (b) whether one is configured cannot be determined AT ALL - LOCALAPPDATA is
+          unavailable in this process's environment, or its config file exists but
+          could not be read. Silently treating (b) the same as "nothing configured"
+          is exactly how a production run falls back to, and sqlite3 silently
+          CREATES, a repo-local paksh.db while the real external database sits
+          untouched elsewhere - forking production data with no error at all
+          (2026-09-22 incident: both of one day's live.py cycles did exactly this).
+    Does nothing when PAKSH_ALLOW_NEW_DB=1 (the explicit, deliberate opt-in for a
+    fresh local/dev/test run with no external storage configured), when the
+    environment genuinely has nothing configured (today's normal in-repo layout -
+    case (b) above is NOT this), or when `path` is not the configured database
+    (tests/temp DBs point database.DB_PATH elsewhere)."""
+    if os.environ.get("PAKSH_ALLOW_NEW_DB") == "1":
         return
+    status, val = _resolve_config()
+    if status in (_NO_ENV, _UNREADABLE):
+        raise DataDirError(
+            f"Cannot determine whether an external Paksh data directory is configured "
+            f"({status}): %LOCALAPPDATA%\\Paksh\\{CONFIG_NAME} could not be checked. "
+            f"Refusing to guess - silently defaulting here is exactly how a production "
+            f"run can fork into a repo-local paksh.db while the real database sits "
+            f"untouched. Set PAKSH_ALLOW_NEW_DB=1 if this is deliberately a fresh local "
+            f"run with no external storage configured.")
+    if status == _NOT_CONFIGURED:
+        return
+    d = Path(val)
     target = db_path(d)
     if path is not None and not _same(path, target):
         return
-    if not Path(d).exists():
+    if not d.exists():
         raise DataDirError(
             f"Paksh data directory {d} is configured (from {'PAKSH_DATA_DIR' if os.environ.get('PAKSH_DATA_DIR') else config_file()}) "
             f"but does not exist. Is the SD card / drive connected, and does it still have the same drive letter? "
@@ -144,6 +196,7 @@ if __name__ == "__main__":
     if "--check" in sys.argv:
         st = storage_status()
         print(json.dumps(st, indent=1))
-        bad = (st["configured"] and not (st["data_dir_exists"] and st["db_exists"])) or st["ambiguous_repo_copy"]
+        bad = (st["configured"] and not (st["data_dir_exists"] and st["db_exists"])) or st["ambiguous_repo_copy"] \
+            or st["config_could_not_be_determined"]
         sys.exit(1 if bad else 0)
     print(json.dumps(describe(), indent=1))
