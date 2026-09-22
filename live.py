@@ -26,6 +26,7 @@ import subprocess
 import sys
 import time
 import traceback
+from pathlib import Path
 
 import paksh_paths
 import runlocked
@@ -157,12 +158,45 @@ def _deploy():
          "  ! push failed - check GitHub Desktop sign-in / network")
 
 
+def _verify_production_db_identity():
+    """Phase 21-fix round 2 (2026-09-23): the 79-minutes-old live.py process that
+    caused the 457-event export guard trip proved that setting PAKSH_DATA_DIR once,
+    at process startup, is not enough on its own - a long-running process's
+    os.environ is fixed for its entire lifetime the moment main() finishes its
+    one-time setup, so a process already running when this fix was DEPLOYED never
+    picks it up, and every cycle it runs keeps inheriting the same stale (missing
+    PAKSH_DATA_DIR) environment into refresh.py -> ingest/cluster/analyze ->
+    export_static.py. That earlier chain still let the export-collapse guard catch
+    it, but only after burning a full ~28-minute cycle first. This re-verifies, at
+    the START of EVERY cycle (not just once at process launch), that this process's
+    environment resolves to EXACTLY the known production database path - not just
+    "some validated marker exists somewhere". Any mismatch is fatal: raises
+    SystemExit (a BaseException, so the loop's `except Exception` below does NOT
+    swallow it - this must stop the whole process, not just skip one cycle, since
+    a stale environment will stay stale for every future cycle too)."""
+    expected = Path(PRODUCTION_DATA_DIR) / "database" / paksh_paths.DB_NAME
+    try:
+        paksh_paths.require_ready(paksh_paths.db_path())
+    except paksh_paths.DataDirError as e:
+        _log(f"FATAL: production database identity check failed - {e}")
+        sys.exit(1)
+    actual = paksh_paths.db_path()
+    if actual != expected:
+        _log(f"FATAL: production database identity check failed - resolved DB_PATH "
+             f"{actual} does not match the expected production path {expected}. "
+             f"Refusing to ingest/cluster/analyze/export against an unverified "
+             f"database. This process's environment may predate a path-resolution "
+             f"fix (PAKSH_DATA_DIR={os.environ.get('PAKSH_DATA_DIR')!r}) - restart it.")
+        sys.exit(1)
+
+
 def cycle(deploy, backfill_n):
     stamp = datetime.datetime.now().strftime("%H:%M:%S")
     backend = os.environ.get("PAKSH_LLM_BACKEND", "ollama")
     started = time.monotonic()
     _log(f"\n=== cycle @ {stamp}  backend={backend} ===")
     _log("  cycle started")
+    _verify_production_db_identity()
 
     # Phase 25B-A: share the SAME .pipeline.lock the scheduled Task Scheduler
     # jobs use (via runlocked.py) for the whole DB-writing span of this cycle
@@ -215,13 +249,13 @@ def main():
 
     # Fail closed HERE, at startup, in the terminal someone is actually watching -
     # not silently, three subprocesses deep, the first time some child happens to
-    # touch the database. Same guard database.get_connection() already applies per
-    # process; checking it eagerly just surfaces a bad data directory immediately.
-    try:
-        paksh_paths.require_ready(paksh_paths.db_path())
-    except paksh_paths.DataDirError as e:
-        _log(f"FATAL: refusing to start - {e}")
-        sys.exit(1)
+    # touch the database. _verify_production_db_identity() is ALSO called at the
+    # top of every single cycle() (not just here, once) - a long-running process's
+    # environment never changes after this point, so a fix deployed while this
+    # process is already running would otherwise go undetected until this process
+    # is restarted; re-checking every cycle at least makes that failure immediate
+    # and cheap instead of a wasted ~28-minute cycle ending at the export guard.
+    _verify_production_db_identity()
     _log(f"Paksh data directory: {paksh_paths.describe()}")
 
     backend = os.environ.get("PAKSH_LLM_BACKEND", "ollama")
