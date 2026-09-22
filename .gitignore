@@ -22,6 +22,7 @@ paksh.db-shm
 # --- logs ---
 refresh_log.txt
 *.log
+gdelt_metrics.jsonl
 
 # --- python ---
 __pycache__/

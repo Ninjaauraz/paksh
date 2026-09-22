@@ -23,6 +23,8 @@ file (A20-A22 exercise the real sqlite3.Row query path); the real paksh.db is ne
 Run:  py test_source_utilization.py
 """
 import inspect
+import os
+import tempfile
 import urllib.error
 from collections import Counter
 
@@ -308,6 +310,9 @@ import time as _time
 _sleeps = []
 g.time.sleep = lambda s: _sleeps.append(s)                     # never really sleep in a test
 g.random.uniform = lambda a, b: 0.0
+g.gdelt_gate.wait_for_slot = lambda *a, **k: 0.0                # Phase 21C: gate has its own real-time/real-lock
+                                                                 # path; a unit test must never touch either
+g.METRICS_PATH = os.path.join(tempfile.mkdtemp(), "test_gdelt_metrics.jsonl")  # Phase 21D: never touch the real file
 
 
 class FakeResp:

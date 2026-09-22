@@ -4,6 +4,7 @@ insert_article() calls, differing only in WHEN rows are committed. Temp database
 
 Run:  py test_ingest_batching.py
 """
+import os
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -150,6 +151,8 @@ g._fetch = lambda q, timespan=None, **k: [{"i": i} for i in range(5)]
 g.normalize_gdelt = lambda art: {"source": "Reuters", "language": "en", "title": f"G{art['i']}", "url": f"https://g.test/{art['i'] % 4}", "summary": "s",
                                  "image_url": "", "published": "2026-09-20T00:00:00+00:00", "rated": True, "domain": "g.test"}
 g.SLEEP = 0
+g.gdelt_gate.wait_for_slot = lambda *a, **k: 0.0                 # Phase 21C: no real lock/sleep in a unit test
+g.METRICS_PATH = os.path.join(tempfile.mkdtemp(), "test_gdelt_metrics.jsonl")  # Phase 21D: never touch the real file
 pc = fresh("gd")
 added = g.run(queries=["q1", "q2"], verbose=False)
 rc, _ = rows_of(pc)
