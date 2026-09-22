@@ -30,6 +30,9 @@ REM force UTF-8 so Devanagari (Hindi) titles never crash a cp1252-redirected log
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 set PAKSH_LLM_BACKEND=gemini
+REM Phase 21-fix (2026-09-23): explicit, authoritative production data directory -
+REM see the matching comment in refresh_scheduled.bat.
+set PAKSH_DATA_DIR=D:\Paksh_Data
 echo. >> reframe_log.txt
 echo ===================================================== >> reframe_log.txt
 echo Run started:  %date% %time% >> reframe_log.txt

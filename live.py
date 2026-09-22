@@ -27,11 +27,28 @@ import sys
 import time
 import traceback
 
+import paksh_paths
 import runlocked
 
 PY = sys.executable
 CYCLE_MIN = 12
 BACKFILL_N = 100
+
+# Phase 21-fix (2026-09-23): live.py is Paksh's one production launcher (no scheduled
+# task or shortcut starts it - it is always run by hand in a terminal, per this
+# module's own docstring). Two incidents showed that letting every child process in
+# the chain (refresh.py -> ingest/gdelt/cluster/analyze -> backfill -> export_static)
+# independently re-derive the data directory from LOCALAPPDATA/data_dir.txt is
+# fragile: LOCALAPPDATA can be absent (2026-09-22) or simply resolve to something
+# that doesn't have data_dir.txt set up (2026-09-23) in whatever terminal happens to
+# be running it, and neither is visible until the wrong (repo-local) database has
+# already been used. So live.py now resolves the production data directory ONCE,
+# explicitly, here - not via LOCALAPPDATA - and every child inherits it as a normal
+# environment variable (subprocess.run() with no `env=` override already inherits
+# the parent's os.environ, which is how PAKSH_LLM_BACKEND/PAKSH_BACKEND below already
+# propagate). paksh_paths.require_ready() additionally requires a validated
+# production marker inside this directory before trusting it - see paksh_paths.py.
+PRODUCTION_DATA_DIR = r"D:\Paksh_Data"
 
 # Phase 25B-D: live.py previously printed to stdout only - if the terminal was
 # closed, or this ran headless with output not redirected, a crashed cycle at
@@ -190,6 +207,22 @@ def main():
     os.environ.setdefault("PAKSH_LLM_BACKEND", "pool")      # Groq/Gemini summary pool
     os.environ.setdefault("PAKSH_BACKEND", "cloudflare")    # Cloudflare bge-m3 embeddings
     os.environ.setdefault("PYTHONUTF8", "1")                # UTF-8 for child processes
+    # Explicit, authoritative production data directory - see PRODUCTION_DATA_DIR
+    # above. setdefault (not a plain assignment) so an operator who explicitly sets
+    # PAKSH_DATA_DIR themselves before running live.py (e.g. to point at a
+    # deliberately different location) is still respected.
+    os.environ.setdefault("PAKSH_DATA_DIR", PRODUCTION_DATA_DIR)
+
+    # Fail closed HERE, at startup, in the terminal someone is actually watching -
+    # not silently, three subprocesses deep, the first time some child happens to
+    # touch the database. Same guard database.get_connection() already applies per
+    # process; checking it eagerly just surfaces a bad data directory immediately.
+    try:
+        paksh_paths.require_ready(paksh_paths.db_path())
+    except paksh_paths.DataDirError as e:
+        _log(f"FATAL: refusing to start - {e}")
+        sys.exit(1)
+    _log(f"Paksh data directory: {paksh_paths.describe()}")
 
     backend = os.environ.get("PAKSH_LLM_BACKEND", "ollama")
     emb = os.environ.get("PAKSH_BACKEND", "ollama")

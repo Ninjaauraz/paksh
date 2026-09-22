@@ -24,6 +24,7 @@ locally:
 
 import html as _html
 import json
+import os
 import re
 import shutil
 import time
@@ -839,6 +840,52 @@ def _rename_safe(src: Path, dst: Path, attempts: int = 5, delay: float = 0.5):
     raise last_err
 
 
+class ExportCollapseError(RuntimeError):
+    """Raised when a fresh export would publish drastically fewer events than the
+    site currently live on disk - a second, independent guard against exactly the
+    failure mode that let a wrong (e.g. repo-local, forked) database silently
+    overwrite a healthy _site (2026-09-22/23 incidents: export_static.py itself was
+    never at fault, it faithfully exported whatever database.py handed it - this
+    guard assumes THAT could happen again despite the path-resolution fix, and
+    catches the symptom directly, independent of whatever caused it). Never
+    compares against a hard-coded expected count - only against whatever the
+    CURRENT live _site already has, so it stays correct as the real corpus grows
+    or shrinks over time."""
+
+
+EXPORT_MIN_RETENTION_FRACTION = 0.5   # a legitimate day's cleanup/consolidation never
+                                       # halves the publishable set in one run; a
+                                       # forked or empty database does
+
+
+def _count_event_files(site_dir: Path) -> int:
+    events_dir = site_dir / "data" / "events"
+    if not events_dir.is_dir():
+        return 0
+    return sum(1 for _ in events_dir.glob("*.json"))
+
+
+def _check_export_plausible(new_count: int, final_dir: Path):
+    """Compare this build's publishable-event count against the count already on
+    disk in the LIVE _site (final_dir) - which is untouched until _publish_build()
+    runs, so it always holds exactly the previous successful export's own output.
+    Raises ExportCollapseError, and does nothing else, if that would be an abnormal
+    collapse. Skipped entirely when there is nothing yet to compare against (a
+    fresh checkout / first-ever build)."""
+    previous_count = _count_event_files(final_dir)
+    if previous_count == 0:
+        return
+    if new_count < previous_count * EXPORT_MIN_RETENTION_FRACTION:
+        raise ExportCollapseError(
+            f"export produced {new_count} publishable events, down from {previous_count} "
+            f"currently live ({new_count / previous_count:.0%} of the previous count) - "
+            f"a bigger drop than any legitimate single run should cause. This is exactly "
+            f"the shape of a database-path failure (e.g. a forked/empty repo-local "
+            f"paksh.db instead of the real one), not normal content churn. Aborting BEFORE "
+            f"touching the live _site. If this collapse is genuinely intended (e.g. a "
+            f"deliberate mass cleanup), rerun with PAKSH_ALLOW_EXPORT_COLLAPSE=1.")
+
+
 def _publish_build(build_dir: Path, final_dir: Path):
     """Swap a finished build into place. Windows can't atomically replace a directory in
     one call the way POSIX rename can (os.replace refuses when the destination is a
@@ -1257,6 +1304,14 @@ def main():
         OUT = final_dir
         _rmtree_safe(build_dir)
         raise
+
+    if os.environ.get("PAKSH_ALLOW_EXPORT_COLLAPSE") != "1":
+        try:
+            _check_export_plausible(len(events), final_dir)
+        except ExportCollapseError as e:
+            print(f"  ! EXPORT ABORTED: {e}")
+            _rmtree_safe(build_dir)
+            raise
 
     OUT = final_dir
     _publish_build(build_dir, OUT)

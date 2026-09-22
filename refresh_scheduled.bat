@@ -17,6 +17,13 @@ REM Phase 30C-C: hybrid -> pool (Groq openai/gpt-oss-120b -> Gemini -> extractiv
 REM while Gemini's billing/dunning denial is pending Google's side (Phase 30C-A/B).
 REM Same fallback safety net either way - only which provider is tried FIRST changed.
 set PAKSH_LLM_BACKEND=pool
+REM Phase 21-fix (2026-09-23): explicit, authoritative production data directory -
+REM no longer depends on LOCALAPPDATA\Paksh\data_dir.txt being resolvable in
+REM whatever environment Task Scheduler gives this job. paksh_paths.py requires a
+REM validated marker inside this directory before trusting it (see D:\Paksh_Data\
+REM .paksh-production) - an explicit-but-wrong path still fails closed, it does not
+REM fall back to a repo-local paksh.db.
+set PAKSH_DATA_DIR=D:\Paksh_Data
 
 echo. >> refresh_log.txt
 echo ===================================================== >> refresh_log.txt

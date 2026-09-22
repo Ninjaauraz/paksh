@@ -7,6 +7,7 @@ Run:  py test_paksh_paths.py
 """
 import os
 import sqlite3
+import sys
 import tempfile
 from pathlib import Path
 
@@ -73,6 +74,7 @@ try:
     check("4a: data dir missing -> DataDirError", raises(lambda: pp.require_ready(pp.db_path())))
     (data / "database").mkdir(parents=True)
     check("4b: data dir present but DB missing -> DataDirError", raises(lambda: pp.require_ready(pp.db_path())))
+    pp.production_marker_path(data).write_text(pp.PRODUCTION_MARKER_MAGIC, encoding="utf-8")
     check("4c: require_ready(None) also checks the configured DB", raises(lambda: pp.require_ready()))
     check("4d: a DB path that is NOT the configured one (tests/temp DBs) is left alone",
           pp.require_ready(TMP / "fixture.db") is None)
@@ -205,6 +207,88 @@ try:
     sqlite3.connect(data / "database" / "paksh.db").close()
     check("10b: a real configured+ready external dir still exempts an unrelated temp DB path",
           pp.require_ready(TMP / "some_other_fixture.db") is None)
+
+    print("\nTEST 11: PAKSH_DATA_DIR is authoritative and requires a validated production "
+          "marker (2026-09-23 fix)")
+
+    def make_data_dir(root, with_db=True, marker=None):
+        """root/database/paksh.db (+ optionally root/.paksh-production with `marker`
+        content, or no marker file at all if marker is None)."""
+        (root / "database").mkdir(parents=True, exist_ok=True)
+        if with_db:
+            sqlite3.connect(root / "database" / "paksh.db").close()
+        if marker is not None:
+            pp.production_marker_path(root).write_text(marker, encoding="utf-8")
+
+    prod = TMP / "real_production"
+    make_data_dir(prod, marker=pp.PRODUCTION_MARKER_MAGIC)
+
+    # 11a: correct explicit PAKSH_DATA_DIR (marker present and valid, DB present) works.
+    reset(PAKSH_DATA_DIR=str(prod))
+    check("11a: correct explicit PAKSH_DATA_DIR + valid marker -> ready",
+          pp.require_ready(pp.db_path()) is None)
+
+    # 11b: WRONG LOCALAPPDATA (points somewhere with its own, different, data_dir.txt)
+    # + correct PAKSH_DATA_DIR -> PAKSH_DATA_DIR wins outright; LOCALAPPDATA is not
+    # even consulted.
+    decoy = TMP / "decoy_via_localappdata"
+    make_data_dir(decoy, marker=pp.PRODUCTION_MARKER_MAGIC)
+    os.environ.pop("PAKSH_DATA_DIR", None)
+    os.environ["LOCALAPPDATA"] = str(TMP / "wrong_localappdata")
+    cfg = pp.config_file()
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(str(decoy), encoding="utf-8")
+    check("11b0: sanity - LOCALAPPDATA alone would have pointed at the decoy",
+          pp.configured_data_dir() == decoy)
+    os.environ["PAKSH_DATA_DIR"] = str(prod)
+    check("11b: wrong-but-valid LOCALAPPDATA + correct PAKSH_DATA_DIR -> resolves to "
+          "PAKSH_DATA_DIR, not the LOCALAPPDATA decoy",
+          pp.configured_data_dir() == prod)
+    check("11b2: ...and require_ready() is happy (the decoy is irrelevant)",
+          pp.require_ready(pp.db_path()) is None)
+
+    # 11c: missing LOCALAPPDATA entirely + correct PAKSH_DATA_DIR -> still works (this
+    # is the whole point - production no longer depends on LOCALAPPDATA at all).
+    os.environ.pop("LOCALAPPDATA", None)
+    os.environ["PAKSH_DATA_DIR"] = str(prod)
+    check("11c: PAKSH_DATA_DIR works even with LOCALAPPDATA completely unset",
+          pp.require_ready(pp.db_path()) is None)
+
+    # 11d: a repo-local paksh.db existing elsewhere must never be selected when
+    # PAKSH_DATA_DIR is set correctly - db_path() only ever looks under PAKSH_DATA_DIR.
+    check("11d: a repo-local paksh.db existing does not change what db_path() resolves to",
+          pp.db_path() == prod / "database" / "paksh.db" != pp.ROOT / "paksh.db")
+
+    # 11e: missing production marker -> fails closed even though the dir+DB are fine.
+    unmarked = TMP / "unmarked_dir"
+    make_data_dir(unmarked, marker=None)
+    reset(PAKSH_DATA_DIR=str(unmarked))
+    check("11e: PAKSH_DATA_DIR set, DB present, but NO production marker -> DataDirError",
+          raises(lambda: pp.require_ready(pp.db_path())))
+
+    # 11f: invalid/wrong production marker content -> also fails closed ("wrong
+    # production data root" - some other, unrelated directory that merely has a DB).
+    wrong_marker = TMP / "wrong_marker_dir"
+    make_data_dir(wrong_marker, marker="not-the-right-magic-value")
+    reset(PAKSH_DATA_DIR=str(wrong_marker))
+    check("11f: PAKSH_DATA_DIR set with an invalid marker value -> DataDirError",
+          raises(lambda: pp.require_ready(pp.db_path())))
+
+    # 11g: child subprocess inheritance - a real subprocess started with PAKSH_DATA_DIR
+    # in its environment resolves it correctly, exactly like live.py's children do
+    # (subprocess.run() with no env= override inherits os.environ).
+    import subprocess as _sp
+    child_env = dict(os.environ)
+    child_env["PAKSH_DATA_DIR"] = str(prod)
+    child_env.pop("LOCALAPPDATA", None)
+    child_code = (
+        "import sys; sys.path.insert(0, r'%s')\n"
+        "import paksh_paths as pp\n"
+        "print(pp.configured_data_dir())\n" % str(pp.ROOT)
+    )
+    _r = _sp.run([sys.executable, "-c", child_code], env=child_env, capture_output=True, text=True, timeout=30)
+    check("11g: a child process inherits PAKSH_DATA_DIR and resolves it correctly",
+          _r.stdout.strip() == str(prod))
 
 finally:
     for k, v in _saved.items():

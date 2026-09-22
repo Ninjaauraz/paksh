@@ -31,6 +31,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 CONFIG_NAME = "data_dir.txt"
 DB_NAME = "paksh.db"
+PRODUCTION_MARKER_NAME = ".paksh-production"
+PRODUCTION_MARKER_MAGIC = "paksh-production-data-root"
 
 
 class DataDirError(RuntimeError):
@@ -45,24 +47,43 @@ def config_file():
 _NO_ENV = "no_localappdata"          # LOCALAPPDATA itself unavailable - cannot even locate the config file
 _UNREADABLE = "config_unreadable"    # config file exists but could not be read (permissions, I/O error, ...)
 _NOT_CONFIGURED = "not_configured"   # environment checked fine; genuinely nothing configured here
-_CONFIGURED = "configured"           # a data dir value was found (env var or config file)
+_CONFIGURED_ENV = "configured_env"   # PAKSH_DATA_DIR env var - explicit, authoritative, PRODUCTION
+_CONFIGURED_FILE = "configured_file"  # data_dir.txt - legitimate local/dev configuration
+_CONFIGURED = (_CONFIGURED_ENV, _CONFIGURED_FILE)
 
 
 def _resolve_config():
-    """How the configured data directory would be determined, distinguishing
-    'checked and there's genuinely nothing configured' (_NOT_CONFIGURED - the normal,
-    fine default for a fresh checkout/CI/dev machine) from 'could not check at all'
-    (_NO_ENV / _UNREADABLE). configured_data_dir() collapses all three "nothing found"
-    cases to None because most callers only care whether something is configured.
-    require_ready() is the one caller that must NOT make that collapse: silently
-    treating "could not check" the same as "nothing configured" is exactly how a
-    production run can fall back to, and silently create, a repo-local paksh.db while
-    a real external database sits unused elsewhere (2026-09-22 incident - both of one
-    day's live.py cycles forked into a fresh repo-local paksh.db this way). Returns
-    (status, value_or_None)."""
+    """How the configured data directory would be determined, distinguishing FOUR
+    things, not two:
+      - _CONFIGURED_ENV: PAKSH_DATA_DIR was set explicitly. This is now the
+        AUTHORITATIVE, production signal (see require_ready()'s production-marker
+        check below) - it is never overridden by LOCALAPPDATA/data_dir.txt, and
+        LOCALAPPDATA is not even consulted when it's present.
+      - _CONFIGURED_FILE: no env var, but %LOCALAPPDATA%\\Paksh\\data_dir.txt names
+        one. Legitimate local/dev configuration - preserved exactly as before.
+      - _NOT_CONFIGURED: checked (env var absent, LOCALAPPDATA readable, no config
+        file or an empty one) and there's genuinely nothing configured - the normal,
+        fine default for a fresh checkout/CI/dev machine.
+      - _NO_ENV / _UNREADABLE: could NOT check at all (LOCALAPPDATA itself missing,
+        or its config file exists but could not be read). configured_data_dir()
+        collapses all three "nothing found" cases to None because most callers only
+        care whether something is configured. require_ready() is the one caller
+        that must NOT make that collapse: silently treating "could not check" the
+        same as "nothing configured" is exactly how a production run can fall back
+        to, and silently create, a repo-local paksh.db while a real external
+        database sits unused elsewhere (2026-09-22 incident).
+      - A SECOND, later incident (2026-09-23) showed LOCALAPPDATA can also resolve
+        to a non-empty but WRONG value in one process's environment - readable, but
+        pointing somewhere data_dir.txt was never set up, which is genuinely
+        indistinguishable from _NOT_CONFIGURED by this function alone. That is
+        exactly why production no longer depends on this file-based path at all:
+        it must set PAKSH_DATA_DIR explicitly (see live.py, refresh_scheduled.bat,
+        reframe_scheduled.bat), which _CONFIGURED_ENV always wins over regardless
+        of whatever LOCALAPPDATA happens to resolve to in that process.
+    Returns (status, value_or_None)."""
     env_val = (os.environ.get("PAKSH_DATA_DIR") or "").strip()
     if env_val:
-        return _CONFIGURED, env_val
+        return _CONFIGURED_ENV, env_val
     cf = config_file()
     if cf is None:
         return _NO_ENV, None
@@ -75,7 +96,7 @@ def _resolve_config():
     for line in text.splitlines():
         line = line.strip()
         if line and not line.startswith("#"):
-            return _CONFIGURED, line
+            return _CONFIGURED_FILE, line
     return _NOT_CONFIGURED, None
 
 
@@ -84,6 +105,14 @@ def configured_data_dir():
     See _resolve_config() for the finer-grained status require_ready() actually needs."""
     _, val = _resolve_config()
     return Path(val) if val else None
+
+
+def production_marker_path(data_dir):
+    """Where the production identity marker lives inside a data directory. Its
+    presence (with the expected content) is what lets an explicit PAKSH_DATA_DIR
+    be trusted as the real production root rather than some other, merely
+    non-empty, directory someone pointed the variable at by mistake."""
+    return Path(data_dir) / PRODUCTION_MARKER_NAME
 
 
 def db_path(data_dir=None):
@@ -146,22 +175,54 @@ def _same(a, b):
     return os.path.normcase(os.path.abspath(str(a))) == os.path.normcase(os.path.abspath(str(b)))
 
 
+def _require_production_marker(d):
+    """PAKSH_DATA_DIR is the explicit, authoritative production signal - but 'a
+    directory was named' is not the same as 'this is really the validated
+    production root'. Require a marker file with known content inside it, created
+    once (see this module's docstring / the marker created at D:\\Paksh_Data\\
+    .paksh-production) by whoever actually set up the production data directory.
+    This is what stops a wrong-but-non-empty PAKSH_DATA_DIR from silently passing
+    every other check (2026-09-23 incident: a non-empty LOCALAPPDATA resolved
+    somewhere data_dir.txt was never set up, which no check before this one could
+    tell apart from a legitimately unconfigured machine)."""
+    marker = production_marker_path(d)
+    if not marker.exists():
+        raise DataDirError(
+            f"PAKSH_DATA_DIR={d} is set (explicit production mode) but its production "
+            f"marker {marker} is missing. An explicit PAKSH_DATA_DIR alone is not enough "
+            f"proof this is really the production data root - refusing to guess. Create "
+            f"the marker (see paksh_paths.production_marker_path / PRODUCTION_MARKER_MAGIC) "
+            f"if {d} really is the validated production data directory.")
+    try:
+        content = marker.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        raise DataDirError(f"PAKSH_DATA_DIR={d}'s production marker {marker} could not be "
+                            f"read ({e}). Refusing to treat this as validated production.")
+    if content != PRODUCTION_MARKER_MAGIC:
+        raise DataDirError(
+            f"PAKSH_DATA_DIR={d}'s production marker {marker} exists but its content does "
+            f"not match what this Paksh version expects. Refusing to treat an unverified "
+            f"directory as production.")
+
+
 def require_ready(path=None):
     """Raise DataDirError if:
       (a) an external data directory IS configured and the database `path` names is
           missing (the original guard - card unplugged, drive letter changed), or
       (b) whether one is configured cannot be determined AT ALL - LOCALAPPDATA is
           unavailable in this process's environment, or its config file exists but
-          could not be read. Silently treating (b) the same as "nothing configured"
-          is exactly how a production run falls back to, and sqlite3 silently
-          CREATES, a repo-local paksh.db while the real external database sits
-          untouched elsewhere - forking production data with no error at all
-          (2026-09-22 incident: both of one day's live.py cycles did exactly this).
+          could not be read (2026-09-22 incident), or
+      (c) PAKSH_DATA_DIR is set (explicit production mode) but its production
+          marker is missing or invalid (2026-09-23 incident - a non-empty but
+          WRONG LOCALAPPDATA got treated as "legitimately unconfigured", which
+          (b) alone cannot catch; explicit PAKSH_DATA_DIR + a validated marker is
+          the fix that no longer depends on LOCALAPPDATA at all for production).
     Does nothing when PAKSH_ALLOW_NEW_DB=1 (the explicit, deliberate opt-in for a
     fresh local/dev/test run with no external storage configured), when the
-    environment genuinely has nothing configured (today's normal in-repo layout -
-    case (b) above is NOT this), or when `path` is not the configured database
-    (tests/temp DBs point database.DB_PATH elsewhere)."""
+    environment genuinely has nothing configured via the LOCALAPPDATA/file path
+    (today's normal in-repo layout - cases (b)/(c) above are NOT this), or when
+    `path` is not the configured database (tests/temp DBs point database.DB_PATH
+    elsewhere)."""
     if os.environ.get("PAKSH_ALLOW_NEW_DB") == "1":
         return
     status, val = _resolve_config()
@@ -184,6 +245,8 @@ def require_ready(path=None):
             f"Paksh data directory {d} is configured (from {'PAKSH_DATA_DIR' if os.environ.get('PAKSH_DATA_DIR') else config_file()}) "
             f"but does not exist. Is the SD card / drive connected, and does it still have the same drive letter? "
             f"Refusing to fall back to another database or to create an empty one.")
+    if status == _CONFIGURED_ENV:
+        _require_production_marker(d)
     if not target.exists():
         raise DataDirError(
             f"Paksh data directory {d} exists but the database {target} is missing. Refusing to create an empty database. "
