@@ -33,6 +33,7 @@ from pathlib import Path
 
 from database import (
     init_db, get_all_events, get_blindspot_events, get_topics, get_events_by_ids,
+    get_connection,
 )
 from sources import SOURCES, coverage_summary, OWNER_BY_SOURCE
 # Paksh perf phase 4B: storylines (and its own numpy/cluster imports) is only
@@ -285,17 +286,27 @@ def _feed_rank(e, now):
     return round(breadth * lean_mult * decay, 4)
 
 
-def feed_row(e, story_map, now):
+def feed_row(e, story_map, now, homepage_score=None):
     """Shape one event for events.json / events-archive.json (and, since Phase 1.75,
     main.py's live /api/events-archive) - lightened payload + importance + feed_rank +
     storyline_id. Module-level (not a build()-local closure) specifically so main.py can
-    import and call the exact same function rather than re-deriving these fields."""
+    import and call the exact same function rather than re-deriving these fields.
+
+    `homepage_score`, if given (a float from homepage_rank.homepage_rank_story()'s
+    "score"), becomes feed_rank directly - the deterministic, explainable, multi-signal
+    homepage ranking (recency + coverage velocity + publisher breadth + independent
+    origins + developments + India relevance; see homepage_rank.py) now used for the
+    front page. When absent (events outside the ranked candidate pool - e.g. the
+    archive tail, which never reaches the home feed anyway), falls back to the
+    original breadth*recency*civic-weight formula so every event still gets SOME
+    ordering value and this stays backward compatible for any caller (main.py) that
+    doesn't pass one."""
     d = _lighten(e)
     d["importance"] = _importance(e, now)   # existing field; untouched, used elsewhere
-    # front-page order = pure breadth*recency, then the civic weight so India-first
-    # (politics / economy / courts / movements) leads. Both factors are explainable and
-    # never touch a bias count. Sections/Search/Topic ignore this and stay newest-first.
-    d["feed_rank"] = round(_feed_rank(e, now) * _civic_mult(e), 4)
+    if homepage_score is not None:
+        d["feed_rank"] = round(homepage_score, 4)
+    else:
+        d["feed_rank"] = round(_feed_rank(e, now) * _civic_mult(e), 4)
     sid = story_map.get(e["id"])
     if sid:
         d["storyline_id"] = sid
@@ -966,8 +977,46 @@ def main():
         # topic cards render identically -- nothing is lost, it just arrives on demand. Every
         # story also keeps its own /data/events/<id>.json + pre-rendered HTML (SEO untouched).
         recent, archive = events[:RECENT_FEED_N], events[RECENT_FEED_N:]
-        recent_rows = [feed_row(e, story_map, _now) for e in recent]
+
+        # Deterministic homepage ranking (deferred import - same reason storylines is
+        # deferred just above: keep a plain `import export_static` cheap for callers
+        # like supabase_content.py that only want feed_row()/_lighten()/etc, and avoid
+        # a circular import - homepage_rank imports CIVIC_KEYWORDS/CIVIC_TOPIC_WEIGHT
+        # back from this module). Scored over `recent` only - ranking only matters for
+        # stories that could plausibly reach the home feed; the archive tail keeps the
+        # cheap fallback feed_rank in feed_row() and is never shown as a ranked feed.
+        homepage_scores, homepage_sections = {}, {}
+        try:
+            import homepage_rank
+            _hp_conn = get_connection()
+            _hp_ids = [e["id"] for e in recent]
+            _hp_si = homepage_rank.fetch_si_signals(_hp_conn, _hp_ids)
+            _hp_vel = homepage_rank.fetch_velocity_signals(_hp_conn, _hp_ids, _now)
+            _hp_conn.close()
+            _hp_ranked = []
+            for e in recent:
+                r = homepage_rank.homepage_rank_story(e, _hp_si[e["id"]], _hp_vel[e["id"]], _now)
+                r["momentum"] = homepage_rank.momentum_score(e, _hp_si[e["id"]], _hp_vel[e["id"]], _now)
+                r["event"] = e
+                homepage_scores[e["id"]] = r["score"]
+                _hp_ranked.append(r)
+            homepage_sections = homepage_rank.select_homepage_sections(_hp_ranked)
+            print(f"  homepage: ranked {len(recent)} candidates -> sections "
+                  f"{', '.join(f'{k}({len(v)})' for k, v in homepage_sections.items())}")
+        except Exception as _e:
+            print(f"  homepage: ranking skipped ({_e}); feed_rank falls back to breadth*recency")
+
+        recent_rows = [feed_row(e, story_map, _now, homepage_scores.get(e["id"])) for e in recent]
         write_json(OUT / "data" / "events.json", {"events": recent_rows})
+        if homepage_sections:
+            write_json(OUT / "data" / "homepage.json", {
+                "generated_at": _now.isoformat(),
+                "sections": {
+                    name: [{"id": r["event"]["id"], "score": r["score"], "momentum": r["momentum"]}
+                           for r in rows]
+                    for name, rows in homepage_sections.items()
+                },
+            })
         write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
         # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
         # full file per saga (with its dated events) fetched only when a Storyline page is opened.
