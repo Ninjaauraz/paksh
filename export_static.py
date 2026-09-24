@@ -1026,10 +1026,17 @@ def main():
         # second DB pass, and section_rank.py itself reuses homepage_rank's breadth/independence/
         # velocity/dev/freshness/india formula rather than reimplementing it. Additive only: a
         # failure here never touches events.json/homepage.json/the topic pages already written.
+        # Phase (regression fix): section MEMBERSHIP (the full classified library a reader
+        # can browse) is a different question from section RANKING (which stories lead) -
+        # select_all_sections_full() returns both. story_ids stays the top-N ranked/
+        # diversified list (drives the lead + secondary editorial area, unchanged from
+        # before); all_story_ids is the FULL pool, uncapped, newest-first (drives the
+        # section's "show more" library, same completeness TopicPage's own /topic/<name>
+        # pages already give readers - see static/app.jsx's SectionPage).
         if homepage_sections:
             try:
                 import section_rank
-                _section_data = section_rank.select_all_sections(recent, _hp_si, _hp_vel, _now)
+                _section_data = section_rank.select_all_sections_full(recent, _hp_si, _hp_vel, _now)
                 sections_payload = {
                     "generated_at": _now.isoformat(),
                     "sections": [
@@ -1038,7 +1045,8 @@ def main():
                             "slug": key.replace("_", "-"),
                             "label": data["label"],
                             "lead_id": data["lead"]["event"]["id"],
-                            "story_ids": [r["event"]["id"] for r in data["stories"]],
+                            "story_ids": [r["event"]["id"] for r in data["top_stories"]],
+                            "all_story_ids": [r["event"]["id"] for r in data["all_stories"]],
                         }
                         for key, data in _section_data.items()
                     ],
@@ -1046,7 +1054,7 @@ def main():
                 write_json(OUT / "data" / "sections.json", sections_payload)
                 print(f"  sections: {len(sections_payload['sections'])} of {len(section_rank.SECTIONS)} "
                       f"editorial sections qualified "
-                      f"({', '.join(s['key'] + '(' + str(len(s['story_ids'])) + ')' for s in sections_payload['sections'])})")
+                      f"({', '.join(s['key'] + '(' + str(len(s['story_ids'])) + '/' + str(len(s['all_story_ids'])) + ')' for s in sections_payload['sections'])})")
             except Exception as _e:
                 print(f"  sections: skipped ({_e})")
         write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
@@ -1202,6 +1210,10 @@ def main():
         # of a crawler and a real visitor seeing two different titles for the same URL.
         _section_pages = [
             ("topics", "Sections | Paksh"),
+            # Regression fix: /all-topics restores the raw-topic hub + Follow Topic as a
+            # reachable page now that /topics itself shows the new editorial taxonomy - same
+            # self-canonical treatment as every other fixed hub page here.
+            ("all-topics", "All Topics | Paksh"),
             ("blindspot", "Coverage Gaps | Paksh"),
             ("about", "Method | Paksh"),
             ("sources", "Sources | Paksh"),
@@ -1375,7 +1387,7 @@ def main():
         # section + info pages (now that routing serves them; previously they 404'd AND were
         # missing here, so they were invisible to search). Topic pages are strong SEO surfaces
         # ("Politics, every side") -> one entry per distinct topic present.
-        section_paths = ["/topics", "/blindspot", "/about", "/sources", "/support"]
+        section_paths = ["/topics", "/all-topics", "/blindspot", "/about", "/sources", "/support"]
         topic_names = sorted({e.get("topic") for e in events if e.get("topic")})
         from urllib.parse import quote
         for p in section_paths:

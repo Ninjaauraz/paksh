@@ -164,13 +164,17 @@ FINANCE_TIERS = [
     ("rbi_monetary", _rx(r"\brbi\b", r"reserve bank of india", r"repo rate", r"monetary policy",
                          r"rbi governor", r"रिज़र्व बैंक", r"रेपो रेट")),
     # NOTE: deliberately no bare \bbank\b - it matched "Yamuna River Bank" in testing.
-    # Hindi बैंक is kept bare: unlike English "bank", Hindi has no competing sense (a
-    # riverbank is किनारा/तट), so बैंक alone is unambiguous.
+    # Hindi बैंक is otherwise unambiguous (a riverbank is किनारा/तट) EXCEPT "वेस्ट बैंक" -
+    # the standard Hindi transliteration of the Israeli-Palestinian "West Bank" territory,
+    # confirmed leaking into Finance & Markets in production (event 23704, "Israeli
+    # Ambassador's Son Critically Injured in West Bank Attack" -> title_hi "वेस्ट बैंक हमले
+    # में...") - excluded the same way "Yamuna River Bank" is, via a negative lookbehind,
+    # rather than dropping बैंक to a narrower list and losing genuine bank stories.
     ("banking", _rx(r"banking sector", r"bank employees", r"bank strike", r"bank merger",
                     r"bank stock", r"private bank", r"public sector bank", r"psu bank",
                     r"central bank", r"\bnpas?\b", r"bad loans", r"\bsbi\b",
                     r"hdfc bank", r"icici bank", r"axis bank", r"punjab national bank",
-                    r"bank of baroda", r"बैंक")),
+                    r"bank of baroda", r"(?<!वेस्ट )बैंक")),
     ("regulation", _rx(r"\bsebi\b", r"financial regulation", r"market regulator",
                        r"insider trading")),
     # Broadened per the editorial-validation fix to catch investment-fund stories (e.g.
@@ -660,4 +664,37 @@ def select_all_sections(events, si_map, vel_map, now, n=SECTION_N):
         ranked, lead = select_section(events, si_map, vel_map, now, key, n)
         if ranked:
             out[key] = {"label": spec["label"], "stories": ranked, "lead": lead}
+    return out
+
+
+def select_all_sections_full(events, si_map, vel_map, now, n=SECTION_N):
+    """Two-layer version of select_all_sections: MEMBERSHIP vs RANKING are
+    different questions (see this module's docstring) and callers that need to
+    let a reader browse a section's complete library - not just its top-N
+    editorial ranking - need both.
+
+    Returns {key: {"label", "lead", "top_stories", "all_stories"}} for every
+    section that clears MIN_SECTION_SIZE, where:
+      - "top_stories" is EXACTLY select_section()'s existing top-N, diversified,
+        seniority-ranked list (unchanged behaviour - still what should drive a
+        section's lead/secondary editorial area);
+      - "all_stories" is the FULL classified pool (every event build_section_pool
+        admitted to this section, no top-N cap, no diversity cap), newest-first -
+        the section's browsable library, the same ordering convention TopicPage's
+        own baseCards already use for topic browsing.
+
+    A story can appear in "all_stories" but not in "top_stories" (most of the
+    library, by construction) - that is the intended, correct shape: ranking
+    picks a lead from within membership, it does not define membership. Nothing
+    about the tier scoring, seniority, or diversity-cap logic above is changed
+    by this function; it only exposes the SAME pool twice, sorted two ways."""
+    out = {}
+    for key, spec in SECTIONS.items():
+        pool = build_section_pool(events, si_map, vel_map, now, key)
+        if len(pool) < MIN_SECTION_SIZE:
+            continue
+        top = _diversify_section(pool, n)
+        all_sorted = sorted(pool, key=lambda r: r["event"].get("created_at") or "", reverse=True)
+        out[key] = {"label": spec["label"], "lead": top[0] if top else None,
+                    "top_stories": top, "all_stories": all_sorted}
     return out

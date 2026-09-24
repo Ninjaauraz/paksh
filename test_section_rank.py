@@ -181,6 +181,12 @@ e_riverbank = event(71, region="India", topic="Society", breadth=4,
                     title="Volunteer cleans Yamuna river bank in Delhi")
 check("8b: 'river bank' does not false-positive into Finance & Markets banking tier",
       sr.classify_finance_markets(e_riverbank) is None)
+e_westbank = event(72, region="World", topic="Crime & Law", breadth=4,
+                   title="Israeli Ambassador's Son Critically Injured in West Bank Attack",
+                   title_hi="वेस्ट बैंक हमले में इजरायली राजदूत के बेटे गंभीर रूप से घायल")
+check("8c: Hindi 'वेस्ट बैंक' (West Bank territory) does not false-positive into "
+      "Finance & Markets banking tier (regression: production event 23704)",
+      sr.classify_finance_markets(e_westbank) is None)
 
 print("\n=== 9. Sections do not become dominated by one story/topic (diversity cap) ===")
 dom_events = [event(80 + i, topic="Economy", breadth=8,
