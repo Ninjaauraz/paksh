@@ -902,27 +902,55 @@ def _publish_build(build_dir: Path, final_dir: Path):
     one call the way POSIX rename can (os.replace refuses when the destination is a
     directory), so this uses the standard two-rename dance: move the old site aside, move
     the new one in, then discard the old one. The window where `_site` doesn't exist at
-    all is one directory rename (milliseconds), not the minutes a full rebuild takes."""
+    all is one directory rename (milliseconds), not the minutes a full rebuild takes.
+
+    Auto-rollback hardening (2026-09-24 incident): a PERSISTENT failure on the second
+    rename used to leave `final_dir` (_site) missing indefinitely - the old build sat
+    safely at `old_dir` (_site.old) as a "manual fallback", but nothing ever restored it
+    automatically, and production stayed broken until a human noticed. Real incident: a
+    stale http.server holding a handle on _site caused exactly this second rename to fail
+    after the first had already succeeded, and a routine git commit made minutes later
+    faithfully captured (and pushed) the resulting "_site deleted" state. If the second
+    rename fails now, the first rename is undone (old_dir -> final_dir) before re-raising,
+    so a contended/interrupted swap degrades to "still serving the previous build", never
+    to "no _site at all" - `build_dir` (the new, unpublished build) is left untouched
+    either way, so a retried publish can still pick it up. Cleanup of `old_dir` at the very
+    end stays best-effort only (a lingering .old directory is harmless and must never be
+    reported as an export failure once the swap itself has already succeeded)."""
     old_dir = final_dir.parent / (final_dir.name + ".old")
     _rmtree_safe(old_dir)                      # leftover from a previous interrupted swap
+    moved_old_away = False
     if final_dir.exists():
         _rename_safe(final_dir, old_dir)
-    # Phase 30C-G: THIS rename follows immediately after writing thousands of fresh
-    # files (1500+ OG-card PNGs alone in a real run) - a safe, isolated repro
-    # (test_phase30cg_export_lock.py) reproduced a real WinError 5 "Access is
-    # denied" on this exact call 1/5 times at that file volume (0/20 at trivial
-    # volume), using the default retry budget (5 x 0.5s = 2.5s total) - consistent
-    # with a transient Windows sharing-violation (most likely real-time antivirus/
-    # indexing scanning the just-written batch) outlasting that short a window,
-    # not a deterministic bug in the rename itself. A longer bounded retry here
-    # ONLY (build_dir was JUST written; old_dir above is the already-settled
-    # previous build and doesn't need this) gives that lock time to clear
-    # naturally. The atomicity guarantee is unchanged either way: if every retry
-    # still fails, this still raises, and build_dir/old_dir are left exactly
-    # where _publish_build()'s docstring already promises - only the odds of a
-    # false failure on a healthy machine drop.
-    _rename_safe(build_dir, final_dir, attempts=20, delay=1.0)
-    _rmtree_safe(old_dir)                       # best-effort; a lingering .old dir is harmless
+        moved_old_away = True
+    try:
+        # Phase 30C-G: THIS rename follows immediately after writing thousands of fresh
+        # files (1500+ OG-card PNGs alone in a real run) - a safe, isolated repro
+        # (test_phase30cg_export_lock.py) reproduced a real WinError 5 "Access is
+        # denied" on this exact call 1/5 times at that file volume (0/20 at trivial
+        # volume), using the default retry budget (5 x 0.5s = 2.5s total) - consistent
+        # with a transient Windows sharing-violation (most likely real-time antivirus/
+        # indexing scanning the just-written batch) outlasting that short a window,
+        # not a deterministic bug in the rename itself. A longer bounded retry here
+        # ONLY (build_dir was JUST written; old_dir above is the already-settled
+        # previous build and doesn't need this) gives that lock time to clear
+        # naturally.
+        _rename_safe(build_dir, final_dir, attempts=20, delay=1.0)
+    except OSError:
+        if moved_old_away:
+            # Restore the previous, known-good site rather than leaving `_site` missing.
+            # If THIS rename also fails, that new exception propagates instead (chained
+            # via __context__) - a double failure needs a human either way, but we still
+            # try, since "still trying" costs nothing here.
+            _rename_safe(old_dir, final_dir, attempts=20, delay=1.0)
+        raise
+    # Best-effort only past this point: the swap itself already succeeded (the new
+    # _site is live), so a failure to clean up the now-unneeded old copy must never be
+    # reported as an export failure.
+    try:
+        _rmtree_safe(old_dir)
+    except OSError:
+        pass
 
 
 def main():

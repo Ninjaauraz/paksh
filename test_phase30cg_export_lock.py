@@ -94,22 +94,25 @@ check("6: the retries were bounded, not instant and not unbounded "
       f"(elapsed {elapsed:.1f}s for 20 x ~1.0s delay)", 15.0 <= elapsed <= 30.0)
 
 old_dir = final.parent / (final.name + ".old")
-check("7: the FIRST rename (final -> old) still happened before the failure, so the "
-      "last known-good build is preserved at _site.old, not lost",
-      old_dir.exists() and (old_dir / "index.html").read_text() == prior_good_content)
+# 2026-09-24 auto-rollback hardening: a persistent second-rename failure used to leave
+# final_dir permanently MISSING with the last-known-good build stranded at old_dir as a
+# "manual fallback" (this is exactly what happened in production - see _publish_build's
+# docstring). It must now be auto-restored INTO final_dir instead, so a contended/
+# interrupted swap degrades to "still serving the previous build", never to "_site is
+# just gone".
+check("7: final_dir was AUTO-RESTORED to the last known-good build after the persistent "
+      "failure - production is never left with _site missing",
+      final.exists() and (final / "index.html").read_text() == prior_good_content)
 check("8: the new (unpublished) build is still intact at its own directory - nothing "
       "was destroyed on either side of the failed swap",
       building.exists() and (building / "index.html").read_text() == "good_new_build")
-check("9: final_dir itself is the one that's now temporarily MISSING (the documented "
-      "'one rename, milliseconds' window) - not corrupted, not half-written",
-      not final.exists())
+check("9: old_dir no longer exists after the auto-restore (it was renamed BACK into "
+      "final_dir, not left behind as a second copy)", not old_dir.exists())
 
-print("\n=== 4: recovery from _site.old (what an operator/next run actually sees) ===")
-# A real next run's _publish_build() call starts by _rmtree_safe(old_dir) then moving
-# final_dir aside again - but since final_dir is currently MISSING (not present) after
-# the simulated persistent failure above, a recovery run should cleanly re-publish the
-# pending build without needing old_dir at all, and old_dir's last-known-good copy
-# remains a safe manual fallback throughout.
+print("\n=== 4: recovery after the persistent failure (what a retried publish sees) ===")
+# final_dir now holds the RESTORED last-known-good build (test 7) - a subsequent,
+# unmocked _publish_build() call with the same pending build_dir should swap it in
+# normally, exactly as if the earlier failure had never happened.
 es._publish_build(building, final)
 check("10: a subsequent successful run recovers cleanly - final_dir holds the build "
       "that was stuck in _site.building", (final / "index.html").read_text() == "good_new_build")
@@ -120,6 +123,47 @@ src = inspect.getsource(es._publish_build)
 check("11: _publish_build() calls _rename_safe(build_dir, final_dir, ...) with the "
       "hardened attempts=20, delay=1.0 (not the old bare-default 5x0.5s call)",
       "attempts=20" in src and "delay=1.0" in src)
+
+print("\n=== 6: successful cleanup failure of _site.old must NEVER fail the publish ===")
+# The swap itself (build_dir -> final_dir) already succeeded here - a failure to remove
+# the now-unneeded old copy is cosmetic (a lingering .old dir is harmless) and must not
+# be reported as an export failure.
+make_build(building, tag="v_cleanup_test")
+with mock.patch.object(es, "_rmtree_safe", side_effect=[None, OSError("simulated: old_dir cleanup failed")]):
+    cleanup_raised = False
+    try:
+        es._publish_build(building, final)
+    except OSError:
+        cleanup_raised = True
+check("12: a failure cleaning up _site.old does not raise - the successful swap is what "
+      "matters, not best-effort cleanup", not cleanup_raised)
+check("13: the swap itself still went through despite the cleanup failure",
+      (final / "index.html").read_text() == "v_cleanup_test")
+
+print("\n=== 7: a DOUBLE failure (both the swap-in AND the restore-back) must not be "
+      "silently swallowed ===")
+make_build(building, tag="double_failure_build")
+prior_before_double = (final / "index.html").read_text()
+
+
+def always_fail_both(self, target):
+    if self.name in (building.name, old_dir.name):
+        raise PermissionError(f"[WinError 5] simulated permanent failure on {self.name}")
+    return real_rename(self, target)
+
+
+double_raised = False
+with mock.patch.object(Path, "rename", always_fail_both):
+    t0 = time.monotonic()
+    try:
+        es._publish_build(building, final)
+    except PermissionError:
+        double_raised = True
+    elapsed2 = time.monotonic() - t0
+check("14: a double failure (swap-in fails, restore-back also fails) still raises rather "
+      "than silently reporting success", double_raised)
+check("15: neither side was fabricated or corrupted by the double failure - build_dir "
+      "still holds the pending build", (building / "index.html").read_text() == "double_failure_build")
 
 shutil.rmtree(FIXTURE_ROOT, ignore_errors=True)
 
