@@ -753,6 +753,10 @@ def _event_summary_row(r):
         # Paksh 7B: publication-completeness flag (see analyze.py::compute_content_complete).
         # None means the event predates this field - see _is_publishable() below.
         "content_complete": data.get("content_complete"),
+        # 2026-09-24 story-quality campaign: evidence-sufficiency flag (see
+        # analyze.py::compute_evidence_status). None means the event predates this
+        # field - see _is_publishable() below.
+        "evidence_status": data.get("evidence_status"),
         "lean_counts": counts,
         "international": data.get("coverage", {}).get("international", {}).get("count", 0),
         "dominant": dominant_lean(counts),
@@ -772,8 +776,18 @@ def _event_summary_row(r):
 # reframe.py/recount_migrate.py), at which point postprocess() writes a real value.
 # Only an EXPLICIT False hides an event. This is the one place the predicate is
 # read from a stored value - the CALCULATION lives only in compute_content_complete().
+#
+# 2026-09-24 story-quality campaign: evidence_status is a SEPARATE gate (see
+# analyze.py::compute_evidence_status) - content_complete only ever asked "is
+# framing done"; it says nothing about whether the summary itself has any
+# substantive evidence, which is exactly how a bare title-echo (event #23887,
+# #23755) could be "complete" and still public. Same grandfather rule: an event
+# with no evidence_status key (analysed before this field existed) is unaffected.
+# Only an explicit NEEDS_REVIEW or INSUFFICIENT_EVIDENCE hides an event.
 def _is_publishable(e: dict) -> bool:
-    return e.get("content_complete") is not False
+    if e.get("content_complete") is False:
+        return False
+    return e.get("evidence_status") not in ("NEEDS_REVIEW", "INSUFFICIENT_EVIDENCE")
 
 
 def get_all_events(include_incomplete: bool = False):

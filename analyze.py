@@ -109,6 +109,14 @@ MERGE_ENABLED = os.environ.get("PAKSH_CROSS_MERGE", "1") != "0"
 MERGE_RESUMMARISE = os.environ.get("PAKSH_MERGE_RESUMMARISE", "0") == "1"
 MIN_RATED_PER_EVENT = 2         # an event needs >=2 RATED outlets (real bias bar);
                                 # unrated/syndication outlets add breadth, not events
+# Evidence-sufficiency gate (2026-09-24 production story-quality campaign): a SEPARATE
+# question from compute_content_complete() (framing completeness). MIN_USABLE_CHARS is
+# a floor to reject near-empty fragments, not a "must be a long article" bar - the
+# production census (event 23887/23755 investigation) found genuine, legitimate
+# extractive summaries as short as 44 chars, and every one of the ~70 genuinely thin
+# events had a best-available length of 0 (nothing at all, not "something short") -
+# there was no observed case in the corpus where the right threshold was ambiguous.
+MIN_USABLE_CHARS = 30
 MAX_ARTICLES_PER_EVENT = 12     # cap tokens per event
 SUMMARY_TRUNC = 300             # chars of each article summary fed to the model
 # Backfill safety: when ON, a new event is dated to its NEWEST member article's publish
@@ -699,6 +707,58 @@ def compute_content_complete(coverage: dict, framing: dict, summary_method: str)
     return True
 
 
+EVIDENCE_PUBLISHABLE = "PUBLISHABLE"
+EVIDENCE_NEEDS_REVIEW = "NEEDS_REVIEW"
+EVIDENCE_INSUFFICIENT = "INSUFFICIENT_EVIDENCE"
+
+
+# 2026-09-24 production story-quality campaign (event #23887/#23755): a SEPARATE,
+# additive gate from compute_content_complete() above. That gate deliberately treats
+# every non-"llm" summary as complete (an approved decision - see its own docstring),
+# because it only ever asked "is FRAMING done", and an extractive event never claims
+# framing at all. It was never asked, and never answered, "does the SUMMARY itself
+# contain any substantive evidence" - that question is what let a bare title-echo
+# ("<title> apnews.com") through as a fully "complete" story despite a real 131-char
+# analytical sentence sitting unused in the very same cluster (event #23887), and the
+# same defect at 42-article scale (event #23755). This function answers ONLY that
+# question; it must never replace, duplicate, or weaken compute_content_complete(),
+# never touch framing, and never consider PDI (PDI enriches an already-publishable
+# story - it cannot manufacture the canonical evidence needed to clear this gate).
+def compute_evidence_status(summary: str, title: str, summary_method: str, articles: list) -> tuple:
+    """-> (status, reason). status is one of EVIDENCE_PUBLISHABLE/EVIDENCE_NEEDS_REVIEW/
+    EVIDENCE_INSUFFICIENT. Pure function - no network, no DB, no LLM - so it can be
+    unit-tested from a fixture and re-run identically as a read-only corpus audit.
+
+    - "llm" summaries are always PUBLISHABLE: the model already turned whatever raw
+      material existed into real synthesized prose. Verified against the production
+      corpus (20-event contrast sample): every sampled LLM output was genuine,
+      non-echoed prose, even when its INPUT material was thin - synthesis is not
+      extraction, and this function must not punish the LLM tier for a failure mode
+      (bare title echo) that is specific to the extractive path.
+    - A non-"llm" summary that is itself real prose - not a title echo - is
+      PUBLISHABLE. Most extractive events are exactly this (a genuinely short but
+      real sentence); short is not the same as incomplete.
+    - Otherwise: if a BETTER summary exists among the member articles (>=
+      MIN_USABLE_CHARS of real, non-echo text) that was not used, this is a
+      repairable PICKER failure, not a missing-evidence problem - NEEDS_REVIEW.
+      _representative() (above) has since been fixed to prefer usable text over raw
+      length, so this should be rare for anything analysed going forward; it exists
+      for events that were analysed under the old picker.
+    - Otherwise nothing substantive exists anywhere in the cluster yet -
+      INSUFFICIENT_EVIDENCE. The event is NOT deleted and NOT modified by this
+      function - it stays in the database exactly as analysed, and becomes eligible
+      again automatically the next time it is re-processed with more or better
+      articles (e.g. a merge adds a new outlet with real text)."""
+    if summary_method == "llm":
+        return EVIDENCE_PUBLISHABLE, "llm_synthesized"
+    if summary and not is_title_echo(summary, title):
+        return EVIDENCE_PUBLISHABLE, "extractive_real_text"
+    best = max((len(_usable_article_text(a)) for a in articles), default=0)
+    if best >= MIN_USABLE_CHARS:
+        return EVIDENCE_NEEDS_REVIEW, "better_evidence_available_unused"
+    return EVIDENCE_INSUFFICIENT, "no_substantive_evidence"
+
+
 def postprocess(raw, articles) -> dict:
     """Turn the model's (parsed) output + the articles into the stored event.
     Pure function - no network - so it is unit-testable. The neutral brief comes
@@ -758,6 +818,8 @@ def postprocess(raw, articles) -> dict:
     title = raw.get("title") or (articles[0]["title"] if articles else "Untitled event")
     summary_method = raw.get("summary_method", "llm")
     framing_clean = _clean_framing(raw.get("framing"), coverage_out)
+    evidence_status, evidence_reason = compute_evidence_status(
+        raw.get("summary", ""), title, summary_method, articles)
 
     return {
         "title": title,
@@ -786,6 +848,14 @@ def postprocess(raw, articles) -> dict:
         # grandfather signal every reader (database.py/supabase_content.py/the Supabase
         # search RPC) treats as publishable - only an explicit False hides an event.
         "content_complete": compute_content_complete(coverage_out, framing_clean, summary_method),
+        # 2026-09-24 story-quality campaign: persisted evidence-sufficiency gate (see
+        # compute_evidence_status). SEPARATE from content_complete above - this is about
+        # whether the SUMMARY has substantive evidence at all, not whether framing is
+        # done. Absence of this key (any event written before this field existed) is
+        # the same grandfather signal content_complete already uses - only an explicit
+        # NEEDS_REVIEW/INSUFFICIENT_EVIDENCE hides an event (see database._is_publishable).
+        "evidence_status": evidence_status,
+        "evidence_reason": evidence_reason,
     }
 
 
@@ -913,9 +983,64 @@ def _guess_region(text: str) -> str:
     return "India"
 
 
+_ECHO_QUOTE_TRANS = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"',
+                                    "–": "-", "—": "-"})
+_ECHO_LEADING_SEP_RE = re.compile(r"^[\s|:\-–—]+")
+
+
+def _normalize_echo_text(s):
+    s = (s or "").translate(_ECHO_QUOTE_TRANS).lower().strip()
+    s = re.sub(r"\s+", " ", s)
+    return re.sub(r"[.…]+$", "", s).strip()
+
+
+def is_title_echo(summary, title, max_suffix_chars=30):
+    """Conservative title-echo detector (2026-09-24 story-quality campaign): true
+    only when `summary` IS the title (allowing for curly-quote/dash/case/whitespace/
+    trailing-punctuation differences), or the title plus a short trailing separator
+    + publisher fragment - the standard RSS-aggregator artifact ("<title> | AP News",
+    "<title> apnews.com", "<title> - Source Daily", "<title>, DNA India"). A summary
+    that continues past the title with more than `max_suffix_chars` of anything is
+    NEVER an echo, even if it happens to start with the exact title text - real
+    prose that leads with (a paraphrase of) the headline before adding substance
+    must not be discarded just because it shares words with it. This is checked by
+    LENGTH of the remainder, never by matching specific outlet names/domains, so it
+    generalises to outlets never seen before."""
+    if not summary or not title:
+        return False
+    ns, nt = _normalize_echo_text(summary), _normalize_echo_text(title)
+    if not nt:
+        return False
+    if ns == nt:
+        return True
+    if not ns.startswith(nt):
+        return False
+    rest = _ECHO_LEADING_SEP_RE.sub("", ns[len(nt):]).strip()
+    return len(rest) <= max_suffix_chars
+
+
+def _usable_article_text(article):
+    """A member article's summary, if (and only if) it looks like genuine prose
+    rather than a title-echo/RSS artifact, and clears MIN_USABLE_CHARS. Pure,
+    deterministic. The one shared building block for "which article should we
+    quote" (_representative()) and "is there enough evidence to publish at all"
+    (compute_evidence_status()) - both ask the same underlying question, so they
+    must never disagree about what counts as real text."""
+    summary = (article.get("summary") or "").strip()
+    if not summary or is_title_echo(summary, article.get("title") or ""):
+        return ""
+    return summary if len(summary) >= MIN_USABLE_CHARS else ""
+
+
 def _representative(rows):
-    """Pick the most usable article: prefer a center outlet WITH real summary
-    text to quote (least framing), then whichever has the most summary text.
+    """Pick the most usable article: prefer a center outlet WITH real, usable
+    summary text to quote (least framing), then whichever has the most usable
+    text. Falls back to the full row set (ranked by raw summary length, the
+    original behaviour) only when NO row has anything usable at all - so a
+    title-echo/RSS-artifact summary can never outrank real prose just because
+    it happens to be longer as raw text (event #23887/#23755: an outlet's
+    "<title> apnews.com"-style artifact was longer, in raw characters, than
+    a real analytical sentence sitting in the very same cluster).
 
     Phase 30C-F: real event #18165 ("Fire breaks out at Maharashtra Asian
     Hospital") had exactly one English center-lean outlet (Times of India),
@@ -931,8 +1056,14 @@ def _representative(rows):
     center outlet does have real text."""
     if not rows:
         return None
-    center = [r for r in rows if lean_of(r["source"]) == "center" and (r.get("summary") or "").strip()]
-    return max(center or rows, key=lambda r: len(r.get("summary") or ""))
+    usable_rows = [r for r in rows if _usable_article_text(r)]
+    pool = usable_rows or rows
+    center = [r for r in pool if lean_of(r["source"]) == "center" and (r.get("summary") or "").strip()]
+
+    def _rank_len(r):
+        return len(_usable_article_text(r)) or len(r.get("summary") or "")
+
+    return max(center or pool, key=_rank_len)
 
 
 def _extractive_raw(articles):
