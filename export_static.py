@@ -1017,6 +1017,38 @@ def main():
                     for name, rows in homepage_sections.items()
                 },
             })
+        # Editorial section taxonomy (India, Politics & Policy, Economy, Finance & Markets,
+        # Defence & Security, Technology, India & World, World, Society, Health, Science &
+        # Space, Sports, Culture & Entertainment) - a reader-facing NAVIGATION layer, entirely
+        # separate from the raw per-event `topic` field that still drives /topic/<name> below
+        # (untouched) and from homepage_sections above (layout zones, not subjects). Reuses the
+        # exact si_map/vel_map/recent already computed for homepage ranking just above - no
+        # second DB pass, and section_rank.py itself reuses homepage_rank's breadth/independence/
+        # velocity/dev/freshness/india formula rather than reimplementing it. Additive only: a
+        # failure here never touches events.json/homepage.json/the topic pages already written.
+        if homepage_sections:
+            try:
+                import section_rank
+                _section_data = section_rank.select_all_sections(recent, _hp_si, _hp_vel, _now)
+                sections_payload = {
+                    "generated_at": _now.isoformat(),
+                    "sections": [
+                        {
+                            "key": key,
+                            "slug": key.replace("_", "-"),
+                            "label": data["label"],
+                            "lead_id": data["lead"]["event"]["id"],
+                            "story_ids": [r["event"]["id"] for r in data["stories"]],
+                        }
+                        for key, data in _section_data.items()
+                    ],
+                }
+                write_json(OUT / "data" / "sections.json", sections_payload)
+                print(f"  sections: {len(sections_payload['sections'])} of {len(section_rank.SECTIONS)} "
+                      f"editorial sections qualified "
+                      f"({', '.join(s['key'] + '(' + str(len(s['story_ids'])) + ')' for s in sections_payload['sections'])})")
+            except Exception as _e:
+                print(f"  sections: skipped ({_e})")
         write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
         # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
         # full file per saga (with its dated events) fetched only when a Storyline page is opened.
@@ -1181,6 +1213,32 @@ def main():
                 canonical_url="%s/%s" % (SITE_URL, slug),
             ), encoding="utf-8")
 
+        # Editorial section hub pages (/section/<slug>) - same self-canonical treatment as the
+        # topic pages just above, for the same Phase 40B reason (an unlisted route otherwise
+        # falls through to the SPA shell and inherits the HOMEPAGE's own canonical/title, which
+        # is exactly the duplicate-canonical bug Phase 40B fixed for topics/section-hub pages;
+        # skipping this here would quietly reintroduce that bug for 13 new URLs). The registry
+        # (section_rank.SECTIONS) is a small, fixed, versioned set - same shape as _section_pages
+        # above - so every slug always gets a file even if that section has no qualifying
+        # stories today (SectionPage/section_rank already handle an empty section gracefully,
+        # same as an empty/typo'd topic does).
+        _editorial_section_slugs = []
+        try:
+            import section_rank as _sr
+            for _key, _spec in _sr.SECTIONS.items():
+                _slug = _key.replace("_", "-")
+                _editorial_section_slugs.append((_slug, _spec["label"]))
+                _sp = OUT / "section" / f"{_slug}.html"
+                _sp.parent.mkdir(parents=True, exist_ok=True)
+                _sp.write_text(_page_meta_html(
+                    shell,
+                    title="%s | Paksh" % _spec["label"],
+                    description="Paksh's %s coverage, ranked and compared across India's media, left, centre and right." % _spec["label"],
+                    canonical_url="%s/section/%s" % (SITE_URL, _slug),
+                ), encoding="utf-8")
+        except Exception as _e:
+            print(f"  section pages: skipped ({_e})")
+
         # 3c) Phase 40B: a real 404 for invalid/deleted story ids (Phase 40A: a nonexistent
         # or deleted /story/<id> was returning HTTP 200 with the homepage's OWN indexable
         # title/canonical/robots - a soft-404). This file is only ever reached via the new
@@ -1238,6 +1296,11 @@ def main():
             {"src": "/%s/?$" % slug, "dest": "/%s.html" % slug, "check": True}
             for slug, _ in _section_pages
         ]
+        _editorial_section_routes = [
+            {"src": "/section/%s/?$" % re.escape(slug),
+             "dest": "/section/%s.html" % slug, "check": True}
+            for slug, _ in _editorial_section_slugs
+        ]
         write_json(OUT / "vercel.json", {
             "routes": [
                 # 0) canonical-domain enforcement: any request arriving on a non-canonical
@@ -1278,6 +1341,9 @@ def main():
                 # 3d) Phase 40B: the fixed set of section/hub pages, same self-canonical
                 #     pattern as topics above.
                 *_section_routes,
+                # 3e) the 13-section editorial taxonomy (/section/<slug>) - same self-canonical
+                #     pattern, additive, does not touch 3c/3d above.
+                *_editorial_section_routes,
                 # 4) keep the (absent) API 404 so the SPA's static-mode probe stays a fast 404
                 {"src": "/api/(.*)", "status": 404},
                 # 5) SPA fallback: every other in-app route renders the shell (History API + SEO)
@@ -1317,6 +1383,12 @@ def main():
         for name in topic_names:
             rows.append('  <url><loc>%s/topic/%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>'
                         % (SITE_URL, quote(name, safe="")))
+        # Editorial section pages - same treatment as topic pages just above, one entry per
+        # slug in the fixed registry (each already has its own self-canonical HTML, written
+        # in the routing block above).
+        for _slug, _label in _editorial_section_slugs:
+            rows.append('  <url><loc>%s/section/%s</loc><changefreq>daily</changefreq><priority>0.6</priority></url>'
+                        % (SITE_URL, _slug))
         for u, ts in story_urls:
             lm = "<lastmod>%s</lastmod>" % ts[:10] if ts else ""
             rows.append('  <url><loc>%s</loc>%s<changefreq>daily</changefreq><priority>0.7</priority></url>' % (u, lm))

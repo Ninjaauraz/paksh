@@ -462,8 +462,13 @@ const {useState,useEffect,useMemo,useRef}=React;
       try { const [e,b,tp,sr]=await Promise.all([apiGet("events"),apiGet("blindspots"),apiGet("topics"),apiGet("sources")]);
         // Storylines are derived + secondary — load them best-effort so a failure never blocks the feed.
         let storylines=[]; try{ const st=await apiGet("storylines"); storylines=st.storylines||[]; }catch(_){}
-        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, storylines:storylines}; }
-      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]}; }
+        // Editorial sections (the 13-section taxonomy) - a SEPARATE, additive layer from the
+        // raw per-event `topics` above (see section_rank.py / export_static.py); best-effort,
+        // same reasoning as storylines: a missing/old export without sections.json (API mode,
+        // or a build from before this landed) must never block the feed.
+        let sections=[]; try{ const sc=await apiGet("sections"); sections=sc.sections||[]; }catch(_){}
+        return {events:e.events||[], blindspots:b.events||[], gaps:{left:b.left_heavier||[], right:b.right_heavier||[], agg:b.aggregate||{}}, topics:tp.topics||[], sources:sr.sources||[], summary:sr.summary||{}, storylines:storylines, sections:sections}; }
+      catch(err){ console.error(err); return {events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[],sections:[]}; }
     }
 
     const toCard = (e, lang) => {
@@ -1969,6 +1974,106 @@ const {useState,useEffect,useMemo,useRef}=React;
         </div>
       );
     }
+    // Editorial sections hub (the 13-section taxonomy from section_rank.py) - this is what the
+    // "Sections" nav item now lands on, replacing the old raw-topic grid TopicsHub used to show
+    // here. Same layout/visual language as TopicsHub (lead grid + dense list) on purpose - only
+    // the data source and lead-story preview changed: the preview is the section's actual ranked
+    // lead (from section_rank.py), not just "most recent story in this bucket". The raw /topic/
+    // pages (TopicPage, above) are completely untouched and still reachable at their own URLs.
+    function SectionsHub({ sections, cardById, t, lang, goSection }) {
+      const LEAD_N=4;
+      const lead=sections.slice(0,LEAD_N), rest=sections.slice(LEAD_N);
+      if(!sections.length){
+        // sections.json missing (older export, or API mode without it yet) - never a blank
+        // page; the nav item and URL still work, just with nothing to list.
+        return <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("sections",lang)}</h1>
+          <div className={`mt-10 py-16 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+        </div>;
+      }
+      return (
+        <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
+          <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{ui("sections",lang)}</h1>
+          <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2" style={{borderBottom:`1px solid ${t.ink}`,paddingBottom:32}}>
+            {lead.map(s=>{ const lc=cardById[s.lead_id];
+              return (
+                <a key={s.key} href={"/section/"+s.slug} onClick={e=>{ e.preventDefault(); goSection(s.slug); }} className="block text-left">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className={`headline text-[24px] sm:text-[28px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.014em"}}>{s.label}</span>
+                    <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{(s.story_ids||[]).length}</span>
+                  </div>
+                  {lc && <div className={`mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`}>{lc.headline}</div>}
+                </a>
+              );
+            })}
+          </div>
+          {rest.length>0 && (
+            <div className="mt-8 columns-2 lg:columns-3" style={{columnGap:"2.25rem"}}>
+              {rest.map(s=>(
+                <a key={s.key} href={"/section/"+s.slug} onClick={e=>{ e.preventDefault(); goSection(s.slug); }} className={`mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`} style={{breakInside:"avoid"}}>
+                  <span className={`text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`}>{s.label}</span>
+                  <span className={`mono text-[10.5px] shrink-0 ${t.tf}`}>{(s.story_ids||[]).length}</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    // Editorial section page (/section/<slug>) - same lead/secondary/brief tiering TopicPage
+    // already uses (SectionCard, BriefRow, BiasPill), but `items` here is the pre-ranked order
+    // section_rank.py returned (via itemsForSection() in the App component), never re-sorted
+    // client-side - preserves the validated seniority/India-first ranking as-is.
+    function SectionPage({ slug, spec, items, t, lang, open, go }) {
+      const label = spec ? spec.label : slug;
+      const [visible,setVisible]=useState(20);
+      const PAGE=20;
+      const lead=items[0], section=items.slice(1,5), rest=items.slice(5,5+visible);
+      const more=items.length-5-visible;
+      return (
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-10">
+          <a href="/topics" onClick={e=>{ e.preventDefault(); go("topics"); }} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</a>
+          <div className="flex items-center justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
+            <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
+            <span className={`mono text-[11px] ${t.tf}`}>{items.length}</span>
+          </div>
+          {!items.length ? (
+            <div className={`py-24 text-center ${t.tf} ${isHi(lang)}`}>{STR[lang].noStories}</div>
+          ) : (
+            <>
+              <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+                <a href={"/story/"+encodeURIComponent(lead.id)} onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); open(lead.id); }} className="block no-underline group cursor-pointer">
+                  {lead.img && <div className="mb-4"><Thumb src={lead.img} topic={lead.topic} title={lead.headline} ratio="16 / 9" t={t} lang={lang} /></div>}
+                  <h2 className={`headline text-[26px] sm:text-[32px] ${t.tp} ${readCls(lang)} group-hover:underline decoration-1 underline-offset-2`} style={{lineHeight:lang==="hi"?1.2:1.1,letterSpacing:lang==="hi"?0:"-0.016em",textWrap:"balance"}}>{lead.headline}</h2>
+                  {lead.lead && <p className={`mt-3 text-[15px] ${t.ts} ${readCls(lang)} lc-3`} style={{lineHeight:lang==="hi"?1.8:1.6}}>{lead.lead}</p>}
+                  <div className="mt-3 w-40"><BiasPill counts={lead.counts||{left:0,center:0,right:0}} t={t} lang={lang} h={9} /></div>
+                </a>
+                {section.length>0 && (
+                  <div className="space-y-5 lg:border-l lg:pl-8" style={{borderColor:t.line}}>
+                    {section.map((s,i)=>(
+                      <div key={s.id} className={i<section.length-1?"pb-5 border-b":""} style={{borderColor:t.line}}><SectionCard story={s} t={t} lang={lang} onOpen={open} /></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {rest.length>0 && (
+                <div className="mt-10 pt-6" style={{borderTop:`1px solid ${t.ink}`}}>
+                  <div style={{columnGap:"2.25rem",columnRule:`1px solid ${t.line}`}} className="[column-count:1] sm:[column-count:2] lg:[column-count:3]">
+                    {rest.map((s,i)=><BriefRow key={s.id} story={s} t={t} lang={lang} onOpen={open} first={i===0} />)}
+                  </div>
+                </div>
+              )}
+              {more>0 && (
+                <div className="mt-7 flex justify-center">
+                  <button onClick={()=>setVisible(v=>v+PAGE)} className={`border px-5 py-2.5 eyebrow ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{ui("showMore",lang)} ({more})</button>
+                </div>
+              )}
+            </>
+          )}
+          <div className="mt-10"><AdSlot t={t} lang={lang} h={90} format="horizontal" /></div>
+        </div>
+      );
+    }
     // 6.3B.9 — the 3 editorial tonality axes as a quiet annotation, not a slider/meter/gauge:
     // one hairline per axis with a single ink tick at the real position, poles labelled in
     // small mono type. No rounded track, no floating dot, no drop-shadow, no per-axis colour
@@ -3331,6 +3436,7 @@ const {useState,useEffect,useMemo,useRef}=React;
       const seg=p.split("/").filter(Boolean);
       if(seg[0]==="story"&&seg[1]) return {view:"story", id:decodeURIComponent(seg[1])};
       if(seg[0]==="topic"&&seg[1]) return {view:"topic", topic:decodeURIComponent(seg[1])};
+      if(seg[0]==="section"&&seg[1]) return {view:"section", slug:decodeURIComponent(seg[1])};
       if(seg[0]==="storyline"&&seg[1]) return {view:"storyline", id:decodeURIComponent(seg[1])};
       if(seg.length===0) return {view:"home"};
       // /search?q=... carries its query in the URL (shareable, bookmarkable, survives a
@@ -3489,7 +3595,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         return ()=>window.removeEventListener("scroll",onScroll);
       },[]);
       const [query,setQuery]=useState("");
-      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[]});
+      const [data,setData]=useState({events:[],blindspots:[],gaps:{left:[],right:[],agg:{}},topics:[],sources:[],summary:{},storylines:[],sections:[]});
       const [detail,setDetail]=useState({});
       // Coverage Gaps: blindspots.json carries only a 40-per-column teaser list (loaded on every page).
       // The Coverage Gaps page needs EVERY gap its own header counts, so it fetches the complete,
@@ -3583,6 +3689,7 @@ const {useState,useEffect,useMemo,useRef}=React;
       const go=(v)=> nav(v==="home"?"/":"/"+v);
       const open=(id)=>{ track("story_open",{device:deviceClass()}); nav("/story/"+encodeURIComponent(id)); };
       const goTopic=(tp)=> nav("/topic/"+encodeURIComponent(tp));
+      const goSection=(slug)=> nav("/section/"+encodeURIComponent(slug));
       const goStoryline=(id)=> nav("/storyline/"+encodeURIComponent(id));
       const goStorylines=()=> nav("/storylines");
       const chooseLang=(l)=>{ track("lang_switch",{to:l}); setLang(l); try{ localStorage.setItem("paksh-lang",l); }catch(e){} if(auth) savePrefsRemote({ lang:l }); };
@@ -3652,6 +3759,15 @@ const {useState,useEffect,useMemo,useRef}=React;
       baseCards.sort((a,b)=>ageHours(a)-ageHours(b)); baseOne.sort((a,b)=>ageHours(a)-ageHours(b));
       const countsByTopic={}; baseCards.forEach(c=>{ const k=c.topic||"Society"; countsByTopic[k]=(countsByTopic[k]||0)+1; });
       const topicsOrdered=Object.keys(countsByTopic).sort((a,b)=>countsByTopic[b]-countsByTopic[a]);
+      // Editorial sections (13-section taxonomy, section_rank.py): sections.json carries only
+      // {key,slug,label,lead_id,story_ids}, never article content (see export_static.py) - the
+      // frontend resolves each id against the SAME baseCards already loaded for topics/search,
+      // and renders them in the exact order section_rank.py ranked them (no client-side re-sort,
+      // matching the "frontend renders what the ranking layer returns" requirement).
+      const cardById={}; baseCards.forEach(c=>{ cardById[c.id]=c; });
+      const sectionsOrdered=data.sections||[];
+      const sectionBySlug={}; sectionsOrdered.forEach(s=>{ sectionBySlug[s.slug]=s; });
+      const itemsForSection=(slug)=>{ const s=sectionBySlug[slug]; if(!s) return []; return s.story_ids.map(id=>cardById[id]).filter(Boolean); };
       const lastTs=(data.events||[]).reduce((mx,e)=>{ const ts=Date.parse(e.published_at||e.created_at||""); return isNaN(ts)?mx:Math.max(mx,ts); },0);
       const stats={ stories:homeCards.length, outlets:(data.sources||[]).length,
         gaps:(gapAgg.total!=null?gapAgg.total:(gapL.length+gapR.length)),
@@ -3753,6 +3869,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         let title=home;
         if(route.view==="topic") title = suffix(route.topic);
         else if(route.view==="topics") title = suffix(ui("sections",lang));
+        else if(route.view==="section") { const sp=(data.sections||[]).find(s=>s.slug===route.slug); title = suffix(sp ? sp.label : ui("sections",lang)); }
         else if(route.view==="blindspot") title = suffix(STR[lang].osTitle);
         else if(route.view==="search") title = suffix(ui("searchTab",lang));
         else if(route.view==="storylines") title = suffix(ui("developingStories",lang));
@@ -3771,7 +3888,7 @@ const {useState,useEffect,useMemo,useRef}=React;
         else if(route.view==="my-paksh") title = suffix(lang==="hi"?"मेरा पक्ष":"My Paksh");
         else if(route.view==="404") title = suffix(lang==="hi"?"पेज नहीं मिला":"Page not found");
         try{ document.title = title; }catch(e){}
-      },[route.view, route.id, route.topic, lang, story, data.storylines, storyNotFound]);
+      },[route.view, route.id, route.topic, route.slug, lang, story, data.storylines, data.sections, storyNotFound]);
 
       return (
         <SaveCtx.Provider value={{ saved:savedIds, toggle:toggleSave, on:authOn(), go }}>
@@ -3810,7 +3927,8 @@ const {useState,useEffect,useMemo,useRef}=React;
             : route.view==="story" ? (storyNotFound ? <NotFoundPage t={t} lang={lang} go={go} /> : story ? <StoryPage story={story} t={t} lang={lang} go={go} openTopic={goTopic} related={related} open={open} a11y={a11y} auth={auth} goStoryline={goStoryline} /> : <StorySkeleton t={t} />)
             : route.view==="blindspot" ? (ready ? <BlindspotPage left={gapL} right={gapR} roster={rosterByLean} agg={gapAgg} stats={stats} t={t} lang={lang} open={open} go={go} auth={auth} lens={lensStats} /> : <BlindspotSkeleton t={t} />)
             : !ready ? (route.view==="home" ? <FeedSkeleton t={t} /> : <PageSkeleton t={t} />)
-            : route.view==="topics" ? <TopicsHub topics={topicsOrdered} counts={countsByTopic} cards={baseCards} t={t} lang={lang} goTopic={goTopic} />
+            : route.view==="topics" ? <SectionsHub sections={sectionsOrdered} cardById={cardById} t={t} lang={lang} goSection={goSection} />
+            : route.view==="section" ? <SectionPage slug={route.slug} spec={sectionBySlug[route.slug]} items={itemsForSection(route.slug)} t={t} lang={lang} open={open} go={go} />
             : route.view==="topic" ? <TopicPage topic={route.topic} items={baseCards.filter(c=>c.topic===route.topic)} t={t} lang={lang} open={open} go={go} auth={auth} followingTopic={followedTopics.has(route.topic)} onToggleFollowTopic={toggleFollowTopic} />
             : route.view==="sources" ? <SourcesPage t={t} lang={lang} sources={data.sources} go={go} />
             : route.view==="about" ? <AboutPage t={t} lang={lang} agg={gapAgg} go={go} />
