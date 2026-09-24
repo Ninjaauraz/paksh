@@ -13,9 +13,11 @@ production database.
 
 Run:  py test_pdi.py
 """
+import os
 import re
 import shutil
 import tempfile
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -973,6 +975,71 @@ try:
 finally:
     pdi_semantic._embed_batch = _real_embed_batch_s9
     pdi_semantic.reset_availability_cache()
+
+
+# =====================================================================================
+# T. Bounded concurrent feed fetching (discovery calibration campaign): fetches must
+# be concurrent (the fix for the confirmed 1.5-25min real-world latency variance) but
+# BOUNDED, and must never make discover_substack()'s output order/content
+# non-deterministic.
+# =====================================================================================
+print("\n=== T. Bounded concurrent Substack feed fetching ===")
+import threading
+
+_real_get_t = pdi_providers._get
+_in_flight = {"current": 0, "max_seen": 0}
+_lock = threading.Lock()
+
+
+def _tracked_get(url, params=None):
+    with _lock:
+        _in_flight["current"] += 1
+        _in_flight["max_seen"] = max(_in_flight["max_seen"], _in_flight["current"])
+    try:
+        time.sleep(0.05)   # long enough that overlapping calls are actually concurrent
+        return None   # a clean "no feed content" response - correctness of parsing is
+                      # covered elsewhere; this test is only about concurrency bounds
+    finally:
+        with _lock:
+            _in_flight["current"] -= 1
+
+
+_fake_feeds_t = [f"https://fake{i}.example.com/feed" for i in range(20)]
+os.environ["PDI_SUBSTACK_SEED_FEEDS"] = ",".join(_fake_feeds_t)
+pdi_providers._get = _tracked_get
+try:
+    pdi_providers.discover_substack(pdi.Query(text="anything", family=pdi.QUERY_EVENT_DIRECT, language="en"), limit=8)
+    check(f"T1: concurrent feed fetches never exceed SUBSTACK_FETCH_CONCURRENCY "
+          f"({pdi_providers.SUBSTACK_FETCH_CONCURRENCY})",
+          _in_flight["max_seen"] <= pdi_providers.SUBSTACK_FETCH_CONCURRENCY, _in_flight["max_seen"])
+    check("T2: concurrency was actually exercised (more than 1 in flight at some point), "
+          "not accidentally still sequential",
+          _in_flight["max_seen"] > 1, _in_flight["max_seen"])
+finally:
+    pdi_providers._get = _real_get_t
+
+
+def _fake_get_ordered(url, params=None):
+    class _Resp:
+        status_code = 200
+        text = (f'<rss><channel><item><title>Item about anything from {url}</title>'
+                f'<link>{url}/p1</link><guid>{url}/p1</guid>'
+                f'<description>anything something</description></item></channel></rss>')
+    time.sleep(0.01)
+    return _Resp()
+
+
+pdi_providers._get = _fake_get_ordered
+try:
+    run1 = pdi_providers.discover_substack(
+        pdi.Query(text="anything", family=pdi.QUERY_EVENT_DIRECT, language="en"), limit=20)
+    run2 = pdi_providers.discover_substack(
+        pdi.Query(text="anything", family=pdi.QUERY_EVENT_DIRECT, language="en"), limit=20)
+    check("T3: candidate order is deterministic across repeated calls despite concurrent fetching",
+          [c.url for c in run1] == [c.url for c in run2] == [f"{u}/p1" for u in _fake_feeds_t])
+finally:
+    pdi_providers._get = _real_get_t
+    os.environ.pop("PDI_SUBSTACK_SEED_FEEDS", None)
 
 
 print(f"\n{'=' * 60}")

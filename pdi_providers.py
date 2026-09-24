@@ -49,6 +49,24 @@ Both adapters:
   - never raise past their own boundary - pdi.run_discovery() also catches per-adapter
     exceptions, but each adapter additionally fails closed internally so a partial
     failure (e.g. one bad feed) never loses candidates from a good one.
+
+DISCOVERY LATENCY FINDING (final campaign, discovery calibration): direct per-query,
+per-feed instrumentation of discover_substack() against a real event found total
+discovery time swinging from ~1s to ~60s PER QUERY, entirely explained by sequential
+fetching - when a query's lexical overlap with a feed is rare, the loop must scan
+most/all configured feeds one at a time before giving up, and 26 feeds x ~1-4.5s
+each (individually-healthy feeds, confirmed by direct probe) sums to a real, not
+anomalous, ~30-115s worst case per query. With 8-20 queries/event this is the
+confirmed, fully-explained root cause of the "1.5-3 min normal / 10-25 min slow"
+variance observed in real shadow experiments - not a broken feed, not retry
+behavior, not resource contention. Fixed below with BOUNDED concurrent fetching
+(ThreadPoolExecutor, same pattern/naming convention as cluster.py's own
+PAKSH_EMBED_CONCURRENCY): each feed is a distinct domain, so fetching several at
+once never violates any single domain's crawl-delay (crawl-delay is per-domain and
+only throttles a domain against ITSELF across calls, which this doesn't change).
+Feed *order* and therefore candidate order/discovery_rank remain deterministic
+(ThreadPoolExecutor.map preserves input order) - only the wall-clock fetch phase is
+parallelized, not the processing/candidate-building logic.
 """
 from __future__ import annotations
 
@@ -57,6 +75,7 @@ import os
 import re
 import time
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -68,6 +87,21 @@ from pdi import Candidate
 USER_AGENT = "Mozilla/5.0 (compatible; PakshBot/1.0; +https://paksh.news) PDI/1.0"
 REQUEST_TIMEOUT = 8
 CRAWL_DELAY_SECONDS = 1.0
+# Bounded concurrent feed fetches within ONE discover_substack() call (never per
+# candidate, never unbounded - Part 18's "bounded provider concurrency" and "a single
+# slow feed must not stall an entire event indefinitely"). Same env-tunable
+# convention as cluster.py's PAKSH_EMBED_CONCURRENCY.
+SUBSTACK_FETCH_CONCURRENCY = max(1, int(os.environ.get("PDI_SUBSTACK_FETCH_CONCURRENCY", "6")))
+# Discovery calibration finding (Population-B recall test): the prior 4000-char cap
+# silently discarded genuinely relevant content in real long-form Substack essays -
+# a real, verified example: a specific "Sanctioning Russia Act of 2026" mention sat
+# at character 10,320 of a 23,191-character post, entirely beyond the old 4000-char
+# cutoff, so pdi_semantic.py could never have scored it regardless of passage logic.
+# Raised, not removed - still an explicit, bounded cap (Part 18), just one that
+# covers realistically long specialist/policy newsletter issues instead of only
+# their opening ~15%. See pdi_semantic.MAX_PASSAGES_PER_CANDIDATE, raised alongside
+# this so passage chunking can actually reach the wider body_text this now keeps.
+SUBSTACK_BODY_TEXT_CHAR_CAP = 12000
 MAX_RESPONSE_BYTES = 3_000_000
 
 _robots_cache = {}
@@ -323,45 +357,56 @@ _TOKEN_RX = re.compile(r"[a-z0-9ऀ-ॿ]+")   # same Devanagari range as pdi._to
                                                      # separate overlap-matching regex did not.
 
 
+def _fetch_feed_safe(feed_url):
+    """Wraps _get() so a ThreadPoolExecutor.map() never propagates one feed's
+    exception into the whole batch - returns None on any failure, same contract
+    _get() already exposes for a non-200/disallowed response."""
+    try:
+        return _get(feed_url)
+    except Exception:
+        return None
+
+
 def discover_substack(query, limit=8):
-    """Fetches each configured seed feed (bounded, robots-compliant) and keeps items
-    whose title/summary lexically overlap the query text. With no seeds configured,
-    returns [] - an honest empty result, not a fabricated one (see module docstring)."""
+    """Fetches each configured seed feed (bounded concurrency, robots-compliant) and
+    keeps items whose title/summary lexically overlap the query text. With no seeds
+    configured, returns [] - an honest empty result, not a fabricated one (see module
+    docstring). Feeds are fetched with bounded concurrency (SUBSTACK_FETCH_CONCURRENCY)
+    - see the module docstring's DISCOVERY LATENCY FINDING for why this matters -
+    but processed in the original, deterministic feed order."""
     feeds = _seed_feeds()
     if not feeds:
         return []
     q_tokens = set(_TOKEN_RX.findall(query.text.lower()))
     out = []
-    for feed_url in feeds:
-        try:
-            resp = _get(feed_url)
-        except Exception:
-            continue
-        if resp is None or resp.status_code != 200:
-            continue
-        for item in _parse_feed(resp.text):
-            title_tokens = set(_TOKEN_RX.findall((item["title"] + " " + item["summary"]).lower()))
-            if not (q_tokens & title_tokens):
+    with ThreadPoolExecutor(max_workers=min(SUBSTACK_FETCH_CONCURRENCY, len(feeds))) as ex:
+        responses = ex.map(_fetch_feed_safe, feeds)
+        for feed_url, resp in zip(feeds, responses):
+            if resp is None or resp.status_code != 200:
                 continue
-            # Prefer the full post body (<content:encoded>/Atom <content>) when the feed
-            # provides one - Substack's <description> is only a short subtitle (see the
-            # real-Substack shadow experiment's finding: 35-234 chars vs. 26k-213k chars
-            # of actual content). Falls back to the existing description-only behavior
-            # when a feed has no full-content element, so nothing regresses for feeds
-            # that never had one.
-            full_text = _strip_html(item["content"])
-            body_text = (full_text or item["summary"])[:4000]
-            out.append(Candidate(
-                provider="substack", provider_item_id=item["guid"] or item["link"],
-                url=item["link"], canonical_url=item["link"], title=item["title"],
-                author=item["author"] or "unknown", published_at=item["published_at"], language=None,
-                discovery_query=query.text, discovery_rank=len(out), content_hash="",
-                body_text=body_text,
-            ))
             if len(out) >= limit:
-                break
-        if len(out) >= limit:
-            break
+                continue   # keep draining the (already in-flight/completed) map iterator
+            for item in _parse_feed(resp.text):
+                title_tokens = set(_TOKEN_RX.findall((item["title"] + " " + item["summary"]).lower()))
+                if not (q_tokens & title_tokens):
+                    continue
+                # Prefer the full post body (<content:encoded>/Atom <content>) when the feed
+                # provides one - Substack's <description> is only a short subtitle (see the
+                # real-Substack shadow experiment's finding: 35-234 chars vs. 26k-213k chars
+                # of actual content). Falls back to the existing description-only behavior
+                # when a feed has no full-content element, so nothing regresses for feeds
+                # that never had one.
+                full_text = _strip_html(item["content"])
+                body_text = (full_text or item["summary"])[:SUBSTACK_BODY_TEXT_CHAR_CAP]
+                out.append(Candidate(
+                    provider="substack", provider_item_id=item["guid"] or item["link"],
+                    url=item["link"], canonical_url=item["link"], title=item["title"],
+                    author=item["author"] or "unknown", published_at=item["published_at"], language=None,
+                    discovery_query=query.text, discovery_rank=len(out), content_hash="",
+                    body_text=body_text,
+                ))
+                if len(out) >= limit:
+                    break
     return out
 
 

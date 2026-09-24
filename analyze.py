@@ -361,7 +361,18 @@ def _looks_generic(title) -> bool:
     return bool(t) and bool(_GENERIC_TITLE.search(t))
 
 
-def build_prompt(articles, region=None) -> str:
+def build_prompt(articles, region=None, pdi_context=None) -> str:
+    """pdi_context: OPTIONAL pre-formatted text from pdi.format_payload_for_analyze()
+    (final PDI campaign) - never raw external content, never a required argument.
+    None (the default, and what every existing caller still passes) reproduces this
+    function's prior output byte-for-byte; PDI's own information-value gate and
+    every existing test predate this parameter and remain valid unmodified. When
+    given, it is appended as clearly-labeled SUPPLEMENTARY discourse context, never
+    inside the COVERAGE block that establishes facts, and the instructions below
+    tell the model explicitly that it is not verified evidence, may not become a
+    fact or a claimed consensus, and should only sharpen the SAME summary/framing
+    fields already defined - no new output field, no visible "Reddit says" section,
+    no change to the JSON schema this function asks for."""
     _LEANWORD = {"left": "left-leaning", "center": "centrist",
                  "right": "right-leaning", "unrated": "unrated",
                  "international": "international wire"}
@@ -432,6 +443,34 @@ def build_prompt(articles, region=None) -> str:
     }
     counts_line = "LEFT: %d owner(s) - CENTRE: %d owner(s) - RIGHT: %d owner(s)" % (
         owner_counts["left"], owner_counts["center"], owner_counts["right"])
+
+    # Optional PDI enrichment (final campaign) - absent for the overwhelming majority
+    # of stories (pdi_context is None whenever PDI hasn't run, found nothing, or
+    # this caller simply doesn't pass one - every existing caller in the repo). When
+    # present, it is supplementary discourse context, explicitly never evidence -
+    # see this function's own docstring and pdi.format_payload_for_analyze().
+    pdi_block = ""
+    if pdi_context:
+        pdi_block = f"""
+PUBLIC DISCOURSE CONTEXT (supplementary - NOT verified Paksh evidence):
+The material below is a compact summary of independent public/specialist commentary
+found separately from the COVERAGE above. Treat every line as a question,
+interpretation, uncertainty, or disagreement raised by outside commentators - NEVER
+as an established fact, and never as evidence of "public opinion" or consensus. If
+the COVERAGE above already answers a question or resolves an uncertainty listed
+here, use the COVERAGE's own answer and ignore this material's framing of it as
+unresolved. If it does not, you may note the open question/interpretation ONLY if
+clearly attributed as commentary (e.g. "some commentary has also raised questions
+about whether...") - never write "people think", "public opinion is", or anything
+implying consensus. Do not create a separate section, heading, or bullet list for
+this material in your JSON output; use it only, where genuinely warranted, to
+sharpen the SAME summary/framing fields already defined above. If this material
+does not add anything a careful reader would want to know, ignore it entirely and
+do not mention it.
+
+{pdi_context}
+"""
+
     return f"""You are a neutral news engine for "Paksh", a media-transparency
 tool for India. Below is coverage of ONE event from several Indian outlets
 (English and Hindi), each tagged with its editorially-assigned political lean.
@@ -600,7 +639,7 @@ COVERAGE COUNTS (distinct rated owners per side - see the sole-outlet wording ru
 
 COVERAGE:
 {(chr(10) + "---" + chr(10)).join(blocks)}
-"""
+{pdi_block}"""
 
 
 # A side needs at least this many DISTINCT OWNERS (the same "unique coverage" the bias bar
@@ -1277,10 +1316,20 @@ def _record_retry_stat(key: str):
         _RETRY_STATS[key] += 1
 
 
-def analyze_event(articles, backend=None, on_failure=None) -> dict:
+def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> dict:
     """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
     unavailable or returns nothing usable, falls back to an extractive headline
     so the event still renders (coverage + bias bar are unaffected either way).
+
+    pdi_payload: OPTIONAL pdi.StoryPDI (final PDI campaign) - formatted here via
+    pdi.format_payload_for_analyze() and passed to build_prompt() as supplementary,
+    clearly-labeled discourse context (see that function's own docstring for exactly
+    what it may and may not do to the output). None (the default; every existing
+    caller passes nothing, same convention as on_failure above) reproduces this
+    function's prior behavior exactly. Formatting is wrapped in try/except so that
+    ANY problem on the PDI side - pdi.py missing, a malformed payload, whatever -
+    degrades to "no PDI context" rather than breaking article generation; PDI
+    failure must never become article-generation failure (Part 1 invariant #19).
 
     Phase 30C-P: on_failure, if given, is called with the caught exception ONLY
     when the FIRST attempt fails outright (the event becomes extractive) - never
@@ -1308,8 +1357,16 @@ def analyze_event(articles, backend=None, on_failure=None) -> dict:
     the retry (it can't be on the first attempt, since region is the model's OWN
     output there - see build_prompt()'s and lean_of()'s docstrings). Everything
     else about the retry - no loop, no invented framing - is unchanged."""
+    pdi_context = None
+    if pdi_payload is not None:
+        try:
+            from pdi import format_payload_for_analyze
+            pdi_context = format_payload_for_analyze(pdi_payload)
+        except Exception:
+            pdi_context = None   # non-fatal by construction - see docstring above
+
     try:
-        raw = _call_json(build_prompt(articles), backend=backend)
+        raw = _call_json(build_prompt(articles, pdi_context=pdi_context), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
             raise ValueError("empty model output")
         if _looks_generic(raw.get("title", "")):
@@ -1329,7 +1386,7 @@ def analyze_event(articles, backend=None, on_failure=None) -> dict:
     else:
         _record_retry_stat("retry_attempted")
         try:
-            retry_raw = _call_json(build_prompt(articles, region=result.get("region")), backend=backend)
+            retry_raw = _call_json(build_prompt(articles, region=result.get("region"), pdi_context=pdi_context), backend=backend)
             if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
                 # The retry's outlet labels and owner counts were built for the region the FIRST attempt
                 # resolved, so its counts must use that same region. Left free, the model sometimes

@@ -116,4 +116,57 @@ assert (deg["coverage"]["left"]["count"], deg["coverage"]["center"]["count"],
 assert deg["summary"] == "" and deg["summary_points"] == []
 print("postprocess (degraded): event still emits bias bar + sources, no fabricated text ... OK")
 
+# ---- 5) PDI optional enrichment contract (final PDI campaign) ----
+prompt_no_pdi = analyze.build_prompt(articles)
+assert "PUBLIC DISCOURSE" not in prompt_no_pdi
+print("build_prompt: with no pdi_context (the default, every pre-existing caller), "
+      "output is unchanged - no PDI section appears ... OK")
+
+prompt_with_pdi = analyze.build_prompt(articles, pdi_context="- Some commentators ask whether X will happen.")
+assert "PUBLIC DISCOURSE CONTEXT" in prompt_with_pdi
+assert "NOT verified Paksh evidence" in prompt_with_pdi
+assert "Some commentators ask whether X will happen." in prompt_with_pdi
+assert '"title"' in prompt_with_pdi and '"framing"' in prompt_with_pdi   # JSON schema unchanged
+print("build_prompt: with a pdi_context, a clearly-labeled supplementary section is appended "
+      "without changing the requested JSON schema ... OK")
+
+
+class _FakePayload:
+    """Minimal stand-in for pdi.StoryPDI, just enough to exercise format_payload_for_analyze."""
+    def __init__(self, questions=None):
+        self.recurring_themes = []
+        self.recurring_questions = questions or []
+        self.interpretations = []
+        self.experiences = []
+        self.disagreements = []
+        self.uncertainties = []
+        self.implications = []
+        self.coverage_gaps = []
+        self.understanding_contribution = "Public discourse surfaces 1 recurring question(s)."
+
+
+import pdi as _pdi_mod
+empty_text = _pdi_mod.format_payload_for_analyze(_FakePayload())
+assert empty_text is None
+print("format_payload_for_analyze: an empty StoryPDI (nothing selected) returns None, "
+      "not an empty block - PDI says nothing rather than something hollow ... OK")
+
+nonempty_text = _pdi_mod.format_payload_for_analyze(
+    _FakePayload(questions=[{"text": "Will the policy actually be enforced?", "recurrence": 2,
+                             "source_count": 2, "provider_count": 2}]))
+assert nonempty_text is not None and "Will the policy actually be enforced?" in nonempty_text
+assert "Understanding contribution:" in nonempty_text
+print("format_payload_for_analyze: a genuine question renders a compact, labeled block ... OK")
+
+# analyze_event must never crash even if PDI formatting itself raises - PDI failure must
+# never become article-generation failure (Part 1 invariant #19).
+class _BrokenPayload:
+    pass
+
+
+result_broken_pdi = analyze.analyze_event(articles, pdi_payload=_BrokenPayload())
+assert isinstance(result_broken_pdi, dict) and result_broken_pdi.get("title")
+print("analyze_event: a malformed pdi_payload degrades to no-PDI-context rather than raising "
+      "(falls through to the same offline extractive path already covered above) ... OK")
+
 print("\nALL ASSERTIONS PASSED")

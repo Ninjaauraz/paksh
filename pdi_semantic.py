@@ -57,10 +57,41 @@ import urllib.request
 
 SEMANTIC_MODEL = os.environ.get("PDI_SEMANTIC_MODEL", "bge-m3")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-EMBED_TIMEOUT_S = 15   # short and non-fatal on purpose - a slow/unreachable Ollama
-                       # must fall back quickly, never stall a PDI run (Part 23)
+EMBED_TIMEOUT_S = 60   # non-fatal on purpose - a genuinely unreachable Ollama must
+                       # still fall back eventually (Part 23), but this is a real
+                       # computation-time budget, not a liveness check. Raised from
+                       # 15s -> 30s -> 60s across direct measurement: a single
+                       # candidate's ~40 passages took 19.6s; a real multi-candidate
+                       # event (2-3 kept candidates x up to 45 passages each) can
+                       # exceed 100 texts in one batched call, extrapolating past 60s
+                       # of real Ollama compute time on this machine. A shorter
+                       # timeout was directly observed silently discarding calls that
+                       # would have succeeded a few seconds later, defeating the
+                       # MAX_PASSAGES_PER_CANDIDATE fix above. Still bounded and
+                       # non-fatal - a genuinely stuck/unreachable Ollama still fails
+                       # closed after 60s, not indefinitely, and this is small next to
+                       # real per-event discovery time (~45-100s, see pdi_providers.py's
+                       # DISCOVERY LATENCY FINDING).
 
-MAX_PASSAGES_PER_CANDIDATE = 6      # bounded, passage-level - never the whole document
+MAX_PASSAGES_PER_CANDIDATE = 45     # bounded, passage-level - never the whole document.
+                                     # Raised from 6 (discovery calibration finding):
+                                     # split_into_passages() STOPS CHUNKING once this
+                                     # count is reached, so passages 7+ were never even
+                                     # created, not merely unscored - a real relevant
+                                     # paragraph past roughly the first 1800 characters
+                                     # of body_text had structurally zero chance of being
+                                     # embedded, regardless of scoring logic. An
+                                     # intermediate value of 30 was tried and directly
+                                     # measured against a real long article: it covered
+                                     # only 8,499 of the 12,000-char body_text cap (see
+                                     # pdi_providers.py's SUBSTACK_BODY_TEXT_CHAR_CAP),
+                                     # missing a real target passage sitting at
+                                     # character 10,320 by a real margin - not a
+                                     # hypothetical gap. 45 x ~283 measured real
+                                     # chars/passage covers the full 12,000-char cap
+                                     # with headroom, while remaining a firm, explicit,
+                                     # disclosed bound (Part 18), not "the whole
+                                     # document."
 MAX_PASSAGE_CHARS = 500
 SENTENCES_PER_PASSAGE = 3
 

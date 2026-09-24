@@ -1056,6 +1056,62 @@ def build_story_pdi(event_id, clusters, coverage_gaps) -> StoryPDI:
 
 
 # =====================================================================================
+# PDI -> analyze.py contract (final campaign, Phase 7/8): the ONLY function analyze.py
+# is allowed to call. Renders a compact, human-readable text block from a StoryPDI
+# payload - NEVER raw candidate/provider content, discovery queries, engagement
+# counts, or full external documents (Part 18's explicit "must NOT receive" list).
+# Returns None (not an empty string) when there is nothing worth surfacing, so
+# analyze.py's build_prompt() can skip the block entirely rather than emit an empty
+# section - "when there is nothing to add, PDI should quietly say so" applies at this
+# boundary too, not only inside PDI's own status codes.
+# =====================================================================================
+
+def format_payload_for_analyze(payload: "StoryPDI") -> str | None:
+    """The compact PUBLIC DISCOURSE INTELLIGENCE block. Every item here already
+    passed the full pipeline (discovery -> deterministic filtering -> event-specific
+    + semantic association -> corroboration-margin quality gate -> passage-localized
+    observation extraction -> cross-source clustering) - this function does no
+    further judgment, it only formats. Deliberately excludes: engagement/score
+    numbers, provider names, discovery queries, raw URLs in the body text (provenance
+    stays in pdi_* tables for audit, not in what the model sees) - analyze.py gets
+    understanding, not a reading list."""
+    if payload is None:
+        return None
+    sections = [
+        ("Recurring themes", payload.recurring_themes),
+        ("Recurring questions", payload.recurring_questions),
+        ("Meaningful interpretations", payload.interpretations),
+        ("Reported experiences", payload.experiences),
+        ("Meaningful disagreements", payload.disagreements),
+        ("Uncertainties", payload.uncertainties),
+    ]
+    gap_texts = [g.get("question") for g in (payload.coverage_gaps or []) if g.get("question")]
+    if not any(items for _, items in sections) and not payload.implications and not gap_texts:
+        return None   # nothing survived to SELECTED for this run - say nothing, not "nothing found"
+
+    lines = ["PUBLIC DISCOURSE INTELLIGENCE", ""]
+    for label, items in sections:
+        if not items:
+            continue
+        lines.append(f"{label}:")
+        for it in items:
+            lines.append(f"- {it['text']}")
+        lines.append("")
+    if payload.implications:
+        lines.append("Potential implications (as raised in discourse, not established fact):")
+        for it in payload.implications:
+            lines.append(f"- {it['text']}")
+        lines.append("")
+    if gap_texts:
+        lines.append("Potential coverage gaps (recurring questions not yet answered by existing coverage):")
+        for q in gap_texts:
+            lines.append(f"- {q}")
+        lines.append("")
+    lines.append(f"Understanding contribution: {payload.understanding_contribution}")
+    return "\n".join(lines)
+
+
+# =====================================================================================
 # Phase 1 - persistence (additive, isolated, idempotent, versioned)
 # Same convention as story_intelligence.py's own _SCHEMA/init_si_schema: a single
 # executescript() of CREATE TABLE/INDEX IF NOT EXISTS statements, called lazily. Never
