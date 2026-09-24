@@ -221,7 +221,7 @@ def _generate(prompt: str, as_json: bool, backend=None, max_billed_attempts=None
         # Gemini, ...). See ai_providers.py; keys live in ai_keys.env.
         # 2026-09-25: max_billed_attempts (None = unlimited, unchanged default for
         # every caller that doesn't pass it) enforces the SAME billed-attempt
-        # ceiling analyze_event() applies to "gemini"/"ollama" - see
+        # ceiling _call_json_cached() applies to "gemini"/"ollama" - see
         # pool_generate()'s own docstring for exactly what it bounds.
         from ai_providers import pool_generate
         return pool_generate(prompt, as_json, max_billed_attempts=max_billed_attempts)
@@ -1468,43 +1468,89 @@ def _record_retry_stat(key: str):
         _RETRY_STATS[key] += 1
 
 
+try:
+    import summary_cache
+except Exception:
+    summary_cache = None   # narrow, additive optimization - its total absence must never break analysis
+
+
+def _resolved_backend_tier(backend):
+    """The summary_cache model-tier string for this call, or None if out of its
+    narrow cacheable scope (see summary_cache.py's docstring - "gemini"/"ollama"
+    only for now, not "pool"/"unified"/"rounds"/a specific provider dict).
+    Mirrors _generate()'s own `backend or LLM_BACKEND` resolution without
+    duplicating any of its actual dispatch logic."""
+    if summary_cache is None:
+        return None
+    resolved = backend or LLM_BACKEND
+    if resolved == "gemini":
+        return summary_cache.tier_for("gemini", gemini_model=GEMINI_MODEL)
+    if resolved == "ollama":
+        return summary_cache.tier_for("ollama", ollama_model=OLLAMA_MODEL)
+    return None
+
+
 def _is_billed_backend(backend):
     """True for anything that spends real money per call (gemini/pool/unified/
     rounds/a specific paid provider dict) - False only for "ollama" (free,
-    local). Used by _call_json_billed_capped() below to decide the retry
-    budget (2026-09-25 retry-budget campaign)."""
+    local). Used by _call_json_cached() below to decide the retry budget; NOT
+    used by summary_cache (which has its own, separately-scoped tier check)."""
     resolved = backend or LLM_BACKEND
     if isinstance(resolved, dict):
         return True
     return resolved != "ollama"
 
 
-def _call_json_billed_capped(prompt, backend):
-    """_call_json() with a hard billed-attempt ceiling applied (2026-09-25
-    retry-budget campaign). For a BILLED backend, _call_json()'s own internal
-    same-prompt retry (its `retries` param, default 1 - a second paid call on
-    ANY non-RuntimeError exception, e.g. a malformed-JSON hiccup) is turned
-    OFF (retries=0) here. That layer's own value was never separately
-    measured anywhere in Paksh's logs - unlike analyze_event()'s OWN
-    framing-completeness retry one level up, which real production data shows
-    rescues 30-63% of the events that need it (see the 2026-09-25 cost-audit
-    report). Relying on analyze_event()'s outer retry as the sole "second
-    attempt" bounds every billed event at exactly 2 real model calls total (1
-    first attempt + at most 1 framing retry), matching this campaign's
-    MAX_BILLED_LLM_ATTEMPTS_PER_EVENT=2 rule, without touching the one retry
-    layer with measured rescue value. Ollama (free) keeps its original
-    retries=1 - there is no cost reason to change it.
+def _call_json_cached(prompt, backend):
+    """_call_json(), transparently reusing a cached RAW result for the exact
+    same rendered prompt + model (2026-09-25 LLM cost campaign - see
+    summary_cache.py). Only the raw model output is ever cached; the caller
+    (analyze_event(), below) always runs postprocess() fresh on whatever this
+    returns, cached or not, so content_complete/evidence_status are always
+    recomputed from CURRENT logic - a cache hit can never shortcut the
+    evidence gate. Only a call that reaches this function's own `return raw`
+    (i.e. one _call_json() didn't raise on) is ever stored - an exception
+    propagates exactly as it did before this function existed, and nothing is
+    cached for it.
 
-    max_billed_attempts=1 additionally bounds pool_generate()'s own internal
-    cross-provider fanout for backend=="pool" (a no-op for "gemini"/"ollama"/a
-    dict backend - only pool_generate() reads it): a free-tier provider
-    (Groq) is still tried without limit, but at most ONE attempt against a
-    "billed" provider (Gemini) is made per call to this function - so across
+    Phase 4 (retry-budget unification, 2026-09-25): for a BILLED backend,
+    _call_json()'s own internal same-prompt retry (its `retries` param,
+    default 1 - a second paid call on ANY non-RuntimeError exception, e.g. a
+    malformed-JSON hiccup) is turned OFF (retries=0) here. That layer's own
+    value was never separately measured anywhere in Paksh's logs - unlike
+    analyze_event()'s OWN framing-completeness retry one level up, which real
+    production data shows rescues 30-63% of the events that need it (see the
+    2026-09-25 cost-audit report). Relying on analyze_event()'s outer retry as
+    the sole "second attempt" bounds every billed event at exactly 2 real
+    model calls total (1 first attempt + at most 1 framing retry), matching
+    this campaign's MAX_BILLED_LLM_ATTEMPTS_PER_EVENT=2 rule, without touching
+    the one retry layer with measured rescue value. Ollama (free) keeps its
+    original retries=1 - there is no cost reason to change it, and this
+    change must never make local analysis LESS resilient than before.
+
+    Gap found and closed during incident recovery (2026-09-25): retries=0
+    only bounds THIS function's own loop - backend=="pool" internally fans out
+    across multiple providers inside pool_generate() (see ai_providers.py),
+    which was NOT bounded by retries=0 at all. max_billed_attempts=1 is now
+    passed through on every call (a no-op for "gemini"/"ollama"/a dict/other
+    backends - only pool_generate() reads it): a free-tier provider (Groq) is
+    still tried without limit, but at most ONE attempt against a "billed"
+    provider (Gemini) is made per call to this function - so across
     analyze_event()'s 2 outer calls, at most 2 billed attempts total occur
     even when backend=="pool", matching backend=="gemini"'s already-exact
     ceiling instead of only approximating it."""
+    tier = _resolved_backend_tier(backend)
+    fp = None
+    if tier is not None:
+        fp = summary_cache.fingerprint(prompt, tier)
+        cached = summary_cache.get(fp)
+        if cached is not None:
+            return cached
     retries = 0 if _is_billed_backend(backend) else 1
-    return _call_json(prompt, retries=retries, backend=backend, max_billed_attempts=1)
+    raw = _call_json(prompt, retries=retries, backend=backend, max_billed_attempts=1)
+    if fp is not None:
+        summary_cache.put(fp, raw, tier)
+    return raw
 
 
 def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> dict:
@@ -1557,7 +1603,7 @@ def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> 
             pdi_context = None   # non-fatal by construction - see docstring above
 
     try:
-        raw = _call_json_billed_capped(build_prompt(articles, pdi_context=pdi_context), backend=backend)
+        raw = _call_json_cached(build_prompt(articles, pdi_context=pdi_context), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
             raise ValueError("empty model output")
         if _looks_generic(raw.get("title", "")):
@@ -1577,7 +1623,7 @@ def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> 
     else:
         _record_retry_stat("retry_attempted")
         try:
-            retry_raw = _call_json_billed_capped(build_prompt(articles, region=result.get("region"), pdi_context=pdi_context), backend=backend)
+            retry_raw = _call_json_cached(build_prompt(articles, region=result.get("region"), pdi_context=pdi_context), backend=backend)
             if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
                 # The retry's outlet labels and owner counts were built for the region the FIRST attempt
                 # resolved, so its counts must use that same region. Left free, the model sometimes
