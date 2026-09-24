@@ -30,6 +30,17 @@ REM force UTF-8 so Devanagari (Hindi) titles never crash a cp1252-redirected log
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 set PAKSH_LLM_BACKEND=gemini
+REM 2026-09-25 LLM cost campaign: without this override, LLM_BACKEND=="gemini"
+REM makes analyze.py's _gem_default pick the FULL-PRICE "gemini-2.5-flash" model
+REM (3x input / 6.25x output cost vs flash-lite - see ai_providers.py's PROVIDERS
+REM list, which already uses flash-lite for the "pool" backend). A 16-event
+REM benchmark across ordinary/political/economic/international/multi-source/
+REM title-echo-risk/evidence-gate-edge-case categories found ZERO quality
+REM regressions on flash-lite vs flash: identical valid-JSON, content_complete,
+REM evidence_status (all PUBLISHABLE), and title-echo results on every single
+REM event tested (see the LLM cost audit report, Phase 2/3). Revert by deleting
+REM this line if a larger-scale check ever finds a real regression.
+set PAKSH_LLM_GEMINI_MODEL=gemini-2.5-flash-lite
 REM Phase 21-fix (2026-09-23): explicit, authoritative production data directory -
 REM see the matching comment in refresh_scheduled.bat.
 set PAKSH_DATA_DIR=D:\Paksh_Data
