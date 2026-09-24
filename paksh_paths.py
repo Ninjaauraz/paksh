@@ -253,6 +253,61 @@ def require_ready(path=None):
             f"Restore it from {backup_dir(d)}, or set PAKSH_ALLOW_NEW_DB=1 to create a new one on purpose.")
 
 
+def require_production(path=None):
+    """Stricter than require_ready(), for entry points that PUBLISH (export_static.py) -
+    where silently falling back to the repo-local paksh.db must be IMPOSSIBLE, not just
+    unlikely. 2026-09-24 incident: a manual export run, in a process environment where
+    the LOCALAPPDATA config file happened not to resolve, saw config_resolution =
+    _NOT_CONFIGURED - which require_ready() correctly treats as "a legitimately
+    unconfigured dev machine" and allows. For most pipeline scripts that's the right,
+    dev-friendly default. An export that PUBLISHES cannot take that risk: it must have
+    positive, verified proof of the real production data directory, never "nothing said
+    otherwise". So this function additionally:
+      - treats _NOT_CONFIGURED as a FAILURE (require_ready() does not - that is the one
+        deliberate difference between the two functions);
+      - requires the .paksh-production marker unconditionally, whether the directory was
+        found via PAKSH_DATA_DIR or via data_dir.txt (require_ready() only checks the
+        marker for the PAKSH_DATA_DIR/_CONFIGURED_ENV case).
+    Raises DataDirError naming the expected production DB, the DB that would actually be
+    opened, and how to set PAKSH_DATA_DIR. Does nothing when PAKSH_ALLOW_NEW_DB=1 - the
+    same documented escape hatch require_ready() already uses for "deliberately a fresh
+    local/dev/test export with no external storage configured"."""
+    if os.environ.get("PAKSH_ALLOW_NEW_DB") == "1":
+        return
+    resolved = path if path is not None else db_path()
+    status, val = _resolve_config()
+    if status not in _CONFIGURED:
+        raise DataDirError(
+            f"Refusing to export: no production data directory is configured in this "
+            f"process (config_resolution={status}). A publishing export must never "
+            f"silently fall back to the repo-local database.\n"
+            f"  expected production DB: database/{DB_NAME} under an explicitly configured "
+            f"production data directory\n"
+            f"  resolved DB (what this run would actually open): {resolved}\n"
+            f"  fix: set PAKSH_DATA_DIR to the real production data directory in THIS "
+            f"shell before exporting, e.g. (PowerShell) "
+            f"$env:PAKSH_DATA_DIR=\"D:\\Paksh_Data\"\n"
+            f"  (or set PAKSH_ALLOW_NEW_DB=1 if this is a deliberate local/dev export "
+            f"with no external storage configured)")
+    d = Path(val)
+    if not d.exists():
+        raise DataDirError(f"Refusing to export: configured data directory {d} does not exist. "
+                            f"Is the drive connected?")
+    _require_production_marker(d)          # required here regardless of how `d` was found
+    target = db_path(d)
+    if not target.exists():
+        raise DataDirError(f"Refusing to export: configured data directory {d} exists but its "
+                            f"database {target} is missing.")
+    if not _same(resolved, target):
+        raise DataDirError(
+            f"Refusing to export: this process would open a database that does not match "
+            f"the verified production database.\n"
+            f"  expected production DB: {target}\n"
+            f"  resolved DB (what this run would actually open): {resolved}\n"
+            f"  fix: set PAKSH_DATA_DIR=\"{d}\" before exporting so the whole process "
+            f"resolves the same database throughout.")
+
+
 if __name__ == "__main__":
     import json
     import sys

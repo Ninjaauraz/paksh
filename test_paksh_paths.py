@@ -290,6 +290,92 @@ try:
     check("11g: a child process inherits PAKSH_DATA_DIR and resolves it correctly",
           _r.stdout.strip() == str(prod))
 
+    print("\nTEST 12: require_production() - the stricter export-only guard (2026-09-24 fix)")
+    # 2026-09-24 real incident: a manual `export_static.py` run, in a process
+    # environment where the LOCALAPPDATA config file happened not to resolve, saw
+    # config_resolution = _NOT_CONFIGURED (which require_ready() correctly allows for
+    # ordinary pipeline scripts) and silently opened the repo-local paksh.db, producing
+    # a wildly wrong publishable-event count. require_production() closes exactly that
+    # gap for the one entry point that PUBLISHES, without changing require_ready() or
+    # any of its existing callers (live.py, refresh.py, reframe.py, database.py).
+
+    def make_prod_dir(root, with_db=True, marker=pp.PRODUCTION_MARKER_MAGIC):
+        (root / "database").mkdir(parents=True, exist_ok=True)
+        if with_db:
+            sqlite3.connect(root / "database" / "paksh.db").close()
+        if marker is not None:
+            pp.production_marker_path(root).write_text(marker, encoding="utf-8")
+
+    prod12 = TMP / "t12_production"
+    make_prod_dir(prod12)
+
+    # 12A: correct production configuration -> accepted (no exception), matching the
+    # exact real fix command: PAKSH_DATA_DIR=D:\Paksh_Data.
+    reset(PAKSH_DATA_DIR=str(prod12))
+    check("12A: correct PAKSH_DATA_DIR + valid marker + DB present -> require_production accepts",
+          pp.require_production(pp.db_path()) is None)
+
+    # 12B: missing/invalid production configuration -> refuses, does NOT silently fall
+    # back to the repo-local paksh.db (the exact failure this fix targets).
+    reset()   # nothing configured - the exact _NOT_CONFIGURED condition from the incident
+    check("12B: nothing configured -> require_production refuses (does not no-op like require_ready)",
+          raises(lambda: pp.require_production(pp.db_path())))
+    check("12B2: require_ready() itself is UNCHANGED - still a no-op for the same unconfigured case",
+          pp.require_ready(pp.db_path()) is None)
+
+    # 12C: a repo-local paksh.db existing must NOT make it an acceptable production
+    # target, even if one is sitting right there. Simulate "repo-local db exists" by
+    # monkeypatching ROOT (db_path() falls back to ROOT/paksh.db when unconfigured).
+    orig_root = pp.ROOT
+    stray_root = TMP / "t12_stray_repo"
+    stray_root.mkdir(parents=True, exist_ok=True)
+    sqlite3.connect(stray_root / "paksh.db").close()   # a real, openable stray DB
+    pp.ROOT = stray_root
+    try:
+        reset()   # still nothing configured
+        check("12C: a repo-local paksh.db existing is still refused as a production target",
+              raises(lambda: pp.require_production(pp.db_path())))
+        check("12C2: ...even though db_path() itself would happily resolve to it",
+              pp.db_path() == stray_root / "paksh.db" and pp.db_path().exists())
+    finally:
+        pp.ROOT = orig_root
+
+    # 12D (requirement D): the existing export collapse guard is untouched by this
+    # change - export_static.py's own dedicated suite (test_export_collapse_guard.py)
+    # covers it directly; this just confirms require_production() and the collapse
+    # guard are independent (this function does no _site/event-count work at all).
+    check("12D: require_production() never touches _site or event counts (pure path check)",
+          not hasattr(pp.require_production, "_site"))
+
+    # 12E (requirement E): require_ready() - what live.py/refresh.py/reframe.py/
+    # database.py all actually call - is completely unmodified by this change. Proven
+    # structurally (12B2 above re-runs it against the same env) and behaviourally: every
+    # pre-existing TEST 1-11 in this same file, exercising require_ready() end to end,
+    # still ran unmodified earlier in this process.
+    reset(PAKSH_DATA_DIR=str(prod12))
+    check("12E: require_ready() still accepts the same valid production config require_production does",
+          pp.require_ready(pp.db_path()) is None)
+
+    # 12F: the escape hatch still works for require_production() too (deliberate
+    # local/dev export with no external storage - same documented semantics as
+    # require_ready()'s PAKSH_ALLOW_NEW_DB=1).
+    reset()
+    os.environ["PAKSH_ALLOW_NEW_DB"] = "1"
+    check("12F: PAKSH_ALLOW_NEW_DB=1 still allows a deliberate local/dev export",
+          pp.require_production(pp.db_path()) is None)
+    os.environ.pop("PAKSH_ALLOW_NEW_DB")
+
+    # 12G: the error message itself names the resolved (wrong) DB and how to fix it -
+    # required by the fix's own spec (must not just fail silently or cryptically).
+    reset()
+    try:
+        pp.require_production(pp.db_path())
+        _msg = None
+    except pp.DataDirError as e:
+        _msg = str(e)
+    check("12G: the error names the resolved DB path", _msg is not None and str(pp.db_path()) in _msg)
+    check("12G2: the error explains how to fix it (PAKSH_DATA_DIR)", _msg is not None and "PAKSH_DATA_DIR" in _msg)
+
 finally:
     for k, v in _saved.items():
         if v is None:

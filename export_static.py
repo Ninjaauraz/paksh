@@ -31,6 +31,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import database
+import paksh_paths
 from database import (
     init_db, get_all_events, get_blindspot_events, get_topics, get_events_by_ids,
     get_connection,
@@ -954,6 +956,20 @@ def _publish_build(build_dir: Path, final_dir: Path):
 
 
 def main():
+    # 2026-09-24 incident: this process's database.DB_PATH is resolved once, at import
+    # time, by paksh_paths.db_path() - and in an environment where that resolution
+    # silently landed on "nothing configured", it opened the repo-local paksh.db instead
+    # of the real production database, producing a wildly wrong (but self-consistent)
+    # export that only the collapse guard below caught. require_production() fails
+    # loudly, before any work happens, whenever this process cannot prove it has the
+    # real, verified production database - it does not change how the database is
+    # located (see paksh_paths.py), only refuses to proceed silently when that location
+    # can't be positively confirmed.
+    try:
+        paksh_paths.require_production(database.DB_PATH)
+    except paksh_paths.DataDirError as e:
+        raise SystemExit(f"[FATAL] {e}")
+
     init_db()
 
     # Build into a scratch directory, never the live `_site`, so a failure at ANY stage
