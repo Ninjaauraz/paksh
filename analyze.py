@@ -729,15 +729,27 @@ def compute_evidence_status(summary: str, title: str, summary_method: str, artic
     EVIDENCE_INSUFFICIENT. Pure function - no network, no DB, no LLM - so it can be
     unit-tested from a fixture and re-run identically as a read-only corpus audit.
 
-    - "llm" summaries are always PUBLISHABLE: the model already turned whatever raw
-      material existed into real synthesized prose. Verified against the production
-      corpus (20-event contrast sample): every sampled LLM output was genuine,
-      non-echoed prose, even when its INPUT material was thin - synthesis is not
-      extraction, and this function must not punish the LLM tier for a failure mode
-      (bare title echo) that is specific to the extractive path.
-    - A non-"llm" summary that is itself real prose - not a title echo - is
-      PUBLISHABLE. Most extractive events are exactly this (a genuinely short but
-      real sentence); short is not the same as incomplete.
+    - A "llm" summary is PUBLISHABLE if - and only if - it actually contains real
+      synthesized prose: non-empty, at least MIN_USABLE_CHARS long, and not a bare
+      echo of the title. Verified against the production corpus (20-event contrast
+      sample): every sampled GEMINI output was genuine, non-echoed prose, even when
+      its INPUT material was thin - synthesis is not extraction, and this function
+      must not punish the LLM tier for a failure mode (bare title echo) that is
+      specific to the extractive path. 2026-09-25 LLM cost campaign: a real
+      benchmark of a SMALLER local model (llama3.2:3b) found the opposite failure
+      mode the 20-event Gemini sample never produced - a syntactically valid
+      response with `summary_method=="llm"` but a genuinely EMPTY summary field, in
+      8/16 benchmark events. The tag "llm" alone was never meant to be a substitute
+      for actually checking the content - it was a reasonable shortcut ONLY because
+      every sample checked at the time happened to contain real prose. This
+      length+echo check restores exactly that original guarantee instead of
+      widening it to models that don't uphold it. A short-but-real llm summary
+      (below MIN_USABLE_CHARS but genuine, non-echo prose) is NOT rejected here -
+      it falls through to the same "short is not incomplete" rule below that
+      already protects legitimate short extractive stories.
+    - A non-"llm" (or now-disqualified "llm") summary that is itself real prose -
+      not a title echo - is PUBLISHABLE. Most extractive events are exactly this (a
+      genuinely short but real sentence); short is not the same as incomplete.
     - Otherwise: if a BETTER summary exists among the member articles (>=
       MIN_USABLE_CHARS of real, non-echo text) that was not used, this is a
       repairable PICKER failure, not a missing-evidence problem - NEEDS_REVIEW.
@@ -749,7 +761,8 @@ def compute_evidence_status(summary: str, title: str, summary_method: str, artic
       function - it stays in the database exactly as analysed, and becomes eligible
       again automatically the next time it is re-processed with more or better
       articles (e.g. a merge adds a new outlet with real text)."""
-    if summary_method == "llm":
+    if (summary_method == "llm" and summary and len(summary.strip()) >= MIN_USABLE_CHARS
+            and not is_title_echo(summary, title)):
         return EVIDENCE_PUBLISHABLE, "llm_synthesized"
     if summary and not is_title_echo(summary, title):
         return EVIDENCE_PUBLISHABLE, "extractive_real_text"

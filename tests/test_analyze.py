@@ -361,10 +361,59 @@ assert result_legit["evidence_status"] == analyze.EVIDENCE_PUBLISHABLE, result_l
 print("legitimate short-but-real single-source story remains PUBLISHABLE - short is not "
       "treated as incomplete ... OK")
 
-# ---- LLM path is always PUBLISHABLE regardless of input thinness (synthesis != extraction) ----
-status, reason = analyze.compute_evidence_status("A real synthesized sentence.", "Some Title", "llm", [])
+# ---- LLM path is PUBLISHABLE regardless of input thinness (synthesis != extraction) -
+# AS LONG AS it actually contains real synthesized prose, not just the "llm" tag ----
+status, reason = analyze.compute_evidence_status(
+    "A real synthesized sentence describing what actually happened in this story.",
+    "Some Title", "llm", [])
 assert status == analyze.EVIDENCE_PUBLISHABLE and reason == "llm_synthesized"
-print("LLM-path summaries are always PUBLISHABLE under the evidence gate (compute_content_complete "
-      "already governs their framing-completeness separately) ... OK")
+print("LLM-path summaries with real prose are PUBLISHABLE under the evidence gate "
+      "(compute_content_complete already governs their framing-completeness separately) ... OK")
+
+# 2026-09-25 LLM cost campaign: a real benchmark of a SMALLER local model
+# (llama3.2:3b) found 8/16 events with summary_method=="llm" but a genuinely EMPTY
+# summary field - the "llm" tag alone was never proof of real synthesis, it was a
+# shortcut that held for every Gemini sample checked at the time. An empty "llm"
+# summary must NOT be blindly trusted - it must fall through to the same
+# evidence-sufficiency check any other tier gets.
+status, reason = analyze.compute_evidence_status("", "Real headline from the local model", "llm", [])
+assert status == analyze.EVIDENCE_INSUFFICIENT, (status, reason)
+print("an EMPTY 'llm'-tagged summary (the real llama3.2:3b failure mode) is NOT blindly "
+      "trusted - falls through to INSUFFICIENT_EVIDENCE when no better text exists ... OK")
+
+# A title-only ("llm"-tagged) echo must be caught too, not just emptiness.
+long_title = "A sufficiently long real-looking headline that would pass the length check alone"
+status, reason = analyze.compute_evidence_status(long_title, long_title, "llm", [])
+assert status != analyze.EVIDENCE_PUBLISHABLE or reason != "llm_synthesized", (status, reason)
+print("a title-ECHO 'llm'-tagged summary is also not blindly trusted via length alone ... OK")
+
+# A genuinely short-but-REAL llm summary must still be PUBLISHABLE (not rejected merely
+# for being short) - it falls through to the same "short is not incomplete" rule.
+status, reason = analyze.compute_evidence_status("A fire broke out.", "Fire breaks out at plant", "llm", [])
+assert status == analyze.EVIDENCE_PUBLISHABLE, (status, reason)
+print("a short-but-real (non-echo) 'llm' summary remains PUBLISHABLE - short is still not "
+      "treated as incomplete, even under the tightened llm check ... OK")
+
+# Real, verbatim data captured from the actual llama3.2:3b benchmark run (2026-09-25
+# LLM cost campaign incident) - not a synthetic string. Both are real production
+# event titles that got a genuinely empty summary back from the local model.
+for real_title in (
+    "AI-powered remake of Willy Wonka's iconic voice actor sparks mixed reviews",
+    "ED Arrests Man for Smuggling Gold from Myanmar-UAE, Seizes ₹26 Crore Worth of Go",
+):
+    status, reason = analyze.compute_evidence_status("", real_title, "llm", [])
+    assert status == analyze.EVIDENCE_INSUFFICIENT, (real_title, status, reason)
+print("real captured llama3.2:3b empty-summary cases (2 real production titles) are no "
+      "longer blindly published ... OK")
+
+# The SAME benchmark run's genuine non-empty llm output (real synthesized prose) must
+# still be PUBLISHABLE - the fix must not have collaterally punished a good response.
+real_good_summary = ("US President Donald Trump mocked Chinese President Xi Jinping's winter "
+                      "attire during a diplomatic exchange, drawing mixed reactions online.")
+status, reason = analyze.compute_evidence_status(
+    real_good_summary, "Trump Mocks Xi in Unusual Airport Greeting", "llm", [])
+assert status == analyze.EVIDENCE_PUBLISHABLE and reason == "llm_synthesized"
+print("the SAME benchmark run's genuine non-empty llm output remains PUBLISHABLE "
+      "(fix is not collaterally punishing real local-model output) ... OK")
 
 print("\nALL ASSERTIONS PASSED")
