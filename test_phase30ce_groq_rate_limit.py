@@ -249,6 +249,98 @@ check("22: 10 concurrent pool_generate() calls under a saturated Groq all comple
       f"without raising or corrupting state (errors: {errors[:3]})", not errors)
 ap.urllib.request.urlopen = orig_urlopen
 
+# --- 2026-09-25 LLM cost campaign incident recovery: max_billed_attempts must
+# actually cap attempts against "billed": True providers, while leaving a FREE
+# provider's own fallback completely unrestricted (the whole point of trying the
+# free tier first must survive this). Reproduces the exact gap found in
+# analyze.py's _call_json_cached(): retries=0 there only bounded _call_json's own
+# loop, not pool_generate()'s internal cross-provider fanout.
+#
+# The proof needs TWO billed providers: with only one, a transient failure
+# already limits it to exactly 1 attempt via the pre-existing "break to next
+# provider" rule, which would make the budget look like it's working even if it
+# were silently ignored. With two billed providers, only the BUDGET (not the
+# transient-break rule) can explain the second one never being called at all. ---
+test_gemini_a = {"name": "test_gemini_a", "enabled": True, "base_url": "https://example.invalid/v1",
+                  "model": "test-model", "key_env": "TEST_GEMINI_API_KEY", "billed": True}
+test_gemini_b = {"name": "test_gemini_b", "enabled": True, "base_url": "https://example.invalid/v1",
+                  "model": "test-model", "key_env": "TEST_GEMINI_API_KEY", "billed": True}
+calls3 = {"a": 0, "b": 0}
+
+
+def urlopen_both_billed_fail(req, timeout=None):
+    # both share the same fake key/base_url; distinguish by provider name is not
+    # possible from the request alone, so count total calls instead.
+    calls3["a" if calls3["a"] <= calls3["b"] else "b"] += 1
+    raise urllib.error.HTTPError("https://example.invalid", 500, "Server Error", {},
+                                  io.BytesIO(b"internal error"))
+
+
+ap.PROVIDERS = [test_gemini_a, test_gemini_b]
+orig_urlopen = _patch_urlopen(urlopen_both_billed_fail)
+ap._rr_i = 0
+total_calls_with_budget = {"n": 0}
+_orig_chat_once = ap._chat_once
+def _counting_chat_once(provider, prompt, as_json, timeout=120):
+    total_calls_with_budget["n"] += 1
+    return _orig_chat_once(provider, prompt, as_json, timeout)
+ap._chat_once = _counting_chat_once
+raised = False
+try:
+    ap.pool_generate("budget test", as_json=False, max_billed_attempts=1)
+except ValueError:
+    raised = True
+ap._chat_once = _orig_chat_once
+check("23: both billed providers failing still raises ValueError (unchanged exception type)", raised)
+check(f"24: with max_billed_attempts=1, only ONE billed provider was ever attempted "
+      f"(the second was SKIPPED entirely, not called) - got {total_calls_with_budget['n']} total call(s)",
+      total_calls_with_budget["n"] == 1)
+
+# Control: the SAME two-billed-provider setup with NO budget attempts BOTH -
+# proves the skip above really is caused by the budget, not some other limit.
+total_calls_no_budget = {"n": 0}
+def _counting_chat_once2(provider, prompt, as_json, timeout=120):
+    total_calls_no_budget["n"] += 1
+    return _orig_chat_once(provider, prompt, as_json, timeout)
+ap._chat_once = _counting_chat_once2
+ap._rr_i = 0
+try:
+    ap.pool_generate("no budget control", as_json=False)   # max_billed_attempts=None (default)
+except ValueError:
+    pass
+ap._chat_once = _orig_chat_once
+check(f"25: the SAME setup with NO budget (default) attempts BOTH billed providers "
+      f"- got {total_calls_no_budget['n']} total call(s) (control, proves 24 isn't accidental)",
+      total_calls_no_budget["n"] == 2)
+ap.urllib.request.urlopen = orig_urlopen
+test_gemini_billed = test_gemini_a   # reused by the next case below
+
+# Case B: with NO budget (default, None) the pre-existing behavior is unchanged -
+# a non-transient failure on the billed provider CAN still be retried per
+# retries_per_provider (proves this is an opt-in cap, not a silent behavior change
+# for every existing caller that doesn't pass max_billed_attempts).
+calls4 = {"gemini": 0}
+
+
+def urlopen_gemini_only_fails_then_ok(req, timeout=None):
+    # 401 (not one of the _TRANSIENT markers) so pool_generate's loop does NOT
+    # break to "next provider" - it falls through to retries_per_provider's
+    # own same-provider retry, which is exactly the pre-existing behavior this
+    # case is proving stays intact when no budget is passed.
+    calls4["gemini"] += 1
+    if calls4["gemini"] == 1:
+        raise urllib.error.HTTPError("https://example.invalid", 401, "Unauthorized", {},
+                                      io.BytesIO(b"bad key (simulated, not a real failure)"))
+    return _FakeHTTPResponse(_ok_body("GEMINI_OK_2ND_TRY"))
+
+
+ap.PROVIDERS = [test_gemini_billed]
+orig_urlopen = _patch_urlopen(urlopen_gemini_only_fails_then_ok)
+result3 = ap.pool_generate("no budget test", as_json=False)   # max_billed_attempts=None (default)
+check("26: with NO budget passed (default None), unchanged pre-existing same-provider "
+      "retry-on-transient-failure behavior still works", result3 == "GEMINI_OK_2ND_TRY")
+ap.urllib.request.urlopen = orig_urlopen
+
 # restore
 ap.PROVIDERS = orig_providers
 _os.environ.clear()

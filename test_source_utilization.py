@@ -284,7 +284,7 @@ check("C8: labels of India outlets never depend on region", _labels(None)["The H
 
 # analyze_event's retry must keep the region it was PROMPTED with (labels + owner counts were built for it).
 _calls = []
-def _fake_call(prompt, retries=1, backend=None):
+def _fake_call(prompt, retries=1, backend=None, **_ignored):
     _calls.append(prompt)
     base = {"title": "Hotel fire treated as suspicious", "summary": "Police say the blaze is suspicious.", "topic": "Crime & Law",
             "framing": {"left": [], "center": ["Centre framing text."], "right": []}, "region": "World"}

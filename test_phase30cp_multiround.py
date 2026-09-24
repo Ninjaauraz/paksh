@@ -461,7 +461,7 @@ print("\n=== Test 20: _call_json() can retry the SAME provider without provider 
 calls = []
 
 
-def fake_generate(prompt, as_json, backend=None):
+def fake_generate(prompt, as_json, backend=None, **_ignored):
     calls.append(backend_name(backend) if backend else None)
     if len(calls) == 1:
         return "{not valid json"          # triggers _extract_json ValueError -> _call_json retry

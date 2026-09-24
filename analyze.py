@@ -204,7 +204,7 @@ def _gemini_generate(prompt: str, as_json: bool) -> str:
             raise
 
 
-def _generate(prompt: str, as_json: bool, backend=None) -> str:
+def _generate(prompt: str, as_json: bool, backend=None, max_billed_attempts=None) -> str:
     backend = backend or LLM_BACKEND
     if isinstance(backend, dict):
         # Phase 30C-P: `backend` is a specific provider dict (e.g. from
@@ -219,8 +219,12 @@ def _generate(prompt: str, as_json: bool, backend=None) -> str:
     if backend == "pool":
         # Round-robin + fallback across the free provider pool (Groq, Cerebras,
         # Gemini, ...). See ai_providers.py; keys live in ai_keys.env.
+        # 2026-09-25: max_billed_attempts (None = unlimited, unchanged default for
+        # every caller that doesn't pass it) enforces the SAME billed-attempt
+        # ceiling analyze_event() applies to "gemini"/"ollama" - see
+        # pool_generate()'s own docstring for exactly what it bounds.
         from ai_providers import pool_generate
-        return pool_generate(prompt, as_json)
+        return pool_generate(prompt, as_json, max_billed_attempts=max_billed_attempts)
     return _gemini_generate(prompt, as_json)
 
 
@@ -228,14 +232,18 @@ def _generate_text(prompt: str, backend=None) -> str:
     return _generate(prompt, as_json=False, backend=backend)
 
 
-def _call_json(prompt: str, retries: int = 1, backend=None):
+def _call_json(prompt: str, retries: int = 1, backend=None, max_billed_attempts=None):
     """Generate JSON via the active backend, tolerant-parse it, retry once.
     If the backend itself is unreachable, raise immediately so the caller can
-    fall back to an extractive summary rather than retry a dead server."""
+    fall back to an extractive summary rather than retry a dead server.
+    max_billed_attempts: passed straight through to _generate() (only "pool"
+    honors it - see pool_generate()'s docstring); None (default) is unchanged
+    behavior for every existing caller."""
     last = None
     for _ in range(retries + 1):
         try:
-            return _extract_json(_generate(prompt, as_json=True, backend=backend))
+            return _extract_json(_generate(prompt, as_json=True, backend=backend,
+                                            max_billed_attempts=max_billed_attempts))
         except RuntimeError:
             raise
         except Exception as e:
@@ -1460,6 +1468,45 @@ def _record_retry_stat(key: str):
         _RETRY_STATS[key] += 1
 
 
+def _is_billed_backend(backend):
+    """True for anything that spends real money per call (gemini/pool/unified/
+    rounds/a specific paid provider dict) - False only for "ollama" (free,
+    local). Used by _call_json_billed_capped() below to decide the retry
+    budget (2026-09-25 retry-budget campaign)."""
+    resolved = backend or LLM_BACKEND
+    if isinstance(resolved, dict):
+        return True
+    return resolved != "ollama"
+
+
+def _call_json_billed_capped(prompt, backend):
+    """_call_json() with a hard billed-attempt ceiling applied (2026-09-25
+    retry-budget campaign). For a BILLED backend, _call_json()'s own internal
+    same-prompt retry (its `retries` param, default 1 - a second paid call on
+    ANY non-RuntimeError exception, e.g. a malformed-JSON hiccup) is turned
+    OFF (retries=0) here. That layer's own value was never separately
+    measured anywhere in Paksh's logs - unlike analyze_event()'s OWN
+    framing-completeness retry one level up, which real production data shows
+    rescues 30-63% of the events that need it (see the 2026-09-25 cost-audit
+    report). Relying on analyze_event()'s outer retry as the sole "second
+    attempt" bounds every billed event at exactly 2 real model calls total (1
+    first attempt + at most 1 framing retry), matching this campaign's
+    MAX_BILLED_LLM_ATTEMPTS_PER_EVENT=2 rule, without touching the one retry
+    layer with measured rescue value. Ollama (free) keeps its original
+    retries=1 - there is no cost reason to change it.
+
+    max_billed_attempts=1 additionally bounds pool_generate()'s own internal
+    cross-provider fanout for backend=="pool" (a no-op for "gemini"/"ollama"/a
+    dict backend - only pool_generate() reads it): a free-tier provider
+    (Groq) is still tried without limit, but at most ONE attempt against a
+    "billed" provider (Gemini) is made per call to this function - so across
+    analyze_event()'s 2 outer calls, at most 2 billed attempts total occur
+    even when backend=="pool", matching backend=="gemini"'s already-exact
+    ceiling instead of only approximating it."""
+    retries = 0 if _is_billed_backend(backend) else 1
+    return _call_json(prompt, retries=retries, backend=backend, max_billed_attempts=1)
+
+
 def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> dict:
     """Never raises. Tries the LLM for a neutral bilingual brief; if the model is
     unavailable or returns nothing usable, falls back to an extractive headline
@@ -1510,7 +1557,7 @@ def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> 
             pdi_context = None   # non-fatal by construction - see docstring above
 
     try:
-        raw = _call_json(build_prompt(articles, pdi_context=pdi_context), backend=backend)
+        raw = _call_json_billed_capped(build_prompt(articles, pdi_context=pdi_context), backend=backend)
         if not (raw.get("title") or raw.get("summary")):
             raise ValueError("empty model output")
         if _looks_generic(raw.get("title", "")):
@@ -1530,7 +1577,7 @@ def analyze_event(articles, backend=None, on_failure=None, pdi_payload=None) -> 
     else:
         _record_retry_stat("retry_attempted")
         try:
-            retry_raw = _call_json(build_prompt(articles, region=result.get("region"), pdi_context=pdi_context), backend=backend)
+            retry_raw = _call_json_billed_capped(build_prompt(articles, region=result.get("region"), pdi_context=pdi_context), backend=backend)
             if (retry_raw.get("title") or retry_raw.get("summary")) and not _looks_generic(retry_raw.get("title", "")):
                 # The retry's outlet labels and owner counts were built for the region the FIRST attempt
                 # resolved, so its counts must use that same region. Left free, the model sometimes

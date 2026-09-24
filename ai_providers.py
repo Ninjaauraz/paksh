@@ -102,6 +102,7 @@ PROVIDERS = [
         # THIS provider - see _RateLimiter/_LIMITERS below - Gemini and any
         # future provider get none of this unless they set it themselves.
         "tpm_budget": 6000, "max_concurrent": 2,
+        # "billed": omitted - this is a genuine free tier (429 rejections cost nothing).
     },
     {
         # DISABLED 2026-08-08: this Cerebras account returns HTTP 402 "payment required"
@@ -117,6 +118,11 @@ PROVIDERS = [
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
         "model": "gemini-2.5-flash-lite",
         "get_key": "https://aistudio.google.com/apikey",
+        # 2026-09-25 LLM cost campaign: marks this provider as one pool_generate()'s
+        # optional max_billed_attempts budget (below) actually counts against - a real
+        # per-token cost is incurred on every attempt, success or failure, unlike Groq's
+        # free-tier 429 rejections. See pool_generate()'s docstring.
+        "billed": True,
     },
     # ---- TEMPLATE: copy, set name/base_url/model, then add <NAME>_API_KEY to ai_keys.env
     # {
@@ -649,7 +655,7 @@ _TRANSIENT = ("429", "500", "502", "503", "529",
               "RESOURCE_EXHAUSTED", "UNAVAILABLE", "rate limit", "timeout")
 
 
-def pool_generate(prompt, as_json=False, retries_per_provider=1):
+def pool_generate(prompt, as_json=False, retries_per_provider=1, max_billed_attempts=None):
     """Capacity/health-aware dispatch across active providers (Phase 30C-J);
     falls through to the next on failure. Returns the model's text. Raises
     RuntimeError if NO provider is configured at all (so analyze.py can fall
@@ -663,7 +669,23 @@ def pool_generate(prompt, as_json=False, retries_per_provider=1):
     comes from _pick_providers_in_order() (health/capacity-ranked, UNAVAILABLE/
     DISABLED excluded entirely) instead of blind round-robin, and each
     attempt's outcome is recorded into that provider's ProviderCapacity so
-    later calls (this run and, via the bounded cache, future runs) see it."""
+    later calls (this run and, via the bounded cache, future runs) see it.
+
+    2026-09-25 LLM cost campaign: max_billed_attempts (default None = unlimited,
+    byte-identical to every existing caller/test) caps how many attempts against
+    a "billed": True provider (see PROVIDERS above - currently just gemini) this
+    ONE call may make, across every provider AND every retries_per_provider loop
+    combined. A free-tier provider (Groq today) is NEVER counted against this
+    budget and is never skipped by it - the whole point of trying the free tier
+    first is unaffected. Once the billed budget is used up, any remaining billed
+    provider in `ordered` is skipped entirely (not attempted at all); a
+    remaining FREE provider is still tried normally. This closes the gap the
+    2026-09-25 cost-audit report identified: analyze.py's own retries=0-for-
+    billed-backends change (see _call_json_cached()) only bounds _call_json's
+    OWN retry loop, not pool_generate()'s internal cross-provider fanout -
+    passing max_billed_attempts here is what actually enforces a hard ceiling
+    on real spend for backend=="pool", the same way backend=="gemini" is
+    already exactly bounded (it has no fanout to begin with)."""
     provs = active_providers()
     if not provs:
         raise RuntimeError(
@@ -675,9 +697,18 @@ def pool_generate(prompt, as_json=False, retries_per_provider=1):
         raise ValueError("all providers currently ineligible (unavailable/disabled) -> "
                           + ", ".join(f"{p['name']}={_capacity_for(p).current_health()}" for p in provs))
     errors = []
+    billed_attempts = 0
     for p in ordered:
+        is_billed = bool(p.get("billed"))
+        if is_billed and max_billed_attempts is not None and billed_attempts >= max_billed_attempts:
+            errors.append(f"{p['name']}: skipped (billed-attempt budget of {max_billed_attempts} exhausted)")
+            continue
         cap = _capacity_for(p)
         for _ in range(retries_per_provider + 1):
+            if is_billed and max_billed_attempts is not None and billed_attempts >= max_billed_attempts:
+                break
+            if is_billed:
+                billed_attempts += 1
             try:
                 result = _chat_once(p, prompt, as_json)
                 cap.record_success()

@@ -250,17 +250,17 @@ analyze.lean_of = lambda name, region=None: (
     "left" if "Left" in name else "center" if "Center" in name else "unrated")
 
 
-def _mock_call_json_incomplete_then_complete(prompt, retries=1, backend=None):
+def _mock_call_json_incomplete_then_complete(prompt, retries=1, backend=None, **_ignored):
     _call_count["n"] += 1
     return json.loads(json.dumps(_INCOMPLETE_RAW if _call_count["n"] == 1 else _COMPLETE_RAW))
 
 
-def _mock_call_json_always_complete(prompt, retries=1, backend=None):
+def _mock_call_json_always_complete(prompt, retries=1, backend=None, **_ignored):
     _call_count["n"] += 1
     return json.loads(json.dumps(_COMPLETE_RAW))
 
 
-def _mock_call_json_always_incomplete(prompt, retries=1, backend=None):
+def _mock_call_json_always_incomplete(prompt, retries=1, backend=None, **_ignored):
     _call_count["n"] += 1
     return json.loads(json.dumps(_INCOMPLETE_RAW))
 
