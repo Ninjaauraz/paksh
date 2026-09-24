@@ -169,4 +169,202 @@ assert isinstance(result_broken_pdi, dict) and result_broken_pdi.get("title")
 print("analyze_event: a malformed pdi_payload degrades to no-PDI-context rather than raising "
       "(falls through to the same offline extractive path already covered above) ... OK")
 
+# ==========================================================================================
+# 2026-09-24 story-quality campaign: evidence-sufficiency gate (compute_evidence_status),
+# title-echo detection (is_title_echo), and the _representative()/_extractive_raw() picker
+# fix. Fixtures below reproduce two REAL production incidents (event #23887, #23755) -
+# no DB dependency, so these run identically in CI and against a fresh checkout.
+# ==========================================================================================
+
+# ---- title-echo detection: conservative, must catch RSS artifacts, must not false-positive ----
+TITLE = "Is it 'killer robots' or 'super intelligence'? At the UN, leaders see both, AP Explains"
+echo_cases = [
+    (TITLE, True),                                          # exact
+    (TITLE.upper(), True),                                  # case-insensitive
+    (TITLE + " apnews.com", True),                           # title + domain
+    (TITLE + " AP News", True),                              # title + short outlet name
+    (TITLE + " | AP News", True),                            # title + separator + outlet
+    (TITLE + " - Source Daily", True),                       # title + dash + outlet
+    (TITLE + ".", True),                                     # trailing punctuation only
+    (TITLE.replace("'", "’").replace("?", "?"), True),  # curly-quote variant
+    ("", False),
+    ("Completely unrelated sentence about something else entirely.", False),
+]
+for summary, want in echo_cases:
+    got = analyze.is_title_echo(summary, TITLE)
+    assert got == want, f"is_title_echo({summary!r}) = {got}, want {want}"
+# A genuine sentence that happens to open with the title text but then adds 30+ chars of
+# real substance must NEVER be classified as an echo (this is the "must not false-positive
+# on legitimate summaries" requirement - the campaign's #4).
+real_continuation = TITLE + ". Officials at the summit spent two days debating a proposed treaty on autonomous weapons systems."
+assert not analyze.is_title_echo(real_continuation, TITLE), "a real, substantive continuation must not be flagged as an echo"
+# A summary that merely SHARES WORDS with the title (not a prefix match) must never echo.
+shares_words = "Leaders at the United Nations discussed killer robots and super intelligence at length today."
+assert not analyze.is_title_echo(shares_words, TITLE), "sharing a few title words is not an echo"
+print("is_title_echo: exact/case/domain/outlet-suffix/punctuation variants all caught; "
+      "real continuations and word-overlap-only summaries never false-positive ... OK")
+
+# ---- _usable_article_text: MIN_USABLE_CHARS floor + echo rejection, but keeps short REAL prose ----
+assert analyze._usable_article_text({"title": TITLE, "summary": TITLE + " apnews.com"}) == ""
+assert analyze._usable_article_text({"title": TITLE, "summary": "Too short."}) == ""
+short_real = "The terminology change follows Trump's UN remarks, while concerns grow."
+assert analyze._usable_article_text({"title": TITLE, "summary": short_real}) == short_real
+print("_usable_article_text: rejects echoes and near-empty fragments, keeps short-but-real prose ... OK")
+
+# ---- Event #23887 regression fixture (real production article set, 8 articles/6 owners) ----
+FIXTURE_23887 = [
+    {"id": 645670, "source": "Associated Press", "language": "en",
+     "title": "Is it ‘killer robots’ or ‘super intelligence’? At the UN, leaders see both, AP Explains",
+     "summary": "Is it ‘killer robots’ or ‘super intelligence’? At the UN, leaders see both, AP Explains apnews.com"},
+    {"id": 645827, "source": "The Independent", "language": "en",
+     "title": "Senator shreds Trump’s ‘super intelligence’ with edgy two-word retort to AI rebrand",
+     "summary": "Democrats scoff at Trump’s attempts to rebrand AI, Eric Garcia writes. It’s a preview to how they will take a more aggressive approach if they win the midterms"},
+    {"id": 646687, "source": "The Independent", "language": "en",
+     "title": "Senator shreds Trump’s ‘super intelligence’ with edgy two-word retort to his AI rebrand",
+     "summary": "Senator shreds Trump’s ‘super intelligence’ with edgy two-word retort to his AI rebrand The Independent"},
+    {"id": 647450, "source": "The Pioneer", "language": "en",
+     "title": "US diplomats told to use ‘super intelligence’ instead of AI",
+     "summary": "US diplomats told to use ‘super intelligence’ instead of AI Pioneer Daily"},
+    {"id": 648066, "source": "Firstpost", "language": "en",
+     "title": "Trump is rebranding ‘Artificial Intelligence’ as ‘Super Intelligence’. Here’s what will change",
+     "summary": "Trump is rebranding ‘Artificial Intelligence’ as ‘Super Intelligence’. Here’s what will change Firstpost"},
+    {"id": 648357, "source": "The Hindu BusinessLine", "language": "en",
+     "title": "Trump’s ‘super intelligence’ term prompts US State Department to replace ‘AI’ in communications",
+     "summary": "The terminology change follows Trump’s UN remarks, while concerns over AI control and calls for global guardrails continue to grow."},
+    {"id": 648790, "source": "Business Standard", "language": "en",
+     "title": "US diplomats told to use term super intelligence for AI after Trump call", "summary": ""},
+    {"id": 648902, "source": "The Pioneer", "language": "en",
+     "title": "US diplomats told to use super intelligence instead of AI", "summary": ""},
+]
+for a in FIXTURE_23887:
+    a.setdefault("url", "https://example.com/" + str(a["id"]))
+    a.setdefault("image_url", "")
+
+raw_23887 = analyze._extractive_raw(FIXTURE_23887)
+assert raw_23887["summary_method"] == "extractive"
+assert not analyze.is_title_echo(raw_23887["summary"], raw_23887["title"]), \
+    f"event #23887 fixture: picker still chose a title echo: {raw_23887['summary']!r}"
+assert "terminology change" in raw_23887["summary"], \
+    f"event #23887 fixture: expected the Hindu BusinessLine sentence, got {raw_23887['summary']!r}"
+result_23887 = analyze.postprocess(raw_23887, FIXTURE_23887)
+assert result_23887["evidence_status"] == analyze.EVIDENCE_PUBLISHABLE, result_23887["evidence_status"]
+# And critically: BEFORE the fix, this exact fixture's old-style extractive output (a bare
+# title echo) must be caught as NEEDS_REVIEW, not silently accepted - this is what proves
+# the GATE (not just the picker) actually closes the hole.
+old_style_raw = {"title": FIXTURE_23887[0]["title"],       # AP's own title (the original _representative() pick)
+                  "summary": FIXTURE_23887[0]["summary"],  # the AP title-echo, as originally published
+                  "summary_method": "extractive"}
+status, reason = analyze.compute_evidence_status(
+    old_style_raw["summary"], old_style_raw["title"], "extractive", FIXTURE_23887)
+assert status == analyze.EVIDENCE_NEEDS_REVIEW, \
+    f"the original title-echo summary must be caught as NEEDS_REVIEW, got {status}"
+print("event #23887 regression: fixed picker selects the real Hindu BusinessLine sentence, "
+      "postprocess() marks it PUBLISHABLE; the ORIGINAL title-echo output is independently "
+      "caught as NEEDS_REVIEW by the gate ... OK")
+
+# ---- Event #23755 regression fixture (larger cluster: 18 real articles/13 owners subset of ----
+# ---- the actual 42-article/28-owner production cluster, preserving every member that ----
+# ---- actually matters to the failure: many title-echo junk sources, several genuinely-empty
+# ---- sources, and the real substantive South China Morning Post / Mint sentences) ----
+FIXTURE_23755 = [
+    {"id": 1, "source": "Sky News", "language": "en",
+     "title": "Xi and Trump meeting: What you need to know",
+     "summary": "Xi and Trump meeting: What you need to know Sky News"},
+    {"id": 2, "source": "DNA (Daily News & Analysis)", "language": "en",
+     "title": "Trump-Xi Summit: Trade, Taiwan, Iran, AI and rare earths on agenda| Key points",
+     "summary": "Trump-Xi Summit: Trade, Taiwan, Iran, AI and rare earths on agenda| Key points DNA India"},
+    {"id": 3, "source": "NPR", "language": "en",
+     "title": "From cybersecurity to AI to Taiwan, what's at stake in Trump's summit with Xi",
+     "summary": "From cybersecurity to AI to Taiwan, what's at stake in Trump's summit with Xi NPR"},
+    {"id": 4, "source": "NBC News", "language": "en",
+     "title": "Trump-Xi summit is set to be high in pageantry and low in substance",
+     "summary": "Trump-Xi summit is set to be high in pageantry and low in substance NBC News"},
+    {"id": 5, "source": "Mint", "language": "en",
+     "title": "Donald Trump rolls out red carpet for Xi Jinping as US, China eye deals on trade, AI and rare earths",
+     "summary": "On his visit to Washington, Xi Jinping called for US-China cooperation amid trade tensions. He was welcomed with military honors by President Trump."},
+    {"id": 6, "source": "NDTV", "language": "en",
+     "title": "Team Trump Announces Trade Truce With China As Xi Begins Rare US Visit",
+     "summary": "Two superpowers have agreed to scale back tariffs"},
+    {"id": 7, "source": "Republic World", "language": "en",
+     "title": "Donald Trump Welcomes Xi Jinping in Washington for Three-Day State Visit",
+     "summary": "Donald Trump Welcomes Xi Jinping in Washington for Three-Day State Visit Republic World"},
+    {"id": 8, "source": "Firstpost", "language": "en",
+     "title": "Why did Trump wear gloves and jacket to welcome Xi Jinping? Is the US prez hiding something?",
+     "summary": "Why did Trump wear gloves and jacket to welcome Xi Jinping? Is the US prez hiding something? Firstpost"},
+    {"id": 9, "source": "National Herald", "language": "en",
+     "title": "Trump rolls out lavish red-carpet welcome for Xi as US-China talks begin",
+     "summary": "Trump rolls out lavish red-carpet welcome for Xi as US-China talks begin National Herald"},
+    {"id": 10, "source": "France 24", "language": "en",
+     "title": "Trump gives Xi rare airport welcome as Chinese leader begins US state visit",
+     "summary": "US President Donald Trump personally welcomed Chinese President Xi Jinping at a military airfield outside Washington on Wednesday, kicking off a lavish state visit focused on trade, artificial intelligence and Iran."},
+    {"id": 11, "source": "South China Morning Post", "language": "en",
+     "title": "Big picture or big deals? What the Xi-Trump summit holds for China and the US",
+     "summary": "With the balance of power shifting between the US and China, the success of this week’s summit hinges not on headline-grabbing deals, but on practical, cautious consensus under a new strategic stability framework, according to Chinese researchers."},
+    {"id": 12, "source": "South China Morning Post", "language": "en",
+     "title": "‘Deep respect’: analysts weigh in on Trump’s red carpet welcome for Xi",
+     "summary": "With China and the US agreeing to extend a tariff truce that was set to expire in November – and US President Donald Trump giving his Chinese counterpart, Xi Jinping, a personal welcome on the tarmac – analysts say the Chinese leader’s state visit has begun on a positive note."},
+    {"id": 13, "source": "South China Morning Post", "language": "en",
+     "title": "Xi lands in US for high-stakes summit with Trump amid deep tensions",
+     "summary": "Xi lands in US for high-stakes summit with Trump amid deep tensions South China Morning Post"},
+    {"id": 14, "source": "The Japan Times", "language": "en",
+     "title": "U.S.-China trade truce extended as Xi gets rare welcome from Trump",
+     "summary": "U.S.-China trade truce extended as Xi gets rare welcome from Trump japantimes.co.jp"},
+    {"id": 15, "source": "Business Standard", "language": "en",
+     "title": "China, US should be partners, not rivals, says Xi ahead of talks with Trump", "summary": ""},
+    {"id": 16, "source": "The Pioneer", "language": "en",
+     "title": "Xi Jinping arrives in Washington, Trump gives rare airport welcome", "summary": ""},
+    {"id": 17, "source": "BBC News", "language": "en",
+     "title": "Trump offers warm welcome as China Xi arrives for US visit", "summary": ""},
+    {"id": 18, "source": "CNBC", "language": "en",
+     "title": "U.S.-China trade truce extended for two months, Bessent says, as Xi begins state visit",
+     "summary": "U.S.-China trade truce extended for two months, Bessent says, as Xi begins state visit CNBC"},
+]
+for a in FIXTURE_23755:
+    a.setdefault("url", "https://example.com/23755/" + str(a["id"]))
+    a.setdefault("image_url", "")
+
+raw_23755 = analyze._extractive_raw(FIXTURE_23755)
+assert raw_23755["summary_method"] == "extractive"
+assert not analyze.is_title_echo(raw_23755["summary"], raw_23755["title"]), \
+    f"event #23755 fixture (18 articles/13 owners): picker still chose a title echo: {raw_23755['summary']!r}"
+result_23755 = analyze.postprocess(raw_23755, FIXTURE_23755)
+assert result_23755["evidence_status"] == analyze.EVIDENCE_PUBLISHABLE, result_23755["evidence_status"]
+print("event #23755 regression (larger cluster, 18 articles/13 owners): fixed picker finds "
+      "real substantive text and postprocess() marks it PUBLISHABLE - proves the fix isn't "
+      "accidentally dependent on a tiny article set ... OK")
+
+# ---- Genuinely insufficient evidence: NOTHING usable anywhere -> INSUFFICIENT_EVIDENCE, ----
+# ---- never silently published (this is the "don't destroy legitimate short stories, but ----
+# ---- don't publish nothing either" boundary case) ----
+thin_articles = [
+    {"id": 901, "source": "Outlet A", "language": "en", "title": "Some event happens in a city",
+     "summary": "Some event happens in a city Outlet A", "url": "https://x/901", "image_url": ""},
+    {"id": 902, "source": "Outlet B", "language": "en", "title": "Some event happens in a city",
+     "summary": "", "url": "https://x/902", "image_url": ""},
+]
+raw_thin = analyze._extractive_raw(thin_articles)
+result_thin = analyze.postprocess(raw_thin, thin_articles)
+assert result_thin["evidence_status"] == analyze.EVIDENCE_INSUFFICIENT, result_thin["evidence_status"]
+print("genuinely thin cluster (no usable text anywhere) -> INSUFFICIENT_EVIDENCE, not published "
+      "as if complete ... OK")
+
+# ---- Legitimate short story: a real, short, self-contained sentence must NOT be rejected ----
+# ---- merely for being short (campaign requirement #8: short != incomplete) ----
+legit_short = [
+    {"id": 903, "source": "Outlet C", "language": "en", "title": "Local team wins regional trophy",
+     "summary": "The under-19 team beat their rivals 3-1 in Sunday's final to win the regional trophy.",
+     "url": "https://x/903", "image_url": ""},
+]
+raw_legit = analyze._extractive_raw(legit_short)
+result_legit = analyze.postprocess(raw_legit, legit_short)
+assert result_legit["evidence_status"] == analyze.EVIDENCE_PUBLISHABLE, result_legit["evidence_status"]
+print("legitimate short-but-real single-source story remains PUBLISHABLE - short is not "
+      "treated as incomplete ... OK")
+
+# ---- LLM path is always PUBLISHABLE regardless of input thinness (synthesis != extraction) ----
+status, reason = analyze.compute_evidence_status("A real synthesized sentence.", "Some Title", "llm", [])
+assert status == analyze.EVIDENCE_PUBLISHABLE and reason == "llm_synthesized"
+print("LLM-path summaries are always PUBLISHABLE under the evidence gate (compute_content_complete "
+      "already governs their framing-completeness separately) ... OK")
+
 print("\nALL ASSERTIONS PASSED")
