@@ -75,6 +75,17 @@ OLLAMA_URL  = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 # GPU laptop a small local model (llama3.2:3b) keeps the local tier fast.
 OLLAMA_MODEL = os.environ.get("PAKSH_LLM_LOCAL_MODEL",
                               os.environ.get("PAKSH_LLM_MODEL", "qwen3.5:4b"))
+# 2026-09-25 LLM cost campaign: _ollama_generate() never sent num_ctx, so Ollama
+# used ITS OWN server-side default - which this machine's real behavior shows is
+# the model's full advertised context_length (131072 for llama3.2:3b, 262144 for
+# qwen3.5:4b per `ollama list`/api/tags), not a small practical window. At that
+# size the KV cache for even a 3-4B model demands tens of GB and the call fails
+# outright with an out-of-memory error from llama-server - confirmed directly
+# against this machine's real Ollama instance. Paksh's own real prompts measure
+# ~3,800-4,700 tokens (build_prompt() is capped by MAX_ARTICLES_PER_EVENT/
+# SUMMARY_TRUNC) - 8192 comfortably fits the largest measured prompt plus a
+# ~1500-token response with real headroom, without the unbounded default.
+OLLAMA_NUM_CTX = int(os.environ.get("PAKSH_LLM_OLLAMA_NUM_CTX", "8192"))
 _gem_default = "gemini-2.5-flash" if LLM_BACKEND == "gemini" else "gemini-2.5-flash-lite"
 GEMINI_MODEL = os.environ.get("PAKSH_LLM_GEMINI_MODEL",
                               os.environ.get("PAKSH_LLM_MODEL", _gem_default))
@@ -147,7 +158,7 @@ def _ollama_generate(prompt: str, as_json: bool) -> str:
     # switch) + strip any <think> that still leaks.
     body = {"model": OLLAMA_MODEL, "prompt": prompt + "\n\n/no_think", "stream": False,
             "think": False,
-            "options": {"temperature": 0.2, "num_predict": 1500}}
+            "options": {"temperature": 0.2, "num_predict": 1500, "num_ctx": OLLAMA_NUM_CTX}}
     if as_json:
         body["format"] = "json"          # force valid JSON out of the local model
     data = json.dumps(body).encode("utf-8")
