@@ -1049,7 +1049,15 @@ const {useState,useEffect,useMemo,useRef}=React;
             </div>
             {/* Sponsor credit - renders nothing until a sponsor is configured in SPONSOR */}
             <SponsorSlot t={t} lang={lang} className="mt-7" />
-            <div className={`mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`}>© 2026 Paksh · A Redstocks Technology LLP product</div>
+            {/* Corporate attribution, folded into the existing legal line rather than a new
+                block - only the company name itself is a link (opens Redstocks' own site in a
+                new tab; noopener+noreferrer since it's an external destination). */}
+            <div className={`mt-7 border-t pt-5 ${t.border} mono text-[10.5px] uppercase tracking-wide ${t.tf}`}>
+              {lang==="hi"
+                ? <>© 2026 पक्ष · <a href="https://www.redstockstechnology.com/" target="_blank" rel="noopener noreferrer" className={`hover:${t.tp} hover:underline`}>Redstocks Technology</a> द्वारा निर्मित</>
+                : <>© 2026 Paksh · Built by <a href="https://www.redstockstechnology.com/" target="_blank" rel="noopener noreferrer" className={`hover:${t.tp} hover:underline`}>Redstocks Technology</a></>
+              }
+            </div>
           </div>
         </footer>
       );
@@ -2767,9 +2775,13 @@ const {useState,useEffect,useMemo,useRef}=React;
       if(m.includes("failed to fetch")||m.includes("networkerror")) return L.errNet;
       return L.errGeneric; };
 
-    // LOGIN / SIGN-UP - "the subscription desk". Email -> emailed sign-in code -> in. No
-    // password, no Google, no phone. The code length follows the Supabase Auth setting (6-8
-    // digits); the input accepts up to 10. Both tabs use one OTP flow (create_user = new+returning).
+    // LOGIN / SIGN-UP - "the subscription desk". One unified page: email -> emailed sign-in
+    // code -> in. No separate sign-in/create-account choice, because there isn't one - the OTP
+    // call always passes create_user:true, so Supabase transparently creates the account on
+    // first verify or signs an existing one in otherwise (2026-09-25 auth unification). No
+    // password, no Google, no phone, as the primary path; a password fallback still exists
+    // below for anyone who already set one. The code length follows the Supabase Auth setting
+    // (6-8 digits); the input accepts up to 10.
     function LoginPage({ t, lang, go, onAuthed }) {
       const [mode,setMode]=useState("signin");   // signin | signup
       // 2026-09-25 auth hardening: OTP-first default (brief D). Password sign-in still exists
@@ -2786,14 +2798,17 @@ const {useState,useEffect,useMemo,useRef}=React;
       const [cool,setCool]=useState(0);            // resend cooldown seconds
       useEffect(()=>{ if(cool<=0) return; const id=setInterval(()=>setCool(c=>c-1),1000); return ()=>clearInterval(id); },[cool]);
       const L = lang==="hi" ? {
-        signin:"साइन इन", signup:"खाता बनाएँ",
+        title:"साइन इन करें या खाता बनाएँ",
         lede:"मुफ़्त, कोई पेवॉल नहीं। खाता सिर्फ़ निजीकरण जोड़ता है, पक्ष बिना खाते के भी पूरी तरह पढ़ा जा सकता है।",
         emailL:"ईमेल", emailP:"you@example.com", pwL:"पासवर्ड", pwP:"कम से कम 8 अक्षर",
         signinBtn:"साइन इन करें", createBtn:"खाता बनाएँ", working:"हो रहा है…",
         sendBtn:"मुझे साइन-इन कोड ईमेल करें", sending:"भेजा जा रहा है…",
+        otpHelp:"हम आपको एक बार का कोड भेजेंगे। अगर आप पक्ष में नए हैं, तो हम आपका खाता बना देंगे।",
+        checkEmail:"अपना ईमेल देखें", sentPre:"हमने ", sentPost:" पर एक 8 अंकों का कोड भेजा है।",
         codeL:"अपना 8 अंकों का साइन-इन कोड डालें", codeP:"8 अंकों का कोड", verifyBtn:"साइन इन करें", verifying:"जाँच हो रही है…",
-        sentTo:"कोड भेजा गया", change:"ईमेल बदलें", resend:"कोड फिर भेजें", resent:"नया कोड भेज दिया।", resendIn:"फिर भेजें",
-        useCode:"पासवर्ड के बजाय ईमेल कोड इस्तेमाल करें", usePw:"पासवर्ड इस्तेमाल करें",
+        change:"ईमेल बदलें", resend:"कोड फिर भेजें", resent:"नया कोड भेज दिया।", resendIn:"फिर भेजें",
+        useCode:"पासवर्ड के बजाय ईमेल कोड इस्तेमाल करें", usePw:"इसके बजाय पासवर्ड इस्तेमाल करें",
+        pwSignupPrompt:"पक्ष में नए हैं? इसके बजाय पासवर्ड खाता बनाएँ", pwSigninPrompt:"पहले से पासवर्ड खाता है? इसके बजाय साइन इन करें",
         confirm:"पुष्टि करने के लिए अपना ईमेल देखें, फिर साइन इन करें।",
         p1:"आप जो खबरें खोलते हैं उससे बनता आपका अपना ‘रीडिंग लेंस’, सिर्फ़ आपके लिए।",
         p2:"पढ़ने की सुलभता सेटिंग्स हर डिवाइस पर सहेजी जाती हैं।", p3:"पसंदीदा खबरें अख़बार-कतरन की तरह सहेजें।",
@@ -2805,14 +2820,17 @@ const {useState,useEffect,useMemo,useRef}=React;
         errGeneric:"कुछ ग़लत हुआ। कृपया दोबारा प्रयास करें।",
         off:"खाते अभी उपलब्ध नहीं हैं।", back:"वापस"
       } : {
-        signin:"Sign in", signup:"Create account",
+        title:"Sign in or create account",
         lede:"Free, no paywall. An account only adds personalisation, Paksh stays fully readable without one.",
         emailL:"Email", emailP:"you@example.com", pwL:"Password", pwP:"At least 8 characters",
         signinBtn:"Sign in", createBtn:"Create account", working:"Working…",
         sendBtn:"Email me a sign-in code", sending:"Sending…",
+        otpHelp:"We'll send you a one-time code. If you're new to Paksh, we'll create your account.",
+        checkEmail:"Check your email", sentPre:"We sent an 8-digit code to ", sentPost:".",
         codeL:"Enter your 8-digit verification code", codeP:"8-digit code", verifyBtn:"Sign in", verifying:"Checking…",
-        sentTo:"Code sent to", change:"Change email", resend:"Resend code", resent:"New code sent.", resendIn:"Resend in",
-        useCode:"Use an email code instead", usePw:"Use a password",
+        change:"Change email", resend:"Resend code", resent:"New code sent.", resendIn:"Resend in",
+        useCode:"Use an email code instead", usePw:"Use a password instead",
+        pwSignupPrompt:"New here? Create a password account instead", pwSigninPrompt:"Already have a password account? Sign in instead",
         confirm:"Check your email to confirm, then sign in.",
         p1:"Your own Reading Lens, built from the stories you open, visible only to you.",
         p2:"Your reading & accessibility settings saved across devices.", p3:"Clip and save stories like newspaper cuttings.",
@@ -2849,14 +2867,16 @@ const {useState,useEffect,useMemo,useRef}=React;
           <p className={`mt-5 text-[12.5px] leading-[1.6] ${t.tf} ${isHi(lang)}`}>{L.lede}</p>
         </div>
       );
+      // 2026-09-25 auth unification: sign-in and account creation are the same OTP call
+      // (authSendCode always passes create_user:true - Supabase creates the account on first
+      // verify, signs an existing one in otherwise), so there is no "mode" choice to surface on
+      // this, the primary path. `mode` still exists purely for the password FALLBACK below,
+      // where Supabase genuinely needs two different calls (authPasswordSignUp vs
+      // authPasswordSignIn) - it defaults to "signin" (the more common reason to fall back to a
+      // password at all) and is switchable only inside that secondary view, via a plain text
+      // link, never a prominent tab.
       const form=(
         <div>
-          <div className="inline-flex mb-6" style={{border:`1px solid ${t.ink}`}}>
-            {[["signin",L.signin],["signup",L.signup]].map(([k,label],i)=>{ const on=mode===k;
-              return <button key={k} type="button" onClick={()=>{setMode(k);setErr("");setNote("");}} className={lang==="hi"?"deva":""}
-                style={{padding:"7px 16px",font:"600 12px 'IBM Plex Sans',sans-serif",borderLeft:i>0?`1px solid ${t.ink}`:"none",background:on?t.ink:"transparent",color:on?(t.gap||"#F4F1EA"):t.ink}}>{label}</button>;
-            })}
-          </div>
           {!authOn() ? <p className={`text-[14px] ${t.tf} ${isHi(lang)}`}>{L.off}</p>
           : method==="password" ? (
             <form onSubmit={pwSubmit} className="space-y-4">
@@ -2865,18 +2885,25 @@ const {useState,useEffect,useMemo,useRef}=React;
               {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
               {note && <p className={`text-[13px] font-medium ${t.blind} ${isHi(lang)}`}>{note}</p>}
               <button type="submit" disabled={busy} className={btn}>{busy?L.working:(mode==="signup"?L.createBtn:L.signinBtn)}</button>
-              <button type="button" onClick={()=>{setMethod("code");setErr("");setNote("");setStep("email");}} className={link}>{L.useCode}</button>
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={()=>{setMethod("code");setErr("");setNote("");setStep("email");}} className={link}>{L.useCode}</button>
+                <button type="button" onClick={()=>{setMode(mode==="signup"?"signin":"signup");setErr("");setNote("");}} className={link}>{mode==="signup"?L.pwSigninPrompt:L.pwSignupPrompt}</button>
+              </div>
             </form>
           ) : step==="email" ? (
             <form onSubmit={send} className="space-y-4">
               <div><label className={lblc}>{L.emailL}</label><input value={email} onChange={e=>setEmail(e.target.value)} type="email" required autoFocus placeholder={L.emailP} className={inp} inputMode="email" autoComplete="email" /></div>
               {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
               <button type="submit" disabled={busy} className={btn}>{busy?L.sending:L.sendBtn}</button>
+              <p className={`text-[12.5px] leading-[1.5] ${t.tf} ${readCls(lang)}`}>{L.otpHelp}</p>
               <button type="button" onClick={()=>{setMethod("password");setErr("");setNote("");}} className={link}>{L.usePw}</button>
             </form>
           ) : (
             <form onSubmit={verify} className="space-y-4">
-              <p className={`text-[13px] ${t.ts} ${isHi(lang)}`}>{L.sentTo} <span className="font-semibold">{email}</span>.</p>
+              <div>
+                <h2 className={`headline text-[17px] ${t.tp} ${readCls(lang)}`}>{L.checkEmail}</h2>
+                <p className={`mt-1 text-[13px] ${t.ts} ${isHi(lang)}`}>{L.sentPre}<span className="font-semibold">{email}</span>{L.sentPost}</p>
+              </div>
               <div><label className={lblc}>{L.codeL}</label><input value={code} onChange={e=>setCode(e.target.value.replace(/[^0-9]/g,"").slice(0,10))} required autoFocus placeholder={L.codeP} className={`${inp} mono tracking-[0.3em] text-center text-[20px]`} inputMode="numeric" autoComplete="one-time-code" maxLength={10} /></div>
               {err && <p className="text-[13px] font-medium" style={{color:"#C0392B"}}>{err}</p>}
               {note && !err && <p className={`text-[13px] font-medium ${t.blind} ${isHi(lang)}`}>{note}</p>}
@@ -2898,7 +2925,7 @@ const {useState,useEffect,useMemo,useRef}=React;
           <button onClick={()=>go("home")} className={`mb-6 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {L.back}</button>
           <div className="grid md:grid-cols-[1.3fr_1fr]">
             <div className="md:border-r md:pr-8" style={{borderColor:t.line}}>
-              <h1 className={`headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{mode==="signup"?L.signup:L.signin}</h1>
+              <h1 className={`headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
               <div className="mt-6 max-w-[420px]">{form}</div>
             </div>
             <div className="mt-8 md:mt-0 md:pl-8">{props}</div>
