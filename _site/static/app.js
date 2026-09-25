@@ -1030,7 +1030,7 @@ const STR = {
     suggestFix: "Suggest a correction",
     methodTitle: "How Paksh works",
     m_doesH: "What Paksh does",
-    m_does: "Paksh groups how India's media — Left, Centre and Right — covers each story, so you can see what your usual sources leave out.",
+    m_does: "Paksh maps how India's media covers every story — coverage, gaps, and how it develops, in English and Hindi.",
     m_ruleH: "The golden rule",
     m_rule: "A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company, say The Times of India and Navbharat Times, both Times Group, they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote, which is why a story can read “9 publishers · 13 mastheads” on a side.",
     m_aiH: "What the software does, and never does",
@@ -1112,7 +1112,7 @@ const STR = {
     suggestFix: "सुधार सुझाएँ",
     methodTitle: "पक्ष कैसे काम करता है",
     m_doesH: "पक्ष क्या करता है",
-    m_does: "पक्ष दिखाता है कि भारत का मीडिया — वाम, केंद्र और दक्षिण — हर खबर को कैसे कवर करता है, ताकि आप जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
+    m_does: "पक्ष दिखाता है कि भारत का मीडिया हर खबर को कैसे कवर करता है — कवरेज, कवरेज गैप, और खबर कैसे आगे बढ़ती है, अंग्रेज़ी और हिंदी में।",
     m_ruleH: "मूल नियम",
     m_rule: "झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों, जैसे The Times of India और Navbharat Times, दोनों Times Group, तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है, इसीलिए किसी पक्ष पर खबर “9 प्रकाशक · 13 मास्टहेड” पढ़ सकती है।",
     m_aiH: "सॉफ़्टवेयर क्या करता है, और क्या कभी नहीं करता",
@@ -3306,7 +3306,7 @@ function HomeView({
     className: "mx-auto max-w-[1280px]"
   }, /*#__PURE__*/React.createElement("h1", {
     className: "sr-only"
-  }, lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: every side of India's news"), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "पक्ष: समाचार, संदर्भ के साथ।" : "Paksh: News, with context."), /*#__PURE__*/React.createElement("div", {
     className: pad
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid lg:grid-cols-[2.1fr_1fr]"
@@ -5077,7 +5077,7 @@ function AboutPage({
   }, children));
   const a = agg || {};
   const gapText = (STR[lang].m_gap || "").replace("{total}", a.total).replace("{rh}", a.right_heavier).replace("{lh}", a.left_heavier).replace("{lo}", a.left_outlets).replace("{ro}", a.right_outlets);
-  const heroH1 = lang === "hi" ? "भारत की हर खबर, हर पक्ष — और उसके पीछे का अंकगणित" : "Every side of India's news, and the arithmetic behind it";
+  const heroH1 = lang === "hi" ? "समाचार, संदर्भ के साथ — और उसके पीछे का अंकगणित" : "News, with context — and the arithmetic behind it";
   const bullets = M_READ[lang] || M_READ.en;
   const bulletColors = [BIAS.left.color, BIAS.center.color, BIAS.right.color];
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("div", {
@@ -7807,7 +7807,7 @@ function Onboarding({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".18em"
     }
-  }, lang === "hi" ? "भारत की खबरों का हर पक्ष" : "Every side of India's news"), /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "समाचार, संदर्भ के साथ।" : "News, with context."), /*#__PURE__*/React.createElement("div", {
     className: `mt-5 eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : ".14em"
@@ -8596,7 +8596,7 @@ function PakshApp() {
       tag.setAttribute("content", robotsContent);
     } catch (e) {}
     const suffix = s => s ? `${s} | Paksh` : "Paksh";
-    const home = lang === "hi" ? "पक्ष, भारत की खबरों का हर पक्ष" : "Paksh: Every side of India's news";
+    const home = lang === "hi" ? "पक्ष: समाचार, संदर्भ के साथ।" : "Paksh: News, with context.";
     // Story pages already ship a correct, crawler-visible SSR title (headline | Paksh).
     // While the client-side detail fetch is still in flight, `story` is briefly null -
     // leave document.title alone rather than downgrading it to a generic placeholder;
