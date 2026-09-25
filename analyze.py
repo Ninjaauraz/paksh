@@ -560,6 +560,16 @@ WRITE WITH SUBSTANCE, NOT HEDGING - AND ONLY AS MUCH AS THE EVIDENCE SUPPORTS:
   concrete fact, not on a summarising or scene-setting sentence.
 - Strip filler, PR language and empty hedging ("sources say", "it is believed",
   "in a significant development"). Strip jargon; use plain words.
+- WRITE PAKSH'S OWN FACTUAL SYNTHESIS, not a narration of who reported what. The OUTLET
+  blocks below are evidence for establishing the facts, not something to describe in the
+  summary itself. State the facts directly - "The Election Commission faced renewed calls
+  to resign after..." - never "The Hindu reported that...", "According to India Today...",
+  "NDTV said that...", "As reported by Reuters...", or any other phrasing that narrates
+  which outlet supplied a fact. This is a different thing from attributing a claim,
+  allegation or statement to the ACTOR who actually made it - keep that exactly as the
+  coverage states it ("the opposition alleged...", "the government denied...", "X accused Y
+  of..."), since the identity of who said or did something is itself part of the fact. The
+  rule is specifically: never name a NEWS OUTLET as the source of a fact in the summary.
 
 ATTRIBUTION - keep these registers distinct, never blur one into another:
   FACT: something the coverage reports as established ("The man was arrested on Tuesday.")
@@ -588,6 +598,12 @@ future consequence the coverage itself does not state.
 STRICT NEUTRALITY - never cross these:
 - Use ONLY facts and claims present in the coverage below. Never invent facts,
   quotes, numbers, names, causes or consequences.
+- The same rule applies to WHO or WHAT a name refers to. When an acronym, organization,
+  person, or place could plausibly refer to more than one real-world identity, use the
+  identity the coverage below itself establishes - never substitute a different, more
+  familiar identity from your own general knowledge just because it shares the same name
+  or acronym. If the coverage doesn't establish which one is meant, keep the reference as
+  given rather than guessing.
 - Do not add historical, background, or superlative claims not explicitly supported by
   the coverage (e.g. "first", "unprecedented", "historic", "largest", "record", or
   similar comparisons). If the coverage itself makes such a claim, report it attributed,
@@ -648,9 +664,9 @@ any Hindi field, or with an English value in a _hi field, is INVALID.
 Return ONLY a JSON object with these keys:
 {{
   "title": "neutral English headline IN ENGLISH ONLY (never Hindi/Devanagari), max ~12 words, no loaded words, no publication named",
-  "summary": "a direct, information-dense neutral account IN ENGLISH ONLY. Its length follows the evidence: short when the coverage is only headlines, a fuller multi-part account when the coverage supplies real detail. Include what happened, who/what is directly involved, when and where, the concrete facts, names and figures, what authorities/officials said or did, any disputed claims properly attributed, chronology or context ONLY where the coverage itself states it, and current status ONLY if the coverage states it. No filler, no hedging, no padding, no interpretive commentary, no statement about what the coverage does not say, no publication named",
+  "summary": "a direct, information-dense neutral account IN ENGLISH ONLY, written as ONE coherent paragraph (never multiple paragraphs, bullet points, numbered points, or an outlet-by-outlet 'X reported this, Y reported that' structure). Its length follows the evidence: short when the coverage is only headlines, a fuller multi-part account when the coverage supplies real detail - but still one paragraph, not a longer one broken up. Include what happened, who/what is directly involved, when and where, the concrete facts, names and figures, what authorities/officials said or did, any disputed claims properly attributed, chronology or context ONLY where the coverage itself states it, and current status ONLY if the coverage states it. No filler, no hedging, no padding, no interpretive commentary, no statement about what the coverage does not say, no publication named as the source of a fact",
   "title_hi": "REQUIRED - Hindi (Devanagari) translation of the title, never empty, Hindi script only",
-  "summary_hi": "REQUIRED - Hindi (Devanagari) translation of the summary, never empty, Hindi script only",
+  "summary_hi": "REQUIRED - Hindi (Devanagari) translation of the summary, never empty, Hindi script only, same ONE-paragraph form as summary (no separate paragraph breaks, lists or outlet-by-outlet structure introduced in translation)",
   "framing": {{
     "left": ["IN ENGLISH ONLY (never Hindi/Devanagari) - 1-5 short bullets on what left-side coverage comparatively emphasizes vs the other sides; each a concrete claim/number/emphasis, no outlet named; [] if no left outlet"],
     "center": ["IN ENGLISH ONLY - 1-5 short bullets, same comparative rule for centrist coverage; [] if none"],
@@ -789,6 +805,47 @@ def compute_evidence_status(summary: str, title: str, summary_method: str, artic
     if best >= MIN_USABLE_CHARS:
         return EVIDENCE_NEEDS_REVIEW, "better_evidence_available_unused"
     return EVIDENCE_INSUFFICIENT, "no_substantive_evidence"
+
+
+# Paksh separates three layers, and a summary that blurs them back together is a real
+# regression even though nothing in it is factually wrong:
+#   EVIDENCE  - which sources support the story and what each one says (sources_out below).
+#   SUMMARY   - Paksh's own concise, factual synthesis of what happened.
+#   COVERAGE  - how different outlets covered it (coverage_out below, the bias bar).
+# A summary that narrates "The Hindu reported that... NDTV said that..." collapses SUMMARY
+# back into EVIDENCE/COVERAGE - the reader gets a chain of mini-attributions instead of the
+# facts. build_prompt() above instructs the model not to do this (WRITE WITH SUBSTANCE
+# block); detect_media_attribution() is the matching diagnostic, used only by tests/audits
+# to catch a regression - it never rejects, rewrites or gates a real event.
+_ATTRIBUTION_VERBS = r"(?:reported|reports|reporting|said|stated|found|revealed|noted|wrote|claimed)"
+
+
+def detect_media_attribution(text):
+    """DIAGNOSTIC ONLY (Fix 4, post-launch audit) - flags likely media-OUTLET-attribution
+    phrasing in a generated summary: "The Hindu reported that...", "NDTV said that...",
+    "According to Reuters...". Returns the list of matched substrings (empty = clean); never
+    modifies `text`, never used to auto-reject or auto-rewrite a summary - a signal for
+    tests/audits to review, nothing more.
+
+    Deliberately reuses the SAME outlet vocabulary the rest of the pipeline already
+    maintains for editorial reasons (sources.LEAN_BY_SOURCE / OWNER_BY_SOURCE), rather than
+    a second, separately-maintained blacklist of outlet names - this is precisely why a
+    legitimate ACTOR attribution ("the Election Commission said", "the opposition alleged",
+    "the government denied") is never flagged: those actors are not in the outlet roster, so
+    they never match. The two roster-agnostic phrasings below ("according to X", "as
+    reported by X") are scoped to a following proper-noun-like span so they catch a named
+    outlet not yet in the roster (a wire agency, a newly-added GDELT source) without also
+    catching "according to the government" or similar lowercase-led actor references."""
+    if not text:
+        return []
+    hits = []
+    outlet_names = {n for n in (set(LEAN_BY_SOURCE) | set(OWNER_BY_SOURCE.values())) if n}
+    for name in sorted(outlet_names, key=len, reverse=True):
+        hits += [m.group(0) for m in re.finditer(rf"\b{re.escape(name)}\s+{_ATTRIBUTION_VERBS}\b", text)]
+    for pat in (r"\b(?i:according to)\s+[A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3}",
+                r"\b(?i:as reported by)\s+[A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,3}"):
+        hits += [m.group(0) for m in re.finditer(pat, text)]
+    return hits
 
 
 def postprocess(raw, articles) -> dict:

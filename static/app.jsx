@@ -545,6 +545,7 @@ const {useState,useEffect,useMemo,useRef}=React;
     const Clock=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v5l3 2"/></svg>;
     const LinkIcon=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>;
     const Check=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+    const ShareIcon=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-3.9M8.6 13.5l6.8 3.9"/></svg>;
     const Bookmark=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill={p.fill||"none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>;
     const User=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>;
     const Help=(p)=><svg width={p.size||24} height={p.size||24} className={p.className||""} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>;
@@ -849,6 +850,19 @@ const {useState,useEffect,useMemo,useRef}=React;
       const isReading = view==="story" || view==="blindspot" || view==="storyline";
       const [copied,setCopied]=useState(false);
       const copy=()=>{ try{ navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(()=>setCopied(false),1600);}catch(e){} };
+      // Native share (mobile action row) - Web Share API where the browser has it, the same
+      // clipboard-copy fallback otherwise. A cancelled native share sheet (AbortError) is a
+      // normal outcome, not a failure: no fallback, no "copied" confirmation, no error shown.
+      // Any OTHER failure (share unavailable mid-call, permission denied, etc.) falls back to
+      // copy() exactly like a browser with no navigator.share at all.
+      const share=()=>{
+        const shareData={ title:(story&&story.headline)||"", text:(story&&story.headline)||"", url:window.location.href };
+        if(navigator.share){
+          navigator.share(shareData).catch(e=>{ if(e&&e.name==="AbortError") return; copy(); });
+        } else {
+          copy();
+        }
+      };
       const tp = story ? (lang==="hi"?(TOPIC_HI[story.topic]||story.topic):story.topic) : "";
       const region = story ? (lang==="hi"?(story.region==="World"?"विश्व":"भारत"):(story.region||"India")) : "";
       // Primary nav priority: National/International (home-only feed filters) · Coverage
@@ -941,13 +955,23 @@ const {useState,useEffect,useMemo,useRef}=React;
                 the frozen wordmark/language-toggle bar at phone widths. Rather than cram both
                 pill buttons into that same cramped row (real overflow risk at ~375px), the same
                 two existing buttons - same components, same labels, same active/inactive
-                styling - get one extra mobile-only line here. Share/copy-link stays desktop-only;
-                only Save and Follow were the P1. Nothing above this line changes for any viewport. */}
+                styling - get one extra mobile-only line here. Nothing above this line changes
+                for any viewport.
+                Post-launch mobile-share fix: a third action, Share, joins this row - the one
+                mobile parity gap the P1 pass above deliberately deferred. No auth gate (sharing
+                needs no login, unlike Save/Follow); same border-button visual language, native
+                Web Share where supported, the same clipboard-copy fallback/confirmation the
+                desktop action already uses otherwise. The desktop action above is untouched. */}
             {isReading && story && (
               <div className="flex items-center gap-3 pb-3 sm:hidden">
                 {authOn() && onToggleSave && <SaveButton story={story} saved={saved||new Set()} onToggle={onToggleSave} t={t} lang={lang} />}
                 {authOn() && onToggleFollowStory && <FollowButton on={!!followingStory} onToggle={()=>onToggleFollowStory(story)}
                   labelOn={lang==="hi"?"फ़ॉलो हो रहा है":"Following"} labelOff={lang==="hi"?"+ फ़ॉलो":"+ Follow"} t={t} lang={lang} />}
+                <button type="button" onClick={share}
+                  aria-label={copied?(lang==="hi"?"लिंक कॉपी हो गया":"Link copied"):(lang==="hi"?"यह खबर शेयर करें":"Share this story")}
+                  className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${lang==="hi"?"deva":""}`}>
+                  {copied?<><Check size={14}/> {lang==="hi"?"लिंक कॉपी हुआ":"Link copied"}</>:<><ShareIcon size={14}/> {lang==="hi"?"शेयर":"Share"}</>}
+                </button>
               </div>
             )}
             {!isReading && (

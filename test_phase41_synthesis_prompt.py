@@ -152,6 +152,23 @@ try:
     ex = analyze._extractive_raw([dict(a) for a in ARTS])
     check("31: the extractive fallback is unchanged (still 'extractive', still no framing key)",
           ex.get("summary_method") == "extractive" and "framing" not in ex)
+
+    print("=== E: general entity-faithfulness instruction (post-launch CJP audit) ===")
+    check("32a: instruction present - don't substitute a more familiar identity from "
+          "background knowledge for an ambiguous acronym/organization/person/place",
+          "could plausibly refer to more than one real-world identity" in NP
+          and "never substitute a different, more familiar identity from your own general "
+              "knowledge" in NP)
+    check("32b: instruction tells the model to preserve ambiguity rather than guess "
+          "when the evidence doesn't establish which identity is meant",
+          "keep the reference as given rather than guessing" in NP)
+    check("32d: the instruction lives in the STRICT NEUTRALITY / summary section, not "
+          "inside the pinned FRAMING block",
+          PROMPT.index("could plausibly refer to more than one real-world identity") < fr_a)
+    check("32c: the instruction is general - no acronym dictionary, no story-specific "
+          "mapping, no mention of any specific organization name",
+          "Cockroach" not in PROMPT and "Citizens for Justice and Peace" not in PROMPT
+          and "CJP" not in PROMPT)
 finally:
     analyze.lean_of = _orig_lean_of
 

@@ -11,3 +11,43 @@
     Times/Economic Times headlines name Abhijeet Dipke as the group's
     spokesperson issuing the resignation ultimatum this story covers)
 ----------------------------------------------------------------------
+[2026-09-25T23:10:56.982774+00:00] EDITORIAL CORRECTION
+  event_id: 24108
+  fields_changed: summary, summary_hi
+  old_summary_en_phrase: 'Citizens for Justice and Peace (CJP)'
+  new_summary_en_phrase: 'Cockroach Janta Party (CJP)'
+  old_summary_hi_phrase: 'सिटिजन्स फॉर जस्टिस एंड पीस (CJP)'
+  new_summary_hi_phrase: 'कॉकरोच जनता पार्टी (CJP)'
+  reason: LLM hallucinated the acronym expansion: "CJP" was rendered as the unrelated, better-known NGO "Citizens for Justice and Peace". This event's own source list names the real subject as the Cockroach Janta Party (Abhijeet Dipke per multiple source headlines; Deutsche Welle international coverage of the same story explicitly says "Cockroach party").
+  source_verified: YES - confirmed against this event's own source article list during the post-launch audit
+------------------------------------------------------------------------
+[2026-09-25T23:10:56.982774+00:00] EDITORIAL CORRECTION
+  event_id: 24239
+  fields_changed: summary, summary_hi
+  old_summary_en_phrase: 'Citizens for Justice and Peace (CJP)'
+  new_summary_en_phrase: 'Cockroach Janta Party (CJP)'
+  old_summary_hi_phrase: 'सिटीजन फॉर जस्टिस एंड पीस (सीजेपी)'
+  new_summary_hi_phrase: 'कॉकरोच जनता पार्टी (सीजेपी)'
+  reason: LLM hallucinated the acronym expansion: "CJP" was rendered as the unrelated, better-known NGO "Citizens for Justice and Peace". This event's own source list names the real subject as the Cockroach Janta Party (Abhijeet Dipke per multiple source headlines; Deutsche Welle international coverage of the same story explicitly says "Cockroach party").
+  source_verified: YES - confirmed against this event's own source article list during the post-launch audit
+------------------------------------------------------------------------
+[2026-09-25T23:10:56.982774+00:00] EDITORIAL CORRECTION
+  event_id: 24223
+  fields_changed: summary, summary_hi
+  old_summary_en_phrase: 'Citizens for Justice and Peace (CJP)'
+  new_summary_en_phrase: 'Cockroach Janta Party (CJP)'
+  old_summary_hi_phrase: 'सिटीजन्स फॉर जस्टिस एंड पीस (CJP)'
+  new_summary_hi_phrase: 'कॉकरोच जनता पार्टी (CJP)'
+  reason: LLM hallucinated the acronym expansion: "CJP" was rendered as the unrelated, better-known NGO "Citizens for Justice and Peace". This event's own source list names the real subject as the Cockroach Janta Party (Abhijeet Dipke per multiple source headlines; Deutsche Welle international coverage of the same story explicitly says "Cockroach party").
+  source_verified: YES - confirmed against this event's own source article list during the post-launch audit
+------------------------------------------------------------------------
+[2026-09-25T23:31:26.446407+00:00] EDITORIAL CORRECTION
+  event_id: 24108
+  fields_changed: summary, summary_hi, framing.center, framing_hi.center
+  old_person_en: 'Teesta Setalvad'
+  new_person_en: 'Abhijeet Dipke'
+  old_person_hi: 'तीस्ता सीतलवाड़'
+  new_person_hi: 'अभिजीत दीपके'
+  reason: after the earlier org-name correction (Citizens for Justice and Peace -> Cockroach Janta Party), this event still misnamed the party's founder as Teesta Setalvad (the real, unrelated NGO's founder). This event's own sources name the real founder directly: The New Indian Express "CJP's Abhijeet Dipke urges opposition parties"; Telangana Today/Business Standard/The Tribune "Dipke asks/urges opposition parties...". The Hindi spelling is read from this same storyline's own Hindi sources (event 23879's Amar Ujala headline spells the surname "दीपके"), consistent with the full name "अभिजीत दीपके" used across dozens of independent Hindi outlets for this same person throughout the corpus.
+  source_verified: YES - confirmed against this event's own source article list (English) and this storyline's own Hindi sources (Hindi spelling)
+------------------------------------------------------------------------
