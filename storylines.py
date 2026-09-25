@@ -22,7 +22,9 @@ Standalone:  py storylines.py        # prints how many sagas were found + their 
 """
 
 import os
+import re
 import json
+import difflib
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -40,6 +42,14 @@ MIN_EVENTS    = int(os.environ.get("PAKSH_STORYLINE_MIN", "2"))
 # is topic-drift, not a saga, so we drop it rather than publish a false thread.
 MIN_SHARED_KW = int(os.environ.get("PAKSH_STORYLINE_KW", "3"))
 MAX_EVENTS    = int(os.environ.get("PAKSH_STORYLINE_MAX", "25"))
+
+# 2026-09-25 developing-stories hardening: a later event can pass the linking test above (same
+# saga) yet just re-report facts an earlier entry already carries — e.g. three outlets covering
+# the same statement minutes apart. DUP_TEXT_SIM controls the deterministic fallback below; raise
+# it to collapse fewer entries, lower it to collapse more.
+DUP_TEXT_SIM = float(os.environ.get("PAKSH_STORYLINE_DUP_SIM", "0.86"))
+_NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+_PROPER_RE = re.compile(r"\b[A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]{2,})*\b")
 
 
 def _ts(s):
@@ -98,6 +108,59 @@ def _kwset(title):
         return set()
 
 
+def _fact_tokens(text):
+    """Cheap, deterministic signal of "what this text actually claims": the numbers in it
+    (casualty/death/injury counts, dates, amounts, ...) and its proper-noun phrases (named
+    actors, places, organisations). No LLM, no embeddings — plain regex over already-generated
+    summary text."""
+    text = text or ""
+    return set(_NUM_RE.findall(text)), set(_PROPER_RE.findall(text))
+
+
+def _verified_update(conn, prev_id, curr_id):
+    """True if Story Intelligence (si_queue.py) has ALREADY verified — offline, no call made
+    here — that curr_id relates back to prev_id specifically. None means nothing verified yet
+    (SI coverage is partial), so the caller should fall back to the deterministic text check.
+    Reuses reader_context.build_story_context(), the one sanctioned read boundary onto that
+    data (see reader_context.py's own module docstring); that function is itself no-LLM and
+    fails closed to None on any error, so this never raises and never calls a model."""
+    if conn is None:
+        return None
+    try:
+        import reader_context
+        ctx = reader_context.build_story_context(conn, curr_id)
+    except Exception:
+        return None
+    if not ctx:
+        return None
+    return True if (ctx.get("historical_event") or {}).get("id") == prev_id else None
+
+
+def _is_meaningful_update(prev_event, curr_event, conn=None):
+    """Does curr_event (the next entry after prev_event in the same storyline) carry
+    genuinely new information, or does it just re-report what prev_event already said?
+
+    Deliberately biased toward True (treat it as a real development) whenever the evidence is
+    thin: the failure mode we're fixing is near-duplicate re-reports crowding the timeline, not
+    a shortage of entries, so nothing here should ever suppress an update it isn't confident is
+    a duplicate. New figures or a newly-named actor/place always win regardless of overall text
+    similarity; only near-identical text WITH no new figures/names is collapsed.
+    """
+    verified = _verified_update(conn, prev_event.get("id"), curr_event.get("id"))
+    if verified is not None:
+        return verified
+    prev_text = " ".join([prev_event.get("summary") or ""] + list(prev_event.get("summary_points") or []))
+    curr_text = " ".join([curr_event.get("summary") or ""] + list(curr_event.get("summary_points") or []))
+    if not prev_text.strip() or not curr_text.strip():
+        return True   # nothing usable to compare against — don't hide it
+    prev_nums, prev_names = _fact_tokens(prev_text)
+    curr_nums, curr_names = _fact_tokens(curr_text)
+    if (curr_nums - prev_nums) or (curr_names - prev_names):
+        return True   # new figures or a new named actor/location -> genuine development
+    ratio = difflib.SequenceMatcher(None, prev_text, curr_text).ratio()
+    return ratio < DUP_TEXT_SIM   # near-identical text, nothing new -> re-report, collapse
+
+
 def build_storylines(events):
     """events = database.get_all_events() rows. Returns (storylines_list, event_id->storyline_id).
     storylines_list is newest-development first; each carries its events sorted oldest->newest."""
@@ -154,29 +217,55 @@ def build_storylines(events):
     for e in recent:
         comps.setdefault(find(e["id"]), []).append(e)
 
+    # One connection, reused for every storyline's duplicate check below (read-only; see
+    # _verified_update). Best-effort: if the DB isn't reachable for some reason, every check
+    # just falls back to the deterministic text heuristic instead of failing the whole export.
+    try:
+        conn = database.get_connection()
+    except Exception:
+        conn = None
+
     storylines, emap = [], {}
-    for members in comps.values():
-        if len(members) < MIN_EVENTS or len(members) > MAX_EVENTS:
-            continue                                   # too few = not a thread; too many = topic-drift
-        members.sort(key=lambda e: dt[e["id"]])
-        sid = "sl-" + str(min(m["id"] for m in members))
-        ev_list = [{
-            "id": m["id"], "title": m["title"], "title_hi": m.get("title_hi", ""),
-            "date": (dt[m["id"]].isoformat() if dt[m["id"]] else None),
-            "topic": m.get("topic"), "dominant": m.get("dominant"),
-            "blindspot": m.get("blindspot"), "lean_counts": m.get("lean_counts", {}),
-        } for m in members]
-        latest = members[-1]
-        storylines.append({
-            "id": sid,
-            "title": latest["title"], "title_hi": latest.get("title_hi", ""),
-            "topic": latest.get("topic"), "region": latest.get("region", "India"),
-            "n_events": len(members),
-            "start": ev_list[0]["date"], "end": ev_list[-1]["date"], "updated_at": ev_list[-1]["date"],
-            "events": ev_list,
-        })
-        for m in members:
-            emap[m["id"]] = sid
+    try:
+        for members in comps.values():
+            if len(members) < MIN_EVENTS or len(members) > MAX_EVENTS:
+                continue                               # too few = not a thread; too many = topic-drift
+            members.sort(key=lambda e: dt[e["id"]])
+            sid = "sl-" + str(min(m["id"] for m in members))
+            ev_list = []
+            last_kept = members[0]                      # the saga's own opening entry is never "a duplicate"
+            for idx, m in enumerate(members):
+                is_update = True if idx == 0 else _is_meaningful_update(last_kept, m, conn)
+                if is_update:
+                    last_kept = m
+                ev_list.append({
+                    "id": m["id"], "title": m["title"], "title_hi": m.get("title_hi", ""),
+                    "date": (dt[m["id"]].isoformat() if dt[m["id"]] else None),
+                    "topic": m.get("topic"), "dominant": m.get("dominant"),
+                    "blindspot": m.get("blindspot"), "lean_counts": m.get("lean_counts", {}),
+                    # False = this entry re-reports facts an earlier entry already carries; the
+                    # frontend keeps it in the thread's total but doesn't surface it as its own
+                    # "update" row. See storylines.py::_is_meaningful_update.
+                    "is_update": is_update,
+                })
+            latest = members[-1]
+            n_updates = sum(1 for ev in ev_list if ev["is_update"])
+            storylines.append({
+                "id": sid,
+                "title": latest["title"], "title_hi": latest.get("title_hi", ""),
+                "topic": latest.get("topic"), "region": latest.get("region", "India"),
+                "n_events": len(members), "n_updates": n_updates,
+                "start": ev_list[0]["date"], "end": ev_list[-1]["date"], "updated_at": ev_list[-1]["date"],
+                "events": ev_list,
+            })
+            for m in members:
+                emap[m["id"]] = sid
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     storylines.sort(key=lambda s: s.get("updated_at") or "", reverse=True)
     return storylines, emap

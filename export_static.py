@@ -376,7 +376,7 @@ def _story_html(shell, ev, og_ids=None):
     rep = [
         ("<title>Paksh: Every side of India's news</title>",
          "<title>%s | Paksh</title>" % esc(headline)),
-        ('<meta name="description" content="Paksh compares how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+        ('<meta name="description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
          '<meta name="description" content="%s"/>' % esc(desc)),
         ('<link rel="canonical" href="%s/"/>' % SITE_URL,
          '<link rel="canonical" href="%s"/>' % url),
@@ -384,7 +384,7 @@ def _story_html(shell, ev, og_ids=None):
          '<meta property="og:type" content="article"/>'),
         ('<meta property="og:title" content="Paksh: Every side of India\'s news"/>',
          '<meta property="og:title" content="%s"/>' % esc(headline)),
-        ('<meta property="og:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+        ('<meta property="og:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(desc)),
         ('<meta property="og:url" content="%s/"/>' % SITE_URL,
          '<meta property="og:url" content="%s"/>' % url),
@@ -392,7 +392,7 @@ def _story_html(shell, ev, og_ids=None):
          '<meta property="og:image" content="%s"/>' % esc(img)),
         ('<meta name="twitter:title" content="Paksh: Every side of India\'s news"/>',
          '<meta name="twitter:title" content="%s"/>' % esc(headline)),
-        ('<meta name="twitter:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+        ('<meta name="twitter:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(desc)),
         ('<meta name="twitter:image" content="%s/static/og.png"/>' % SITE_URL,
          '<meta name="twitter:image" content="%s"/>' % esc(img)),
@@ -526,19 +526,19 @@ def _page_meta_html(shell, title, description, canonical_url, noindex=False):
     rep = [
         ("<title>Paksh: Every side of India's news</title>",
          "<title>%s</title>" % esc(title)),
-        ('<meta name="description" content="Paksh compares how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+        ('<meta name="description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
          '<meta name="description" content="%s"/>' % esc(description)),
         ('<link rel="canonical" href="%s/"/>' % SITE_URL,
          ('<link rel="canonical" href="%s"/>' % canonical_url) if canonical_url else ""),
         ('<meta property="og:title" content="Paksh: Every side of India\'s news"/>',
          '<meta property="og:title" content="%s"/>' % esc(title)),
-        ('<meta property="og:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+        ('<meta property="og:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(description)),
         ('<meta property="og:url" content="%s/"/>' % SITE_URL,
          ('<meta property="og:url" content="%s"/>' % canonical_url) if canonical_url else ""),
         ('<meta name="twitter:title" content="Paksh: Every side of India\'s news"/>',
          '<meta name="twitter:title" content="%s"/>' % esc(title)),
-        ('<meta name="twitter:description" content="Compare how India\'s media, left, centre and right, covers each story, side by side, in English and Hindi."/>',
+        ('<meta name="twitter:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(description)),
     ]
     if noindex:
@@ -1104,7 +1104,7 @@ def main():
         write_json(OUT / "data" / "events-archive.json", {"events": [feed_row(e, story_map, _now) for e in archive]})
         # Storylines: a LEAN index (no per-event payload) that every visitor can afford, plus one
         # full file per saga (with its dated events) fetched only when a Storyline page is opened.
-        _sl_index = [{k: s.get(k) for k in ("id","title","title_hi","topic","region","n_events","start","end","updated_at")} for s in storylines]
+        _sl_index = [{k: s.get(k) for k in ("id","title","title_hi","topic","region","n_events","n_updates","start","end","updated_at")} for s in storylines]
         write_json(OUT / "data" / "storylines.json", {"storylines": _sl_index})
         for s in storylines:
             write_json(OUT / "data" / "storylines" / f"{s['id']}.json", s)
@@ -1237,7 +1237,7 @@ def main():
         # Vercel route below matches byte-for-byte with no decode/re-encode ambiguity.
         from urllib.parse import quote as _quote
         topic_names_sorted = sorted({e.get("topic") for e in events if e.get("topic")})
-        _DESC = "Paksh compares how India's media, left, centre and right, covers each story, side by side, in English and Hindi."
+        _DESC = "How India's media — Left, Centre and Right — covers each story, in English and Hindi."
         for name in topic_names_sorted:
             enc = _quote(name, safe="")
             tp = OUT / "topic" / f"{enc}.html"
@@ -1245,7 +1245,7 @@ def main():
             tp.write_text(_page_meta_html(
                 shell,
                 title="%s | Paksh" % name,
-                description="Paksh compares how India's media, left, centre and right, covers %s news, side by side, in English and Hindi." % name,
+                description="How India's media — Left, Centre and Right — covers %s news, in English and Hindi." % name,
                 canonical_url="%s/topic/%s" % (SITE_URL, enc),
             ), encoding="utf-8")
         # Phase 40B: titles match the CLIENT's own title effect for each route exactly
