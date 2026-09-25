@@ -161,33 +161,56 @@ RECENT_FEED_N = 1500
 OG_CARD_N = RECENT_FEED_N
 
 
-def _build_og_cards(rows, limit):
-    """Render share cards into _site/static/og/<id>.png for the first `limit` feed
-    rows (each already carries title/topic/region/lean_counts, so no extra DB hit).
-    Returns the set of ids that got a card. NEVER fatal: if Pillow/fontTools aren't
-    importable it logs once and returns an empty set, so every story keeps the global
-    og.png fallback and the build still succeeds (static-export invariant preserved)."""
-    if limit <= 0 or not rows:
-        return set()
+def _og_dir():
+    """static/og/<OG_VERSION>/ - versioned so a design change (like this one) gets a brand-new
+    URL and can never be served stale from a social platform's own OG-image cache. Only
+    imported when actually needed (see callers) so a Pillow/fontTools import failure never
+    touches the rest of the build."""
+    import og_images
+    d = OUT / "static" / "og" / og_images.OG_VERSION
+    d.mkdir(parents=True, exist_ok=True)
+    return og_images, d
+
+
+def og_root_card_url():
+    """The versioned root/brand card's public URL - the story-page global fallback (see
+    _story_html) and static/index.html's og:image both point here instead of the old static
+    og.png, so neither can go on serving the stale pre-redesign image."""
     try:
         import og_images
+        return "%s/static/og/%s/root.png" % (SITE_URL, og_images.OG_VERSION)
+    except Exception:
+        return "%s/static/og.png" % SITE_URL  # last-resort: the old asset still exists on disk
+
+
+def _build_og_cards(rows, limit):
+    """Render Concept A share cards into _site/static/og/<OG_VERSION>/<id>.png for the first
+    `limit` feed rows (each already carries title/topic/region/lean_counts/image_url, so no
+    extra DB hit), plus the one root/brand card. Returns the set of ids that got a card. NEVER
+    fatal: if Pillow/fontTools aren't importable, or an individual row/image fails, this logs
+    and moves on - every story keeps the (now also-new) global fallback card either way, and
+    the build always succeeds (the static-export invariant this module has always kept)."""
+    try:
+        og_images, out_dir = _og_dir()
     except Exception as e:
-        print("  [og] share cards skipped (%s: %s); using global og.png"
-              % (e.__class__.__name__, e))
+        print("  [og] share cards skipped (%s: %s); story pages fall back to their own photo "
+              "or the old static og.png" % (e.__class__.__name__, e))
         return set()
-    out_dir = OUT / "static" / "og"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    made, fails, t0 = set(), 0, time.time()
-    for r in rows[:limit]:
-        try:
-            og_images.render_og_card(r, str(out_dir / ("%s.png" % r["id"])))
-            made.add(r["id"])
-        except Exception as ex:
-            fails += 1
-            if fails <= 3:
-                print("  [og] card failed for %s: %s" % (r.get("id"), ex))
-    print("  [og] %d share cards written in %.1fs%s"
-          % (len(made), time.time() - t0, (" (%d failed)" % fails) if fails else ""))
+    t0 = time.time()
+    try:
+        og_images.render_root_card(str(out_dir / "root.png"))
+    except Exception as ex:
+        print("  [og] root card failed: %s" % ex)
+    if limit <= 0 or not rows:
+        print("  [og] story cards disabled (OG_CARD_N=0)")
+        return set()
+    try:
+        made = og_images.render_story_cards_batch(rows[:limit], str(out_dir))
+    except Exception as ex:
+        print("  [og] story card batch failed (%s: %s); story pages fall back to their own "
+              "photo or the root card" % (ex.__class__.__name__, ex))
+        return set()
+    print("  [og] %d/%d share cards written in %.1fs" % (len(made), min(limit, len(rows)), time.time() - t0))
     return made
 
 
@@ -349,6 +372,42 @@ def _group_by_owner(names):
     return groups
 
 
+def _truncate_desc(text, limit=300):
+    """Cuts text to at most `limit` chars WITHOUT breaking mid-word/mid-sentence where that can
+    be avoided: prefers the last sentence boundary inside the cut (if it isn't unreasonably
+    early), else the last word boundary, then appends an ellipsis. Deterministic - same input
+    always produces the same output. Never touches the underlying summary text itself, only how
+    much of it is shown in a meta description."""
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    sentence_end = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    if sentence_end >= int(limit * 0.5):
+        return cut[:sentence_end + 1].rstrip()
+    space = cut.rfind(" ")
+    if space > 0:
+        cut = cut[:space]
+    return cut.rstrip().rstrip(",;:") + "…"
+
+
+def _story_og_image(ev, og_ids):
+    """Social preview image, best -> fallback: the branded per-story Concept A card (generated
+    by og_images.py for the recent feed) -> the story's own raw article photo (unprocessed,
+    same as before - re-vetting every archived story's photo would mean re-fetching thousands
+    of external images on every export, which is out of scope here) -> the versioned root/brand
+    card (replaces the old static og.png, which a shared link could never have been showing
+    anything stale from once this is live)."""
+    sid = ev["id"]
+    if og_ids and sid in og_ids:
+        import og_images
+        return "%s/static/og/%s/%s.png" % (SITE_URL, og_images.OG_VERSION, sid)
+    img = ev.get("image_url") or og_root_card_url()
+    if img.startswith("/"):
+        img = SITE_URL + img
+    return img
+
+
 def _story_html(shell, ev, og_ids=None):
     """The app shell rewritten for ONE story: its own title / description / OG /
     canonical / NewsArticle JSON-LD, and the loading skeleton in #root replaced by
@@ -361,40 +420,37 @@ def _story_html(shell, ev, og_ids=None):
     if isinstance(summ, (list, tuple)):
         summ = " ".join(str(x) for x in summ)
     summ = (summ or "").strip()
-    desc = summ[:300] or "How India's outlets across the spectrum covered this story."
-    # Social preview image, best -> fallback: the branded per-story share card (the
-    # bias bar, generated by og_images.py for the recent feed) -> the story's own
-    # article photo -> the global og.png. So a shared link previews the coverage split.
-    if og_ids and sid in og_ids:
-        img = "%s/static/og/%s.png" % (SITE_URL, sid)
-    else:
-        img = ev.get("image_url") or (SITE_URL + "/static/og.png")
-        if img.startswith("/"):
-            img = SITE_URL + img
+    desc = _truncate_desc(summ, 300) or "How India's outlets across the spectrum covered this story."
+    img = _story_og_image(ev, og_ids)
     esc = lambda x: _html.escape(str(x or ""), quote=True)
 
     rep = [
-        ("<title>Paksh: Every side of India's news</title>",
+        ("<title>Paksh: News, with context.</title>",
          "<title>%s | Paksh</title>" % esc(headline)),
-        ('<meta name="description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
+        ('<meta name="description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta name="description" content="%s"/>' % esc(desc)),
         ('<link rel="canonical" href="%s/"/>' % SITE_URL,
          '<link rel="canonical" href="%s"/>' % url),
         ('<meta property="og:type" content="website"/>',
          '<meta property="og:type" content="article"/>'),
-        ('<meta property="og:title" content="Paksh: Every side of India\'s news"/>',
+        ('<meta property="og:title" content="Paksh: News, with context."/>',
          '<meta property="og:title" content="%s"/>' % esc(headline)),
-        ('<meta property="og:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
+        ('<meta property="og:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(desc)),
         ('<meta property="og:url" content="%s/"/>' % SITE_URL,
          '<meta property="og:url" content="%s"/>' % url),
-        ('<meta property="og:image" content="%s/static/og.png"/>' % SITE_URL,
+        ('<meta property="og:image" content="%s"/>' % esc(og_root_card_url()),
          '<meta property="og:image" content="%s"/>' % esc(img)),
-        ('<meta name="twitter:title" content="Paksh: Every side of India\'s news"/>',
+        # Explicitly set on every story page rather than relying on inheritance from the shared
+        # shell (it happens to already be this value there too - this makes it a deliberate
+        # per-story guarantee, not an accident of the shell's own current content).
+        ('<meta name="twitter:card" content="summary_large_image"/>',
+         '<meta name="twitter:card" content="summary_large_image"/>'),
+        ('<meta name="twitter:title" content="Paksh: News, with context."/>',
          '<meta name="twitter:title" content="%s"/>' % esc(headline)),
-        ('<meta name="twitter:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
+        ('<meta name="twitter:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(desc)),
-        ('<meta name="twitter:image" content="%s/static/og.png"/>' % SITE_URL,
+        ('<meta name="twitter:image" content="%s"/>' % esc(og_root_card_url()),
          '<meta name="twitter:image" content="%s"/>' % esc(img)),
     ]
     for a, b in rep:
@@ -524,21 +580,21 @@ def _page_meta_html(shell, title, description, canonical_url, noindex=False):
     either reused verbatim or a straight template substitution of the existing sentence."""
     esc = lambda x: _html.escape(str(x or ""), quote=True)
     rep = [
-        ("<title>Paksh: Every side of India's news</title>",
+        ("<title>Paksh: News, with context.</title>",
          "<title>%s</title>" % esc(title)),
-        ('<meta name="description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
+        ('<meta name="description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta name="description" content="%s"/>' % esc(description)),
         ('<link rel="canonical" href="%s/"/>' % SITE_URL,
          ('<link rel="canonical" href="%s"/>' % canonical_url) if canonical_url else ""),
-        ('<meta property="og:title" content="Paksh: Every side of India\'s news"/>',
+        ('<meta property="og:title" content="Paksh: News, with context."/>',
          '<meta property="og:title" content="%s"/>' % esc(title)),
-        ('<meta property="og:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
+        ('<meta property="og:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(description)),
         ('<meta property="og:url" content="%s/"/>' % SITE_URL,
          ('<meta property="og:url" content="%s"/>' % canonical_url) if canonical_url else ""),
-        ('<meta name="twitter:title" content="Paksh: Every side of India\'s news"/>',
+        ('<meta name="twitter:title" content="Paksh: News, with context."/>',
          '<meta name="twitter:title" content="%s"/>' % esc(title)),
-        ('<meta name="twitter:description" content="How India\'s media — Left, Centre and Right — covers each story, in English and Hindi."/>',
+        ('<meta name="twitter:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(description)),
     ]
     if noindex:
@@ -786,6 +842,11 @@ def _rss_xml(title, channel_link, self_url, rows, limit):
     written once at build time, no server."""
     from email.utils import format_datetime
     from datetime import timezone
+    try:
+        import og_images
+        og_version = og_images.OG_VERSION
+    except Exception:
+        og_version = None
     esc = lambda x: _html.escape(str(x or ""), quote=True)
     items = []
     for r in rows[:limit]:
@@ -798,6 +859,10 @@ def _rss_xml(title, channel_link, self_url, rows, limit):
             summ = " ".join(str(x) for x in summ)
         desc = ("%s Coverage: Left %d · Centre %d · Right %d."
                 % (summ.strip(), L, C, R)).strip()
+        # These rows are always a subset of the same recent_rows[:OG_CARD_N] batch
+        # _build_og_cards() just rendered a card for (image-based or no-image design either
+        # way), so the versioned per-story path is always valid here.
+        enclosure = ("%s/static/og/%s/%s.png" % (SITE_URL, og_version, sid)) if og_version else og_root_card_url()
         items.append(
             "<item>"
             "<title>%s</title>"
@@ -806,18 +871,18 @@ def _rss_xml(title, channel_link, self_url, rows, limit):
             "<pubDate>%s</pubDate>"
             "<category>%s</category>"
             "<description><![CDATA[%s]]></description>"
-            "<enclosure url=\"%s/static/og/%s.png\" type=\"image/png\" length=\"0\"/>"
+            "<enclosure url=\"%s\" type=\"image/png\" length=\"0\"/>"
             "</item>"
             % (esc(r.get("title")), su, su, _rfc822(r.get("published_at") or r.get("created_at")),
-               esc(r.get("topic") or "News"), desc.replace("]]>", "]]&gt;"), SITE_URL, sid))
+               esc(r.get("topic") or "News"), desc.replace("]]>", "]]&gt;"), esc(enclosure)))
     now = format_datetime(datetime.now(timezone.utc))
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n'
         "<title>%s</title>\n<link>%s</link>\n"
         '<atom:link href="%s" rel="self" type="application/rss+xml"/>\n'
-        "<description>Compare how India's media, left, centre and right, "
-        "covers each story, side by side.</description>\n"
+        "<description>Paksh maps how India's media covers every story "
+        "— coverage, gaps, and how it develops, in English and Hindi.</description>\n"
         "<language>en</language>\n<lastBuildDate>%s</lastBuildDate>\n<ttl>60</ttl>\n"
         "%s\n</channel>\n</rss>\n"
         % (esc(title), esc(channel_link), esc(self_url), now, "\n".join(items)))
@@ -986,6 +1051,12 @@ def main():
     try:
         # 1) the app shell + assets
         shutil.copytree(ROOT / "static", OUT / "static")
+        # copytree also placed the raw, un-substituted source index.html at
+        # OUT/static/index.html - a byproduct, not a page anything routes to. Left in place it
+        # would publish a stale paksh.vercel.app canonical/og:url/JSON-LD at a technically-public
+        # URL. The real homepage is written below from a freshly-read, substituted copy, so this
+        # one is just dropped (same idiom as the JSX-source cleanup right after it).
+        (OUT / "static" / "index.html").unlink()
         _precompile_jsx()   # static/app.jsx -> _site/static/app.js (no Babel shipped to browser)
         _build_tailwind()   # -> _site/static/tailwind.css (no cdn.tailwindcss.com at runtime)
         # the served shell: inject the real domain so canonical / OG / sitemap all agree.
@@ -1237,7 +1308,7 @@ def main():
         # Vercel route below matches byte-for-byte with no decode/re-encode ambiguity.
         from urllib.parse import quote as _quote
         topic_names_sorted = sorted({e.get("topic") for e in events if e.get("topic")})
-        _DESC = "How India's media — Left, Centre and Right — covers each story, in English and Hindi."
+        _DESC = "Paksh maps how India's media covers every story — coverage, gaps, and how it develops, in English and Hindi."
         for name in topic_names_sorted:
             enc = _quote(name, safe="")
             tp = OUT / "topic" / f"{enc}.html"
@@ -1459,7 +1530,7 @@ def main():
         # item shows the bias line and the share card, so even a feed reader sees the split.
         from urllib.parse import quote as _q
         (OUT / "rss.xml").write_text(
-            _rss_xml("Paksh: Every side of India's news",
+            _rss_xml("Paksh: News, with context.",
                      SITE_URL + "/", SITE_URL + "/rss.xml", recent_rows, 60),
             encoding="utf-8")
         rss_dir = OUT / "rss"
