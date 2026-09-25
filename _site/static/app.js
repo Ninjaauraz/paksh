@@ -815,6 +815,25 @@ const writeInterests = list => {
     localStorage.setItem(INTERESTS_LS, JSON.stringify(list || []));
   } catch (e) {}
 };
+// 2026-09-25 onboarding hardening: Hindi labels for the 13 curated section_rank.py keys -
+// sections.json only ships an English "label" (section_rank.py has no label_hi), so the
+// onboarding interest picker (the one place today that must show these in Hindi) keeps its
+// own small map rather than inventing a server-side field for a single client-only use.
+const SECTION_HI = {
+  india: "भारत",
+  politics_policy: "राजनीति और नीति",
+  economy: "अर्थव्यवस्था",
+  finance_markets: "वित्त और बाज़ार",
+  defence_security: "रक्षा और सुरक्षा",
+  technology: "तकनीक",
+  india_world: "भारत और विश्व",
+  world: "विश्व",
+  society: "समाज",
+  health: "स्वास्थ्य",
+  science_space: "विज्ञान और अंतरिक्ष",
+  sports: "खेल",
+  culture_entertainment: "संस्कृति और मनोरंजन"
+};
 const applyA11y = p => {
   try {
     const el = document.documentElement;
@@ -953,7 +972,7 @@ const STR = {
     navSrc: "Sources",
     navMethod: "Method",
     search: "Search coverage…",
-    tagline: "Compare how India's media covers each story, every side, side by side.",
+    tagline: "How India's media — Left, Centre and Right — covers each story.",
     topNews: "Top Stories",
     osTitle: "Coverage Gaps",
     gapLeftHead: "Covered more by Left-leaning outlets",
@@ -1011,7 +1030,7 @@ const STR = {
     suggestFix: "Suggest a correction",
     methodTitle: "How Paksh works",
     m_doesH: "What Paksh does",
-    m_does: "Paksh groups coverage of the same story from outlets across the spectrum, shows a neutral summary, and shows which sides are covering it, so you can see the whole picture and what your usual sources leave out.",
+    m_does: "Paksh groups how India's media — Left, Centre and Right — covers each story, so you can see what your usual sources leave out.",
     m_ruleH: "The golden rule",
     m_rule: "A lean label belongs to the publication, not to any single article, and never to an algorithm. Paksh editors assign each outlet a lean using a fixed rubric. The automated summary only describes the coverage; it never decides anyone's politics. A story's bias bar is simple arithmetic: we count how many covering outlets fall on each side. And it is one vote per owner: when two mastheads share a parent company, say The Times of India and Navbharat Times, both Times Group, they count once on their side, so a single company cannot tilt the bar by publishing the same story under several names. We still show every masthead that covered the story; they just share one vote, which is why a story can read “9 publishers · 13 mastheads” on a side.",
     m_aiH: "What the software does, and never does",
@@ -1040,7 +1059,7 @@ const STR = {
     navSrc: "स्रोत",
     navMethod: "कार्यप्रणाली",
     search: "कवरेज खोजें…",
-    tagline: "देखिए भारत का मीडिया हर खबर को कैसे कवर करता है, हर पक्ष, आमने-सामने।",
+    tagline: "भारत का मीडिया — वाम, केंद्र और दक्षिण — हर खबर को कैसे कवर करता है।",
     topNews: "मुख्य खबरें",
     osTitle: "कवरेज गैप",
     gapLeftHead: "ज़्यादातर वाम-झुकाव आउटलेट्स द्वारा कवर",
@@ -1093,7 +1112,7 @@ const STR = {
     suggestFix: "सुधार सुझाएँ",
     methodTitle: "पक्ष कैसे काम करता है",
     m_doesH: "पक्ष क्या करता है",
-    m_does: "पक्ष एक ही खबर की कवरेज को पूरे स्पेक्ट्रम के आउटलेट्स से इकट्ठा करता है, एक तटस्थ सारांश दिखाता है, और दिखाता है कि कौन-कौन से पक्ष इसे कवर कर रहे हैं, ताकि आप पूरी तस्वीर देख सकें और जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
+    m_does: "पक्ष दिखाता है कि भारत का मीडिया — वाम, केंद्र और दक्षिण — हर खबर को कैसे कवर करता है, ताकि आप जान सकें कि आपके सामान्य स्रोत क्या छोड़ देते हैं।",
     m_ruleH: "मूल नियम",
     m_rule: "झुकाव का लेबल प्रकाशन का होता है, किसी एक लेख का नहीं, और कभी किसी एल्गोरिद्म का नहीं। पक्ष के संपादक एक निश्चित रूब्रिक से हर आउटलेट को झुकाव देते हैं। स्वचालित सारांश केवल कवरेज का वर्णन करता है; वह किसी की राजनीति तय नहीं करता। किसी खबर का बायस बार सीधा गणित है: हम गिनते हैं कि कवर करने वाले कितने आउटलेट किस ओर हैं। और यह एक-स्वामी-एक-वोट है: जब दो आउटलेट एक ही मूल कंपनी के हों, जैसे The Times of India और Navbharat Times, दोनों Times Group, तो वे अपने पक्ष में एक ही बार गिने जाते हैं, ताकि कोई एक कंपनी कई नामों से एक ही खबर छापकर बायस बार को झुका न सके। कवर करने वाला हर आउटलेट फिर भी दिखाया जाता है; बस उनका वोट एक साझा होता है, इसीलिए किसी पक्ष पर खबर “9 प्रकाशक · 13 मास्टहेड” पढ़ सकती है।",
     m_aiH: "सॉफ़्टवेयर क्या करता है, और क्या कभी नहीं करता",
@@ -3072,7 +3091,10 @@ function DevelopingRail({
   goStoryline,
   goStorylines
 }) {
-  const all = (storylines || []).filter(s => s.n_events >= 2);
+  // n_updates (2026-09-25 developing-stories hardening) counts only entries that carried
+  // genuinely new information; n_events (older field, still present) counts every linked
+  // report including collapsed re-reports. Prefer n_updates, fall back for any stale cache.
+  const all = (storylines || []).filter(s => (s.n_updates ?? s.n_events) >= 2);
   const items = all.slice(0, DEVELOPING_RAIL_N);
   if (!items.length) return null;
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -3103,7 +3125,7 @@ function DevelopingRail({
     }, /*#__PURE__*/React.createElement("span", {
       "aria-hidden": "true",
       className: t.dev
-    }, "\u25C7"), " ", s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
+    }, "\u25C7"), " ", s.n_updates ?? s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
   }), all.length > items.length && /*#__PURE__*/React.createElement("button", {
     onClick: () => goStorylines && goStorylines(),
     className: `mt-2.5 mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
@@ -3119,7 +3141,7 @@ function StorylinesHub({
   lang,
   goStoryline
 }) {
-  const items = (storylines || []).filter(s => s.n_events >= 2).sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+  const items = (storylines || []).filter(s => (s.n_updates ?? s.n_events) >= 2).sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
   const [visible, setVisible] = useState(30);
   const PAGE = 30;
   const lead = items[0],
@@ -3149,7 +3171,7 @@ function StorylinesHub({
       }
     }, title), /*#__PURE__*/React.createElement("div", {
       className: `mt-1.5 mono text-[10.5px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-    }, s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
+    }, s.n_updates ?? s.n_events, " ", lang === "hi" ? "अपडेट" : "updates"));
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1000px] px-4 sm:px-8 py-10"
@@ -3192,6 +3214,7 @@ function HomeView({
   auth,
   lens,
   interests,
+  interestSectionIds,
   openHelp,
   storylines,
   goStoryline,
@@ -3227,7 +3250,11 @@ function HomeView({
   // topic they've only declared interest in, never opened.
   const _fromHistory = !!(auth && lens && lens.total > 0 && lens.topics && lens.topics.length);
   const _topTopics = _fromHistory ? lens.topics.slice(0, 4) : auth && interests && interests.length ? interests.slice(0, 4) : [];
-  const forYou = _topTopics.length ? take(cards.filter(c => _topTopics.includes(c.topic)), 4) : [];
+  // interests may be curated section keys (matched via interestSectionIds, each section's
+  // own server-ranked id list) or, for picks made before the 2026-09-25 onboarding change,
+  // raw topic strings (matched via card.topic as before) - both are honoured together.
+  const _interestIds = !_fromHistory && interestSectionIds && interestSectionIds.size ? interestSectionIds : null;
+  const forYou = _topTopics.length ? take(cards.filter(c => _topTopics.includes(c.topic) || _interestIds && _interestIds.has(String(c.id))), 4) : [];
   const brief = take(cards, 15); // "In brief" tier
   const notUsed = arr => (arr || []).filter(c => !used.has(c.id));
   // Coverage-gap band items: right-heavier stories are missing Left, left-heavier are
@@ -3629,28 +3656,31 @@ function StoryPage({
   }), " ", lang === "hi" ? "आपके रीडिंग लेंस में दर्ज · सिर्फ़ आपको दिखता है" : "Recorded to your Reading Lens · visible only to you") : /*#__PURE__*/React.createElement("button", {
     onClick: () => go("login"),
     className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${isHi(lang)}`
-  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें — आपके पढ़े का निजी रिकॉर्ड →" : "Sign in to build your Reading Lens — a private record of what you read →")), story.storyline && (story.storyline.events || []).length > 1 && /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto mt-10 max-w-[840px]"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
-    style: {
-      borderBottom: `1px solid ${t.ink}`
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
-    }
-  }, lang === "hi" ? "यह खबर कैसे विकसित हुई" : "How this developed"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => goStoryline && goStoryline(story.storyline.id),
-    className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, story.storyline.events.length, " ", lang === "hi" ? "अपडेट · पूरी कड़ी →" : "updates · full storyline →")), /*#__PURE__*/React.createElement(StorylineTimeline, {
-    storyline: story.storyline,
-    currentId: story.id,
-    t: t,
-    lang: lang,
-    open: open
-  })), story.story_context && story.story_context.historical_event && /*#__PURE__*/React.createElement("div", {
+  }, lang === "hi" ? "अपना रीडिंग लेंस बनाने के लिए साइन इन करें — आपके पढ़े का निजी रिकॉर्ड →" : "Sign in to build your Reading Lens — a private record of what you read →")), story.storyline && (() => {
+    const _visible = (story.storyline.events || []).filter(ev => ev.is_update !== false || String(ev.id) === String(story.id));
+    return _visible.length > 1 && /*#__PURE__*/React.createElement("div", {
+      className: "mx-auto mt-10 max-w-[840px]"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "mb-1 flex items-baseline justify-between gap-3 pb-2",
+      style: {
+        borderBottom: `1px solid ${t.ink}`
+      }
+    }, /*#__PURE__*/React.createElement("h2", {
+      className: `eyebrow ${t.tp} ${lang === "hi" ? "deva" : ""}`,
+      style: {
+        letterSpacing: lang === "hi" ? 0 : ".14em"
+      }
+    }, lang === "hi" ? "यह खबर कैसे विकसित हुई" : "How this developed"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => goStoryline && goStoryline(story.storyline.id),
+      className: `mono text-[10.5px] ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+    }, _visible.length, " ", lang === "hi" ? "अपडेट · पूरी कड़ी →" : "updates · full storyline →")), /*#__PURE__*/React.createElement(StorylineTimeline, {
+      storyline: story.storyline,
+      currentId: story.id,
+      t: t,
+      lang: lang,
+      open: open
+    }));
+  })(), story.story_context && story.story_context.historical_event && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "pb-2",
@@ -4553,7 +4583,7 @@ function SectionsHub({
       style: {
         letterSpacing: lang === "hi" ? 0 : "-0.014em"
       }
-    }, s.label), /*#__PURE__*/React.createElement("span", {
+    }, lang === "hi" ? SECTION_HI[s.key] || s.label : s.label), /*#__PURE__*/React.createElement("span", {
       className: `mono text-[11px] shrink-0 ${t.tf}`
     }, (s.all_story_ids || s.story_ids || []).length)), lc && /*#__PURE__*/React.createElement("div", {
       className: `mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`
@@ -4576,7 +4606,7 @@ function SectionsHub({
     }
   }, /*#__PURE__*/React.createElement("span", {
     className: `text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`
-  }, s.label), /*#__PURE__*/React.createElement("span", {
+  }, lang === "hi" ? SECTION_HI[s.key] || s.label : s.label), /*#__PURE__*/React.createElement("span", {
     className: `mono text-[10.5px] shrink-0 ${t.tf}`
   }, (s.all_story_ids || s.story_ids || []).length)))), allTopicsLink);
 }
@@ -4596,9 +4626,11 @@ function SectionPage({
   t,
   lang,
   open,
-  go
+  go,
+  followingSection,
+  onToggleFollowSection
 }) {
-  const label = spec ? spec.label : slug;
+  const label = spec ? lang === "hi" ? SECTION_HI[spec.key] || spec.label : spec.label : slug;
   const [visible, setVisible] = useState(20);
   const PAGE = 20;
   const lead = ranked[0],
@@ -4632,9 +4664,18 @@ function SectionPage({
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.018em"
     }
-  }, label), /*#__PURE__*/React.createElement("span", {
+  }, label), /*#__PURE__*/React.createElement("div", {
+    className: "flex shrink-0 items-center gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
     className: `mono text-[11px] ${t.tf}`
-  }, totalCount)), !ranked.length ? /*#__PURE__*/React.createElement("div", {
+  }, totalCount), authOn() && onToggleFollowSection && /*#__PURE__*/React.createElement(FollowButton, {
+    on: !!followingSection,
+    onToggle: onToggleFollowSection,
+    labelOn: lang === "hi" ? "फ़ॉलो हो रहा है" : "Following",
+    labelOff: lang === "hi" ? "+ फ़ॉलो सेक्शन" : "+ Follow section",
+    t: t,
+    lang: lang
+  }))), !ranked.length ? /*#__PURE__*/React.createElement("div", {
     className: `py-24 text-center ${t.tf} ${isHi(lang)}`
   }, STR[lang].noStories) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "mt-6 grid gap-8 lg:grid-cols-[1.4fr_1fr]"
@@ -5220,7 +5261,6 @@ function ContactPage({
     },
     railH: "रेटिंग पर असहमति?",
     rail: "हमें आउटलेट, जिस रेटिंग से आप असहमत हैं, और 2-3 उदाहरण हेडलाइन/लेख बताएँ। हम उसे छह-संकेत रूब्रिक के विरुद्ध फिर से देखेंगे।",
-    emailH: "सीधा ईमेल",
     indep: "पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।"
   } : {
     title: "Contact",
@@ -5247,7 +5287,6 @@ function ContactPage({
     },
     railH: "Disputing a rating?",
     rail: "Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
-    emailH: "Direct email",
     indep: "Paksh is an independent project and is not affiliated with any outlet shown."
   };
   async function submit(e) {
@@ -5390,15 +5429,7 @@ function ContactPage({
     }
   }, L.railH), /*#__PURE__*/React.createElement("p", {
     className: `mt-2 text-[13.5px] leading-[1.6] ${t.ts} ${readCls(lang)}`
-  }, L.rail)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    className: `eyebrow ${t.tf} ${lang === "hi" ? "deva" : ""}`,
-    style: {
-      letterSpacing: lang === "hi" ? 0 : ".14em"
-    }
-  }, L.emailH), /*#__PURE__*/React.createElement("a", {
-    href: "mailto:hello@paksh.news",
-    className: `mt-2 block mono text-[13px] ${t.ts} hover:${t.tp}`
-  }, "hello@paksh.news")), /*#__PURE__*/React.createElement("p", {
+  }, L.rail)), /*#__PURE__*/React.createElement("p", {
     className: `text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
   }, L.indep))));
 }
@@ -5553,7 +5584,8 @@ function PrivacyPage({
   consent,
   setConsent,
   adsConsent,
-  setAdsConsent
+  setAdsConsent,
+  go
 }) {
   const Row = ({
     h,
@@ -5571,32 +5603,34 @@ function PrivacyPage({
     lede: "पक्ष बिना निगरानी के पढ़ने के लिए बना है। मुख्य साइट बिना खाते और बिना ट्रैकिंग के चलती है। जो थोड़ा-बहुत हम इकट्ठा करते हैं वह सिर्फ़ साइट चलाने के लिए है, और आपकी अनुमति से आपके रीडिंग लेंस के लिए।",
     c1H: "सेल्फ-होस्टेड फ़ॉन्ट व कोड",
     c1: "फ़ॉन्ट और ऐप कोड पक्ष के अपने डोमेन से आते हैं, पेज लोड करने के लिए किसी तीसरे-पक्ष CDN से संपर्क नहीं होता।",
-    c2H: "विज्ञापन",
-    c2: "विज्ञापन क्लासिफ़ाइड-शैली के और गैर-वैयक्तिकृत हैं। कॉन्फ़िगर व घोषित होने तक कोई विज्ञापन नेटवर्क लोड नहीं होता, अभी स्लॉट निष्क्रिय प्लेसहोल्डर हैं।",
-    c3H: "आपका रीडिंग लेंस",
-    c3: "साइन इन करने पर आप जो खबरें खोलते हैं वे आपके खाते में दर्ज होती हैं ताकि आपका पढ़ने का संतुलन निकले। यह निजी है, बेचा नहीं जाता, और यह नहीं बदलता कि आपको कौन-सी खबरें दिखें।",
+    c2H: "विज्ञापन (Google)",
+    c2: "जब तक आप अनुमति न दें, बंद रहता है। अनुमति देने पर Google विज्ञापन दिखाने व नापने के लिए, दूसरी साइटों पर भी, कुकी का उपयोग कर सकता है। आज तक कोई विज्ञापन नेटवर्क कॉन्फ़िगर नहीं है, इसलिए अभी कुछ भी लोड नहीं होता।",
+    c3H: "खाता (वैकल्पिक)",
+    c3: "खाता बनाना ज़रूरी नहीं। यदि आप बनाते हैं, तो सिर्फ़ साइन-इन कोड भेजने के लिए आपका ईमेल, और आपकी अनुमति से आपकी 'रीडिंग लेंस' (आप क्या पढ़ते हैं) व 'सहेजी खबरें' रखी जाती हैं। यह निजी है, बेचा नहीं जाता, और यह नहीं बदलता कि आपको कौन-सी खबरें दिखें।",
     adH: "विज्ञापन (Google)",
     adSub: "बंद, जब तक आप अनुमति न दें",
     anH: "गुमनाम एनालिटिक्स",
     anSub: "गोपनीयता-सम्मानित गिनती, कोई विज्ञापन-ट्रैकिंग नहीं",
     note1: "आप एनालिटिक्स बंद करके भी हर सुविधा इस्तेमाल कर सकते हैं। बंद करने पर आपकी विज़िट की सारी समग्र माप रुक जाती है।",
-    note2: "डेटा के बारे में सवाल? लिखें"
+    note2: "डेटा के बारे में सवाल?",
+    note2Link: "संपर्क करें"
   } : {
     eyebrow: "Privacy",
     title: "What we collect, and what we don't",
-    lede: "Paksh is built to be read without surveillance. The core site works with no account and no tracking. What little we collect exists only to keep the site running and, if you opt in, to power your Reading Lens.",
+    lede: "Paksh is built to be read without surveillance. The core site works with no account and no tracking. What little we collect exists only to keep the site running and, if you opt in, to power account features like your Reading Lens.",
     c1H: "Self-hosted fonts & code",
     c1: "Fonts and app code are served from Paksh's own domain, no third-party CDN is contacted just to load the page, so reading leaks nothing to outside servers.",
-    c2H: "Advertising",
-    c2: "Ads are classifieds-style and non-personalised. No ad network is loaded until it's configured and disclosed, today the slots are inert placeholders.",
-    c3H: "Your Reading Lens",
-    c3: "If you sign in, the stories you open are recorded to your account to compute your reading balance. It is private to you, never sold, and never used to change which stories you're shown.",
+    c2H: "Advertising (Google)",
+    c2: "Off unless you allow it. If you do, Google may use cookies to show and measure ads, including across other sites. No ad network is configured today, so nothing loads either way yet.",
+    c3H: "Account (optional)",
+    c3: "An account is never required to read Paksh. If you create one, we keep your email (only to send you a sign-in code) and, with your consent, which stories you open (Reading Lens) and any stories you save. It is private to you, never sold, and never used to change which stories you're shown.",
     adH: "Advertising (Google)",
     adSub: "Off unless you allow it",
     anH: "Anonymous analytics",
     anSub: "Privacy-respecting counts, no ad tracking",
     note1: "You can switch analytics off and still use every feature. Turning it off stops all aggregate measurement of your visit.",
-    note2: "Questions about your data? Write to"
+    note2: "Questions about your data?",
+    note2Link: "Contact us"
   };
   // 6.3B.10: the three explainer blocks (fonts/ads/reading lens) are static information,
   // not controls - a plain hairline-separated list, same document rhythm as the legal Row
@@ -5700,29 +5734,33 @@ function PrivacyPage({
       lineHeight: 1.5
     }
   }, P.note2, " ", /*#__PURE__*/React.createElement("a", {
-    href: "mailto:hello@paksh.news",
+    href: "/contact",
+    onClick: e => {
+      e.preventDefault();
+      go && go("contact");
+    },
     className: `font-semibold ${t.ts} hover:${t.tp}`
-  }, "hello@paksh.news"), "."))), /*#__PURE__*/React.createElement("div", {
+  }, P.note2Link), "."))), /*#__PURE__*/React.createElement("div", {
     className: "mt-10 max-w-3xl"
   }, /*#__PURE__*/React.createElement("h2", {
     className: `headline text-[20px] ${t.tp} serif`
   }, "Privacy Policy"), /*#__PURE__*/React.createElement("p", {
     className: `mb-1 mt-2 text-[13px] ${t.tf}`
-  }, "Last updated: 9 August 2026 \xB7 Operated by Redstocks Technology LLP"), lang === "hi" && /*#__PURE__*/React.createElement("p", {
+  }, "Last updated: 25 September 2026 \xB7 Operated by Redstocks Technology LLP"), lang === "hi" && /*#__PURE__*/React.createElement("p", {
     className: `mb-2 text-[12.5px] deva ${t.tf}`
   }, "\u092A\u0942\u0930\u0940 \u0917\u094B\u092A\u0928\u0940\u092F\u0924\u093E \u0928\u0940\u0924\u093F \u0905\u0902\u0917\u094D\u0930\u0947\u091C\u093C\u0940 \u092E\u0947\u0902 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u0948\u0964"), /*#__PURE__*/React.createElement(Row, {
     h: "Who we are"
   }, "Paksh (\u092A\u0915\u094D\u0937) is a media-transparency service that groups how different Indian outlets cover the same news story and shows the spread of that coverage across the political spectrum."), /*#__PURE__*/React.createElement(Row, {
     h: "What we collect"
-  }, "When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel\u2019s privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected."), /*#__PURE__*/React.createElement(Row, {
+  }, "When you use our contact form, we receive the email address and message you choose to send, so that we can reply; that form is processed on our behalf by Formspree. As with most websites, our host (Vercel) keeps standard technical logs (such as IP address and browser type) briefly, for security and reliability. With your consent, we also use Vercel's privacy-first, cookieless Web Analytics to understand, only in aggregate, how the site is used: which stories are read, whether people compare sides, mobile versus desktop, and the like. It does not use cookies, does not identify you, and does not follow you across other websites. If you decline, none of this is collected. If you choose to create a Paksh account, our authentication provider (Supabase) stores your email address, used only to send you a one-time sign-in code \u2014 we never ask for or store a password for this. If you then opt into Reading Lens or Saved stories, which stories you've opened or saved are stored against your account. An account is entirely optional; every story on Paksh is readable without one."), /*#__PURE__*/React.createElement(Row, {
     h: "Cookies and tracking"
-  }, "Paksh sets no advertising cookies and does not track you across other websites. Our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. You choose whether to allow it in the banner shown on your first visit, and declining is fully respected for the whole session. If we introduce advertising (e.g. through Google AdSense) in future, we will update this policy and ask for your consent before any advertising cookies are set."), /*#__PURE__*/React.createElement(Row, {
+  }, "Paksh itself sets no cookies; our analytics (Vercel Web Analytics) is cookieless and stores nothing on your device. Signing in stores your session using your browser's local storage, not a cookie. You choose whether to allow optional analytics in the banner shown on your first visit, and declining is fully respected for the whole session. Optional advertising (Google AdSense) works the same way \u2014 off unless you allow it \u2014 but no ad network is configured today, so nothing loads regardless of your choice. If that changes, Google may then use cookies to show and measure ads, including across other sites, exactly as your existing choice already allows or blocks."), /*#__PURE__*/React.createElement(Row, {
     h: "How we use information"
-  }, "To respond to your messages, to keep the site secure and reliable, and, from consented, aggregate, non-identifying usage, to understand how readers engage with coverage, improve Paksh, and inform Redstocks Technology\u2019s research. We do not sell your personal information, and we do not build a profile of you or track you across your devices."), /*#__PURE__*/React.createElement(Row, {
+  }, "To respond to your messages; to run the account features you opt into (sending sign-in codes, remembering your Reading Lens and Saved stories); to keep the site secure and reliable; and, from consented, aggregate, non-identifying usage, to understand how readers engage with coverage and improve Paksh. We do not sell your personal information, and we do not build a profile of you or track you across your devices."), /*#__PURE__*/React.createElement(Row, {
     h: "Third parties"
-  }, "We rely on Formspree (which processes contact-form messages) and Vercel (which hosts the site and provides its cookieless Web Analytics). If we add advertising in future, Google would also process data under its own policy, and we will note that here before it happens."), /*#__PURE__*/React.createElement(Row, {
+  }, "We rely on Formspree (processes contact-form messages), Vercel (hosts the site and provides its cookieless Web Analytics), and, only if you create an account, Supabase (stores your account email and, if you opt in, your Reading Lens/Saved data). If we enable advertising in future, Google would also process data under its own policy, and we will update this section before that happens."), /*#__PURE__*/React.createElement(Row, {
     h: "Your choices"
-  }, "You may ask us to access or delete the information you sent through the contact form. Reach us any time via the Contact page."), /*#__PURE__*/React.createElement(Row, {
+  }, "You may ask us to access or delete the information you sent through the contact form. If you have a Paksh account, you can sign out at any time in Settings, and can ask us via Contact to delete your account and any Reading Lens/Saved data attached to it."), /*#__PURE__*/React.createElement(Row, {
     h: "Children"
   }, "Paksh is a general news service and is not directed at children."), /*#__PURE__*/React.createElement(Row, {
     h: "Changes"
@@ -6052,7 +6090,10 @@ function LoginPage({
   onAuthed
 }) {
   const [mode, setMode] = useState("signin"); // signin | signup
-  const [method, setMethod] = useState("password"); // password | code
+  // 2026-09-25 auth hardening: OTP-first default (brief D). Password sign-in still exists
+  // as a fallback for anyone who already set one, reached via "Use a password instead" -
+  // it is never the first thing a reader sees.
+  const [method, setMethod] = useState("code"); // code | password
   const [step, setStep] = useState("email"); // (code method) email | code
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -7277,11 +7318,16 @@ function MyPakshPage({
   // same total the two sections showed between them before).
   const recentRows = dedup.slice(0, 8);
   const saved = (savedRows || []).slice(0, 4);
-  const followedTopicList = Array.from(followedTopics || []);
+  // 2026-09-25 section IA: a followed section is stored in the same follows_topic table as
+  // a followed raw topic, distinguished only by a "section:" prefix on the value (see
+  // SectionPage/onToggleFollowSection) - split them back apart here so each renders with
+  // its own correct label and links to its own real URL (/section/<slug>, not /topic/<key>).
+  const followedTopicList = Array.from(followedTopics || []).filter(x => !x.startsWith("section:"));
+  const followedSectionList = Array.from(followedTopics || []).map(x => x.startsWith("section:") ? x.slice(8) : null).filter(Boolean);
   const followedStories = followedStoryRows || [];
   const sywlh = sywlhRows || [];
   const loading = readingRows === null;
-  const hasAnything = sywlh.length || recentRows.length || followedTopicList.length || followedStories.length || saved.length;
+  const hasAnything = sywlh.length || recentRows.length || followedTopicList.length || followedSectionList.length || followedStories.length || saved.length;
   return /*#__PURE__*/React.createElement(PageWrap, null, /*#__PURE__*/React.createElement("h1", {
     className: `headline pk-text-display ${t.tp} ${readCls(lang)}`,
     style: {
@@ -7351,12 +7397,26 @@ function MyPakshPage({
     lang: lang
   }), /*#__PURE__*/React.createElement("div", {
     className: `mt-1 headline text-[14.5px] leading-[1.28] lc-3 ${t.tp} ${readCls(lang)}`
-  }, c.headline))))), (followedTopicList.length > 0 || followedStories.length > 0) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+  }, c.headline))))), (followedTopicList.length > 0 || followedSectionList.length > 0 || followedStories.length > 0) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
     t: t,
     lang: lang
-  }, L.following), followedTopicList.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, L.following), (followedTopicList.length > 0 || followedSectionList.length > 0) && /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2"
-  }, followedTopicList.map(tp => /*#__PURE__*/React.createElement("span", {
+  }, followedSectionList.map(key => {
+    const enLabel = (SECTION_ORDER.find(([k]) => k === key) || [])[1] || key;
+    const slug = key.replace(/_/g, "-");
+    return /*#__PURE__*/React.createElement("span", {
+      key: "section:" + key,
+      className: `inline-flex items-center gap-2 border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts}`
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => go("section/" + encodeURIComponent(slug)),
+      className: `hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+    }, lang === "hi" ? SECTION_HI[key] || enLabel : enLabel), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onToggleFollowTopic("section:" + key),
+      "aria-label": L.unfollow,
+      className: `hover:${t.blind}`
+    }, "\xD7"));
+  }), followedTopicList.map(tp => /*#__PURE__*/React.createElement("span", {
     key: tp,
     className: `inline-flex items-center gap-2 border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts}`
   }, /*#__PURE__*/React.createElement("button", {
@@ -7412,7 +7472,10 @@ function StorylineTimeline({
   compact
 }) {
   if (!storyline || !(storyline.events || []).length) return null;
-  const evs = storyline.events;
+  // is_update:false entries re-report facts an earlier entry already carries (see
+  // storylines.py::_is_meaningful_update) and are skipped here so they don't clutter the
+  // thread — except the entry the reader is actually on, which always shows regardless.
+  const evs = storyline.events.filter(ev => ev.is_update !== false || String(ev.id) === String(currentId));
   return /*#__PURE__*/React.createElement("ol", {
     className: "relative mt-4",
     style: {
@@ -7562,7 +7625,7 @@ function StorylinePage({
     }
   }, title), /*#__PURE__*/React.createElement("div", {
     className: `mt-2 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
-  }, storyline.n_events, " ", L.updates, " \xB7 ", absDate(storyline.start, lang), " \u2192 ", absDate(storyline.end, lang)), /*#__PURE__*/React.createElement("p", {
+  }, storyline.n_updates ?? storyline.n_events, " ", L.updates, " \xB7 ", absDate(storyline.start, lang), " \u2192 ", absDate(storyline.end, lang)), /*#__PURE__*/React.createElement("p", {
     className: `mt-4 text-[12px] leading-[1.6] ${t.tf} ${isHi(lang)}`
   }, L.note), /*#__PURE__*/React.createElement("div", {
     className: "mt-6"
@@ -7636,6 +7699,10 @@ function parsePath() {
 // First-run onboarding: a reading-language ask + four one-line explainers of how to read
 // Paksh (the bias bar, coverage gaps, publisher-not-article, bilingual). Shown once, then
 // remembered in localStorage ("paksh-onboarded"). Dismissable at any step.
+// 2026-09-25 onboarding hardening: SECTION_ORDER mirrors section_rank.py's SECTIONS dict
+// (key + exact English label) so this step never depends on sections.json having loaded
+// yet, and never drifts from the 13 curated sections that are actually live.
+const SECTION_ORDER = [["india", "India"], ["politics_policy", "Politics & Policy"], ["economy", "Economy"], ["finance_markets", "Finance & Markets"], ["defence_security", "Defence & Security"], ["technology", "Technology"], ["india_world", "India & World"], ["world", "World"], ["society", "Society"], ["health", "Health"], ["science_space", "Science & Space"], ["sports", "Sports"], ["culture_entertainment", "Culture & Entertainment"]];
 function Onboarding({
   t,
   lang,
@@ -7648,28 +7715,28 @@ function Onboarding({
   const LAST_STEP = 5;
   const steps = lang === "hi" ? [{
     k: "बायस बार",
-    b: "रंगीन बार गिनता है कि कवर करने वाले कितने अलग-अलग आउटलेट वाम, केंद्र या दक्षिण की ओर हैं, एक प्रकाशक = एक वोट।"
+    b: "कितने आउटलेट वाम, केंद्र या दक्षिण झुके हैं — एक प्रकाशक, एक वोट।"
   }, {
     k: "कवरेज गैप",
-    b: "जब एक पक्ष के आउटलेट कोई खबर चलाएँ पर दूसरे न चलाएँ, पक्ष उसे चिह्नित करता है, यह अंकगणित है, निर्णय नहीं।"
+    b: "जब एक पक्ष कवर करे और दूसरा न करे, पक्ष उसे चिह्नित करता है।"
   }, {
-    k: "झुकाव प्रकाशन का, लेख का नहीं",
-    b: "झुकाव का लेबल हर प्रकाशन का होता है और संपादक तय करते हैं, कोई एल्गोरिद्म नहीं।"
+    k: "झुकाव प्रकाशन का",
+    b: "हर आउटलेट का झुकाव संपादक तय करते हैं, कोई एल्गोरिद्म नहीं।"
   }, {
     k: "द्विभाषी",
-    b: "हर खबर अंग्रेज़ी और हिंदी में, ऊपर के टॉगल से भाषा कभी भी बदलें।"
+    b: "हर खबर अंग्रेज़ी और हिंदी में। कभी भी भाषा बदलें।"
   }] : [{
     k: "The bias bar",
-    b: "The coloured bar counts how many distinct outlets covering a story lean Left, Centre or Right, one publisher = one vote."
+    b: "Counts how many outlets lean Left, Centre or Right — one publisher, one vote."
   }, {
     k: "Coverage gaps",
-    b: "When one side's outlets run a story and the other's don't, Paksh flags it, arithmetic, not a judgment."
+    b: "Flagged when one side covers a story and the other doesn't."
   }, {
-    k: "Lean is the publisher's, not the article's",
-    b: "A lean label belongs to each publication and is set by editors, never by an algorithm."
+    k: "Lean is the publisher's",
+    b: "Set by editors for each outlet, never guessed by an algorithm."
   }, {
     k: "Bilingual",
-    b: "Every story in English and Hindi, switch language any time with the toggle up top."
+    b: "Every story in English and Hindi. Switch anytime."
   }];
   const L = lang === "hi" ? {
     welcome: "पक्ष में आपका स्वागत है",
@@ -7677,8 +7744,8 @@ function Onboarding({
     next: "आगे",
     start: "शुरू करें",
     skip: "छोड़ें",
-    interestsH: "आप किसमें रुचि रखते हैं?",
-    interestsB: "कुछ विषय चुनें — जब तक हम यह न जान लें कि आप क्या पढ़ते हैं, ये होमपेज पर आपके “आपके लिए” चुनाव तय करेंगे। बाद में कभी भी बदलें।",
+    interestsH: "फ़ॉलो करने के लिए सेक्शन चुनें",
+    interestsB: "खाता बनाने पर ये आपके होमपेज पर “आपके लिए” चुनाव तय करेंगे। अभी छोड़ना ठीक है, आपकी पसंद सुरक्षित रहेगी।",
     interestsHint: "3-8 चुनने का सुझाव"
   } : {
     welcome: "Welcome to Paksh",
@@ -7686,12 +7753,11 @@ function Onboarding({
     next: "Next",
     start: "Get started",
     skip: "Skip",
-    interestsH: "What are you interested in?",
-    interestsB: "Pick a few topics — until we learn what you actually read, they shape your “For you” picks on the homepage. Change it anytime.",
+    interestsH: "Pick sections to follow",
+    interestsB: "These shape your “For you” picks once you have an account. Skip is fine — we'll keep your choices either way.",
     interestsHint: "3-8 is a good start"
   };
   const done = () => onDone();
-  const topicKeys = Object.keys(TOPIC_HI).filter(k => k !== "General");
   return /*#__PURE__*/React.createElement("div", {
     className: "fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4",
     style: {
@@ -7745,13 +7811,13 @@ function Onboarding({
     }
   }, L.interestsB), /*#__PURE__*/React.createElement("div", {
     className: "mt-4 flex flex-wrap gap-2"
-  }, topicKeys.map(k => {
+  }, SECTION_ORDER.map(([k, enLabel]) => {
     const on = (interests || []).includes(k);
     return /*#__PURE__*/React.createElement("button", {
       key: k,
       onClick: () => onToggleInterest(k),
       className: `border px-3 py-1.5 text-[12.5px] font-semibold ${on ? `${t.cta} ${t.ctaT} border-transparent` : `${t.border} ${t.ts} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`
-    }, lang === "hi" ? TOPIC_HI[k] || k : k);
+    }, lang === "hi" ? SECTION_HI[k] || enLabel : enLabel);
   })), /*#__PURE__*/React.createElement("p", {
     className: `mt-3 text-[11.5px] ${t.tf} ${isHi(lang)}`
   }, lang === "hi" ? `${(interests || []).length} चुने गए · ${L.interestsHint}` : `${(interests || []).length} selected · ${L.interestsHint}`)) : /*#__PURE__*/React.createElement("div", {
@@ -8374,6 +8440,10 @@ function PakshApp() {
   sectionsOrdered.forEach(s => {
     sectionBySlug[s.slug] = s;
   });
+  const sectionByKey = {};
+  sectionsOrdered.forEach(s => {
+    sectionByKey[s.key] = s;
+  });
   const itemsForSection = slug => {
     const s = sectionBySlug[slug];
     if (!s) return {
@@ -8387,6 +8457,23 @@ function PakshApp() {
       library
     };
   };
+  // 2026-09-25 onboarding hardening: onboarding's interest picker now stores curated
+  // section_rank.py KEYS (e.g. "politics_policy"), not raw per-event `topic` strings, so
+  // "For You" below can no longer match interests against card.topic directly. A section's
+  // real membership is a text/region classifier, not a simple topic alias, so this reuses
+  // each section's own server-computed story-id list rather than approximating it here.
+  // Any interest value from BEFORE this change (a raw topic string) simply matches nothing
+  // in sectionByKey and falls through to the pre-existing card.topic check in HomeView, so
+  // no reader's existing picks silently stop working.
+  const interestSectionIds = useMemo(() => {
+    const set = new Set();
+    (interests || []).forEach(k => {
+      const s = sectionByKey[k];
+      if (!s) return;
+      (s.all_story_ids && s.all_story_ids.length ? s.all_story_ids : s.story_ids || []).forEach(id => set.add(String(id)));
+    });
+    return set;
+  }, [interests, data.sections]);
   const lastTs = (data.events || []).reduce((mx, e) => {
     const ts = Date.parse(e.published_at || e.created_at || "");
     return isNaN(ts) ? mx : Math.max(mx, ts);
@@ -8505,7 +8592,7 @@ function PakshApp() {
     let title = home;
     if (route.view === "topic") title = suffix(route.topic);else if (route.view === "topics") title = suffix(ui("sections", lang));else if (route.view === "all-topics") title = suffix(lang === "hi" ? "सभी विषय" : "All Topics");else if (route.view === "section") {
       const sp = (data.sections || []).find(s => s.slug === route.slug);
-      title = suffix(sp ? sp.label : ui("sections", lang));
+      title = suffix(sp ? lang === "hi" ? SECTION_HI[sp.key] || sp.label : sp.label : ui("sections", lang));
     } else if (route.view === "blindspot") title = suffix(STR[lang].osTitle);else if (route.view === "search") title = suffix(ui("searchTab", lang));else if (route.view === "storylines") title = suffix(ui("developingStories", lang));else if (route.view === "storyline") {
       const sl = (data.storylines || []).find(s => s.id === route.id);
       title = suffix(sl ? lang === "hi" && sl.title_hi ? sl.title_hi : sl.title : ui("developingStories", lang));
@@ -8683,15 +8770,19 @@ function PakshApp() {
     goTopic: goTopic
   }) : route.view === "section" ? (() => {
     const _sec = itemsForSection(route.slug);
+    const _spec = sectionBySlug[route.slug];
+    const _skey = _spec && _spec.key;
     return /*#__PURE__*/React.createElement(SectionPage, {
       slug: route.slug,
-      spec: sectionBySlug[route.slug],
+      spec: _spec,
       ranked: _sec.ranked,
       library: _sec.library,
       t: t,
       lang: lang,
       open: open,
-      go: go
+      go: go,
+      followingSection: _skey ? followedTopics.has("section:" + _skey) : false,
+      onToggleFollowSection: _skey ? () => toggleFollowTopic("section:" + _skey) : undefined
     });
   })() : route.view === "topic" ? /*#__PURE__*/React.createElement(TopicPage, {
     topic: route.topic,
@@ -8722,7 +8813,8 @@ function PakshApp() {
     consent: consent,
     setConsent: setConsentChoice,
     adsConsent: adsConsent,
-    setAdsConsent: setAdsChoice
+    setAdsConsent: setAdsChoice,
+    go: go
   }) : route.view === "support" ? /*#__PURE__*/React.createElement(SupportPage, {
     t: t,
     lang: lang,
@@ -8753,6 +8845,7 @@ function PakshApp() {
     auth: auth,
     lens: lensStats,
     interests: interests,
+    interestSectionIds: interestSectionIds,
     openHelp: () => go("about"),
     storylines: data.storylines,
     goStoryline: goStoryline,
