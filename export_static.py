@@ -433,7 +433,7 @@ def _story_html(shell, ev, og_ids=None):
          '<link rel="canonical" href="%s"/>' % url),
         ('<meta property="og:type" content="website"/>',
          '<meta property="og:type" content="article"/>'),
-        ('<meta property="og:title" content="Paksh: News, with context."/>',
+        ('<meta property="og:title" content="Paksh: News with context."/>',
          '<meta property="og:title" content="%s"/>' % esc(headline)),
         ('<meta property="og:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(desc)),
@@ -446,7 +446,7 @@ def _story_html(shell, ev, og_ids=None):
         # per-story guarantee, not an accident of the shell's own current content).
         ('<meta name="twitter:card" content="summary_large_image"/>',
          '<meta name="twitter:card" content="summary_large_image"/>'),
-        ('<meta name="twitter:title" content="Paksh: News, with context."/>',
+        ('<meta name="twitter:title" content="Paksh: News with context."/>',
          '<meta name="twitter:title" content="%s"/>' % esc(headline)),
         ('<meta name="twitter:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(desc)),
@@ -454,6 +454,12 @@ def _story_html(shell, ev, og_ids=None):
          '<meta name="twitter:image" content="%s"/>' % esc(img)),
     ]
     for a, b in rep:
+        # FAIL LOUD: if static/index.html's literal text drifts from these markers, a
+        # silent no-op here would ship every story page with the generic homepage title/
+        # OG tags instead of its own (this happened once - see CLAUDE.md fragile coupling).
+        if a not in shell:
+            raise SystemExit("[export] _story_html marker not found in static/index.html "
+                             "(shell drifted) - update the marker in export_static.py: %r" % a)
         shell = shell.replace(a, b, 1)
 
     cov = ev.get("coverage", {}) or {}
@@ -586,13 +592,13 @@ def _page_meta_html(shell, title, description, canonical_url, noindex=False):
          '<meta name="description" content="%s"/>' % esc(description)),
         ('<link rel="canonical" href="%s/"/>' % SITE_URL,
          ('<link rel="canonical" href="%s"/>' % canonical_url) if canonical_url else ""),
-        ('<meta property="og:title" content="Paksh: News, with context."/>',
+        ('<meta property="og:title" content="Paksh: News with context."/>',
          '<meta property="og:title" content="%s"/>' % esc(title)),
         ('<meta property="og:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta property="og:description" content="%s"/>' % esc(description)),
         ('<meta property="og:url" content="%s/"/>' % SITE_URL,
          ('<meta property="og:url" content="%s"/>' % canonical_url) if canonical_url else ""),
-        ('<meta name="twitter:title" content="Paksh: News, with context."/>',
+        ('<meta name="twitter:title" content="Paksh: News with context."/>',
          '<meta name="twitter:title" content="%s"/>' % esc(title)),
         ('<meta name="twitter:description" content="Paksh maps how India\'s media covers every story — coverage, gaps, and how it develops, in English and Hindi."/>',
          '<meta name="twitter:description" content="%s"/>' % esc(description)),
@@ -601,6 +607,10 @@ def _page_meta_html(shell, title, description, canonical_url, noindex=False):
         rep.append(('<meta name="robots" content="index, follow"/>',
                     '<meta name="robots" content="noindex, follow"/>'))
     for a, b in rep:
+        # FAIL LOUD: same drift risk as _story_html() above.
+        if a not in shell:
+            raise SystemExit("[export] _page_meta_html marker not found in static/index.html "
+                             "(shell drifted) - update the marker in export_static.py: %r" % a)
         shell = shell.replace(a, b, 1)
     return shell
 
