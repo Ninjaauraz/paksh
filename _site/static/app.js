@@ -815,6 +815,27 @@ const writeInterests = list => {
     localStorage.setItem(INTERESTS_LS, JSON.stringify(list || []));
   } catch (e) {}
 };
+// Personalization (G-onboarding): a guest's Follow/Save attempt redirects to sign-in same as
+// today, but first remembers WHAT they were trying to do and WHERE they were, one-shot,
+// local-first (same idiom as interests above) so it survives the OTP page's own re-render
+// (client-side route change, no reload) and a real reload if the visitor's mail client opens
+// the confirmation link in a new tab. onAuthed() consumes and clears it exactly once by
+// replaying the SAME toggleSave/toggleFollowTopic/toggleFollowStory call, never a second
+// Follow/Save implementation. Malformed/unavailable storage fails safe to "no pending action".
+const PENDING_LS = "paksh-pending-action";
+const readPendingAction = () => {
+  try {
+    const a = JSON.parse(localStorage.getItem(PENDING_LS) || "null");
+    return a && typeof a === "object" && a.type ? a : null;
+  } catch (e) {
+    return null;
+  }
+};
+const writePendingAction = action => {
+  try {
+    if (action) localStorage.setItem(PENDING_LS, JSON.stringify(action));else localStorage.removeItem(PENDING_LS);
+  } catch (e) {}
+};
 // 2026-09-25 onboarding hardening: Hindi labels for the 13 curated section_rank.py keys -
 // sections.json only ships an English "label" (section_rank.py has no label_hi), so the
 // onboarding interest picker (the one place today that must show these in Hindi) keeps its
@@ -3303,17 +3324,19 @@ function HomeView({
   if (lead) used.add(lead.id);
   const major = take(cards, 1)[0]; // Paksh 7A: MAJOR tier - next-ranked story after Lead
   const section = take(cards, 4); // the 2×2 secondary grid in the main well
-  // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
-  // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
-  // more of what you already open. Computed before "In brief" so it gets first pick of matches.
-  // Phase 34 (PD-1): reading history (observed behaviour) still wins the moment it exists.
-  // Until then, a signed-in reader's onboarding interests seed the same slot so the picker
-  // they filled in during onboarding actually does something - no new feed, no new ranking,
-  // just an earlier-available input to the mechanism that already existed. The label below
-  // switches with the source so a fresh reader is never told "because you read X" for a
-  // topic they've only declared interest in, never opened.
+  // FOR YOU (additive) — up to 4 stories on the topics you read most, or, absent that,
+  // the sections you told onboarding you care about. Purely additive: the shared arithmetic
+  // feed is untouched, nothing is hidden or reordered — it just surfaces more of what you
+  // already open (or said you would). Computed before "In brief" so it gets first pick.
+  // Phase 34 (PD-1): reading history (observed behaviour, sign-in only - Reading Lens has no
+  // guest equivalent) still wins the moment it exists. Onboarding interests seed the same
+  // slot otherwise, for GUESTS too (first-visit personalization, G-onboarding) - `interests`
+  // is already guest-safe local state (readInterests()), so this needed no new plumbing, only
+  // dropping the `auth &&` this fallback used to require. The label below switches with the
+  // source so a fresh reader is never told "because you read X" for a topic they've only
+  // declared interest in, never opened.
   const _fromHistory = !!(auth && lens && lens.total > 0 && lens.topics && lens.topics.length);
-  const _topTopics = _fromHistory ? lens.topics.slice(0, 4) : auth && interests && interests.length ? interests.slice(0, 4) : [];
+  const _topTopics = _fromHistory ? lens.topics.slice(0, 4) : interests && interests.length ? interests.slice(0, 4) : [];
   // interests may be curated section keys (matched via interestSectionIds, each section's
   // own server-ranked id list) or, for picks made before the 2026-09-25 onboarding change,
   // raw topic strings (matched via card.topic as before) - both are honoured together.
@@ -6153,6 +6176,14 @@ function LoginPage({
   go,
   onAuthed
 }) {
+  // G-onboarding: a guest who was redirected here from a Follow/Save attempt (see
+  // writePendingAction) gets one brief, contextual line explaining why - reusing this
+  // same sign-in page rather than a separate "create an account" experience. Read once;
+  // this component remounts fresh every time route becomes "login".
+  const _pendingReason = (() => {
+    const p = readPendingAction();
+    return p && (p.type === "save" || p.type === "follow-topic" || p.type === "follow-story") ? lang === "hi" ? "विषय फ़ॉलो करने और खबरें सहेजने के लिए खाता बनाएं।" : "Create an account to follow topics and save stories." : "";
+  })();
   const [mode, setMode] = useState("signin"); // signin | signup
   // 2026-09-25 auth hardening: OTP-first default (brief D). Password sign-in still exists
   // as a fallback for anyone who already set one, reached via "Use a password instead" -
@@ -6512,7 +6543,9 @@ function LoginPage({
     style: {
       borderColor: t.line
     }
-  }, /*#__PURE__*/React.createElement("h1", {
+  }, _pendingReason && /*#__PURE__*/React.createElement("p", {
+    className: `mb-3 text-[13px] font-medium ${t.blind} ${isHi(lang)}`
+  }, _pendingReason), /*#__PURE__*/React.createElement("h1", {
     className: `headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.018em"
@@ -7779,9 +7812,16 @@ function Onboarding({
   setLang,
   onDone,
   interests,
-  onToggleInterest
+  onToggleInterest,
+  auth,
+  go
 }) {
   const [step, setStep] = useState(0);
+  // Account prompt (G-onboarding): shown after interests, ONLY for a guest - an already
+  // signed-in reader (rare but real: "first visit" on a device where they'd already signed
+  // in before onboarding ran) has nothing to be prompted for, so their Continue/Get-started
+  // press finishes onboarding directly, exactly as it always did.
+  const [showAcct, setShowAcct] = useState(false);
   const LAST_STEP = 5;
   const steps = lang === "hi" ? [{
     k: "बायस बार",
@@ -7816,7 +7856,11 @@ function Onboarding({
     skip: "छोड़ें",
     interestsH: "फ़ॉलो करने के लिए सेक्शन चुनें",
     interestsB: "खाता बनाने पर ये आपके होमपेज पर “आपके लिए” चुनाव तय करेंगे। अभी छोड़ना ठीक है, आपकी पसंद सुरक्षित रहेगी।",
-    interestsHint: "3-8 चुनने का सुझाव"
+    interestsHint: "3-8 चुनने का सुझाव",
+    acctTitle: "पक्ष को अपना बनाएं",
+    acctBody: "खाता बनाने पर आप विषय फ़ॉलो कर सकते हैं, खबरें सहेज सकते हैं, और अपनी पसंद हर डिवाइस पर रख सकते हैं।",
+    acctPrimary: "खाता बनाएं / साइन इन करें",
+    acctSecondary: "बिना खाते के जारी रखें"
   } : {
     welcome: "Welcome to Paksh",
     pick: "Choose your reading language",
@@ -7825,9 +7869,24 @@ function Onboarding({
     skip: "Skip",
     interestsH: "Pick sections to follow",
     interestsB: "These shape your “For you” picks once you have an account. Skip is fine — we'll keep your choices either way.",
-    interestsHint: "3-8 is a good start"
+    interestsHint: "3-8 is a good start",
+    acctTitle: "Make Paksh yours",
+    acctBody: "Create an account to follow topics, save stories, and keep your interests across devices.",
+    acctPrimary: "Create account / Sign in",
+    acctSecondary: "Continue without account"
   };
   const done = () => onDone();
+  const continueFromInterests = () => {
+    if (auth) {
+      done();
+    } else {
+      setShowAcct(true);
+    }
+  };
+  const createAccount = () => {
+    done();
+    go && go("login");
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4",
     style: {
@@ -7845,10 +7904,19 @@ function Onboarding({
     style: {
       color: "#75442E"
     }
-  }, step === 0 ? lang === "hi" ? "आपका स्वागत है" : "Welcome" : `${lang === "hi" ? "चरण" : "Step"} ${step} ${lang === "hi" ? "/" : "of"} ${LAST_STEP}`), /*#__PURE__*/React.createElement("button", {
+  }, showAcct ? lang === "hi" ? "खाता" : "Account" : step === 0 ? lang === "hi" ? "आपका स्वागत है" : "Welcome" : `${lang === "hi" ? "चरण" : "Step"} ${step} ${lang === "hi" ? "/" : "of"} ${LAST_STEP}`), !showAcct && /*#__PURE__*/React.createElement("button", {
     onClick: done,
     className: `mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
-  }, L.skip)), step === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, L.skip)), showAcct ? /*#__PURE__*/React.createElement("div", {
+    className: "px-5 pb-5 pt-3"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: `headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`
+  }, L.acctTitle), /*#__PURE__*/React.createElement("p", {
+    className: `mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`,
+    style: {
+      lineHeight: lang === "hi" ? 1.75 : 1.6
+    }
+  }, L.acctBody)) : step === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "px-5 pb-5 pt-4 text-center"
   }, /*#__PURE__*/React.createElement("div", {
     className: `brand-hi text-[46px] leading-none ${t.tp}`
@@ -7899,7 +7967,15 @@ function Onboarding({
     style: {
       lineHeight: lang === "hi" ? 1.75 : 1.6
     }
-  }, steps[step - 1].b)), /*#__PURE__*/React.createElement("div", {
+  }, steps[step - 1].b)), showAcct ? /*#__PURE__*/React.createElement("div", {
+    className: `flex flex-col gap-2 border-t px-5 py-3 ${t.border}`
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: createAccount,
+    className: `border border-transparent px-5 py-2.5 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
+  }, L.acctPrimary), /*#__PURE__*/React.createElement("button", {
+    onClick: done,
+    className: `px-5 py-2 text-[13px] font-semibold ${t.ts} hover:${t.tp} ${isHi(lang)}`
+  }, L.acctSecondary)) : /*#__PURE__*/React.createElement("div", {
     className: `flex items-center justify-between border-t px-5 py-3 ${t.border}`
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex gap-1.5"
@@ -7912,7 +7988,7 @@ function Onboarding({
       background: i === step ? t.ink : t.line
     }
   }))), /*#__PURE__*/React.createElement("button", {
-    onClick: () => step < LAST_STEP ? setStep(step + 1) : done(),
+    onClick: () => step < LAST_STEP ? setStep(step + 1) : continueFromInterests(),
     className: `border border-transparent px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`
   }, step < LAST_STEP ? L.next : L.start))));
 }
@@ -8187,6 +8263,15 @@ function PakshApp() {
             interests: local
           });
         }
+        // G-onboarding: a returning authenticated reader on a device that never ran
+        // onboarding locally (new browser/device) must not be re-onboarded just because
+        // THIS device's localStorage is empty - the account itself already says so.
+        if (p.onboarded) {
+          try {
+            localStorage.setItem("paksh-onboarded", "1");
+          } catch (e) {}
+          setOnboard(false);
+        }
       });
       refreshSaved();
       refreshLens();
@@ -8318,7 +8403,24 @@ function PakshApp() {
     refreshSaved();
     refreshLens();
     refreshFollows();
-    go("home");
+    // G-onboarding: replay a guest's Follow/Save attempt that sent them here (see
+    // writePendingAction in toggleSave/toggleFollowTopic/toggleFollowStory above) - reusing
+    // the SAME saveStory/followTopic/followStory calls those already make, never a second
+    // Follow/Save path - then return them to where they were instead of the homepage.
+    const pending = readPendingAction();
+    writePendingAction(null);
+    if (pending && pending.type === "save" && pending.story) {
+      saveStory(pending.story).then(refreshSaved).catch(refreshSaved);
+    } else if (pending && pending.type === "follow-topic" && pending.topic) {
+      followTopic(pending.topic).catch(refreshFollows);
+    } else if (pending && pending.type === "follow-story" && pending.story) {
+      followStory(pending.story).catch(refreshFollows);
+    }
+    if (pending && pending.returnPath) {
+      nav(pending.returnPath);
+    } else {
+      go("home");
+    }
   };
   // Toggle one interest during onboarding: local-first (works for guests), mirrored to the
   // account when signed in - same shape as setA11y just above it in spirit.
@@ -8372,15 +8474,28 @@ function PakshApp() {
       } catch (e) {}
     }
   };
+  // G-onboarding: mark the ACCOUNT as onboarded too (prefs.onboarded), not just this
+  // device's localStorage - the one thing that lets a returning signed-in reader on a
+  // brand-new device skip onboarding (see the loadPrefs().then(...) restore above).
   const finishOnboarding = () => {
     try {
       localStorage.setItem("paksh-onboarded", "1");
     } catch (e) {}
     setOnboard(false);
+    if (auth) savePrefsRemote({
+      onboarded: true
+    });
   };
-  // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is not).
+  // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is
+  // not) - the intended action is remembered (see writePendingAction) and replayed once
+  // sign-in succeeds, so the reader never has to repeat the click.
   const toggleSave = story => {
     if (!auth) {
+      writePendingAction({
+        type: "save",
+        story,
+        returnPath: window.location.pathname + window.location.search
+      });
       go("login");
       return;
     }
@@ -8401,9 +8516,15 @@ function PakshApp() {
   };
   // Follow / unfollow a topic or story (Phase 31) - independent state from Save, same
   // optimistic-update-then-reconcile shape as toggleSave. On failure, refreshFollows()
-  // re-pulls the real server state so the button never gets stuck showing a lie.
+  // re-pulls the real server state so the button never gets stuck showing a lie. Same
+  // pending-action replay as toggleSave above for a guest's Follow attempt.
   const toggleFollowTopic = topic => {
     if (!auth) {
+      writePendingAction({
+        type: "follow-topic",
+        topic,
+        returnPath: window.location.pathname + window.location.search
+      });
       go("login");
       return;
     }
@@ -8423,6 +8544,11 @@ function PakshApp() {
   };
   const toggleFollowStory = story => {
     if (!auth) {
+      writePendingAction({
+        type: "follow-story",
+        story,
+        returnPath: window.location.pathname + window.location.search
+      });
       go("login");
       return;
     }
@@ -8936,7 +9062,9 @@ function PakshApp() {
     setLang: chooseLang,
     onDone: finishOnboarding,
     interests: interests,
-    onToggleInterest: toggleInterest
+    onToggleInterest: toggleInterest,
+    auth: auth,
+    go: go
   }), !onboard && (consent === "" || adsConsent === "") && /*#__PURE__*/React.createElement(ConsentBanner, {
     t: t,
     lang: lang,

@@ -219,6 +219,16 @@ const {useState,useEffect,useMemo,useRef}=React;
     const INTERESTS_LS = "paksh-interests";
     const readInterests = () => { try{ const a=JSON.parse(localStorage.getItem(INTERESTS_LS)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } };
     const writeInterests = (list) => { try{ localStorage.setItem(INTERESTS_LS, JSON.stringify(list||[])); }catch(e){} };
+    // Personalization (G-onboarding): a guest's Follow/Save attempt redirects to sign-in same as
+    // today, but first remembers WHAT they were trying to do and WHERE they were, one-shot,
+    // local-first (same idiom as interests above) so it survives the OTP page's own re-render
+    // (client-side route change, no reload) and a real reload if the visitor's mail client opens
+    // the confirmation link in a new tab. onAuthed() consumes and clears it exactly once by
+    // replaying the SAME toggleSave/toggleFollowTopic/toggleFollowStory call, never a second
+    // Follow/Save implementation. Malformed/unavailable storage fails safe to "no pending action".
+    const PENDING_LS = "paksh-pending-action";
+    const readPendingAction = () => { try{ const a=JSON.parse(localStorage.getItem(PENDING_LS)||"null"); return (a&&typeof a==="object"&&a.type)?a:null; }catch(e){ return null; } };
+    const writePendingAction = (action) => { try{ if(action) localStorage.setItem(PENDING_LS, JSON.stringify(action)); else localStorage.removeItem(PENDING_LS); }catch(e){} };
     // 2026-09-25 onboarding hardening: Hindi labels for the 13 curated section_rank.py keys -
     // sections.json only ships an English "label" (section_rank.py has no label_hi), so the
     // onboarding interest picker (the one place today that must show these in Hindi) keeps its
@@ -1351,18 +1361,20 @@ const {useState,useEffect,useMemo,useRef}=React;
       const lead=cards[0]; if(lead) used.add(lead.id);
       const major=take(cards,1)[0];          // Paksh 7A: MAJOR tier - next-ranked story after Lead
       const section=take(cards,4);          // the 2×2 secondary grid in the main well
-      // FOR YOU (member, additive) — up to 4 stories on the topics you read most. Purely additive:
-      // the shared arithmetic feed is untouched, nothing is hidden or reordered — it just surfaces
-      // more of what you already open. Computed before "In brief" so it gets first pick of matches.
-      // Phase 34 (PD-1): reading history (observed behaviour) still wins the moment it exists.
-      // Until then, a signed-in reader's onboarding interests seed the same slot so the picker
-      // they filled in during onboarding actually does something - no new feed, no new ranking,
-      // just an earlier-available input to the mechanism that already existed. The label below
-      // switches with the source so a fresh reader is never told "because you read X" for a
-      // topic they've only declared interest in, never opened.
+      // FOR YOU (additive) — up to 4 stories on the topics you read most, or, absent that,
+      // the sections you told onboarding you care about. Purely additive: the shared arithmetic
+      // feed is untouched, nothing is hidden or reordered — it just surfaces more of what you
+      // already open (or said you would). Computed before "In brief" so it gets first pick.
+      // Phase 34 (PD-1): reading history (observed behaviour, sign-in only - Reading Lens has no
+      // guest equivalent) still wins the moment it exists. Onboarding interests seed the same
+      // slot otherwise, for GUESTS too (first-visit personalization, G-onboarding) - `interests`
+      // is already guest-safe local state (readInterests()), so this needed no new plumbing, only
+      // dropping the `auth &&` this fallback used to require. The label below switches with the
+      // source so a fresh reader is never told "because you read X" for a topic they've only
+      // declared interest in, never opened.
       const _fromHistory = !!(auth && lens && lens.total>0 && lens.topics && lens.topics.length);
       const _topTopics = _fromHistory ? lens.topics.slice(0,4)
-        : (auth && interests && interests.length) ? interests.slice(0,4) : [];
+        : (interests && interests.length) ? interests.slice(0,4) : [];
       // interests may be curated section keys (matched via interestSectionIds, each section's
       // own server-ranked id list) or, for picks made before the 2026-09-25 onboarding change,
       // raw topic strings (matched via card.topic as before) - both are honoured together.
@@ -2816,6 +2828,14 @@ const {useState,useEffect,useMemo,useRef}=React;
     // below for anyone who already set one. The code length follows the Supabase Auth setting
     // (6-8 digits); the input accepts up to 10.
     function LoginPage({ t, lang, go, onAuthed }) {
+      // G-onboarding: a guest who was redirected here from a Follow/Save attempt (see
+      // writePendingAction) gets one brief, contextual line explaining why - reusing this
+      // same sign-in page rather than a separate "create an account" experience. Read once;
+      // this component remounts fresh every time route becomes "login".
+      const _pendingReason=(()=>{ const p=readPendingAction();
+        return (p&&(p.type==="save"||p.type==="follow-topic"||p.type==="follow-story"))
+          ? (lang==="hi"?"विषय फ़ॉलो करने और खबरें सहेजने के लिए खाता बनाएं।":"Create an account to follow topics and save stories.")
+          : ""; })();
       const [mode,setMode]=useState("signin");   // signin | signup
       // 2026-09-25 auth hardening: OTP-first default (brief D). Password sign-in still exists
       // as a fallback for anyone who already set one, reached via "Use a password instead" -
@@ -2958,6 +2978,7 @@ const {useState,useEffect,useMemo,useRef}=React;
           <button onClick={()=>go("home")} className={`mb-6 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {L.back}</button>
           <div className="grid md:grid-cols-[1.3fr_1fr]">
             <div className="md:border-r md:pr-8" style={{borderColor:t.line}}>
+              {_pendingReason && <p className={`mb-3 text-[13px] font-medium ${t.blind} ${isHi(lang)}`}>{_pendingReason}</p>}
               <h1 className={`headline text-[28px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{L.title}</h1>
               <div className="mt-6 max-w-[420px]">{form}</div>
             </div>
@@ -3591,8 +3612,13 @@ const {useState,useEffect,useMemo,useRef}=React;
       ["society","Society"], ["health","Health"], ["science_space","Science & Space"],
       ["sports","Sports"], ["culture_entertainment","Culture & Entertainment"],
     ];
-    function Onboarding({ t, lang, setLang, onDone, interests, onToggleInterest }) {
+    function Onboarding({ t, lang, setLang, onDone, interests, onToggleInterest, auth, go }) {
       const [step,setStep]=useState(0);
+      // Account prompt (G-onboarding): shown after interests, ONLY for a guest - an already
+      // signed-in reader (rare but real: "first visit" on a device where they'd already signed
+      // in before onboarding ran) has nothing to be prompted for, so their Continue/Get-started
+      // press finishes onboarding directly, exactly as it always did.
+      const [showAcct,setShowAcct]=useState(false);
       const LAST_STEP=5;
       const steps = lang==="hi" ? [
         {k:"बायस बार", b:"कितने आउटलेट वाम, केंद्र या दक्षिण झुके हैं — एक प्रकाशक, एक वोट।"},
@@ -3607,18 +3633,29 @@ const {useState,useEffect,useMemo,useRef}=React;
       ];
       const L = lang==="hi"
         ? { welcome:"पक्ष में आपका स्वागत है", pick:"पढ़ने की भाषा चुनें", next:"आगे", start:"शुरू करें", skip:"छोड़ें",
-            interestsH:"फ़ॉलो करने के लिए सेक्शन चुनें", interestsB:"खाता बनाने पर ये आपके होमपेज पर “आपके लिए” चुनाव तय करेंगे। अभी छोड़ना ठीक है, आपकी पसंद सुरक्षित रहेगी।", interestsHint:"3-8 चुनने का सुझाव" }
+            interestsH:"फ़ॉलो करने के लिए सेक्शन चुनें", interestsB:"खाता बनाने पर ये आपके होमपेज पर “आपके लिए” चुनाव तय करेंगे। अभी छोड़ना ठीक है, आपकी पसंद सुरक्षित रहेगी।", interestsHint:"3-8 चुनने का सुझाव",
+            acctTitle:"पक्ष को अपना बनाएं", acctBody:"खाता बनाने पर आप विषय फ़ॉलो कर सकते हैं, खबरें सहेज सकते हैं, और अपनी पसंद हर डिवाइस पर रख सकते हैं।",
+            acctPrimary:"खाता बनाएं / साइन इन करें", acctSecondary:"बिना खाते के जारी रखें" }
         : { welcome:"Welcome to Paksh", pick:"Choose your reading language", next:"Next", start:"Get started", skip:"Skip",
-            interestsH:"Pick sections to follow", interestsB:"These shape your “For you” picks once you have an account. Skip is fine — we'll keep your choices either way.", interestsHint:"3-8 is a good start" };
+            interestsH:"Pick sections to follow", interestsB:"These shape your “For you” picks once you have an account. Skip is fine — we'll keep your choices either way.", interestsHint:"3-8 is a good start",
+            acctTitle:"Make Paksh yours", acctBody:"Create an account to follow topics, save stories, and keep your interests across devices.",
+            acctPrimary:"Create account / Sign in", acctSecondary:"Continue without account" };
       const done=()=>onDone();
+      const continueFromInterests=()=>{ if(auth){ done(); } else { setShowAcct(true); } };
+      const createAccount=()=>{ done(); go&&go("login"); };
       return (
         <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4" style={{background:"rgba(21,20,15,0.55)"}}>
           <div className={`pk-sheet w-full max-w-[460px] border-t sm:border ${t.surface} ${t.border}`} style={{boxShadow:"0 -8px 40px rgba(0,0,0,0.30)"}}>
             <div className="flex items-center justify-between px-5 pt-4">
-              <span className="mono text-[10px] uppercase tracking-[0.16em]" style={{color:"#75442E"}}>{step===0?(lang==="hi"?"आपका स्वागत है":"Welcome"):`${lang==="hi"?"चरण":"Step"} ${step} ${lang==="hi"?"/":"of"} ${LAST_STEP}`}</span>
-              <button onClick={done} className={`mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.skip}</button>
+              <span className="mono text-[10px] uppercase tracking-[0.16em]" style={{color:"#75442E"}}>{showAcct?(lang==="hi"?"खाता":"Account"):step===0?(lang==="hi"?"आपका स्वागत है":"Welcome"):`${lang==="hi"?"चरण":"Step"} ${step} ${lang==="hi"?"/":"of"} ${LAST_STEP}`}</span>
+              {!showAcct && <button onClick={done} className={`mono text-[11px] uppercase tracking-wide ${t.tf} hover:${t.tp} ${lang==="hi"?"deva":""}`}>{L.skip}</button>}
             </div>
-            {step===0 ? (
+            {showAcct ? (
+              <div className="px-5 pb-5 pt-3">
+                <h2 className={`headline mt-1 text-[21px] ${t.tp} ${readCls(lang)}`}>{L.acctTitle}</h2>
+                <p className={`mt-2.5 text-[14px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{L.acctBody}</p>
+              </div>
+            ) : step===0 ? (
               <div className="px-5 pb-5 pt-4 text-center">
                 <div className={`brand-hi text-[46px] leading-none ${t.tp}`}>पक्ष</div>
                 <div className={`mt-2 eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".18em"}}>{lang==="hi"?"समाचार, संदर्भ के साथ।":"News, with context."}</div>
@@ -3648,10 +3685,17 @@ const {useState,useEffect,useMemo,useRef}=React;
                 <p className={`mt-2 text-[14.5px] ${t.ts} ${readCls(lang)}`} style={{lineHeight:lang==="hi"?1.75:1.6}}>{steps[step-1].b}</p>
               </div>
             )}
-            <div className={`flex items-center justify-between border-t px-5 py-3 ${t.border}`}>
-              <div className="flex gap-1.5">{[0,1,2,3,4,5].map(i=><span key={i} style={{width:6,height:6,borderRadius:0,background:i===step?t.ink:t.line}}/>)}</div>
-              <button onClick={()=> step<LAST_STEP?setStep(step+1):done()} className={`border border-transparent px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<LAST_STEP?L.next:L.start}</button>
-            </div>
+            {showAcct ? (
+              <div className={`flex flex-col gap-2 border-t px-5 py-3 ${t.border}`}>
+                <button onClick={createAccount} className={`border border-transparent px-5 py-2.5 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{L.acctPrimary}</button>
+                <button onClick={done} className={`px-5 py-2 text-[13px] font-semibold ${t.ts} hover:${t.tp} ${isHi(lang)}`}>{L.acctSecondary}</button>
+              </div>
+            ) : (
+              <div className={`flex items-center justify-between border-t px-5 py-3 ${t.border}`}>
+                <div className="flex gap-1.5">{[0,1,2,3,4,5].map(i=><span key={i} style={{width:6,height:6,borderRadius:0,background:i===step?t.ink:t.line}}/>)}</div>
+                <button onClick={()=> step<LAST_STEP?setStep(step+1):continueFromInterests()} className={`border border-transparent px-5 py-2 text-[13px] font-semibold ${t.cta} ${t.ctaT} ${isHi(lang)}`}>{step<LAST_STEP?L.next:L.start}</button>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -3802,6 +3846,10 @@ const {useState,useEffect,useMemo,useRef}=React;
             // otherwise, a guest's local picks (made before this sign-in) migrate up once.
             if(Array.isArray(p.interests) && p.interests.length){ setInterestsState(p.interests); writeInterests(p.interests); }
             else { const local=readInterests(); if(local.length) savePrefsRemote({ interests:local }); }
+            // G-onboarding: a returning authenticated reader on a device that never ran
+            // onboarding locally (new browser/device) must not be re-onboarded just because
+            // THIS device's localStorage is empty - the account itself already says so.
+            if(p.onboarded){ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); }
           });
           refreshSaved(); refreshLens(); refreshFollows(); }).catch(()=>setAuth(null)); },[]);
       // Pull the saved list (ids for button state + rows for the Saved page).
@@ -3836,7 +3884,16 @@ const {useState,useEffect,useMemo,useRef}=React;
       const onAuthed=(s)=>{ setAuth(s); track("sign_in",{}); loadPrefs().then(p=>{ if(p&&p.a11y){ const merged=Object.assign({},a11y,p.a11y); setA11yState(merged); writeA11y(merged); } if(p&&(p.lang==="en"||p.lang==="hi")) setLang(p.lang);
           if(p&&Array.isArray(p.interests)&&p.interests.length){ setInterestsState(p.interests); writeInterests(p.interests); }
           else { const local=readInterests(); if(local.length) savePrefsRemote({ interests:local }); }
-        }); refreshSaved(); refreshLens(); refreshFollows(); go("home"); };
+        }); refreshSaved(); refreshLens(); refreshFollows();
+        // G-onboarding: replay a guest's Follow/Save attempt that sent them here (see
+        // writePendingAction in toggleSave/toggleFollowTopic/toggleFollowStory above) - reusing
+        // the SAME saveStory/followTopic/followStory calls those already make, never a second
+        // Follow/Save path - then return them to where they were instead of the homepage.
+        const pending=readPendingAction(); writePendingAction(null);
+        if(pending && pending.type==="save" && pending.story){ saveStory(pending.story).then(refreshSaved).catch(refreshSaved); }
+        else if(pending && pending.type==="follow-topic" && pending.topic){ followTopic(pending.topic).catch(refreshFollows); }
+        else if(pending && pending.type==="follow-story" && pending.story){ followStory(pending.story).catch(refreshFollows); }
+        if(pending && pending.returnPath){ nav(pending.returnPath); } else { go("home"); } };
       // Toggle one interest during onboarding: local-first (works for guests), mirrored to the
       // account when signed in - same shape as setA11y just above it in spirit.
       const toggleInterest=(topic)=>{ const on=interests.includes(topic); const next=on?interests.filter(x=>x!==topic):interests.concat([topic]);
@@ -3847,19 +3904,28 @@ const {useState,useEffect,useMemo,useRef}=React;
       // unloaded, so reload the page (a fresh page never loads it). Cookies Google already set on
       // its own domains can only be cleared by the visitor in their browser.
       const setAdsChoice=(v)=>{ const wasLoaded=!!window.__pakshAds; try{ localStorage.setItem("paksh-consent-ads",v); }catch(e){} setAdsConsent(v); if(v!=="granted" && wasLoaded){ try{ window.location.reload(); }catch(e){} } };
-      const finishOnboarding=()=>{ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); };
-      // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is not).
-      const toggleSave=(story)=>{ if(!auth){ go("login"); return; } const id=String(story.id); const on=savedIds.has(id);
+      // G-onboarding: mark the ACCOUNT as onboarded too (prefs.onboarded), not just this
+      // device's localStorage - the one thing that lets a returning signed-in reader on a
+      // brand-new device skip onboarding (see the loadPrefs().then(...) restore above).
+      const finishOnboarding=()=>{ try{ localStorage.setItem("paksh-onboarded","1"); }catch(e){} setOnboard(false); if(auth) savePrefsRemote({ onboarded:true }); };
+      // Clip / unclip a story. A guest is sent to sign in (Saved is a personal feature; news is
+      // not) - the intended action is remembered (see writePendingAction) and replayed once
+      // sign-in succeeds, so the reader never has to repeat the click.
+      const toggleSave=(story)=>{ if(!auth){ writePendingAction({ type:"save", story, returnPath:window.location.pathname+window.location.search }); go("login"); return; }
+        const id=String(story.id); const on=savedIds.has(id);
         const next=new Set(savedIds); if(on){ next.delete(id); } else { next.add(id); } setSavedIds(next);
         if(on){ unsaveStory(id).then(refreshSaved).catch(refreshSaved); }
         else { saveStory(story).then(refreshSaved).catch(refreshSaved); } };
       // Follow / unfollow a topic or story (Phase 31) - independent state from Save, same
       // optimistic-update-then-reconcile shape as toggleSave. On failure, refreshFollows()
-      // re-pulls the real server state so the button never gets stuck showing a lie.
-      const toggleFollowTopic=(topic)=>{ if(!auth){ go("login"); return; } const on=followedTopics.has(topic);
+      // re-pulls the real server state so the button never gets stuck showing a lie. Same
+      // pending-action replay as toggleSave above for a guest's Follow attempt.
+      const toggleFollowTopic=(topic)=>{ if(!auth){ writePendingAction({ type:"follow-topic", topic, returnPath:window.location.pathname+window.location.search }); go("login"); return; }
+        const on=followedTopics.has(topic);
         const next=new Set(followedTopics); if(on){ next.delete(topic); } else { next.add(topic); } setFollowedTopics(next);
         if(on){ unfollowTopic(topic).catch(refreshFollows); } else { followTopic(topic).catch(refreshFollows); } };
-      const toggleFollowStory=(story)=>{ if(!auth){ go("login"); return; } const id=String(story.id); const on=followedStories.has(id);
+      const toggleFollowStory=(story)=>{ if(!auth){ writePendingAction({ type:"follow-story", story, returnPath:window.location.pathname+window.location.search }); go("login"); return; }
+        const id=String(story.id); const on=followedStories.has(id);
         const next=new Set(followedStories); if(on){ next.delete(id); } else { next.add(id); } setFollowedStories(next);
         if(on){ unfollowStory(id).catch(refreshFollows); } else { followStory(story).catch(refreshFollows); } };
 
@@ -4112,7 +4178,7 @@ const {useState,useEffect,useMemo,useRef}=React;
           </main>
           {route.view!=="story" && <Footer t={t} lang={lang} go={go} />}
           <BottomNav t={t} lang={lang} view={headerView} go={go} auth={auth} />
-          {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} interests={interests} onToggleInterest={toggleInterest} />}
+          {onboard && <Onboarding t={t} lang={lang} setLang={chooseLang} onDone={finishOnboarding} interests={interests} onToggleInterest={toggleInterest} auth={auth} go={go} />}
           {!onboard && (consent==="" || adsConsent==="") && <ConsentBanner t={t} lang={lang} go={go}
             needAnalytics={consent===""} needAds={adsConsent===""}
             onChoose={(v)=>{ setConsentChoice(v); }} onChooseAds={(v)=>{ setAdsChoice(v); }} />}
