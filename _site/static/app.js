@@ -5290,8 +5290,15 @@ function ContactPage({
   t,
   lang
 }) {
-  const [status, setStatus] = useState("idle");
-  const [err, setErr] = useState("");
+  // Native Formspree POST (see onSubmit()'s comment below for why): a real browser
+  // navigation away and back, via Formspree's own "_next" redirect, so "sent=1"
+  // showing up here on load IS the success signal - read it once, then scrub it from
+  // the URL (same history.replaceState idiom authSessionFromUrl already uses above)
+  // so a later refresh of /contact doesn't keep re-showing the thank-you state.
+  const [status, setStatus] = useState(() => new URLSearchParams(window.location.search || "").get("sent") === "1" ? "ok" : "idle");
+  useEffect(() => {
+    if (window.location.search.indexOf("sent=1") > -1) history.replaceState(null, "", window.location.pathname);
+  }, []);
   // Arriving from a clicked ad box pre-selects "Advertise"; the flag is one-shot.
   const [topic, setTopic] = useState(() => {
     if (_adIntent) {
@@ -5353,32 +5360,20 @@ function ContactPage({
     rail: "Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
     indep: "Paksh is an independent project and is not affiliated with any outlet shown."
   };
-  async function submit(e) {
-    e.preventDefault();
+  // Formspree's NATIVE HTML POST (real <form method="POST" action="..."> submission,
+  // not fetch/AJAX): a plain browser navigation is not subject to CORS at all, so it
+  // can never fail the way an AJAX POST can if Formspree's dashboard-side origin/
+  // domain settings for this form ever go stale - one whole failure class removed by
+  // construction, not handled after the fact. Formspree then redirects the browser
+  // back to "_next" (below) on success; this component's own status/useEffect above
+  // is what turns that redirect into the same inline "thank you" state this page
+  // always showed, without any JS being on the critical path for delivery itself.
+  // onSubmit does NOT preventDefault - the browser's own required/type=email
+  // validation still runs first and blocks an invalid submission before this ever
+  // fires, exactly as before; once it does fire the form is already about to be
+  // sent, so disabling the button here can't itself cause a double-submit.
+  function onSubmit() {
     setStatus("sending");
-    setErr("");
-    const form = e.currentTarget;
-    const body = new FormData(form);
-    try {
-      const r = await fetch(FORMSPREE_ENDPOINT, {
-        method: "POST",
-        body,
-        headers: {
-          Accept: "application/json"
-        }
-      });
-      if (r.ok) {
-        setStatus("ok");
-        form.reset();
-      } else {
-        const j = await r.json().catch(() => ({}));
-        setErr(j.errors && j.errors.map(x => x.message).join(", ") || L.err);
-        setStatus("error");
-      }
-    } catch (_) {
-      setErr(L.err);
-      setStatus("error");
-    }
   }
   // 6.3B.10: underline inputs (border-b, no fill, no radius) instead of rounded bordered
   // boxes - correspondence stationery, not an admin console. The submit button drops the
@@ -5415,7 +5410,9 @@ function ContactPage({
   }, status === "ok" ? /*#__PURE__*/React.createElement("p", {
     className: `text-[15px] font-medium ${t.tp} ${isHi(lang)}`
   }, L.ok) : /*#__PURE__*/React.createElement("form", {
-    onSubmit: submit,
+    method: "POST",
+    action: FORMSPREE_ENDPOINT,
+    onSubmit: onSubmit,
     className: "space-y-5"
   }, /*#__PURE__*/React.createElement("input", {
     type: "text",
@@ -5429,6 +5426,10 @@ function ContactPage({
     type: "hidden",
     name: "_subject",
     value: "New Paksh contact message"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "_next",
+    value: window.location.origin + "/contact?sent=1"
   }), /*#__PURE__*/React.createElement("input", {
     type: "hidden",
     name: "topic",
@@ -5468,12 +5469,7 @@ function ContactPage({
     rows: "6",
     placeholder: L.ph[topic],
     className: inp
-  })), status === "error" && /*#__PURE__*/React.createElement("p", {
-    className: "text-[13px] font-medium",
-    style: {
-      color: "#C0392B"
-    }
-  }, err), /*#__PURE__*/React.createElement("button", {
+  })), /*#__PURE__*/React.createElement("button", {
     type: "submit",
     disabled: status === "sending",
     className: `border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`
