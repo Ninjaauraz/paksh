@@ -1519,6 +1519,31 @@ const Check = p => /*#__PURE__*/React.createElement("svg", {
 }, /*#__PURE__*/React.createElement("path", {
   d: "M20 6 9 17l-5-5"
 }));
+const ShareIcon = p => /*#__PURE__*/React.createElement("svg", {
+  width: p.size || 24,
+  height: p.size || 24,
+  className: p.className || "",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "18",
+  cy: "5",
+  r: "3"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "6",
+  cy: "12",
+  r: "3"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "18",
+  cy: "19",
+  r: "3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "m8.6 10.5 6.8-3.9M8.6 13.5l6.8 3.9"
+}));
 const Bookmark = p => /*#__PURE__*/React.createElement("svg", {
   width: p.size || 24,
   height: p.size || 24,
@@ -2244,6 +2269,26 @@ function Masthead({
       setTimeout(() => setCopied(false), 1600);
     } catch (e) {}
   };
+  // Native share (mobile action row) - Web Share API where the browser has it, the same
+  // clipboard-copy fallback otherwise. A cancelled native share sheet (AbortError) is a
+  // normal outcome, not a failure: no fallback, no "copied" confirmation, no error shown.
+  // Any OTHER failure (share unavailable mid-call, permission denied, etc.) falls back to
+  // copy() exactly like a browser with no navigator.share at all.
+  const share = () => {
+    const shareData = {
+      title: story && story.headline || "",
+      text: story && story.headline || "",
+      url: window.location.href
+    };
+    if (navigator.share) {
+      navigator.share(shareData).catch(e => {
+        if (e && e.name === "AbortError") return;
+        copy();
+      });
+    } else {
+      copy();
+    }
+  };
   const tp = story ? lang === "hi" ? TOPIC_HI[story.topic] || story.topic : story.topic : "";
   const region = story ? lang === "hi" ? story.region === "World" ? "विश्व" : "भारत" : story.region || "India" : "";
   // Primary nav priority: National/International (home-only feed filters) · Coverage
@@ -2436,7 +2481,16 @@ function Masthead({
     labelOff: lang === "hi" ? "+ फ़ॉलो" : "+ Follow",
     t: t,
     lang: lang
-  })), !isReading && /*#__PURE__*/React.createElement("nav", {
+  }), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: share,
+    "aria-label": copied ? lang === "hi" ? "लिंक कॉपी हो गया" : "Link copied" : lang === "hi" ? "यह खबर शेयर करें" : "Share this story",
+    className: `inline-flex items-center gap-1.5 border px-3 py-1.5 text-[12px] font-semibold ${t.border} ${t.ts} hover:${t.tp} ${lang === "hi" ? "deva" : ""}`
+  }, copied ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Check, {
+    size: 14
+  }), " ", lang === "hi" ? "लिंक कॉपी हुआ" : "Link copied") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ShareIcon, {
+    size: 14
+  }), " ", lang === "hi" ? "शेयर" : "Share"))), !isReading && /*#__PURE__*/React.createElement("nav", {
     className: "hidden items-stretch md:flex",
     style: {
       borderTop: `1px solid ${t.ink}`
