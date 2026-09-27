@@ -354,9 +354,13 @@ def _gap_parts(e):
 
 
 def _gap_qualifies(L, R):
-    """A real, lopsided L<->R story: enough coverage AND the smaller side <=25% of larger."""
+    """A real, lopsided L<->R story: enough coverage AND the smaller side <=50% of larger
+    (~2:1 - broadened 2026-09-27 from the original 25%/~4:1 after a read-only production-
+    corpus comparison found the 25% eligibility excluded most breadth>=8 asymmetric stories
+    while the existing pool was already dominated by low-breadth non-ideological noise
+    regardless of ratio - see the Coverage Gaps eligibility decision report)."""
     lo, hi = min(L, R), max(L, R)
-    return (L + R) >= 4 and lo <= 0.25 * hi
+    return (L + R) >= 4 and lo <= 0.50 * hi
 
 
 def _group_by_owner(names):
