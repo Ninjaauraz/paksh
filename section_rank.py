@@ -60,6 +60,26 @@ interest/freshness/india formula, same as homepage_rank.py's existing
 Every eligible story keeps every sub-score used (see section_rank_story), so any
 ranking is explainable: "why is this story in Defence & Security, and why does
 it lead" always has a real, inspectable answer.
+
+SECTION vs analyze.py's TOPIC (post-audit note, 2026-09-27): these are two
+independently-maintained classifiers over the same text, and a SECTION is not a
+1:1 relabeling of a TOPIC - this table is the one place documenting how they
+actually relate, added after a classification-accuracy audit found the mapping
+undocumented anywhere else:
+  economy/finance_markets/technology  -> explicit keyword tiers first; falls
+      back to topic=="Economy" (economy/finance_markets) or "Science & Tech"
+      (technology) ONLY if no tier matched - see suppress_if_matches for how a
+      tech story wrongly tagged topic="Economy" upstream still lands correctly.
+  science_space, defence_security, india_world, politics_policy
+      -> explicit keyword tiers only; topic is not consulted at all (india_world/
+         politics_policy) or only as a secondary fallback gate (defence_security).
+  india, world  -> pure event.region equality; every topic can land here.
+  society/health/sports/culture_entertainment -> pure topic equality (Society/
+      Health/Sports/Entertainment respectively); no keyword tiers exist for these.
+  Crime & Law, Environment, International (3 of the 10 TOPICS values) have NO
+      corresponding section at all - an event with one of these topics only
+      reaches a section via india/world (region) or an unrelated tier match
+      (e.g. a Crime & Law event whose text also matches a politics_policy tier).
 """
 import re
 from collections import defaultdict

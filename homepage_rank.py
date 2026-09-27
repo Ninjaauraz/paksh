@@ -350,7 +350,22 @@ def select_homepage_sections(ranked):
     """ranked: list of {"event": event_dict, **homepage_rank_story(...) fields,
     "momentum": momentum_score(...)}. Returns an ordered dict of section name ->
     list of ranked entries. A section is omitted (not padded with weak filler)
-    if fewer than 3 stories qualify - Step 3's explicit instruction."""
+    if fewer than 3 stories qualify - Step 3's explicit instruction.
+
+    STATUS (post-audit note, 2026-09-27): this dict is written wholesale to
+    _site/data/homepage.json by export_static.py, but static/app.jsx never
+    fetches homepage.json - confirmed by grep and by diagnose_homepage.py's own
+    docstring ("read-only... for manual inspection"). The live homepage is a
+    single feed_rank-sorted list + a National/International toggle (app.jsx,
+    ~line 3954-3959), not these six named sections. Nothing here is a live bug;
+    it's staged/evaluation output for a homepage revamp that hasn't shipped.
+    IF "what_changed" or "worth_knowing" is ever wired into the frontend: reuse
+    the existing "Developing" chip/label already rendered wherever a card's
+    storyline_id is present (export_static.feed_row already attaches it; see
+    app.jsx's DevelopingChip/Eyebrow/DevelopingRail) rather than introducing a
+    second, differently-labelled "this is moving" concept - the whole point of
+    the post-audit consolidation was one reader-facing "Developing" idea, not
+    three."""
     sections = {}
 
     hero = _diversify(ranked, HERO_N, topic_cap_frac=1.0)  # hero may repeat topic (it's 1-3 stories)
