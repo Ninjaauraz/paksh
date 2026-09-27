@@ -983,6 +983,19 @@ const UI = {
   noOutlets: {
     en: "No outlets match.",
     hi: "कोई आउटलेट नहीं मिला।"
+  },
+  // Story-page maturity P1 (2026-09-27): a coverage-DEPTH note, not a factual-confidence
+  // one - see thinCoverage's use site for the exact total_sources<=3 gate.
+  thinCoverage: {
+    en: "Early coverage",
+    hi: "शुरुआती कवरेज"
+  },
+  // Verbatim copy of BlindspotPage's own `methodNote` (the Coverage Gaps page's
+  // existing plain-language explanation) - reused here so the Blindspot badge on a
+  // story page is understandable without visiting that page. Not a new definition.
+  blindspotNote: {
+    en: "A story is flagged a Coverage Gap by the same arithmetic as the bar: distinct covering outlets per lean, one vote per owner. No article is judged, only counted.",
+    hi: "किसी खबर को कवरेज गैप उसी अंकगणित से चिह्नित किया जाता है जैसे बार: प्रति झुकाव अलग कवर करने वाले आउटलेट, एक स्वामी एक वोट। कोई लेख आँका नहीं जाता, केवल गिना जाता है।"
   }
 };
 const ui = (k, lang) => (UI[k] || {})[lang] || (UI[k] || {}).en || k;
@@ -3598,6 +3611,10 @@ function StoryPage({
   const [atab, setAtab] = useState("all");
   const arts = atab === "all" ? outlets : outlets.filter(o => o.lean === atab);
   const total = story.sources + (story.unrated || 0) + (story.international || 0);
+  // Story-page maturity P1: a coverage-DEPTH signal (not a factual-confidence one - see
+  // UI.thinCoverage's own comment), reusing the SAME `total` outlet count already
+  // printed in metaLine below - not a second, possibly-inconsistent number.
+  const isThinCoverage = total <= 3;
   // SWIPE L/C/R coverage (design mobile prototype): a horizontal swipe over the coverage
   // list cycles the side filter through the present sides. Keyboard/tab clicks still work.
   const _swipe = React.useRef({
@@ -3689,7 +3706,9 @@ function StoryPage({
     className: `mt-4 mono text-[11px] ${t.tf} ${lang === "hi" ? "deva" : ""}`
   }, metaLine, story.auto && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 ", /*#__PURE__*/React.createElement("span", {
     className: "uppercase"
-  }, STR[lang].autoTag)), absDate(story.created_at, lang) ? ` · ${absDate(story.created_at, lang)}` : "")), /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].autoTag)), isThinCoverage && /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 ", /*#__PURE__*/React.createElement("span", {
+    className: "uppercase"
+  }, ui("thinCoverage", lang))), absDate(story.created_at, lang) ? ` · ${absDate(story.created_at, lang)}` : "")), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-6 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(BiasPill, {
     counts: vc,
@@ -3725,7 +3744,9 @@ function StoryPage({
       });
     },
     className: `md:ml-auto ${t.ts} hover:${t.tp} underline underline-offset-2`
-  }, STR[lang].originalReports, " \u2193"))), story.img && /*#__PURE__*/React.createElement("div", {
+  }, STR[lang].originalReports, " \u2193")), story.blindspot && /*#__PURE__*/React.createElement("p", {
+    className: `mt-1.5 text-[11px] leading-relaxed ${t.tf} ${isHi(lang)}`
+  }, ui("blindspotNote", lang))), story.img && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-6 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(Thumb, {
     src: story.img,
@@ -8739,8 +8760,42 @@ function PakshApp() {
   const browseCards = baseCards.slice(0, 24);
   const storyNotFound = route.view === "story" && detail[route.id] === STORY_NOT_FOUND;
   const story = route.view === "story" ? detail[route.id] && !storyNotFound ? toDetail(detail[route.id], lang) : null : null;
-  // Same-topic stories to keep a reader moving instead of dead-ending at the article.
-  const related = story ? baseCards.filter(c => c.topic === story.topic && String(c.id) !== String(story.id)).slice(0, 6) : [];
+  // Story-page maturity P1: "keep a reader moving" used to mean same-topic only, ignoring
+  // two STRONGER relationships already attached to this exact story (storyline siblings,
+  // a verified story_context link) - both already rendered higher up this same page.
+  // Priority, capped at 6, no duplicates, never the current story itself:
+  //   A. storyline siblings (story.storyline.events, excluding is_update===false re-reports
+  //      and this story itself)
+  //   B. the one verified story_context.historical_event, if any
+  //   C. the EXISTING topic filter, unchanged, filling only whatever slots remain
+  // A/B entries are looked up in the SAME baseCards pool the topic filter already uses (no
+  // new fetch, no new query) - an id not yet loaded there is silently skipped, exactly like
+  // the pre-existing topic filter already silently skips anything not in baseCards.
+  const related = (() => {
+    if (!story) return [];
+    const selfId = String(story.id);
+    const byId = new Map(baseCards.map(c => [String(c.id), c]));
+    const seen = new Set([selfId]);
+    const picked = [];
+    const add = id => {
+      const key = String(id);
+      if (seen.has(key)) return;
+      const card = byId.get(key);
+      if (!card) return; // not in the loaded pool - skip, don't fetch
+      seen.add(key);
+      picked.push(card);
+    };
+    (story.storyline && Array.isArray(story.storyline.events) ? story.storyline.events : []).filter(ev => ev.is_update !== false && String(ev.id) !== selfId).forEach(ev => add(ev.id));
+    if (story.story_context && story.story_context.historical_event) {
+      add(story.story_context.historical_event.id);
+    }
+    if (picked.length < 6) {
+      baseCards.filter(c => c.topic === story.topic && !seen.has(String(c.id))).forEach(c => {
+        if (picked.length < 6) add(c.id);
+      });
+    }
+    return picked.slice(0, 6);
+  })();
   const headerView = route.view === "story" ? "" : route.view;
 
   // Route-aware <title> for client-side navigation. Story pages already ship a unique,
