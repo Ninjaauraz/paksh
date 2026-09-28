@@ -1,0 +1,447 @@
+{
+  "rows": [
+    [
+      8882,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      12053,
+      3,
+      3,
+      0,
+      6
+    ],
+    [
+      20011,
+      0,
+      0,
+      0,
+      10
+    ],
+    [
+      14425,
+      0,
+      0,
+      0,
+      25
+    ],
+    [
+      19612,
+      0,
+      0,
+      0,
+      8
+    ],
+    [
+      13452,
+      0,
+      0,
+      0,
+      4
+    ],
+    [
+      7349,
+      6,
+      6,
+      0,
+      142
+    ],
+    [
+      12394,
+      0,
+      0,
+      0,
+      7
+    ],
+    [
+      4280,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      24328,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      67,
+      8,
+      8,
+      0,
+      10
+    ],
+    [
+      18305,
+      0,
+      0,
+      0,
+      36
+    ],
+    [
+      9995,
+      1,
+      1,
+      0,
+      16
+    ],
+    [
+      23844,
+      4,
+      4,
+      0,
+      2
+    ],
+    [
+      14586,
+      2,
+      2,
+      0,
+      0
+    ],
+    [
+      21011,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      18631,
+      4,
+      4,
+      0,
+      0
+    ],
+    [
+      20846,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      22716,
+      4,
+      3,
+      1,
+      0
+    ],
+    [
+      13424,
+      0,
+      0,
+      0,
+      2
+    ],
+    [
+      5053,
+      0,
+      0,
+      0,
+      17
+    ],
+    [
+      10039,
+      0,
+      0,
+      0,
+      9
+    ],
+    [
+      3779,
+      11,
+      10,
+      1,
+      0
+    ],
+    [
+      18604,
+      4,
+      3,
+      1,
+      37
+    ],
+    [
+      23539,
+      2,
+      2,
+      0,
+      4
+    ],
+    [
+      19050,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      6567,
+      12,
+      12,
+      0,
+      52
+    ],
+    [
+      21195,
+      3,
+      3,
+      0,
+      11
+    ],
+    [
+      19948,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      21445,
+      13,
+      13,
+      0,
+      0
+    ],
+    [
+      22590,
+      17,
+      16,
+      1,
+      26
+    ],
+    [
+      18203,
+      5,
+      5,
+      0,
+      0
+    ],
+    [
+      6827,
+      2,
+      1,
+      1,
+      1
+    ],
+    [
+      16809,
+      4,
+      4,
+      0,
+      0
+    ],
+    [
+      14143,
+      3,
+      3,
+      0,
+      0
+    ],
+    [
+      21983,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      23482,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      18986,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      15188,
+      1,
+      1,
+      0,
+      32
+    ],
+    [
+      20143,
+      4,
+      4,
+      0,
+      1
+    ]
+  ],
+  "hypothetical_flips": [
+    {
+      "event_id": 12053,
+      "title": "Indian Courts Address Actor, Doctor, and Politician Cases",
+      "original_finding_count": 3,
+      "hypothetical_remaining_findings": 3,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 14425,
+      "title": "Karnataka Bill Restricts Unauthorised Use of Public Property",
+      "original_finding_count": 0,
+      "hypothetical_remaining_findings": 0,
+      "would_still_hold_hypothetically": false
+    },
+    {
+      "event_id": 7349,
+      "title": "US Lawmaker Ro Khanna Reports Detention by Israeli Settlers in West Bank",
+      "original_finding_count": 6,
+      "hypothetical_remaining_findings": 6,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 12394,
+      "title": "Haryana Sees Administrative and Police Transfers Over Three Days",
+      "original_finding_count": 0,
+      "hypothetical_remaining_findings": 1,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 67,
+      "title": "West Bengal BJP government presents maiden budget with welfare and job focus",
+      "original_finding_count": 8,
+      "hypothetical_remaining_findings": 12,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 9995,
+      "title": "US Bans Imports of Foreign-Made Humanoid Robots Over Security Concerns",
+      "original_finding_count": 1,
+      "hypothetical_remaining_findings": 1,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 23844,
+      "title": "Nine Broadcast Boss Amanda Laing Exits After 18 Months",
+      "original_finding_count": 4,
+      "hypothetical_remaining_findings": 4,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 14586,
+      "title": "Nava India Reports Record Quarterly Income of ₹1,269 Crore",
+      "original_finding_count": 2,
+      "hypothetical_remaining_findings": 2,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 18631,
+      "title": "Oil Prices Threatened by Hormuz Strait and Russia Risks",
+      "original_finding_count": 4,
+      "hypothetical_remaining_findings": 4,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 22716,
+      "title": "Channing Tatum denies claims of running burner account for ex",
+      "original_finding_count": 4,
+      "hypothetical_remaining_findings": 3,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 3779,
+      "title": "Akanksha Chamola confirms divorce from Gaurav Khanna, cites differing parenthood views",
+      "original_finding_count": 11,
+      "hypothetical_remaining_findings": 9,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 18604,
+      "title": "Delhi Prepares for BRICS Summit with Traffic Advisories and Civic Upgrades",
+      "original_finding_count": 4,
+      "hypothetical_remaining_findings": 2,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 23539,
+      "title": "Panthers Sign Austin Ekeler After Jonathan Brooks Injury",
+      "original_finding_count": 2,
+      "hypothetical_remaining_findings": 2,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 6567,
+      "title": "Argentina edges Egypt in World Cup match amid controversy",
+      "original_finding_count": 12,
+      "hypothetical_remaining_findings": 12,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 21195,
+      "title": "NRLW Stars Elliott and Baxter Announce Retirements",
+      "original_finding_count": 3,
+      "hypothetical_remaining_findings": 3,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 21445,
+      "title": "Asian Games Face Disruptions, Indian Athletes Achieve Success",
+      "original_finding_count": 13,
+      "hypothetical_remaining_findings": 13,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 22590,
+      "title": "Super El Niño may cause 450,000 deaths, 15,800 in India, researchers say",
+      "original_finding_count": 17,
+      "hypothetical_remaining_findings": 35,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 18203,
+      "title": "Bihar Floods: Rivers Exceed Danger Levels, Affecting Multiple Districts",
+      "original_finding_count": 5,
+      "hypothetical_remaining_findings": 5,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 6827,
+      "title": "Agra Shop Collapses After Heavy Rain, Multiple People Trapped",
+      "original_finding_count": 2,
+      "hypothetical_remaining_findings": 1,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 16809,
+      "title": "Global temperatures rise, but climate change is not a top campaign issue",
+      "original_finding_count": 4,
+      "hypothetical_remaining_findings": 4,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 14143,
+      "title": "Monsoon Alert Issued Across India, Heavy Rains Expected",
+      "original_finding_count": 3,
+      "hypothetical_remaining_findings": 3,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 15188,
+      "title": "Actor Vijay's Final Film 'Jana Nayagan' Set for OTT Release",
+      "original_finding_count": 1,
+      "hypothetical_remaining_findings": 1,
+      "would_still_hold_hypothetically": true
+    },
+    {
+      "event_id": 20143,
+      "title": "South Park parodies Trump by rebranding as 'South America'",
+      "original_finding_count": 4,
+      "hypothetical_remaining_findings": 4,
+      "would_still_hold_hypothetically": true
+    }
+  ]
+}

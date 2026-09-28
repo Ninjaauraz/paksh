@@ -1,0 +1,673 @@
+{
+  "cat_counts": {
+    "A_TRUE_MATERIAL_OMISSION": 78,
+    "B_REDUNDANT_SOURCE_EXPRESSION": 3,
+    "C_PARTIAL_COVERAGE": 1,
+    "D_ATTRIBUTION_HEDGE_LOSS": 0,
+    "F_UNDETERMINABLE": 0
+  },
+  "total_downgrade_findings": 82,
+  "hypothetical_omission_burden": 79,
+  "hold_replay": [
+    {
+      "event_id": 12053,
+      "title": "Indian Courts Address Actor, Doctor, and Politician Cases",
+      "would_hold": true,
+      "reason": "remaining omission burden (2) from categories A/C/D"
+    },
+    {
+      "event_id": 14425,
+      "title": "Karnataka Bill Restricts Unauthorised Use of Public Property",
+      "would_hold": true,
+      "reason": "other finding type(s) present: add=0,num=0,attr=0,oth=1"
+    },
+    {
+      "event_id": 7349,
+      "title": "US Lawmaker Ro Khanna Reports Detention by Israeli Settlers in West Bank",
+      "would_hold": true,
+      "reason": "remaining omission burden (4) from categories A/C/D"
+    },
+    {
+      "event_id": 12394,
+      "title": "Haryana Sees Administrative and Police Transfers Over Three Days",
+      "would_hold": true,
+      "reason": "other finding type(s) present: add=0,num=1,attr=0,oth=0"
+    },
+    {
+      "event_id": 67,
+      "title": "West Bengal BJP government presents maiden budget with welfare and job focus",
+      "would_hold": true,
+      "reason": "remaining omission burden (7) from categories A/C/D"
+    },
+    {
+      "event_id": 9995,
+      "title": "US Bans Imports of Foreign-Made Humanoid Robots Over Security Concerns",
+      "would_hold": true,
+      "reason": "remaining omission burden (1) from categories A/C/D"
+    },
+    {
+      "event_id": 23844,
+      "title": "Nine Broadcast Boss Amanda Laing Exits After 18 Months",
+      "would_hold": true,
+      "reason": "remaining omission burden (3) from categories A/C/D"
+    },
+    {
+      "event_id": 14586,
+      "title": "Nava India Reports Record Quarterly Income of ₹1,269 Crore",
+      "would_hold": true,
+      "reason": "other finding type(s) present: add=2,num=0,attr=0,oth=0"
+    },
+    {
+      "event_id": 18631,
+      "title": "Oil Prices Threatened by Hormuz Strait and Russia Risks",
+      "would_hold": true,
+      "reason": "remaining omission burden (1) from categories A/C/D"
+    },
+    {
+      "event_id": 22716,
+      "title": "Channing Tatum denies claims of running burner account for ex",
+      "would_hold": true,
+      "reason": "remaining omission burden (3) from categories A/C/D"
+    },
+    {
+      "event_id": 3779,
+      "title": "Akanksha Chamola confirms divorce from Gaurav Khanna, cites differing parenthood views",
+      "would_hold": true,
+      "reason": "remaining omission burden (4) from categories A/C/D"
+    },
+    {
+      "event_id": 18604,
+      "title": "Delhi Prepares for BRICS Summit with Traffic Advisories and Civic Upgrades",
+      "would_hold": true,
+      "reason": "remaining omission burden (2) from categories A/C/D"
+    },
+    {
+      "event_id": 23539,
+      "title": "Panthers Sign Austin Ekeler After Jonathan Brooks Injury",
+      "would_hold": true,
+      "reason": "remaining omission burden (1) from categories A/C/D"
+    },
+    {
+      "event_id": 6567,
+      "title": "Argentina edges Egypt in World Cup match amid controversy",
+      "would_hold": true,
+      "reason": "remaining omission burden (10) from categories A/C/D"
+    },
+    {
+      "event_id": 21195,
+      "title": "NRLW Stars Elliott and Baxter Announce Retirements",
+      "would_hold": true,
+      "reason": "other finding type(s) present: add=3,num=0,attr=0,oth=2"
+    },
+    {
+      "event_id": 21445,
+      "title": "Asian Games Face Disruptions, Indian Athletes Achieve Success",
+      "would_hold": true,
+      "reason": "remaining omission burden (12) from categories A/C/D"
+    },
+    {
+      "event_id": 22590,
+      "title": "Super El Niño may cause 450,000 deaths, 15,800 in India, researchers say",
+      "would_hold": true,
+      "reason": "remaining omission burden (16) from categories A/C/D"
+    },
+    {
+      "event_id": 18203,
+      "title": "Bihar Floods: Rivers Exceed Danger Levels, Affecting Multiple Districts",
+      "would_hold": true,
+      "reason": "remaining omission burden (5) from categories A/C/D"
+    },
+    {
+      "event_id": 6827,
+      "title": "Agra Shop Collapses After Heavy Rain, Multiple People Trapped",
+      "would_hold": true,
+      "reason": "other finding type(s) present: add=2,num=1,attr=0,oth=0"
+    },
+    {
+      "event_id": 16809,
+      "title": "Global temperatures rise, but climate change is not a top campaign issue",
+      "would_hold": true,
+      "reason": "remaining omission burden (1) from categories A/C/D"
+    },
+    {
+      "event_id": 14143,
+      "title": "Monsoon Alert Issued Across India, Heavy Rains Expected",
+      "would_hold": true,
+      "reason": "remaining omission burden (3) from categories A/C/D"
+    },
+    {
+      "event_id": 15188,
+      "title": "Actor Vijay's Final Film 'Jana Nayagan' Set for OTT Release",
+      "would_hold": true,
+      "reason": "remaining omission burden (1) from categories A/C/D"
+    },
+    {
+      "event_id": 20143,
+      "title": "South Park parodies Trump by rebranding as 'South America'",
+      "would_hold": true,
+      "reason": "remaining omission burden (3) from categories A/C/D"
+    }
+  ],
+  "story_replays": [
+    {
+      "event_id": 8882,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 12053,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 2,
+      "n_propositions_after": 2,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 6,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 20011,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 10,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 14425,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 24,
+        "other_unrecognized": 1
+      }
+    },
+    {
+      "event_id": 19612,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 8,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 13452,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 4,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 7349,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 4,
+      "n_propositions_after": 4,
+      "other_finding_counts": {
+        "unsupported_addition": 2,
+        "numeric": 0,
+        "attribution_loss": 1,
+        "pre_fix_entity_ambiguity": 141,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 12394,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 1,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 6,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 4280,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 24328,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 67,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 7,
+      "n_propositions_after": 7,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 4,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 6,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 18305,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 36,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 9995,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 1,
+      "n_propositions_after": 1,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 16,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 23844,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 3,
+      "n_propositions_after": 3,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 2,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 14586,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 2,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 21011,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 1,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 18631,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 1,
+      "n_propositions_after": 1,
+      "other_finding_counts": {
+        "unsupported_addition": 3,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 20846,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 22716,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 3,
+      "n_propositions_after": 3,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 13424,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 2,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 5053,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 17,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 10039,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 9,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 3779,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 5,
+      "n_propositions_after": 4,
+      "other_finding_counts": {
+        "unsupported_addition": 6,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 18604,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 3,
+      "n_propositions_after": 2,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 37,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 23539,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 1,
+      "n_propositions_after": 1,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 4,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 19050,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 6567,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 10,
+      "n_propositions_after": 10,
+      "other_finding_counts": {
+        "unsupported_addition": 2,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 52,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 21195,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 3,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 9,
+        "other_unrecognized": 2
+      }
+    },
+    {
+      "event_id": 19948,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 21445,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 12,
+      "n_propositions_after": 12,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 22590,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 17,
+      "n_propositions_after": 16,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 20,
+        "attribution_loss": 2,
+        "pre_fix_entity_ambiguity": 4,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 18203,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 5,
+      "n_propositions_after": 5,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 6827,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 2,
+        "numeric": 1,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 16809,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 1,
+      "n_propositions_after": 1,
+      "other_finding_counts": {
+        "unsupported_addition": 3,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 14143,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 3,
+      "n_propositions_after": 3,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 21983,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 23482,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 18986,
+      "outcome": "PASS",
+      "n_downgrade_findings_before": 0,
+      "n_propositions_after": 0,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 0,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 15188,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 1,
+      "n_propositions_after": 1,
+      "other_finding_counts": {
+        "unsupported_addition": 0,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 32,
+        "other_unrecognized": 0
+      }
+    },
+    {
+      "event_id": 20143,
+      "outcome": "HOLD",
+      "n_downgrade_findings_before": 3,
+      "n_propositions_after": 3,
+      "other_finding_counts": {
+        "unsupported_addition": 1,
+        "numeric": 0,
+        "attribution_loss": 0,
+        "pre_fix_entity_ambiguity": 1,
+        "other_unrecognized": 0
+      }
+    }
+  ]
+}

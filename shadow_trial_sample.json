@@ -1,0 +1,650 @@
+[
+  {
+    "id": 8882,
+    "title": "Two gangsters from Punjab and Haryana arrested in Angola",
+    "topic": "Crime & Law",
+    "category": "topic:Crime & Law"
+  },
+  {
+    "id": 12053,
+    "title": "Indian Courts Address Actor, Doctor, and Politician Cases",
+    "topic": "Crime & Law",
+    "category": "topic:Crime & Law"
+  },
+  {
+    "id": 20011,
+    "title": "Three arrested in cross-border raids linked to labour contractor",
+    "topic": "Crime & Law",
+    "category": "topic:Crime & Law"
+  },
+  {
+    "id": 14425,
+    "title": "Karnataka Bill Restricts Unauthorised Use of Public Property",
+    "topic": "Crime & Law",
+    "category": "topic:Crime & Law"
+  },
+  {
+    "id": 19612,
+    "title": "India plans to equip Su-30MKI jets with Russian hypersonic missiles",
+    "topic": "Crime & Law",
+    "category": "topic:Crime & Law"
+  },
+  {
+    "id": 13452,
+    "title": "CBI arrests proclaimed offender in 2021 Bengal post-poll murder case",
+    "topic": "Crime & Law",
+    "category": "topic:Crime & Law"
+  },
+  {
+    "id": 7349,
+    "title": "US Lawmaker Ro Khanna Reports Detention by Israeli Settlers in West Bank",
+    "topic": "Politics",
+    "category": "topic:Politics"
+  },
+  {
+    "id": 12394,
+    "title": "Haryana Sees Administrative and Police Transfers Over Three Days",
+    "topic": "Politics",
+    "category": "topic:Politics"
+  },
+  {
+    "id": 4280,
+    "title": "Mumbai Panel Unveils Vision for India's Future",
+    "topic": "Politics",
+    "category": "topic:Politics"
+  },
+  {
+    "id": 24328,
+    "title": "Trump beef imports face Texas rancher backlash",
+    "topic": "Politics",
+    "category": "topic:Politics"
+  },
+  {
+    "id": 67,
+    "title": "West Bengal BJP government presents maiden budget with welfare and job focus",
+    "topic": "Politics",
+    "category": "topic:Politics"
+  },
+  {
+    "id": 18305,
+    "title": "Uttar Pradesh to Hold Special TET Exam for Unqualified Teachers",
+    "topic": "Politics",
+    "category": "topic:Politics"
+  },
+  {
+    "id": 9995,
+    "title": "US Bans Imports of Foreign-Made Humanoid Robots Over Security Concerns",
+    "topic": "Economy",
+    "category": "topic:Economy"
+  },
+  {
+    "id": 23844,
+    "title": "Nine Broadcast Boss Amanda Laing Exits After 18 Months",
+    "topic": "Economy",
+    "category": "topic:Economy"
+  },
+  {
+    "id": 14586,
+    "title": "Nava India Reports Record Quarterly Income of ₹1,269 Crore",
+    "topic": "Economy",
+    "category": "topic:Economy"
+  },
+  {
+    "id": 21011,
+    "title": "Trump's Bombardier Jet Ban Threat Sparks Worker Fears",
+    "topic": "Economy",
+    "category": "topic:Economy"
+  },
+  {
+    "id": 18631,
+    "title": "Oil Prices Threatened by Hormuz Strait and Russia Risks",
+    "topic": "Economy",
+    "category": "topic:Economy"
+  },
+  {
+    "id": 20846,
+    "title": "Waymo Plans Driverless Taxi Service in Tokyo by 2027",
+    "topic": "Economy",
+    "category": "topic:Economy"
+  },
+  {
+    "id": 22716,
+    "title": "Channing Tatum denies claims of running burner account for ex",
+    "topic": "Society",
+    "category": "topic:Society"
+  },
+  {
+    "id": 13424,
+    "title": "Parliamentary panel flags Centre's delay in SC student scholarships",
+    "topic": "Society",
+    "category": "topic:Society"
+  },
+  {
+    "id": 5053,
+    "title": "Uttar Pradesh TET Exam Dates Announced, New Rules for In-Service Teachers",
+    "topic": "Society",
+    "category": "topic:Society"
+  },
+  {
+    "id": 10039,
+    "title": "Schools and CRDA Promote Road Safety Initiatives",
+    "topic": "Society",
+    "category": "topic:Society"
+  },
+  {
+    "id": 3779,
+    "title": "Akanksha Chamola confirms divorce from Gaurav Khanna, cites differing parenthood views",
+    "topic": "Society",
+    "category": "topic:Society"
+  },
+  {
+    "id": 18604,
+    "title": "Delhi Prepares for BRICS Summit with Traffic Advisories and Civic Upgrades",
+    "topic": "Society",
+    "category": "topic:Society"
+  },
+  {
+    "id": 23539,
+    "title": "Panthers Sign Austin Ekeler After Jonathan Brooks Injury",
+    "topic": "Sports",
+    "category": "topic:Sports"
+  },
+  {
+    "id": 19050,
+    "title": "Cricket captains avoid handshake at Asia Cup toss",
+    "topic": "Sports",
+    "category": "topic:Sports"
+  },
+  {
+    "id": 6567,
+    "title": "Argentina edges Egypt in World Cup match amid controversy",
+    "topic": "Sports",
+    "category": "topic:Sports"
+  },
+  {
+    "id": 21195,
+    "title": "NRLW Stars Elliott and Baxter Announce Retirements",
+    "topic": "Sports",
+    "category": "topic:Sports"
+  },
+  {
+    "id": 19948,
+    "title": "Gus Gould questions Ivan Cleary on Nathan Cleary's future",
+    "topic": "Sports",
+    "category": "topic:Sports"
+  },
+  {
+    "id": 21445,
+    "title": "Asian Games Face Disruptions, Indian Athletes Achieve Success",
+    "topic": "Sports",
+    "category": "topic:Sports"
+  },
+  {
+    "id": 22590,
+    "title": "Super El Niño may cause 450,000 deaths, 15,800 in India, researchers say",
+    "topic": "Environment",
+    "category": "topic:Environment"
+  },
+  {
+    "id": 18203,
+    "title": "Bihar Floods: Rivers Exceed Danger Levels, Affecting Multiple Districts",
+    "topic": "Environment",
+    "category": "topic:Environment"
+  },
+  {
+    "id": 6827,
+    "title": "Agra Shop Collapses After Heavy Rain, Multiple People Trapped",
+    "topic": "Environment",
+    "category": "topic:Environment"
+  },
+  {
+    "id": 16809,
+    "title": "Global temperatures rise, but climate change is not a top campaign issue",
+    "topic": "Environment",
+    "category": "topic:Environment"
+  },
+  {
+    "id": 14143,
+    "title": "Monsoon Alert Issued Across India, Heavy Rains Expected",
+    "topic": "Environment",
+    "category": "topic:Environment"
+  },
+  {
+    "id": 21983,
+    "title": "Southern India Drying Fastest, Study Flags Drought Hotspots",
+    "topic": "Environment",
+    "category": "topic:Environment"
+  },
+  {
+    "id": 23482,
+    "title": "Netflix Series 'Monster: The Lizzie Borden Story' Garners 12.1 Million Views",
+    "topic": "Entertainment",
+    "category": "topic:Entertainment"
+  },
+  {
+    "id": 18986,
+    "title": "Mohanlal film titled 'Operation Ganga' based on Ukraine evacuation",
+    "topic": "Entertainment",
+    "category": "topic:Entertainment"
+  },
+  {
+    "id": 15188,
+    "title": "Actor Vijay's Final Film 'Jana Nayagan' Set for OTT Release",
+    "topic": "Entertainment",
+    "category": "topic:Entertainment"
+  },
+  {
+    "id": 20143,
+    "title": "South Park parodies Trump by rebranding as 'South America'",
+    "topic": "Entertainment",
+    "category": "topic:Entertainment"
+  },
+  {
+    "id": 15914,
+    "title": "Mohanlal Exits Ajith Kumar Film Over Salary Dispute",
+    "topic": "Entertainment",
+    "category": "topic:Entertainment"
+  },
+  {
+    "id": 23524,
+    "title": "Tamannaah Bhatia's Sari Features Mithila Art for Chhath Puja Promotion",
+    "topic": "Entertainment",
+    "category": "topic:Entertainment"
+  },
+  {
+    "id": 13199,
+    "title": "India Condemns Embassy Vandalism in Slovenia",
+    "topic": "International",
+    "category": "topic:International"
+  },
+  {
+    "id": 4911,
+    "title": "Delhi High Court Orders Removal of Defamatory Social Media Posts Against BJP MP",
+    "topic": "International",
+    "category": "topic:International"
+  },
+  {
+    "id": 23792,
+    "title": "Iran President Defends Nuclear Enrichment Rights",
+    "topic": "International",
+    "category": "topic:International"
+  },
+  {
+    "id": 4073,
+    "title": "Indian Jurist's Role in UN Gaza Report Highlighted",
+    "topic": "International",
+    "category": "topic:International"
+  },
+  {
+    "id": 7669,
+    "title": "US Strikes Iran After Ship Attack; Strait of Hormuz Impacted",
+    "topic": "International",
+    "category": "topic:International"
+  },
+  {
+    "id": 8129,
+    "title": "Mammootty and Kartik Aaryan Share Best Actor Award at 72nd National Film Awards",
+    "topic": "International",
+    "category": "topic:International"
+  },
+  {
+    "id": 21909,
+    "title": "SpaceX awarded additional NASA contract for ISS crew flights",
+    "topic": "Science & Tech",
+    "category": "topic:Science & Tech"
+  },
+  {
+    "id": 5439,
+    "title": "Debate over funding for cow urine research amid scarce funds",
+    "topic": "Science & Tech",
+    "category": "topic:Science & Tech"
+  },
+  {
+    "id": 21803,
+    "title": "China's 6th-gen fighter may carry laser weapons, reports suggest",
+    "topic": "Science & Tech",
+    "category": "topic:Science & Tech"
+  },
+  {
+    "id": 8597,
+    "title": "ISRO plans seven launches this fiscal year, next in two months",
+    "topic": "Science & Tech",
+    "category": "topic:Science & Tech"
+  },
+  {
+    "id": 17985,
+    "title": "ISRO Successfully Launches Advanced Earth Observation Satellite EOS-05",
+    "topic": "Science & Tech",
+    "category": "topic:Science & Tech"
+  },
+  {
+    "id": 6099,
+    "title": "Apple's Foldable iPhone Expected to Launch in September",
+    "topic": "Science & Tech",
+    "category": "topic:Science & Tech"
+  },
+  {
+    "id": 7766,
+    "title": "Kerala Health Department Announces Health System Reforms",
+    "topic": "Health",
+    "category": "topic:Health"
+  },
+  {
+    "id": 12976,
+    "title": "WHO Warns Congo Ebola Outbreak Could Be Deadliest On Record",
+    "topic": "Health",
+    "category": "topic:Health"
+  },
+  {
+    "id": 17872,
+    "title": "Amit Shah inaugurates 400‑bed tower at Max Smart Hospital in Delhi",
+    "topic": "Health",
+    "category": "topic:Health"
+  },
+  {
+    "id": 16800,
+    "title": "Dietitian Advises Caution on Carb Restriction Diets",
+    "topic": "Health",
+    "category": "topic:Health"
+  },
+  {
+    "id": 21896,
+    "title": "Kim Kardashian reveals esophagitis diagnosis, links to father's death",
+    "topic": "Health",
+    "category": "topic:Health"
+  },
+  {
+    "id": 17398,
+    "title": "Father Donates Organs to Save Son in Rare Transplant",
+    "topic": "Health",
+    "category": "topic:Health"
+  },
+  {
+    "id": 16137,
+    "title": "US Stocks Decline on Fed Chair Warsh's Inflation Concerns",
+    "topic": "Economy",
+    "category": "high_source_count"
+  },
+  {
+    "id": 17302,
+    "title": "Himalayan Glacial Flood in Nepal Linked to Global Warming",
+    "topic": "Environment",
+    "category": "high_source_count"
+  },
+  {
+    "id": 20103,
+    "title": "Apple to Unveil Foldable iPhone and New Pro Models at Annual Event",
+    "topic": "Society",
+    "category": "high_source_count"
+  },
+  {
+    "id": 19511,
+    "title": "Amazon cargo plane crashes in Miami, killing five",
+    "topic": "Crime & Law",
+    "category": "high_source_count"
+  },
+  {
+    "id": 21461,
+    "title": "Warren Buffett Steps Down as Berkshire Hathaway Chairman",
+    "topic": "Economy",
+    "category": "high_source_count"
+  },
+  {
+    "id": 22366,
+    "title": "ICE Agent Shoots Venezuelan Man in Austin; Investigation Launched, Protests Erupt",
+    "topic": "Crime & Law",
+    "category": "high_source_count"
+  },
+  {
+    "id": 21870,
+    "title": "Trump Bans CNN, Politico, and MS NOW from White House",
+    "topic": "Politics",
+    "category": "high_source_count"
+  },
+  {
+    "id": 15653,
+    "title": "Building and wall collapses kill at least 5 across India",
+    "topic": "Crime & Law",
+    "category": "high_source_count"
+  },
+  {
+    "id": 23147,
+    "title": "Xi Jinping Visits US for Talks with Trump, Business Leaders",
+    "topic": "Politics",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 19504,
+    "title": "US-Venezuela oil deal faces legal scrutiny",
+    "topic": "Economy",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 5159,
+    "title": "National Leaders Meet, Army Chief Appointed Amidst Other Developments",
+    "topic": "Politics",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 5858,
+    "title": "Karnataka Cabinet Expansion Likely Soon, 20 Posts Vacant",
+    "topic": "Politics",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 21805,
+    "title": "KPop Demon Hunters Launches New Merchandise and Enters Next Phase",
+    "topic": "Entertainment",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 12841,
+    "title": "PNB to Launch Wealth Management Services",
+    "topic": "Economy",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 24346,
+    "title": "Five Drown During Ganesh Immersion in MP; Aid Announced",
+    "topic": "Society",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 6941,
+    "title": "Heavy Rains Cause Flooding, Displacement Across Multiple Indian States",
+    "topic": "Environment",
+    "category": "thin_coverage"
+  },
+  {
+    "id": 6655,
+    "title": "Monsoon brings rain, flooding, and home maintenance tips across India",
+    "topic": "Environment",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 18404,
+    "title": "Kia launches premium Sorento SUV in India at Rs 27.99 lakh",
+    "topic": "Economy",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 22082,
+    "title": "Salman Khan Addresses Trolling and Body Shaming on Bigg Boss 20",
+    "topic": "Entertainment",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 11580,
+    "title": "RBI to introduce polymer Rs 10 and Rs 20 notes by FY28",
+    "topic": "Economy",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 21962,
+    "title": "Golmaal 5 Release Date Announced by Director Rohit Shetty",
+    "topic": "Entertainment",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 12704,
+    "title": "Atiq Ahmed's son Abaan buried near father's grave; brothers attended funeral",
+    "topic": "Crime & Law",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 6343,
+    "title": "Andhra Pradesh Minister Pitches State to US Investors",
+    "topic": "Politics",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 19166,
+    "title": "Rajasthan Civic Polls: Symbol Disputes and Unopposed Wins Reported",
+    "topic": "Politics",
+    "category": "high_disagreement_blindspot"
+  },
+  {
+    "id": 11017,
+    "title": "Subhadeep Ghosh Appointed Indian Cricket Team Fielding Coach",
+    "topic": "Sports",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 3926,
+    "title": "Union Minister Shah divides Indian history into pre- and post-2014 eras",
+    "topic": "Politics",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 23492,
+    "title": "UK Mayor Addresses UN on Russian Disinformation",
+    "topic": "Politics",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 7499,
+    "title": "Indian-origin former Google executive fatally shot in US; husband arrested",
+    "topic": "Crime & Law",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 21646,
+    "title": "BJP National President Nitin Naveen Visits Mahakal Temple",
+    "topic": "Society",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 18180,
+    "title": "Blind Singer Meets Madhya Pradesh Chief Minister",
+    "topic": "Society",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 13363,
+    "title": "Maharashtra Minister States Reservation Demands Must Follow Constitution",
+    "topic": "Politics",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 20407,
+    "title": "Former PE teacher found guilty of sexual activity with students",
+    "topic": "Crime & Law",
+    "category": "office_holder_language"
+  },
+  {
+    "id": 22801,
+    "title": "Central government employees to receive arrears, potentially up to ₹18 lakh",
+    "topic": "Politics",
+    "category": "numeric_content"
+  },
+  {
+    "id": 17350,
+    "title": "PNB Currency Chest Found With ₹17 Crore in Fake Notes",
+    "topic": "Crime & Law",
+    "category": "numeric_content"
+  },
+  {
+    "id": 21345,
+    "title": "Man Sentenced for $35 Million Ponzi Scheme Targeting Athletes",
+    "topic": "Crime & Law",
+    "category": "numeric_content"
+  },
+  {
+    "id": 14795,
+    "title": "Odisha Approves Rs 16,000 Crore for Power Infrastructure Projects",
+    "topic": "Economy",
+    "category": "numeric_content"
+  },
+  {
+    "id": 14982,
+    "title": "Police find ₹3 crore cash in Madhya Pradesh house during arms search",
+    "topic": "Crime & Law",
+    "category": "numeric_content"
+  },
+  {
+    "id": 19803,
+    "title": "PM Modi inaugurates development projects worth over ₹35,000 crore in Gujarat and Maharashtra",
+    "topic": "Politics",
+    "category": "numeric_content"
+  },
+  {
+    "id": 11727,
+    "title": "KKR Acquires Medicover India's Hospital Network for $1.4 Billion",
+    "topic": "Economy",
+    "category": "numeric_content"
+  },
+  {
+    "id": 23085,
+    "title": "Hughes Precision Secures Over ₹250 Crore for Manufacturing Expansion",
+    "topic": "Economy",
+    "category": "numeric_content"
+  },
+  {
+    "id": 23548,
+    "title": "High School Football Rankings Released for Chicagoland and LA City Sections",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 22064,
+    "title": "Canadian Football League Teams Prepare for Matchup",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 12041,
+    "title": "Khalin Joshi Leads J&K Open Golf Tournament by Six Shots",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 19762,
+    "title": "SEC Teams Dominate Week 1 College Football Games",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 22440,
+    "title": "AFL Stars Attend Brownlow Medal Red Carpet Event",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 16795,
+    "title": "Rugby League Players Latrell Mitchell and Jai Arrow Feature in Match Report",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 18665,
+    "title": "India and Pakistan Women's Cricket Teams Set for Asia Cup Match",
+    "topic": "Sports",
+    "category": "sports_terminology"
+  },
+  {
+    "id": 8061,
+    "title": "Rare 9th-century Parshvanatha sculpture found in Adilabad, Telangana",
+    "topic": "Society",
+    "category": "sports_terminology"
+  }
+]
