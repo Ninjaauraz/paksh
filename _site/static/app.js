@@ -3888,6 +3888,17 @@ function StoryPage({
   }, fr[k]) : /*#__PURE__*/React.createElement("p", {
     className: `mt-3.5 text-[13px] italic ${t.tf} ${readCls(lang)}`
   }, anyFraming ? STR[lang].framingThin : STR[lang].framingPending)))))), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-6 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement(TextLink, {
+    t: t,
+    lang: lang,
+    href: `/contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline || "")}`,
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      go(`contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline || "")}`);
+    }
+  }, lang === "hi" ? "समस्या रिपोर्ट करें" : "Report an issue")), /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-10 max-w-[840px]"
   }, /*#__PURE__*/React.createElement(AdSlot, {
     t: t,
@@ -3967,18 +3978,7 @@ function StoryPage({
     className: `mt-0.5 shrink-0 ${t.tf}`
   }))), arts.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: `py-10 text-center text-[13px] ${t.tf}`
-  }, "-"))), /*#__PURE__*/React.createElement("div", {
-    className: "mx-auto mt-6 max-w-[840px]"
-  }, /*#__PURE__*/React.createElement(TextLink, {
-    t: t,
-    lang: lang,
-    href: `/contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline || "")}`,
-    onClick: e => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      go(`contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline || "")}`);
-    }
-  }, lang === "hi" ? "इस खबर में कोई समस्या? रिपोर्ट करें" : "Found an issue? Report it")), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
+  }, "-"))), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-12 max-w-[1000px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-4 pb-2",
