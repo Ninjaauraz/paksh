@@ -1862,8 +1862,16 @@ const {useState,useEffect,useMemo,useRef}=React;
       const cards=[];
       (right||[]).forEach(s=>cards.push({story:s, gapSide:"left"}));
       (left||[]).forEach(s=>cards.push({story:s, gapSide:"right"}));
-      // Starkest first: the smallest under-covered count (0 = unreported) leads.
-      cards.sort((a,b)=>((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0));
+      // Pre-launch presentation fix (2026-09-29): India gaps must lead, International/World
+      // gaps follow - a primary sort key added ahead of the existing starkest-first order,
+      // which stays the secondary/tie-breaking sort exactly as before (so ordering WITHIN
+      // each region is unchanged). Region is a strict two-value field ("India"/"World" - see
+      // toCard()'s region:e.region||"India"); anything unexpected falls to World's priority,
+      // never India's. No change to the gap formula, qualification threshold, or which
+      // stories qualify - only the render order of the same two columns.
+      const gapRegionPriority=s=>s.region==="India"?0:1;
+      cards.sort((a,b)=>(gapRegionPriority(a.story)-gapRegionPriority(b.story))
+        || (((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0)));
       // 6.3B.7 — the two facing columns ARE the Left/Right split now, so no separate filter
       // control is needed. Centre is still deliberately never a column: a Centre-only story is
       // "thinly covered", not a blindspot, in the current editorial model.
