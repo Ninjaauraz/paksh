@@ -49,6 +49,21 @@ check("3b: no auth gate wraps the report link (available to guests, matching the
       "TextLink t={t} lang={lang}" in story_page and
       not re.search(r"authOn\(\)\s*&&\s*<TextLink", story_page))
 
+print("\n=== 3c/3d: label is bare (\"Report an issue\" only, no supporting text), and placement "
+      "is right after the main content, before the sourced-article list (2026-09-29 fix) ===")
+_report_block = re.search(r'<div className="mx-auto mt-6 max-w-\[840px\]">\s*<TextLink.*?</TextLink>\s*</div>', story_page, re.S)
+check("3c: the report link block is found as a single, standalone element", _report_block is not None)
+_report_text = _report_block.group(0) if _report_block else ""
+check("3d: the English label is exactly \"Report an issue\" - no \"Found an issue?\" prefix, no "
+      "supporting sentence appended in the same JSX expression",
+      re.search(r'\{lang==="hi"\?"[^"]*":"Report an issue"\}', _report_text) is not None and
+      "Found an issue" not in story_page)
+check("3e: placement - the report link appears AFTER the per-side framing section (the story's "
+      "own main content) and BEFORE the \"Who covered it\" sourced-article list (id=\"arts\") - "
+      "the OLD placement had it AFTER id=\"arts\" instead, which this now rules out",
+      _report_block is not None and
+      story_page.find("framingTitleSingle") < _report_block.start() < story_page.find('id="arts"'))
+
 print("\n=== 4/5/6: ContactPage recognizes report=1, shows the read-only headline, offers issue types ===")
 check("4: ContactPage computes isReportMode from BOTH report=1 AND a validated article_id "
       "(report=1 alone is never sufficient - see check 13)",

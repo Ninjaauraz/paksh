@@ -1704,6 +1704,27 @@ const {useState,useEffect,useMemo,useRef}=React;
           </div>
           )}
 
+          {/* Report an issue — quiet, secondary, no auth gate (guests and accounts both get
+              it). Placed right after the main story content/summary (headline, lead, bias-at-
+              a-glance, storyline/context, per-side framing) and before the sourced-article
+              list below - the boundary between "the story itself" and "who covered it", not
+              tucked in beside the outlet list. Label is deliberately bare ("Report an issue"
+              only, no supporting sentence) per the 2026-09-29 placement fix. Reuses TextLink,
+              the same primitive already used for the back link and share/copy actions - no new
+              visual pattern. Carries only article_id + the already-rendered headline (both
+              already public on this very page) through the query string; ContactPage treats
+              article_id as the only trusted value and re-derives the canonical story URL from
+              it rather than trusting anything in the URL as a URL. Functionality (query
+              params, /contact report mode, Formspree submission, issue types, auth behavior)
+              is completely unchanged from before - this is a placement/label-only move. */}
+          <div className="mx-auto mt-6 max-w-[840px]">
+            <TextLink t={t} lang={lang}
+              href={`/contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline||"")}`}
+              onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); go(`contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline||"")}`); }}>
+              {lang==="hi"?"समस्या रिपोर्ट करें":"Report an issue"}
+            </TextLink>
+          </div>
+
           {/* Coverage Breakdown (Total sources / per-side vote counts / international /
               unrated) removed — user-facing presentation only. voteRow() is unchanged and
               still powers the outlet list ("Who covered it") below via its owner grouping. */}
@@ -1745,22 +1766,6 @@ const {useState,useEffect,useMemo,useRef}=React;
               ))}
               {arts.length===0 && <div className={`py-10 text-center text-[13px] ${t.tf}`}>-</div>}
             </div>
-          </div>
-
-          {/* Report an issue — quiet, secondary, no auth gate (guests and accounts both get
-              it), placed in the body below the sourced-article list rather than the masthead's
-              Save/Follow/Share row so it never visually competes with them. Reuses TextLink,
-              the same primitive already used for the back link and share/copy actions - no new
-              visual pattern. Carries only article_id + the already-rendered headline (both
-              already public on this very page) through the query string; ContactPage treats
-              article_id as the only trusted value and re-derives the canonical story URL from
-              it rather than trusting anything in the URL as a URL. */}
-          <div className="mx-auto mt-6 max-w-[840px]">
-            <TextLink t={t} lang={lang}
-              href={`/contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline||"")}`}
-              onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); go(`contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline||"")}`); }}>
-              {lang==="hi"?"इस खबर में कोई समस्या? रिपोर्ट करें":"Found an issue? Report it"}
-            </TextLink>
           </div>
 
           {/* More on this topic — keep the reader moving instead of dead-ending here */}
