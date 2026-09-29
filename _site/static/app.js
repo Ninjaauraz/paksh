@@ -3967,7 +3967,18 @@ function StoryPage({
     className: `mt-0.5 shrink-0 ${t.tf}`
   }))), arts.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: `py-10 text-center text-[13px] ${t.tf}`
-  }, "-"))), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
+  }, "-"))), /*#__PURE__*/React.createElement("div", {
+    className: "mx-auto mt-6 max-w-[840px]"
+  }, /*#__PURE__*/React.createElement(TextLink, {
+    t: t,
+    lang: lang,
+    href: `/contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline || "")}`,
+    onClick: e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      go(`contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline || "")}`);
+    }
+  }, lang === "hi" ? "इस खबर में कोई समस्या? रिपोर्ट करें" : "Found an issue? Report it")), related && related.length > 0 && open && /*#__PURE__*/React.createElement("div", {
     className: "mx-auto mt-12 max-w-[1000px]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-4 pb-2",
@@ -4225,8 +4236,15 @@ function BlindspotPage({
     story: s,
     gapSide: "right"
   }));
-  // Starkest first: the smallest under-covered count (0 = unreported) leads.
-  cards.sort((a, b) => ((a.story.counts || {})[a.gapSide] || 0) - ((b.story.counts || {})[b.gapSide] || 0));
+  // Pre-launch presentation fix (2026-09-29): India gaps must lead, International/World
+  // gaps follow - a primary sort key added ahead of the existing starkest-first order,
+  // which stays the secondary/tie-breaking sort exactly as before (so ordering WITHIN
+  // each region is unchanged). Region is a strict two-value field ("India"/"World" - see
+  // toCard()'s region:e.region||"India"); anything unexpected falls to World's priority,
+  // never India's. No change to the gap formula, qualification threshold, or which
+  // stories qualify - only the render order of the same two columns.
+  const gapRegionPriority = s => s.region === "India" ? 0 : 1;
+  cards.sort((a, b) => gapRegionPriority(a.story) - gapRegionPriority(b.story) || ((a.story.counts || {})[a.gapSide] || 0) - ((b.story.counts || {})[b.gapSide] || 0));
   // 6.3B.7 — the two facing columns ARE the Left/Right split now, so no separate filter
   // control is needed. Centre is still deliberately never a column: a Centre-only story is
   // "thinly covered", not a blindspot, in the current editorial model.
@@ -5330,6 +5348,29 @@ function AboutPage({
     h: STR[lang].m_provH
   }, STR[lang].m_prov))));
 }
+// Article "Report an issue" -> /contact?report=1&article_id=<id>&article_title=<headline>
+// (StoryPage's report link, below). article_id is the ONLY value ever trusted for
+// anything beyond inert display: article_url is ALWAYS self-constructed from it
+// (window.location.origin + "/story/" + encodeURIComponent(id)), never read from the
+// URL/user input, so a report link can never submit an arbitrary external URL as
+// article_url. article_title is decoded (URLSearchParams already handles malformed
+// percent-encoding without throwing) and rendered through ordinary JSX text
+// interpolation only, which React escapes regardless of content - it is never used
+// to build a URL, never used as HTML. A missing/invalid article_id degrades this
+// straight back to the exact, unmodified normal contact form - report=1 alone is
+// never sufficient to enter report mode.
+function _parseReportIntent(qs) {
+  const id = (qs.get("article_id") || "").trim();
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
+  let title = (qs.get("article_title") || "").trim();
+  if (title.length > 300) title = title.slice(0, 300);
+  return {
+    id,
+    title,
+    url: window.location.origin + "/story/" + encodeURIComponent(id)
+  };
+}
+const ISSUE_TYPES = ["factual", "missing", "wrong_entity", "headline", "source", "translation", "other"];
 function ContactPage({
   t,
   lang
@@ -5339,7 +5380,16 @@ function ContactPage({
   // showing up here on load IS the success signal - read it once, then scrub it from
   // the URL (same history.replaceState idiom authSessionFromUrl already uses above)
   // so a later refresh of /contact doesn't keep re-showing the thank-you state.
-  const [status, setStatus] = useState(() => new URLSearchParams(window.location.search || "").get("sent") === "1" ? "ok" : "idle");
+  const _qs0 = new URLSearchParams(window.location.search || "");
+  const [status, setStatus] = useState(() => _qs0.get("sent") === "1" ? "ok" : "idle");
+  // report=1 survives the Formspree "_next" round-trip (added to it below) purely to
+  // pick the right success message; article_id does NOT survive it (nor should it -
+  // the report was already submitted), so reportArticle alone gates the FORM, while
+  // reportFlow alone gates which success sentence is shown.
+  const [reportFlow] = useState(() => _qs0.get("report") === "1");
+  const [reportArticle] = useState(() => _parseReportIntent(_qs0));
+  const isReportMode = reportFlow && !!reportArticle;
+  const [issueType, setIssueType] = useState(ISSUE_TYPES[0]);
   useEffect(() => {
     if (window.location.search.indexOf("sent=1") > -1) history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -5376,7 +5426,25 @@ function ContactPage({
     },
     railH: "रेटिंग पर असहमति?",
     rail: "हमें आउटलेट, जिस रेटिंग से आप असहमत हैं, और 2-3 उदाहरण हेडलाइन/लेख बताएँ। हम उसे छह-संकेत रूब्रिक के विरुद्ध फिर से देखेंगे।",
-    indep: "पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।"
+    indep: "पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।",
+    reportEyebrow: "समस्या रिपोर्ट",
+    reportTitle: "समस्या की सूचना दें",
+    reportArticleL: "लेख",
+    reportTypeL: "आपको किस तरह की समस्या मिली?",
+    reportDescL: "समस्या का विवरण दें",
+    reportDescPh: "समस्या क्या है, और आपने इसे कहाँ देखा…",
+    reportEmailL: "आपका ईमेल (वैकल्पिक)",
+    reportSend: "रिपोर्ट भेजें",
+    reportOk: "धन्यवाद — आपकी रिपोर्ट सबमिट हो गई है।",
+    issueTypes: {
+      factual: "तथ्यात्मक त्रुटि",
+      missing: "जानकारी छूट रही है",
+      wrong_entity: "ग़लत व्यक्ति / संगठन",
+      headline: "हेडलाइन की समस्या",
+      source: "स्रोत की समस्या",
+      translation: "अनुवाद की समस्या",
+      other: "अन्य"
+    }
   } : {
     title: "Contact",
     lede: "A question, a correction, or a complaint? Write to us, we read every message.",
@@ -5402,7 +5470,25 @@ function ContactPage({
     },
     railH: "Disputing a rating?",
     rail: "Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
-    indep: "Paksh is an independent project and is not affiliated with any outlet shown."
+    indep: "Paksh is an independent project and is not affiliated with any outlet shown.",
+    reportEyebrow: "Issue report",
+    reportTitle: "Report an issue",
+    reportArticleL: "Article",
+    reportTypeL: "What type of issue did you find?",
+    reportDescL: "Describe the issue",
+    reportDescPh: "What's wrong, and where did you see it…",
+    reportEmailL: "Your email (optional)",
+    reportSend: "Send report",
+    reportOk: "Thanks — your report has been submitted.",
+    issueTypes: {
+      factual: "Factual error",
+      missing: "Missing information",
+      wrong_entity: "Wrong person / organisation",
+      headline: "Headline problem",
+      source: "Source problem",
+      translation: "Translation problem",
+      other: "Other"
+    }
   };
   // Formspree's NATIVE HTML POST (real <form method="POST" action="..."> submission,
   // not fetch/AJAX): a plain browser navigation is not subject to CORS at all, so it
@@ -5439,12 +5525,12 @@ function ContactPage({
     style: {
       letterSpacing: lang === "hi" ? 0 : ".16em"
     }
-  }, lang === "hi" ? "संपर्क व सुधार" : "Contact & corrections"), /*#__PURE__*/React.createElement("h1", {
+  }, isReportMode ? L.reportEyebrow : lang === "hi" ? "संपर्क व सुधार" : "Contact & corrections"), /*#__PURE__*/React.createElement("h1", {
     className: `headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`,
     style: {
       letterSpacing: lang === "hi" ? 0 : "-0.02em"
     }
-  }, lang === "hi" ? "डेस्क को लिखें" : "Write to the desk")), /*#__PURE__*/React.createElement("div", {
+  }, isReportMode ? L.reportTitle : lang === "hi" ? "डेस्क को लिखें" : "Write to the desk")), /*#__PURE__*/React.createElement("div", {
     className: "mt-7 grid lg:grid-cols-[1.4fr_1fr]"
   }, /*#__PURE__*/React.createElement("div", {
     className: "lg:border-r lg:pr-8",
@@ -5453,7 +5539,7 @@ function ContactPage({
     }
   }, status === "ok" ? /*#__PURE__*/React.createElement("p", {
     className: `text-[15px] font-medium ${t.tp} ${isHi(lang)}`
-  }, L.ok) : /*#__PURE__*/React.createElement("form", {
+  }, reportFlow ? L.reportOk : L.ok) : /*#__PURE__*/React.createElement("form", {
     method: "POST",
     action: FORMSPREE_ENDPOINT,
     onSubmit: onSubmit,
@@ -5469,12 +5555,47 @@ function ContactPage({
   }), /*#__PURE__*/React.createElement("input", {
     type: "hidden",
     name: "_subject",
-    value: "New Paksh contact message"
+    value: isReportMode ? "Paksh article issue report" : "New Paksh contact message"
   }), /*#__PURE__*/React.createElement("input", {
     type: "hidden",
     name: "_next",
-    value: window.location.origin + "/contact?sent=1"
+    value: window.location.origin + "/contact?sent=1" + (isReportMode ? "&report=1" : "")
+  }), isReportMode ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "article_id",
+    value: reportArticle.id
   }), /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "article_title",
+    value: reportArticle.title
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "article_url",
+    value: reportArticle.url
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "hidden",
+    name: "issue_type",
+    value: L.issueTypes[issueType]
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.reportArticleL), /*#__PURE__*/React.createElement("p", {
+    className: `text-[15px] font-medium ${t.tp} ${readCls(lang)}`,
+    style: {
+      lineHeight: 1.4
+    }
+  }, reportArticle.title || (lang === "hi" ? "(शीर्षक उपलब्ध नहीं)" : "(title unavailable)"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.reportTypeL), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2"
+  }, ISSUE_TYPES.map(k => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    type: "button",
+    onClick: () => setIssueType(k),
+    className: `border px-3.5 py-1.5 eyebrow ${issueType === k ? `${t.cta} ${t.ctaT} border-transparent` : `${t.ts} ${t.border} hover:${t.tp}`} ${lang === "hi" ? "deva" : ""}`,
+    style: {
+      letterSpacing: lang === "hi" ? 0 : ".08em"
+    }
+  }, L.issueTypes[k]))))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("input", {
     type: "hidden",
     name: "topic",
     value: L.chips[topic]
@@ -5493,7 +5614,7 @@ function ContactPage({
     type: "email",
     required: true,
     className: inp
-  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  })))), !isReportMode && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: lbl
   }, lang === "hi" ? "यह किस बारे में है?" : "What's this about?"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2"
@@ -5507,17 +5628,23 @@ function ContactPage({
     }
   }, L.chips[k])))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: lbl
-  }, L.msg), /*#__PURE__*/React.createElement("textarea", {
+  }, isReportMode ? L.reportDescL : L.msg), /*#__PURE__*/React.createElement("textarea", {
     name: "message",
     required: true,
     rows: "6",
-    placeholder: L.ph[topic],
+    placeholder: isReportMode ? L.reportDescPh : L.ph[topic],
+    className: inp
+  })), isReportMode && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: lbl
+  }, L.reportEmailL), /*#__PURE__*/React.createElement("input", {
+    name: "email",
+    type: "email",
     className: inp
   })), /*#__PURE__*/React.createElement("button", {
     type: "submit",
     disabled: status === "sending",
     className: `border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`
-  }, status === "sending" ? L.sending : L.send), /*#__PURE__*/React.createElement("div", {
+  }, status === "sending" ? L.sending : isReportMode ? L.reportSend : L.send), /*#__PURE__*/React.createElement("div", {
     className: `text-[11px] ${t.tf} ${isHi(lang)}`
   }, lang === "hi" ? "Formspree द्वारा वितरित · हम असली इनबॉक्स से जवाब देते हैं।" : "Delivered by Formspree · we reply from a real inbox, usually within a few days."))), /*#__PURE__*/React.createElement("aside", {
     className: "mt-7 lg:mt-0 lg:pl-8 space-y-6"
