@@ -16,7 +16,9 @@ What this pins:
   1. the form posts natively: method="POST", action exactly https://formspree.io/f/mkolqann
   2. every intended field has a real `name` attribute Formspree will receive
   3. email is type="email" and required; message is name="message" and required
-  4. the honeypot (_gotcha), _subject and topic hidden fields are preserved unchanged
+  4. the honeypot (_gotcha), _subject and topic hidden fields are preserved unchanged in
+     NORMAL mode (report=1 absent) - _subject/_next are now conditional on report mode
+     (see test_report_an_issue.py), but their FALSE branch is exactly the original value
   5. a "_next" redirect-back field is present (native POST's only way to return the visitor
      to Paksh instead of Formspree's own generic confirmation page)
   6. no fetch()/AJAX call is used for the actual delivery any more
@@ -69,14 +71,17 @@ check("2d: the topic hidden field still carries a real name Formspree receives",
 print("\n=== 4: honeypot / subject fields preserved unchanged ===")
 check("4a: honeypot _gotcha field preserved, still hidden and out of tab order",
       'name="_gotcha"' in page and 'tabIndex="-1"' in page and 'autoComplete="off"' in page)
-check("4b: _subject hidden field preserved with its original value",
-      '"_subject" value="New Paksh contact message"' in page)
+check("4b: _subject hidden field's NORMAL-mode (report=1 absent) value is unchanged - now a "
+      "report-mode ternary (see test_report_an_issue.py), but its false branch is the original "
+      "literal, so normal-mode Formspree submissions still carry the exact original subject",
+      re.search(r'name="_subject" value=\{isReportMode\?"[^"]*":"New Paksh contact message"\}', page) is not None)
 
 print("\n=== 5: _next redirect-back field, so the visitor returns to Paksh, not Formspree ===")
 check("5a: a hidden _next field is present", 'name="_next"' in page)
-check("5b: _next points back at this same page with a success marker, built from the "
-      "CURRENT origin (never a hardcoded domain, which would go stale on any domain change)",
-      re.search(r'name="_next" value=\{window\.location\.origin\+"/contact\?sent=1"\}', page) is not None)
+check("5b: _next's base target is unchanged - built from the CURRENT origin (never a hardcoded "
+      "domain), with only an ADDITIVE, conditional '&report=1' suffix for report mode; in "
+      "normal mode it still resolves to exactly window.location.origin+\"/contact?sent=1\"",
+      re.search(r'name="_next" value=\{window\.location\.origin\+"/contact\?sent=1"\+\(isReportMode\?"&report=1":""\)\}', page) is not None)
 check("5c: on load, sent=1 in the URL is treated as the success state",
       re.search(r'get\("sent"\)\s*===\s*"1"\)\s*\?\s*"ok"\s*:\s*"idle"', page) is not None)
 check("5d: the sent=1 marker is scrubbed from the URL after being read (history.replaceState), "

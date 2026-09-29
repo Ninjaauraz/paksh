@@ -1747,6 +1747,22 @@ const {useState,useEffect,useMemo,useRef}=React;
             </div>
           </div>
 
+          {/* Report an issue — quiet, secondary, no auth gate (guests and accounts both get
+              it), placed in the body below the sourced-article list rather than the masthead's
+              Save/Follow/Share row so it never visually competes with them. Reuses TextLink,
+              the same primitive already used for the back link and share/copy actions - no new
+              visual pattern. Carries only article_id + the already-rendered headline (both
+              already public on this very page) through the query string; ContactPage treats
+              article_id as the only trusted value and re-derives the canonical story URL from
+              it rather than trusting anything in the URL as a URL. */}
+          <div className="mx-auto mt-6 max-w-[840px]">
+            <TextLink t={t} lang={lang}
+              href={`/contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline||"")}`}
+              onClick={e=>{ if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return; e.preventDefault(); go(`contact?report=1&article_id=${encodeURIComponent(story.id)}&article_title=${encodeURIComponent(story.headline||"")}`); }}>
+              {lang==="hi"?"इस खबर में कोई समस्या? रिपोर्ट करें":"Found an issue? Report it"}
+            </TextLink>
+          </div>
+
           {/* More on this topic — keep the reader moving instead of dead-ending here */}
           {related && related.length>0 && open && (
             <div className="mx-auto mt-12 max-w-[1000px]">
@@ -2406,13 +2422,43 @@ const {useState,useEffect,useMemo,useRef}=React;
         </PageWrap>
       );
     }
+    // Article "Report an issue" -> /contact?report=1&article_id=<id>&article_title=<headline>
+    // (StoryPage's report link, below). article_id is the ONLY value ever trusted for
+    // anything beyond inert display: article_url is ALWAYS self-constructed from it
+    // (window.location.origin + "/story/" + encodeURIComponent(id)), never read from the
+    // URL/user input, so a report link can never submit an arbitrary external URL as
+    // article_url. article_title is decoded (URLSearchParams already handles malformed
+    // percent-encoding without throwing) and rendered through ordinary JSX text
+    // interpolation only, which React escapes regardless of content - it is never used
+    // to build a URL, never used as HTML. A missing/invalid article_id degrades this
+    // straight back to the exact, unmodified normal contact form - report=1 alone is
+    // never sufficient to enter report mode.
+    function _parseReportIntent(qs) {
+      const id = (qs.get("article_id") || "").trim();
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null;
+      let title = (qs.get("article_title") || "").trim();
+      if (title.length > 300) title = title.slice(0, 300);
+      return { id, title, url: window.location.origin + "/story/" + encodeURIComponent(id) };
+    }
+
+    const ISSUE_TYPES = ["factual", "missing", "wrong_entity", "headline", "source", "translation", "other"];
+
     function ContactPage({ t, lang }) {
       // Native Formspree POST (see onSubmit()'s comment below for why): a real browser
       // navigation away and back, via Formspree's own "_next" redirect, so "sent=1"
       // showing up here on load IS the success signal - read it once, then scrub it from
       // the URL (same history.replaceState idiom authSessionFromUrl already uses above)
       // so a later refresh of /contact doesn't keep re-showing the thank-you state.
-      const [status,setStatus]=useState(()=>(new URLSearchParams(window.location.search||"").get("sent")==="1")?"ok":"idle");
+      const _qs0 = new URLSearchParams(window.location.search || "");
+      const [status,setStatus]=useState(()=>(_qs0.get("sent")==="1")?"ok":"idle");
+      // report=1 survives the Formspree "_next" round-trip (added to it below) purely to
+      // pick the right success message; article_id does NOT survive it (nor should it -
+      // the report was already submitted), so reportArticle alone gates the FORM, while
+      // reportFlow alone gates which success sentence is shown.
+      const [reportFlow]=useState(()=>_qs0.get("report")==="1");
+      const [reportArticle]=useState(()=>_parseReportIntent(_qs0));
+      const isReportMode = reportFlow && !!reportArticle;
+      const [issueType,setIssueType]=useState(ISSUE_TYPES[0]);
       useEffect(()=>{ if(window.location.search.indexOf("sent=1")>-1) history.replaceState(null,"",window.location.pathname); },[]);
       // Arriving from a clicked ad box pre-selects "Advertise"; the flag is one-shot.
       const [topic,setTopic]=useState(()=>{ if(_adIntent){ _adIntent=false; return "advertise"; } return "rating"; });
@@ -2425,7 +2471,13 @@ const {useState,useEffect,useMemo,useRef}=React;
         chips:{rating:"रेटिंग सुधार", outlet:"नया आउटलेट सुझाएँ", advertise:"विज्ञापन दें", general:"सामान्य"},
         ph:{rating:"आउटलेट, जिस रेटिंग से असहमत हैं, और 2-3 उदाहरण हेडलाइन बताएँ…", outlet:"आउटलेट का नाम, वेबसाइट, भाषा और वह किस ओर झुका लगता है…", advertise:"आपकी कंपनी/उत्पाद, बजट का अंदाज़ा और आप किस तरह का विज्ञापन चाहते हैं…", general:"आपका संदेश…"},
         railH:"रेटिंग पर असहमति?", rail:"हमें आउटलेट, जिस रेटिंग से आप असहमत हैं, और 2-3 उदाहरण हेडलाइन/लेख बताएँ। हम उसे छह-संकेत रूब्रिक के विरुद्ध फिर से देखेंगे।",
-        indep:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।"
+        indep:"पक्ष एक स्वतंत्र परियोजना है और किसी दिखाए गए आउटलेट से संबद्ध नहीं है।",
+        reportEyebrow:"समस्या रिपोर्ट", reportTitle:"समस्या की सूचना दें", reportArticleL:"लेख",
+        reportTypeL:"आपको किस तरह की समस्या मिली?", reportDescL:"समस्या का विवरण दें",
+        reportDescPh:"समस्या क्या है, और आपने इसे कहाँ देखा…", reportEmailL:"आपका ईमेल (वैकल्पिक)",
+        reportSend:"रिपोर्ट भेजें", reportOk:"धन्यवाद — आपकी रिपोर्ट सबमिट हो गई है।",
+        issueTypes:{factual:"तथ्यात्मक त्रुटि", missing:"जानकारी छूट रही है", wrong_entity:"ग़लत व्यक्ति / संगठन",
+          headline:"हेडलाइन की समस्या", source:"स्रोत की समस्या", translation:"अनुवाद की समस्या", other:"अन्य"},
       } : {
         title:"Contact", lede:"A question, a correction, or a complaint? Write to us, we read every message.",
         name:"Your name (optional)", email:"Email", topicL:"Topic",
@@ -2435,7 +2487,13 @@ const {useState,useEffect,useMemo,useRef}=React;
         chips:{rating:"Rating correction", outlet:"Suggest an outlet", advertise:"Advertise with Paksh", general:"General"},
         ph:{rating:"Name the outlet, the rating you dispute, and 2-3 example headlines…", outlet:"Outlet name, website, language, and where it seems to lean…", advertise:"Your company/product, rough budget, and the kind of placement you want…", general:"Your message…"},
         railH:"Disputing a rating?", rail:"Tell us the outlet, the rating you dispute, and 2-3 example headlines or articles. We'll re-review it against the six-signal rubric.",
-        indep:"Paksh is an independent project and is not affiliated with any outlet shown."
+        indep:"Paksh is an independent project and is not affiliated with any outlet shown.",
+        reportEyebrow:"Issue report", reportTitle:"Report an issue", reportArticleL:"Article",
+        reportTypeL:"What type of issue did you find?", reportDescL:"Describe the issue",
+        reportDescPh:"What's wrong, and where did you see it…", reportEmailL:"Your email (optional)",
+        reportSend:"Send report", reportOk:"Thanks — your report has been submitted.",
+        issueTypes:{factual:"Factual error", missing:"Missing information", wrong_entity:"Wrong person / organisation",
+          headline:"Headline problem", source:"Source problem", translation:"Translation problem", other:"Other"},
       };
       // Formspree's NATIVE HTML POST (real <form method="POST" action="..."> submission,
       // not fetch/AJAX): a plain browser navigation is not subject to CORS at all, so it
@@ -2461,32 +2519,67 @@ const {useState,useEffect,useMemo,useRef}=React;
       return (
         <div className="mx-auto max-w-[1000px] px-4 sm:px-8 py-10">
           <div className="pb-3.5" style={{borderBottom:`2px solid ${t.ink}`}}>
-            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{lang==="hi"?"संपर्क व सुधार":"Contact & corrections"}</div>
-            <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{lang==="hi"?"डेस्क को लिखें":"Write to the desk"}</h1>
+            <div className={`eyebrow ${t.tf} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".16em"}}>{isReportMode?L.reportEyebrow:(lang==="hi"?"संपर्क व सुधार":"Contact & corrections")}</div>
+            <h1 className={`headline mt-2.5 text-[30px] sm:text-[34px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.02em"}}>{isReportMode?L.reportTitle:(lang==="hi"?"डेस्क को लिखें":"Write to the desk")}</h1>
           </div>
           <div className="mt-7 grid lg:grid-cols-[1.4fr_1fr]">
           <div className="lg:border-r lg:pr-8" style={{borderColor:t.line}}>
             {status==="ok" ? (
-              <p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{L.ok}</p>
+              <p className={`text-[15px] font-medium ${t.tp} ${isHi(lang)}`}>{reportFlow?L.reportOk:L.ok}</p>
             ) : (
               <form method="POST" action={FORMSPREE_ENDPOINT} onSubmit={onSubmit} className="space-y-5">
                 <input type="text" name="_gotcha" style={{display:"none"}} tabIndex="-1" autoComplete="off" />
-                <input type="hidden" name="_subject" value="New Paksh contact message" />
-                <input type="hidden" name="_next" value={window.location.origin+"/contact?sent=1"} />
-                <input type="hidden" name="topic" value={L.chips[topic]} />
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
-                  <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
-                </div>
-                <div><label className={lbl}>{lang==="hi"?"यह किस बारे में है?":"What's this about?"}</label>
-                  <div className="flex flex-wrap gap-2">
-                    {["rating","outlet","advertise","general"].map(k=>(
-                      <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.ts} ${t.border} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
-                    ))}
+                <input type="hidden" name="_subject" value={isReportMode?"Paksh article issue report":"New Paksh contact message"} />
+                <input type="hidden" name="_next" value={window.location.origin+"/contact?sent=1"+(isReportMode?"&report=1":"")} />
+                {isReportMode ? (
+                  <>
+                    {/* article_id/article_url are never taken from anything the user can edit -
+                        article_id came from _parseReportIntent's strict allowlist regex, and
+                        article_url is built from it, not from the URL, above. article_title is
+                        plain, React-escaped display text, submitted verbatim as a hidden field
+                        purely for the desk's own reference (never re-parsed as a URL/markup). */}
+                    <input type="hidden" name="article_id" value={reportArticle.id} />
+                    <input type="hidden" name="article_title" value={reportArticle.title} />
+                    <input type="hidden" name="article_url" value={reportArticle.url} />
+                    <input type="hidden" name="issue_type" value={L.issueTypes[issueType]} />
+                    <div>
+                      <label className={lbl}>{L.reportArticleL}</label>
+                      <p className={`text-[15px] font-medium ${t.tp} ${readCls(lang)}`} style={{lineHeight:1.4}}>
+                        {reportArticle.title || (lang==="hi"?"(शीर्षक उपलब्ध नहीं)":"(title unavailable)")}
+                      </p>
+                    </div>
+                    <div>
+                      <label className={lbl}>{L.reportTypeL}</label>
+                      <div className="flex flex-wrap gap-2">
+                        {ISSUE_TYPES.map(k=>(
+                          <button key={k} type="button" onClick={()=>setIssueType(k)} className={`border px-3.5 py-1.5 eyebrow ${issueType===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.ts} ${t.border} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.issueTypes[k]}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <input type="hidden" name="topic" value={L.chips[topic]} />
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div><label className={lbl}>{L.name}</label><input name="name" type="text" className={inp} /></div>
+                      <div><label className={lbl}>{L.email}</label><input name="email" type="email" required className={inp} /></div>
+                    </div>
+                  </>
+                )}
+                {!isReportMode && (
+                  <div><label className={lbl}>{lang==="hi"?"यह किस बारे में है?":"What's this about?"}</label>
+                    <div className="flex flex-wrap gap-2">
+                      {["rating","outlet","advertise","general"].map(k=>(
+                        <button key={k} type="button" onClick={()=>setTopic(k)} className={`border px-3.5 py-1.5 eyebrow ${topic===k?`${t.cta} ${t.ctaT} border-transparent`:`${t.ts} ${t.border} hover:${t.tp}`} ${lang==="hi"?"deva":""}`} style={{letterSpacing:lang==="hi"?0:".08em"}}>{L.chips[k]}</button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div><label className={lbl}>{L.msg}</label><textarea name="message" required rows="6" placeholder={L.ph[topic]} className={inp} /></div>
-                <button type="submit" disabled={status==="sending"} className={`border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:L.send}</button>
+                )}
+                <div><label className={lbl}>{isReportMode?L.reportDescL:L.msg}</label><textarea name="message" required rows="6" placeholder={isReportMode?L.reportDescPh:L.ph[topic]} className={inp} /></div>
+                {isReportMode && (
+                  <div><label className={lbl}>{L.reportEmailL}</label><input name="email" type="email" className={inp} /></div>
+                )}
+                <button type="submit" disabled={status==="sending"} className={`border px-5 py-2.5 text-[12px] font-semibold uppercase border-transparent ${t.cta} ${t.ctaT} disabled:opacity-60 ${isHi(lang)}`}>{status==="sending"?L.sending:(isReportMode?L.reportSend:L.send)}</button>
                 <div className={`text-[11px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"Formspree द्वारा वितरित · हम असली इनबॉक्स से जवाब देते हैं।":"Delivered by Formspree · we reply from a real inbox, usually within a few days."}</div>
               </form>
             )}
