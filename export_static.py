@@ -1322,7 +1322,7 @@ def main():
         # Vercel route below matches byte-for-byte with no decode/re-encode ambiguity.
         from urllib.parse import quote as _quote
         topic_names_sorted = sorted({e.get("topic") for e in events if e.get("topic")})
-        _DESC = "Paksh maps how India's media covers every story — coverage, gaps, and how it develops, in English and Hindi."
+        _DESC = "News with context"
         for name in topic_names_sorted:
             enc = _quote(name, safe="")
             tp = OUT / "topic" / f"{enc}.html"
@@ -1544,7 +1544,7 @@ def main():
         # item shows the bias line and the share card, so even a feed reader sees the split.
         from urllib.parse import quote as _q
         (OUT / "rss.xml").write_text(
-            _rss_xml("Paksh: News, with context.",
+            _rss_xml("Paksh News",
                      SITE_URL + "/", SITE_URL + "/rss.xml", recent_rows, 60),
             encoding="utf-8")
         rss_dir = OUT / "rss"
