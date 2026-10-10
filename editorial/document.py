@@ -73,9 +73,12 @@ def load_text(text):
         return _invalid("document larger than %d bytes" % MAX_BYTES)
     try:
         doc = json.loads(text, object_pairs_hook=_no_duplicates, parse_constant=_reject_constant)
-    except (ValueError, RecursionError) as e:
-        return _invalid("malformed JSON: %s" % e)
-    res = validate_document(doc)
+    except (ValueError, RecursionError, MemoryError) as e:
+        return _invalid("malformed or excessively nested JSON (%s)" % e.__class__.__name__)
+    try:
+        res = validate_document(doc)
+    except (RecursionError, MemoryError):          # belt and braces: validate_document is also depth-limited
+        return _invalid("document is nested too deeply or is too large to validate")
     if not res.ok:
         return LoadResult("invalid", errors=res.errors, warnings=res.warnings,
                           reason="failed validation: " + ", ".join(res.codes()))

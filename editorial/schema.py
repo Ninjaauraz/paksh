@@ -45,12 +45,23 @@ BASE_KEYS = ("title_en", "title_hi", "teaser_en", "teaser_hi")
 
 ACTIONS = ("pin", "hide", "feature")
 
-STORY_ID_RE = re.compile(r"^[1-9][0-9]{0,11}$")
-PLACEMENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
-SCOPE_RE = re.compile(r"^(home|section:[a-z0-9]+(-[a-z0-9]+)*)$")
-SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+# All patterns are STRICT: ASCII only (re.ASCII, and explicit [0-9] classes), and they are always
+# applied with .fullmatch(). A '$' anchor would also accept a trailing newline ("5\n") and '\d'
+# would accept non-ASCII digits (Devanagari, fullwidth); neither is wanted in an identifier,
+# scope, fingerprint or timestamp. Do not "simplify" these back to match()/'$'.
+_A = re.ASCII
+STORY_ID_RE = re.compile(r"[1-9][0-9]{0,11}", _A)
+PLACEMENT_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}", _A)
+SCOPE_RE = re.compile(r"home|section:[a-z0-9]+(?:-[a-z0-9]+)*", _A)
+SHA256_RE = re.compile(r"[0-9a-f]{64}", _A)
 _TS_RE = re.compile(
-    r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$")
+    r"([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})",
+    _A)
+
+# A real document is about 5 levels deep (document > stories > id > title > en). Anything deeper
+# than this is rejected up front, WITHOUT recursing, so a hostile document cannot raise
+# RecursionError out of the validator.
+MAX_DEPTH = 12
 
 # Keys that may never appear anywhere in an editorial document. These are the generated
 # analytical / evidence / bias fields (see database._event_summary_row, the per-story
@@ -100,10 +111,11 @@ class ValidationResult:
 
 def parse_utc(value):
     """Parse a strict ISO-8601 timestamp WITH an explicit offset into an aware UTC datetime.
-    Raises ValueError. (No datetime.fromisoformat: it varies across Python versions.)"""
+    Raises ValueError (and ONLY ValueError) for anything malformed or unrepresentable.
+    (No datetime.fromisoformat: it varies across Python versions.)"""
     if not isinstance(value, str):
         raise ValueError("timestamp must be a string")
-    m = _TS_RE.match(value)
+    m = _TS_RE.fullmatch(value)
     if not m:
         raise ValueError("timestamp must look like 2026-10-10T06:00:00Z (offset required)")
     y, mo, d, h, mi, s = (int(x) for x in m.groups()[:6])
@@ -117,7 +129,13 @@ def parse_utc(value):
             raise ValueError("bad UTC offset")
         off = sign * timedelta(hours=oh, minutes=om)
     dt = datetime(y, mo, d, h, mi, s, tzinfo=timezone(off))  # ValueError on impossible dates
-    return dt.astimezone(timezone.utc)
+    try:
+        return dt.astimezone(timezone.utc)
+    except OverflowError:
+        # e.g. 0001-01-01T00:00:00+05:00 or 9999-12-31T23:59:59-05:00: the local time is a
+        # valid datetime but its UTC equivalent falls outside datetime's supported range.
+        # Reject it as an ordinary validation failure; never let it escape as an exception.
+        raise ValueError("timestamp is outside the supported date range once converted to UTC")
 
 
 def _scan_protected(obj, path, res):
@@ -181,7 +199,7 @@ def _check_lang_obj(path, obj, maxlen, res, multiline=False):
 
 def _validate_story(sid, entry, res):
     path = "stories.%s" % sid
-    if not STORY_ID_RE.match(sid):
+    if not STORY_ID_RE.fullmatch(sid):
         res.error(path, "bad_story_id", "story ids are plain positive integers (event ids)")
     if not isinstance(entry, dict):
         res.error(path, "type", "must be an object")
@@ -205,7 +223,7 @@ def _validate_story(sid, entry, res):
     for k, v in base.items():
         if k not in BASE_KEYS:
             res.error("%s.base.%s" % (path, k), "unknown_key", "not a fingerprintable field")
-        elif not (isinstance(v, str) and SHA256_RE.match(v)):
+        elif not (isinstance(v, str) and SHA256_RE.fullmatch(v)):
             res.error("%s.base.%s" % (path, k), "bad_fingerprint", "must be a lowercase sha256 hex")
         elif k not in overridden:
             res.warn("%s.base.%s" % (path, k), "orphan_base", "fingerprint for a field that is not overridden")
@@ -267,17 +285,17 @@ def _validate_placements(placements, res):
                                   "starts_at", "ends_at", "note"}):
             res.error("%s.%s" % (path, k), "unknown_key", "not a placement field")
         pid = p.get("id")
-        if not (isinstance(pid, str) and PLACEMENT_ID_RE.match(pid)):
+        if not (isinstance(pid, str) and PLACEMENT_ID_RE.fullmatch(pid)):
             res.error(path + ".id", "bad_placement_id", "must match [a-z0-9][a-z0-9_-]{0,39}")
         elif pid in seen_ids:
             res.error(path + ".id", "duplicate_id", "placement id '%s' is used twice" % pid)
         else:
             seen_ids.add(pid)
         scope = p.get("scope")
-        if not (isinstance(scope, str) and SCOPE_RE.match(scope)):
+        if not (isinstance(scope, str) and SCOPE_RE.fullmatch(scope)):
             res.error(path + ".scope", "bad_scope", "must be 'home' or 'section:<slug>'")
         sid = p.get("story_id")
-        if not (isinstance(sid, str) and STORY_ID_RE.match(sid)):
+        if not (isinstance(sid, str) and STORY_ID_RE.fullmatch(sid)):
             res.error(path + ".story_id", "bad_story_id",
                       "must be a stable story id string (digits), never a headline or position")
         action = p.get("action")
@@ -310,12 +328,39 @@ def _validate_placements(placements, res):
                           % (aa if ab == "hide" else ab, ia))
 
 
+def _too_deep(obj, limit):
+    """True if `obj` nests deeper than `limit` containers. ITERATIVE (explicit stack), so it
+    cannot itself hit the interpreter's recursion limit however hostile the input is."""
+    stack = [(obj, 1)]
+    seen = 0
+    while stack:
+        cur, d = stack.pop()
+        if isinstance(cur, dict):
+            kids = cur.values()
+        elif isinstance(cur, (list, tuple)):
+            kids = cur
+        else:
+            continue
+        if d > limit:
+            return True
+        seen += 1
+        if seen > 200000:           # absurdly large: treat as hostile rather than walk it all
+            return True
+        for k in kids:
+            if isinstance(k, (dict, list, tuple)):
+                stack.append((k, d + 1))
+    return False
+
+
 def validate_document(doc):
     """Validate an editorial document (already parsed JSON). Returns a ValidationResult.
     Never raises on bad input: every problem becomes an error entry."""
     res = ValidationResult()
     if not isinstance(doc, dict):
         res.error("", "type", "the document must be a JSON object")
+        return res
+    if _too_deep(doc, MAX_DEPTH):
+        res.error("", "too_deep", "the document is nested deeper than %d levels or is implausibly large" % MAX_DEPTH)
         return res
     _scan_protected(doc, "", res)
     ver = doc.get("schema_version")
