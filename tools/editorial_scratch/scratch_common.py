@@ -13,6 +13,12 @@ PATH MODEL
   it cannot resolve links; the Windows self-test (test_editorial_scratch_windows.py) covers
   the filesystem-dependent properties on a real Windows machine.
 
+  On Windows the default (mod=None) resolves the deepest EXISTING ancestor through the OS
+  (CreateFileW + GetFinalPathNameByHandleW, fallback realpath + GetLongPathNameW), so 8.3 short
+  names, `subst`/mapped drives, junctions and symlinks collapse to one real location, and the
+  not-yet-existing tail is appended. NB `os.path is ntpath` on Windows: `mod=ntpath` is the only
+  way to ask for lexical behaviour, and `mod=None` the only way to ask for the filesystem.
+
   Windows alias handling that IS done lexically (any platform, `mod=ntpath`):
     * `\\\\?\\D:\\x` and `\\\\.\\D:\\x`  ->  `D:\\x`        (extended-length / device prefix)
     * `\\\\?\\UNC\\host\\share\\x`       ->  `\\\\host\\share\\x`
@@ -70,9 +76,9 @@ def local_host_names():
 _ADMIN_SHARE = re.compile(r"^\\\\([^\\]+)\\([A-Za-z])\$(?:\\(.*))?$")
 
 
-def lexical_windows(p, extra_hosts=()):
-    """Normalise one Windows-style path lexically: strip \\\\?\\ and \\\\.\\ prefixes, convert
-    local administrative-share UNC aliases to drive paths, collapse separators and dot segments."""
+def _lexical_nocase(p, extra_hosts=()):
+    """Case-PRESERVING lexical step: strip \\\\?\\ and \\\\.\\ prefixes, convert local
+    administrative-share UNC aliases to drive paths, collapse separators and dot segments."""
     s = str(p).replace("/", "\\")
     low = s.lower()
     if low.startswith("\\\\?\\unc\\") or low.startswith("\\\\.\\unc\\"):
@@ -82,35 +88,188 @@ def lexical_windows(p, extra_hosts=()):
     m = _ADMIN_SHARE.match(s)
     if m and m.group(1).lower() in (local_host_names() | {h.lower() for h in extra_hosts}):
         s = "%s:\\%s" % (m.group(2).upper(), m.group(3) or "")
-    return ntpath.normcase(ntpath.normpath(s))
+    return ntpath.normpath(s)
+
+
+def lexical_windows(p, extra_hosts=()):
+    """Normalise one Windows-style path lexically: strip \\\\?\\ and \\\\.\\ prefixes, convert
+    local administrative-share UNC aliases to drive paths, collapse separators and dot segments."""
+    return ntpath.normcase(_lexical_nocase(p, extra_hosts))
 
 
 def real(p, mod=None, extra_hosts=()):
-    """Canonical comparison form of a path (see the PATH MODEL note above)."""
-    if mod is None:
-        mod = os.path
-    if mod is ntpath:
-        return lexical_windows(p, extra_hosts)
-    if mod is os.path:
+    """Canonical comparison form of a path (see the PATH MODEL note above).
+
+    `mod=None` means "the platform this is running on, using the filesystem". It must be tested
+    BEFORE comparing against ntpath: on Windows `os.path is ntpath`, so defaulting `mod` to
+    os.path first made every default call purely lexical and left the resolving branch dead
+    (the cause of the 3e/3f/3g self-test failures: 8.3 names and `subst` drives never resolved).
+    An explicit `mod=ntpath` is always lexical, on every platform."""
+    if mod is None or (mod is os.path and os.name != "nt"):
         s = str(p)
         if os.name == "nt":
-            s = lexical_windows(s, extra_hosts)
-            s = _long_path(s)
+            return _windows_real(s, extra_hosts)
         return os.path.normcase(os.path.realpath(os.path.abspath(s)))
+    if mod is ntpath:
+        return lexical_windows(p, extra_hosts)
     return mod.normcase(mod.normpath(str(p)))
+
+
+# ---- Windows filesystem-aware resolution ---------------------------------------------------
+
+def _load_kernel32():
+    """kernel32 with explicit prototypes, loaded at IMPORT time so no DLL load happens later
+    inside an audit hook. A private WinDLL is used so the shared ctypes.windll prototypes are
+    never altered. Returns None off Windows or if loading fails."""
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        k.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+                                  wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p]
+        k.CreateFileW.restype = ctypes.c_void_p
+        k.GetFinalPathNameByHandleW.argtypes = [ctypes.c_void_p, wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD]
+        k.GetFinalPathNameByHandleW.restype = wintypes.DWORD
+        k.CloseHandle.argtypes = [ctypes.c_void_p]
+        k.CloseHandle.restype = wintypes.BOOL
+        k.GetLongPathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        k.GetLongPathNameW.restype = wintypes.DWORD
+        k.GetShortPathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        k.GetShortPathNameW.restype = wintypes.DWORD
+        k.QueryDosDeviceW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        k.QueryDosDeviceW.restype = wintypes.DWORD
+        return k
+    except Exception:
+        return None
+
+
+_K32 = _load_kernel32()
+_INVALID_HANDLE = None
+if _K32 is not None:
+    import ctypes as _ct
+    _INVALID_HANDLE = _ct.c_void_p(-1).value       # INVALID_HANDLE_VALUE as ctypes reports it
 
 
 def _long_path(p):
     """Expand 8.3 short-name components for the part of the path that exists (Windows only)."""
-    if os.name != "nt":
+    if os.name != "nt" or _K32 is None:
         return p
     try:
         import ctypes
-        buf = ctypes.create_unicode_buffer(32768)
-        n = ctypes.windll.kernel32.GetLongPathNameW(str(p), buf, len(buf))
-        return buf.value if 0 < n < len(buf) else p
+        size = 32768
+        buf = ctypes.create_unicode_buffer(size)
+        n = _K32.GetLongPathNameW(str(p), buf, size)
+        return buf.value if 0 < n < size else p
     except Exception:
         return p
+
+
+def short_path(path):
+    """The 8.3 spelling of an EXISTING path (Windows), or None if none exists / 8.3 is disabled."""
+    if os.name != "nt" or _K32 is None:
+        return None
+    try:
+        import ctypes
+        buf = ctypes.create_unicode_buffer(32768)
+        n = _K32.GetShortPathNameW(str(path), buf, 32768)
+        if 0 < n < 32768 and buf.value.lower() != str(path).lower():
+            return buf.value
+    except Exception:
+        pass
+    return None
+
+
+def drive_aliases():
+    """Live drive-letter aliases that point INTO the filesystem: `subst` drives and mapped network
+    drives. Returns {"Z:": "<canonical target path>"}; real volumes are not listed. Windows only;
+    [] semantics elsewhere ({}). Enumerates A:..Z: with QueryDosDeviceW at call time, so it sees
+    mappings made after the process started. A letter that cannot be queried is skipped."""
+    out = {}
+    BS = chr(92)
+    NT_PREFIX = BS + "??" + BS          # \??\ : the NT namespace prefix QueryDosDevice returns
+    if os.name != "nt" or _K32 is None:
+        return out
+    import ctypes
+    for code in range(ord("A"), ord("Z") + 1):
+        letter = chr(code) + ":"
+        try:
+            buf = ctypes.create_unicode_buffer(4096)
+            n = _K32.QueryDosDeviceW(letter, buf, 4096)
+            if n == 0:
+                continue
+            first = buf.value                     # the first string of the multi-string is the live mapping
+        except Exception:
+            continue
+        if first.startswith(NT_PREFIX + "UNC" + BS):
+            out[letter] = "\\\\" + first[8:]
+        elif first.startswith(NT_PREFIX) and len(first) > 6 and first[5] == ":":
+            out[letter] = first[4:]
+    return out
+
+
+def _final_path_by_handle(path):
+    """The fully resolved path of an EXISTING file/dir as the OS itself sees it: follows
+    symlinks and junctions, expands 8.3 names, resolves `subst`/mapped drives to the real volume
+    path. Returns None if it cannot be opened (caller falls back)."""
+    if _K32 is None:
+        return None
+    import ctypes
+    # FILE_READ_ATTRIBUTES, share read|write|delete, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS
+    h = _K32.CreateFileW(str(path), 0x80, 0x7, None, 3, 0x02000000, None)
+    if h is None or h == _INVALID_HANDLE:
+        return None
+    try:
+        size = 1024
+        for _ in range(3):
+            buf = ctypes.create_unicode_buffer(size)
+            n = _K32.GetFinalPathNameByHandleW(h, buf, size, 0)   # 0 = DOS volume name, normalized
+            if n == 0:
+                return None
+            if n < size:
+                return buf.value
+            size = n + 1
+        return None
+    finally:
+        _K32.CloseHandle(h)
+
+
+def _resolve_existing(path):
+    """Resolve an existing path to its real location. Handle-based first; if that cannot open
+    the object (access denied, dangling link) fall back to os.path.realpath + 8.3 expansion. If
+    BOTH fail to move the path nothing worse than the lexical form is returned, but that is the
+    same string the caller already holds, never a guess about a different location."""
+    fp = _final_path_by_handle(path)
+    if fp:
+        return fp
+    try:
+        return _long_path(os.path.realpath(path))
+    except (OSError, ValueError):
+        return str(path)
+
+
+def _windows_real(p, extra_hosts=()):
+    """Canonical form on a real Windows filesystem: lexical clean-up (prefixes, admin shares,
+    separators, `.`/`..`), then the DEEPEST EXISTING ancestor is resolved through the OS (so 8.3
+    short names, `subst`/mapped drives, junctions and symlinks collapse to one real location) and
+    the not-yet-existing tail is re-attached, then the same lexical clean-up runs again (a
+    resolved path may itself be \\\\?\\UNC\\localhost\\C$\\...). Case-folded last."""
+    s = _lexical_nocase(p, extra_hosts)
+    if not ntpath.isabs(s):
+        s = ntpath.normpath(ntpath.abspath(s))
+    cur, tail = s, []
+    while not os.path.lexists(cur):
+        parent, name = ntpath.split(cur)
+        if not name or parent == cur:          # reached a root that does not exist
+            cur = None
+            break
+        tail.insert(0, name)
+        cur = parent
+    if cur is not None:
+        cur = _resolve_existing(cur)
+        s = ntpath.join(cur, *tail) if tail else cur
+    return ntpath.normcase(_lexical_nocase(s, extra_hosts))
 
 
 def _sep(mod):

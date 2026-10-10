@@ -174,16 +174,43 @@ check("1w-p: an alias of a protected root equals the root", C.same("\\\\localhos
 check("1w-q: overlaps works on Windows syntax", C.overlaps("D:\\Paksh_Data", "d:/paksh_data/backups", mod=ntpath))
 check("1w-r: doc-style scratch path below another drive is not under D:", not under("E:\\paksh_scratch\\editorial_test\\run1\\repo"))
 
-print("1l. symlinks, reparse points, git ancestors")
+def mklink_dir(link, target):
+    """Directory link without privilege: a symlink where permitted, else (Windows account without
+    the symlink privilege) an NTFS junction via `mklink /J`, which needs none. Raises OSError."""
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return "symlink"
+    except (OSError, NotImplementedError):
+        if os.name != "nt":
+            raise
+    r = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise OSError("mklink /J failed: %s" % (r.stderr or r.stdout).strip()[:120])
+    return "junction"
+
+
+def file_symlink(link, target):
+    try:
+        os.symlink(str(target), str(link))
+        return True
+    except (OSError, NotImplementedError):
+        return False
+
+
+print("1l. symlinks, junctions, reparse points, git ancestors")
 lroot = mk("links"); tgt = mk("links_target"); write(tgt / "keep.txt", "k")
 try:
-    os.symlink(str(tgt), str(lroot / "dirlink")); os.symlink(str(tgt / "keep.txt"), str(lroot / "filelink"))
+    LINK_KIND = mklink_dir(lroot / "dirlink", tgt)
     can_link = True
 except (OSError, NotImplementedError):
-    can_link = False
+    can_link, LINK_KIND = False, None
+HAVE_FILE_LINK = can_link and file_symlink(lroot / "filelink", tgt / "keep.txt")
+_expect_links = {"dirlink", "filelink"} if HAVE_FILE_LINK else {"dirlink"}
 if can_link:
-    check("1l-a: is_link_or_reparse sees a directory symlink and a file symlink", C.is_link_or_reparse(lroot / "dirlink") and C.is_link_or_reparse(lroot / "filelink"))
-    check("1l-b: links_in_tree reports both and does not follow them", {Path(x).name for x in C.links_in_tree(lroot)} == {"dirlink", "filelink"})
+    print("  (directory links are %ss; file symlinks %s)" % (LINK_KIND, "available" if HAVE_FILE_LINK else "NOT permitted for this account, file-link checks skipped"))
+    check("1l-a: is_link_or_reparse sees a directory link" + (" and a file symlink" if HAVE_FILE_LINK else ""),
+          C.is_link_or_reparse(lroot / "dirlink") and (C.is_link_or_reparse(lroot / "filelink") if HAVE_FILE_LINK else True))
+    check("1l-b: links_in_tree reports them and does not follow them", {Path(x).name for x in C.links_in_tree(lroot)} == _expect_links)
     check("1l-c: a link inside a PRUNED folder name is still reported (the link itself), contents are not walked",
           any("dirlink" in x for x in C.links_in_tree(lroot, prune_dirs={"dirlink"})))
     check("1l-d: linked_ancestors flags a path that sits under a symlink", bool(C.linked_ancestors(lroot / "dirlink" / "x")))
@@ -366,11 +393,16 @@ if shutil.which("node"):
     check("3m: a REAL node launch (real POSIX event shape, scratch cwd) passes the allowlist end to end", rc == 0 and "SURVIVED" in out, lg or out)
 else:
     print("  3m: skipped (node not installed)")
-fake_tw = GS / "repo" / "vendor" / "tailwindcss"
+# A "#!/bin/sh" file cannot be launched by CreateProcess (WinError 193), so on Windows the stand-in
+# programs are .cmd batch files. The guard decision (exact allowlisted path, sibling refused,
+# protected argument refused) is made on the subprocess.Popen audit event BEFORE the OS launches
+# anything, so 3n-3p test the same rules on both platforms.
+_WIN = os.name == "nt"
+fake_tw = GS / "repo" / "vendor" / ("tailwindcss.cmd" if _WIN else "tailwindcss")
 fake_tw.parent.mkdir(parents=True, exist_ok=True)
-fake_tw.write_text("#!/bin/sh\nexit 0\n"); fake_tw.chmod(0o755)
-evil = GS / "repo" / "vendor" / "evil"
-evil.write_text("#!/bin/sh\nexit 0\n"); evil.chmod(0o755)
+fake_tw.write_text("@exit /b 0\r\n" if _WIN else "#!/bin/sh\nexit 0\n"); fake_tw.chmod(0o755)
+evil = GS / "repo" / "vendor" / ("evil.cmd" if _WIN else "evil")
+evil.write_text("@exit /b 0\r\n" if _WIN else "#!/bin/sh\nexit 0\n"); evil.chmod(0o755)
 rc, out, lg = run_hook("import subprocess; subprocess.run([%r, '--minify'], check=True)" % str(fake_tw), str(fake_tw))
 check("3n: the exact allowlisted Tailwind path (real subprocess) is allowed", rc == 0 and "SURVIVED" in out, lg or out)
 rc, out, lg = run_hook("import subprocess; subprocess.run([%r], check=True)" % str(evil), str(fake_tw))
@@ -511,8 +543,16 @@ check("4p-i: a scratch root that overlaps an EXTRA protected root is refused", "
 
 print("4r. refusals: roots, backups, links, disk")
 nov = make_source(TMP / "src_novendor"); shutil.rmtree(str(nov / "vendor"))
-check("4r-a: init refuses a scratch root that is shallow", "shallow" in (refuses(INIT, "/x") or ""))
-check("4r-b: ...naming the folder depth it needs", "folder levels" in (refuses(INIT, "/x") or ""))
+# "/x" is absolute on POSIX but has no drive on Windows, where it is (correctly) refused as NOT
+# ABSOLUTE - a different rule. abspath("/x") is "/x" on POSIX and "<current drive>:\x" on Windows:
+# absolute and one level deep on both, so the depth rule is what is being tested.
+SHALLOW = os.path.abspath("/x")
+check("4r-pre: the shallow fixture is absolute and exactly one level deep on this platform",
+      os.path.isabs(SHALLOW) and C.depth(SHALLOW) == 1, SHALLOW)
+check("4r-a: init refuses a scratch root that is shallow", "shallow" in (refuses(INIT, SHALLOW) or ""))
+check("4r-b: ...naming the folder depth it needs", "folder levels" in (refuses(INIT, SHALLOW) or ""))
+check("4r-c0: control - a relative path is refused as NOT absolute (the rule that '/x' hit on Windows)",
+      "absolute" in (refuses(INIT, "relative_dir") or ""))
 check("4r-c: init refuses a non-empty scratch root", why(refuses(INIT, root), "already exists and is not empty"))
 check("4r-d: init refuses a scratch root inside the production data dir", "overlaps" in (refuses(INIT, PRODDATA / "s" / "t") or ""))
 check("4r-e: ...inside the production repo", "overlaps" in (refuses(INIT, PRODREPO / "x" / "y") or ""))
@@ -540,14 +580,17 @@ P.SLACK_BYTES = 10 ** 18
 check("4r-o: init refuses when the drive lacks backup + 2 x _site + headroom (the documented formula)", "free disk space" in (tryit() or ""))
 P.SLACK_BYTES = 1024
 if can_link:
-    srcl = make_source(TMP / "src_linked"); os.symlink(str(tgt), str(srcl / "static" / "sneaky"))
+    srcl = make_source(TMP / "src_linked"); mklink_dir(srcl / "static" / "sneaky", tgt)
     check("4r-p: a symlink inside the source tree (outside excluded folders) is refused", "symlink" in (tryit(src=str(srcl)) or ""))
-    srcl2 = make_source(TMP / "src_linked2"); os.symlink(str(tgt), str(srcl2 / "_site" / "alias"))
+    srcl2 = make_source(TMP / "src_linked2"); mklink_dir(srcl2 / "_site" / "alias", tgt)
     l4, _ = INIT(TMP / "w" / "linkok")
     check("4r-q: ...but links inside excluded folders (never copied) do not block (control)", l4 is not None)
-    blink = TMP / "backup_link.db"; os.symlink(str(BACKUP), str(blink))
-    check("4r-r: a symlinked backup file is refused", "symlink" in (tryit(backup=str(blink)) or ""))
-    realroot = mk("realparent"); os.symlink(str(realroot), str(TMP / "linkparent"))
+    blink = TMP / "backup_link.db"
+    if file_symlink(blink, BACKUP):
+        check("4r-r: a symlinked backup file is refused", "symlink" in (tryit(backup=str(blink)) or ""))
+    else:
+        print("  4r-r: skipped (file symlinks need a privilege this account lacks; junctions are directory-only)")
+    realroot = mk("realparent"); mklink_dir(TMP / "linkparent", realroot)
     check("4r-s: a scratch root under a symlinked folder is refused", "symlink" in (refuses(INIT, TMP / "linkparent" / "a" / "b") or ""))
 else:
     print("  4r-p..s: skipped (cannot create symlinks here)")
@@ -609,9 +652,9 @@ check("4zi: --min-free-gb can raise but never lower the requirement", any("GB fr
 moved = dict(layout, production_data_dir=str(mk("moved_prod")))
 check("4zj: if the protected production dir no longer carries the marker (typo/unmounted), preflight refuses", any("production marker" in e for e in PF.preflight(moved, tools_dir=layout["tools"])[0]))
 if can_link:
-    os.symlink(str(tgt), str(repo / "static" / "aliaslink"))
+    mklink_dir(repo / "static" / "aliaslink", tgt)
     check("4zk: a symlink appearing inside the scratch tree is refused by preflight", any("symlink" in e for e in pre()[0]))
-    os.unlink(str(repo / "static" / "aliaslink"))
+    C.remove_link_only(repo / "static" / "aliaslink")
 os.environ.clear(); os.environ.update(OK_ENV)
 
 print("5. production manifests: three-state result and baseline validation")
@@ -729,13 +772,13 @@ tampered["protected_roots"] = [r for r in tampered["protected_roots"] if r != st
 (c_root / "scratch_layout.json").write_text(json.dumps(tampered))
 if can_link:
     vict = mk("cleanup_victim"); write(vict / "important.txt", "important")
-    os.symlink(str(vict), str(c_root / "tmp"))
+    mklink_dir(c_root / "tmp", vict)
     r = refuses(P.cleanup, str(c_root), str(c_root))
     check("6g: a symlink INSIDE the root makes cleanup refuse before deleting anything", why(r, str(c_root / "tmp"), "inside the scratch root", "Nothing was deleted") and not any(w in r for w in ("sits under", "overlaps", "unexpected item")) and c_root.exists() and (c_root / "repo").exists() and (vict / "important.txt").exists(), str(r))
-    os.unlink(str(c_root / "tmp"))
-    lr = TMP / "work" / "linked_root_alias"; os.symlink(str(c_root), str(lr))
+    C.remove_link_only(c_root / "tmp")
+    lr = TMP / "work" / "linked_root_alias"; mklink_dir(lr, c_root)
     check("6h: cleanup via a symlinked path to the root is refused", why(refuses(P.cleanup, str(lr), str(lr)), "is, or sits under") and c_root.exists() and (c_root / "repo").exists())
-    os.unlink(str(lr))
+    C.remove_link_only(lr)
 os.lstat = fake_lstat
 fake_target = str(c_root / "logs" / "reparse_dir"); os.mkdir(fake_target)
 try:

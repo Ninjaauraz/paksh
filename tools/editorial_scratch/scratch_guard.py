@@ -30,15 +30,26 @@ THREAD SAFETY
   updated under a lock. (An earlier version used one shared flag, which silently skipped events
   from other threads while one thread was inside the hook.)
 
+THE COMMAND-LINE SCAN IS A TRIPWIRE, NOT A CONTAINMENT
+  The text scan for a protected root catches a protected path SPELLED OUT in a command line or
+  environment value (raw, canonical, 8.3, doubled-backslash source escaping, and any live `subst` /
+  mapped-drive spelling, enumerated at launch time). It cannot stop a child that BUILDS a path
+  (string concatenation, path.join with `..`, a path read from a file, an environment lookup), and
+  node can do all of that; the audit hook cannot see a child's file operations. The scan therefore
+  does NOT make an allowlisted `node` launch safe. Restricting what node may execute needs a
+  separate, reviewed launcher-level control (pinned script and code digests); none exists yet.
+
 WHAT IT DOES NOT DO (see docs/EDITORIAL_WINDOWS_SCRATCH_TEST.md)
   * It cannot see what a CHILD process does (node, tailwindcss.exe): only that it was launched,
     from where, with what command line. Child file activity needs OS-level monitoring (Process Monitor).
   * It only sees operations that raise audit events. Some do not (e.g. os.stat, native extension
     code, ctypes/WinAPI calls, file handles inherited or duplicated from elsewhere).
   * Paths are compared after realpath() (on Windows also: \\\\?\\ prefix stripping, local admin-share
-    UNC aliases, 8.3 expansion for existing paths). Aliases it cannot know about - a custom-named
-    share of a protected folder, a `subst`/mapped drive in some configurations - are a residual
-    risk; Process Monitor and the production manifests are the backstop.
+    UNC aliases, and 8.3 names / `subst` / mapped drives / junctions resolved through the OS for
+    paths that exist). A custom-named network share of a protected folder is NOT knowable here and
+    is a residual risk; Process Monitor and the production manifests are the backstop.
+  * A child process's own file operations are never seen. The command-line scan is a tripwire for
+    spelled-out paths only (see "NODE AND THE COMMAND-LINE SCAN"); it cannot contain `node`.
   * Audit hooks cannot be removed once installed; install in the launcher process only.
   * It adds per-event cost (path canonicalisation, tens of microseconds per event on Linux; more on
     Windows), so wall-clock numbers measured under the guard are slightly inflated.
@@ -52,7 +63,7 @@ import threading
 import time
 from collections import Counter
 
-from scratch_common import is_under, real
+from scratch_common import drive_aliases, is_under, real, short_path
 
 _WRITE_FLAGS = 0
 for _n in ("O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC", "O_APPEND"):
@@ -198,6 +209,22 @@ def _scan_forms(root, policy):
     except (OSError, ValueError):
         pass
     forms.add(str(root).lower().rstrip("\\/"))
+    if policy.mod is None and os.name == "nt":
+        # Spellings the lexical forms above cannot produce: the 8.3 form of the root, and every
+        # live `subst`/mapped-drive spelling of it (Z:\Paksh_Data when Z: maps C:\...\ or D:\).
+        # Both are evaluated NOW (not cached), so a mapping created after start-up is seen at the
+        # next launch. A mapping created AFTER a launch by a child process is not (see module doc).
+        try:
+            sp = short_path(root)
+            if sp:
+                forms.add(sp.replace("/", "\\").lower().rstrip("\\"))
+            rr = real(root, None).rstrip("\\/")
+            for letter, target in drive_aliases().items():
+                tt = real(target, None).rstrip("\\/")
+                if rr == tt or rr.startswith(tt + "\\"):
+                    forms.add((letter + rr[len(tt):]).lower().rstrip("\\"))
+        except (OSError, ValueError):
+            pass
     return {f for f in forms if f}
 
 
@@ -218,18 +245,34 @@ def _collapse_dots(low):
 
 def _text_mentions_protected(text, policy):
     """Does the raw text mention a protected root, whatever slash style, case, \\\\?\\ prefix or
-    local admin-share spelling it uses? Boundaries are enforced so D:\\Paksh_Data2 is not D:\\Paksh_Data."""
+    local admin-share spelling it uses? Boundaries are enforced so D:\\Paksh_Data2 is not D:\\Paksh_Data.
+
+    The text is scanned in TWO forms: as written, and with every run of backslashes collapsed to
+    one. The second form exists because source code escapes the separator ('C:\\\\Paksh_Data\\\\x'
+    in a JavaScript or Python string literal is a doubled backslash on the command line), which a
+    one-backslash root form would otherwise never match."""
     if not text:
         return None
     flat = text.replace("/", "\\")
+    for variant, lead in ((flat, r"\\\\"), (re.sub(r"\\{2,}", r"\\", flat), r"\\+")):
+        hit = _scan_one_form(variant, lead, policy)
+        if hit:
+            return hit
+    return None
+
+
+def _scan_one_form(flat, lead, policy):
+    """`lead` is the regex for the leading backslashes of a UNC spelling (exactly two as written;
+    one or more in the collapsed form)."""
     low = flat.lower()
     # strip extended-length / device prefixes wherever they appear, then rewrite local admin-share aliases
     low = low.replace("\\\\?\\unc\\", "\\\\").replace("\\\\?\\", "").replace("\\\\.\\", "")
-    low = re.sub(r"\\\\(?:" + "|".join(re.escape(h) for h in ("localhost", "127.0.0.1", "[::1]")) +
+    low = low.replace("\\?\\unc\\", "\\").replace("\\?\\", "")        # the collapsed spelling of the same prefixes
+    low = re.sub(lead + r"(?:" + "|".join(re.escape(h) for h in ("localhost", "127.0.0.1", "[::1]")) +
                  r")\\([a-z])\$", lambda m: m.group(1) + ":", low)
     try:
         import platform as _pl
-        low = re.sub(r"\\\\" + re.escape(_pl.node().lower()) + r"\\([a-z])\$", lambda m: m.group(1) + ":", low)
+        low = re.sub(lead + re.escape(_pl.node().lower()) + r"\\([a-z])\$", lambda m: m.group(1) + ":", low)
     except Exception:
         pass
     low = _collapse_dots(low)

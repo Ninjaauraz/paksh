@@ -50,7 +50,47 @@ def check(label, cond, detail=""):
 
 
 BASE = Path(os.path.realpath(tempfile.mkdtemp(prefix="paksh_wlogic_")))
-POSIX = W.posix_link_ops()
+
+
+def mklink_dir(link, target):
+    """Directory link WITHOUT privilege: a POSIX/dir symlink where allowed, else (Windows account
+    without the symlink privilege) an NTFS junction via `mklink /J`, which needs no privilege."""
+    try:
+        os.symlink(str(target), str(link), target_is_directory=True)
+        return "symlink"
+    except OSError:
+        if os.name != "nt":
+            raise
+    ok, detail = W.windows_link_ops().make(link, target)
+    if not ok:
+        raise OSError("cannot create a directory link by symlink or junction: %s" % detail)
+    return "junction"
+
+
+def rmlink(link):
+    C.remove_link_only(link)
+
+
+def file_symlink_ok(link, target):
+    """File symlinks need the symlink privilege on Windows and have no unprivileged equivalent
+    (junctions are directory-only): returns False when they cannot be made, so callers skip."""
+    try:
+        os.symlink(str(target), str(link))
+        return True
+    except OSError:
+        return False
+
+
+_probe = BASE / "_probe_target"; _probe.mkdir()
+try:
+    os.symlink(str(_probe), str(BASE / "_probe_link"), target_is_directory=True)
+    os.unlink(str(BASE / "_probe_link"))
+    CAN_SYMLINK = True
+except OSError:
+    CAN_SYMLINK = False
+# On Windows without the symlink privilege the end-to-end section A runs with REAL junctions, so
+# the 1a (reparse attribute) check is exercised for real instead of skipped.
+POSIX = W.posix_link_ops() if CAN_SYMLINK else W.windows_link_ops()
 _n = [0]
 
 
@@ -83,8 +123,12 @@ run_all(R, tmp, decoy, POSIX, b)
 W.cleanup_selftest(R, tmp, decoy, b, POSIX)
 check("A2: with a correct implementation EVERY check passes", R.failures == [], str(R.failures))
 check("A3: ...a substantial number of checks really ran (not vacuous)", len(R.ran) >= 30, str(len(R.ran)))
-check("A4: ...only the junction-ATTRIBUTE check is skipped (it needs a real junction), it is not 'required', and says UNVERIFIED",
-      [s[0] for s in R.skips] == ["1a"] and not R.incomplete and any("UNVERIFIED" in s[1] for s in R.skips))
+if POSIX.real_junction:
+    check("A4: with REAL junctions (Windows, no symlink privilege) only the optional 1f (dir-symlink needs privilege) may be skipped and the attribute check 1a ran",
+          [x[0] for x in R.skips] in ([], ["1f"]) and not R.incomplete and any(x.startswith("1a:") for x in R.ran), str(R.skips))
+else:
+    check("A4: ...only the junction-ATTRIBUTE check is skipped (it needs a real junction), it is not 'required', and says UNVERIFIED",
+          [s[0] for s in R.skips] == ["1a"] and not R.incomplete and any("UNVERIFIED" in s[1] for s in R.skips))
 check("A5: exit code 0 only because nothing failed and nothing required was skipped", R.exit_code() == 0)
 check("A6: both self-test folders are gone afterwards", not tmp.exists() and not decoy.exists())
 for lab in ("1-ctl-a", "1-live", "1c", "1c2", "1d", "1d2", "2-ctl", "2a", "2a2", "2a3", "2a4", "2b", "2c", "2d", "9a", "9b", "9c", "9d", "9e"):
@@ -95,7 +139,7 @@ check("A7: every named junction/cleanup check ran", True)
 # ---------------------------------------------------------------------------------------------
 print("B. a redirected %TEMP% must be detected and must not let the junction checks pass for the wrong reason")
 realp = BASE / "real_parent"; realp.mkdir()
-redir = BASE / "redir"; os.symlink(str(realp), str(redir), target_is_directory=True)
+redir = BASE / "redir"; mklink_dir(redir, realp)
 R, lines = quiet()
 check("B1: gate_base refuses a base that IS a link", W.gate_base(R, redir) is False)
 check("B2: ...as a REQUIRED skip, so the run is INCOMPLETE (exit 3), not a pass", R.incomplete and R.exit_code() == 3)
@@ -121,7 +165,7 @@ check("B9: ...and the 'refused for THE intended reason' check FAILS", any(f.star
 # the OLD assertions would have passed here: prove the old design was a false positive
 bad_root = W.make_scratch_root(tmp_r, "oldstyle", tmp_r / "pa", tmp_r / "pb")
 vict = tmp_r / "oldvictim"; vict.mkdir()
-os.symlink(str(vict), str(bad_root / "data"), target_is_directory=True)
+mklink_dir(bad_root / "data", vict)
 try:
     P.cleanup(str(bad_root), str(bad_root)); old_msg = ""
 except C.Refusal as e:
@@ -298,7 +342,7 @@ R, lines = quiet()
 res = W.cleanup_selftest(R, notours, dd, eb, POSIX)
 check("E3: a folder without the self-test prefix is NOT deleted, and the check fails", res is False and notours.exists() and any(f.startswith("9-pre") for f in R.failures), str(R.failures))
 real_dir = Path(tempfile.mkdtemp(prefix="paksh_victim_", dir=str(eb))); (real_dir / "important.txt").write_text("imp")
-linked_tmp = eb / (W.PREFIX + "linked"); os.symlink(str(real_dir), str(linked_tmp), target_is_directory=True)
+linked_tmp = eb / (W.PREFIX + "linked"); mklink_dir(linked_tmp, real_dir)
 R, lines = quiet()
 res = W.cleanup_selftest(R, linked_tmp, dd, eb, POSIX)
 check("E4: a temp folder that is itself a link is NOT followed or deleted", res is False and (real_dir / "important.txt").exists() and any(f.startswith("9-pre") for f in R.failures), str(R.failures))
@@ -423,14 +467,17 @@ vict = sb / "victim"; (vict / "deep").mkdir(parents=True); (vict / "deep" / "v.t
 
 # S1 symlinks (directory and file) are reported, never descended
 tree1 = sb / "t1"; (tree1 / "real").mkdir(parents=True); (tree1 / "real" / "f.txt").write_text("f")
-os.symlink(str(vict), str(tree1 / "dlink"), target_is_directory=True)
-os.symlink(str(vict / "top.txt"), str(tree1 / "flink"))
+mklink_dir(tree1 / "dlink", vict)
+HAVE_FLINK = file_symlink_ok(tree1 / "flink", vict / "top.txt")
+if not HAVE_FLINK:
+    print("  (file symlink not permitted for this account: only the directory link is exercised in S1)")
+EXPECT_LINKS = ["dlink", "flink"] if HAVE_FLINK else ["dlink"]
 seen = []
 for dp, dn, fn, lk in C.walk_nolinks(tree1):
     seen.append((os.path.relpath(dp, str(tree1)), sorted(dn), sorted(fn), sorted(os.path.relpath(x, str(tree1)) for x in lk)))
 flat_files = [f for _, _, fs, _ in seen for f in fs]
-check("S1: walk_nolinks reports directory and file links, never lists the target's files", sorted(l for _, _, _, ls in seen for l in ls) == ["dlink", "flink"] and "v.txt" not in flat_files and "top.txt" not in flat_files, str(seen))
-check("S1b: links_in_tree agrees and prune_dirs still works", sorted(os.path.relpath(x, str(tree1)) for x in C.links_in_tree(tree1)) == ["dlink", "flink"] and C.links_in_tree(tree1, prune_dirs=("real",)) != [])
+check("S1: walk_nolinks reports directory and file links, never lists the target's files", sorted(l for _, _, _, ls in seen for l in ls) == EXPECT_LINKS and "v.txt" not in flat_files and "top.txt" not in flat_files, str(seen))
+check("S1b: links_in_tree agrees and prune_dirs still works", sorted(os.path.relpath(x, str(tree1)) for x in C.links_in_tree(tree1)) == EXPECT_LINKS and C.links_in_tree(tree1, prune_dirs=("real",)) != [])
 check("S1c: a link ROOT is reported as the only link, nothing walked", list(C.walk_nolinks(tree1 / "dlink")) == [(str(tree1 / "dlink"), [], [], [str(tree1 / "dlink")])])
 
 # S2 a FAKE JUNCTION: a real directory that presents the reparse attribute (how a junction looks on Windows)
@@ -464,9 +511,9 @@ try:
     d_before = M._tree_digest(tree2)
     (fj / "inside.txt").write_text("changed through the junction")
     check("S2e: the manifest digest does not read through it (a change inside does not alter the digest) ...", M._tree_digest(tree2)["digest"] == d_before["digest"])
-    ln = tree2 / "extra_link"; os.symlink(str(vict), str(ln), target_is_directory=True)
+    ln = tree2 / "extra_link"; mklink_dir(ln, vict)
     check("S2f: ...but ADDING a link changes the digest (links are recorded by name)", M._tree_digest(tree2)["digest"] != d_before["digest"])
-    os.unlink(str(ln))
+    rmlink(ln)
 
     # safe_rmtree refuse mode: nothing deleted
     res, err = W._call(C.safe_rmtree, str(tree2))
@@ -502,14 +549,14 @@ finally:
 
 # S8 symlink: refuse, then detach leaves the victim intact
 tree3 = sb / "t3"; (tree3 / "a").mkdir(parents=True); (tree3 / "a" / "x.txt").write_text("x")
-os.symlink(str(vict), str(tree3 / "a" / "lnk"), target_is_directory=True)
+mklink_dir(tree3 / "a" / "lnk", vict)
 res, err = W._call(C.safe_rmtree, str(tree3))
 check("S8: refuse mode with a symlink: Refusal, nothing deleted", isinstance(err, C.Refusal) and (tree3 / "a" / "x.txt").exists() and (vict / "deep" / "v.txt").exists(), repr(err))
 res, err = W._call(C.safe_rmtree, str(tree3), "detach")
 check("S9: detach mode removes the symlink ITSELF and the tree, never the target", err is None and res == 1 and not tree3.exists() and (vict / "deep" / "v.txt").exists() and (vict / "top.txt").exists(), repr(err))
-os.symlink(str(vict), str(sb / "rootlink"), target_is_directory=True)
+mklink_dir(sb / "rootlink", vict)
 res, err = W._call(C.safe_rmtree, str(sb / "rootlink"), "detach")
-check("S10: a link passed AS the root is always refused (even in detach mode) and the target survives", isinstance(err, C.Refusal) and (vict / "top.txt").exists() and os.path.islink(str(sb / "rootlink")), repr(err))
+check("S10: a link passed AS the root is always refused (even in detach mode) and the target survives", isinstance(err, C.Refusal) and (vict / "top.txt").exists() and C.is_link_or_reparse(sb / "rootlink"), repr(err))
 res, err = W._call(C.remove_link_only, str(vict))
 check("S11: remove_link_only refuses a real directory", isinstance(err, C.Refusal) and (vict / "top.txt").exists(), repr(err))
 (sb / "plain.txt").write_text("p")
@@ -518,7 +565,7 @@ check("S11b: ...and a real file", isinstance(err, C.Refusal) and (sb / "plain.tx
 res, err = W._call(C.safe_rmtree, str(sb / "plain.txt"))
 check("S11c: safe_rmtree on a FILE is an error, not a deletion of something unexpected", err is not None and (sb / "plain.txt").exists(), repr(err))
 check("S11d: bad mode is rejected", isinstance(W._call(C.safe_rmtree, str(sb), "force")[1], ValueError))
-os.unlink(str(sb / "rootlink"))
+rmlink(sb / "rootlink")
 
 # S12 a link that APPEARS while deleting is not followed
 race = sb / "race"; race.mkdir()
@@ -546,7 +593,7 @@ def hooked_unlink(p):
     if not state["done"]:
         state["done"] = True
         os.rename(str(sub), str(sub) + "_moved")
-        os.symlink(str(rvict), str(sub), target_is_directory=True)
+        mklink_dir(sub, rvict)
 
 
 C._unlink_file = hooked_unlink
@@ -557,16 +604,16 @@ finally:
     C._unlink_file = real_unlink
     os.scandir = real_scandir
 check("S12: a link that appears mid-deletion stops the deletion, is NOT followed and NOT removed, and the message says earlier deletions stand",
-      isinstance(err, C.Refusal) and "stopped" in str(err) and "earlier deletions" in str(err) and (rvict / "v.txt").exists() and os.path.islink(str(sub)), repr(err))
+      isinstance(err, C.Refusal) and "stopped" in str(err) and "earlier deletions" in str(err) and (rvict / "v.txt").exists() and C.is_link_or_reparse(sub), repr(err))
 
 # S13 init's failure path and _clear_children never delete through links
 cb, t, d = fresh()
 pre = t / "preexisting"; pre.mkdir(); (pre / "plain_dir").mkdir(); (pre / "plain_dir" / "a.txt").write_text("a")
-os.symlink(str(vict), str(pre / "linkdir"), target_is_directory=True)
+mklink_dir(pre / "linkdir", vict)
 (pre / "file.txt").write_text("f")
 P._clear_children(pre)
 check("S13: _clear_children removes ordinary children, leaves a link alone, and the link's target is intact",
-      not (pre / "plain_dir").exists() and not (pre / "file.txt").exists() and os.path.islink(str(pre / "linkdir")) and (vict / "top.txt").exists())
+      not (pre / "plain_dir").exists() and not (pre / "file.txt").exists() and C.is_link_or_reparse(pre / "linkdir") and (vict / "top.txt").exists())
 
 # ---------------------------------------------------------------------------------------------
 print("T. the earlier loose-assertion review (static): no remaining bare 'is not None' refusal checks in the tools test")
