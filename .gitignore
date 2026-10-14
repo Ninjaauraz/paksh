@@ -68,3 +68,6 @@ _og_preview/
 
 # Re-added 2026-10-14: present in the stale pre-incident working copy (recovery copy in C:/paksh_scratch/recovery)
 .env.local
+
+# runlocked reclaim guard + any stale-lock leftovers (2026-10-14 hardening)
+.pipeline.lock*

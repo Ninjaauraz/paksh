@@ -113,49 +113,131 @@ def _git_exe():
     return hits[0] if hits else None
 
 
-def _clear_stale_lock():
-    """A crashed git op - or GitHub Desktop stuck 'refreshing' - can leave
-    .git/index.lock behind, which silently blocks every commit (this has hung the
-    repo before). live.py is the PRIMARY deployer here (GitHub Desktop is the manual
-    backup), so clear a leftover lock before committing."""
-    lock = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".git", "index.lock")
-    if os.path.exists(lock):
-        try:
-            os.remove(lock)
-            _log("  (cleared stale .git/index.lock)")
-        except OSError as e:
-            _log(f"  ! could not remove .git/index.lock ({e}); close GitHub Desktop and retry")
+GIT_TIMEOUT_S = 180          # local git operations
+GIT_NET_TIMEOUT_S = 300      # fetch / push / ls-remote
+
+
+def _git(git, args, timeout=GIT_TIMEOUT_S):
+    """Run one git command with a bounded timeout. Returns (returncode, stdout, stderr);
+    a timeout or OS error is reported as returncode -1, never raised."""
+    try:
+        r = subprocess.run([git, *args], capture_output=True, text=True, timeout=timeout,
+                           cwd=os.path.dirname(os.path.abspath(__file__)))
+        return r.returncode, (r.stdout or ""), (r.stderr or "")
+    except subprocess.TimeoutExpired:
+        return -1, "", f"timeout after {timeout}s"
+    except OSError as e:
+        return -1, "", f"{type(e).__name__}: {e}"
+
+
+def _git_lock_present():
+    """True if .git/index.lock exists. This file is NEVER deleted automatically: its
+    owner cannot be established from here (GitHub Desktop, a hung git, another clone
+    operation), so the safe response is to skip this cycle's deploy and say why."""
+    return os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".git", "index.lock"))
 
 
 def _deploy():
-    """Commit and push the BUILT SITE so Vercel redeploys.
+    """Commit and push the BUILT SITE so Vercel redeploys. Returns a dict describing
+    exactly how far it got - states are reported separately and 'deployed' is only
+    claimed once the REMOTE branch head has been read back and equals our commit:
 
-    Stages and commits ONLY _site/ - never source (app.jsx, *.py), CLAUDE.md, or
-    hand edits. So a content cycle can NEVER accidentally ship a code/structural
-    change: deliberate code changes go out on purpose via GitHub Desktop (or a
-    manual `git add` + commit). This mirrors safe_autopush.py's guarantee.
-    This is the primary CONTENT deploy path; GitHub Desktop is the manual backup."""
+        commit_ok  - a local commit of _site/ was created (or nothing new to commit)
+        push_ok    - `git push` exited 0 within its timeout
+        remote_ok  - `git ls-remote` shows the remote branch head == our HEAD
+
+    (Vercel's own build is not observable from git; remote_ok means the push reached
+    GitHub, not that the site finished building.)
+
+    Stages and commits ONLY _site/ - never source (app.jsx, *.py), CLAUDE.md, or hand
+    edits. This is the primary CONTENT deploy path; GitHub Desktop is the manual backup.
+
+    Hardening (2026-10-14 incident review): no automatic lock deletion; every git call
+    is time-bounded and its exit code checked; no `pull --rebase --autostash` (which
+    could stash/rewrite uncommitted source work) - if the remote has moved ahead, the
+    deploy stops and asks for a manual integration; the push is verified by read-back."""
+    res = {"commit_ok": False, "push_ok": False, "remote_ok": False, "detail": ""}
     git = _git_exe()
     if not git:
-        _log("  ! git not found (PATH or GitHub Desktop). Skipping push; "
-             "deploy manually via GitHub Desktop.")
-        return
-    _clear_stale_lock()
+        res["detail"] = "git not found"
+        _log("  ! git not found (PATH or GitHub Desktop). Skipping push; deploy manually via GitHub Desktop.")
+        return res
+    if _git_lock_present():
+        res["detail"] = ".git/index.lock present"
+        _log("  ! .git/index.lock exists - Git may be active (GitHub Desktop or another git process). "
+             "NOT removing it automatically. Deploy skipped this cycle; close the other Git tool or "
+             "remove the lock yourself once you are sure no git process is running.")
+        return res
+
+    rc, out, err = _git(git, ["rev-parse", "--abbrev-ref", "HEAD"])
+    branch = out.strip()
+    if rc != 0 or not branch or branch == "HEAD":
+        res["detail"] = "cannot determine branch"
+        _log(f"  ! deploy skipped - cannot determine the current branch ({err.strip()[:120] or branch}).")
+        return res
+
     msg = "live refresh " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    # Stage only the built site. The '-- _site' pathspec on BOTH add and commit
-    # means that even if a source file was already staged by hand, it cannot ride
-    # along in this automated commit - only _site/ is ever committed here.
-    subprocess.run([git, "add", "--", "_site"])
-    commit = subprocess.run([git, "commit", "-m", msg, "--", "_site"], capture_output=True, text=True)
-    if "nothing to commit" in (commit.stdout or "") + (commit.stderr or ""):
+    rc, _o, err = _git(git, ["add", "--", "_site"])
+    if rc != 0:
+        res["detail"] = "git add failed"
+        _log(f"  ! deploy stopped - git add failed: {err.strip()[:200]}")
+        return res
+    rc, out, err = _git(git, ["commit", "-m", msg, "--", "_site"])
+    combined = out + err
+    nothing_new = "nothing to commit" in combined or "nothing added to commit" in combined
+    if rc != 0 and not nothing_new:
+        res["detail"] = "git commit failed"
+        _log(f"  ! deploy stopped - git commit failed: {combined.strip()[:200]}")
+        return res
+    res["commit_ok"] = True
+
+    # Never rewrite local history automatically: just detect whether the remote moved.
+    rc, _o, err = _git(git, ["fetch", "origin", branch], timeout=GIT_NET_TIMEOUT_S)
+    if rc != 0:
+        res["detail"] = "git fetch failed"
+        _log(f"  ! deploy stopped - git fetch failed or timed out: {err.strip()[:200]}")
+        return res
+    rc, out, err = _git(git, ["rev-list", "--left-right", "--count", f"HEAD...origin/{branch}"])
+    try:
+        ahead, behind = (int(x) for x in out.split())
+    except ValueError:
+        res["detail"] = "cannot compare with remote"
+        _log(f"  ! deploy stopped - cannot compare with origin/{branch}: {err.strip()[:200]}")
+        return res
+    if behind > 0:
+        res["detail"] = f"remote is {behind} commit(s) ahead"
+        _log(f"  ! deploy stopped - origin/{branch} has {behind} commit(s) this checkout lacks "
+             f"(a push from elsewhere). Integrate manually (GitHub Desktop); not rebasing automatically.")
+        return res
+    if nothing_new and ahead == 0:
         _log("  nothing new to deploy this cycle.")
-        return
-    # fold in anything pushed elsewhere (e.g. a manual GitHub Desktop push) so our
-    # push isn't rejected as non-fast-forward; --autostash keeps it safe.
-    subprocess.run([git, "pull", "--rebase", "--autostash"])
-    rc = subprocess.run([git, "push"]).returncode
-    _log("  deployed -> GitHub (Vercel will redeploy)" if rc == 0 else
-         "  ! push failed - check GitHub Desktop sign-in / network")
+        res["remote_ok"] = True
+        res["detail"] = "nothing new"
+        return res
+
+    rc, _o, err = _git(git, ["push", "origin", branch], timeout=GIT_NET_TIMEOUT_S)
+    if rc != 0:
+        res["detail"] = "git push failed"
+        _log(f"  ! push FAILED or timed out - NOT deployed ({err.strip()[:200]}). "
+             f"Local commit exists; will be retried next cycle.")
+        return res
+    res["push_ok"] = True
+
+    # Authoritative read-back: ask the remote itself for the branch head.
+    rc, out, err = _git(git, ["ls-remote", "origin", f"refs/heads/{branch}"], timeout=GIT_NET_TIMEOUT_S)
+    rc2, local, _e2 = _git(git, ["rev-parse", "HEAD"])
+    remote_head = out.split()[0] if rc == 0 and out.split() else ""
+    if rc != 0 or rc2 != 0 or not remote_head or remote_head != local.strip():
+        res["detail"] = "remote read-back mismatch"
+        _log(f"  ! push exited 0 but the remote head could NOT be verified "
+             f"(remote={remote_head[:10] or 'unknown'}, local={local.strip()[:10]}). "
+             f"Treat as NOT deployed until confirmed.")
+        return res
+    res["remote_ok"] = True
+    res["detail"] = f"remote {remote_head[:10]} verified"
+    _log(f"  pushed and verified: origin/{branch} = {remote_head[:10]} "
+         f"(GitHub received the commit; Vercel build status is not checked here)")
+    return res
 
 
 def _verify_production_db_identity():
@@ -215,9 +297,15 @@ def cycle(deploy, backfill_n):
             return
         if backfill_n > 0:
             _run(["backfill.py", "--cap", str(backfill_n)])
-            _run(["export_static.py"])      # publish the backfilled upgrades
+            if _run(["export_static.py"]) != 0:      # publish the backfilled upgrades
+                _log("  cycle stopped (stage: export_static.py failed) - NOT deploying; "
+                     "the previous _site is untouched or was restored by the exporter.")
+                return
         if deploy:
-            _deploy()
+            d = _deploy()
+            if isinstance(d, dict) and not d.get("remote_ok"):
+                _log(f"  cycle finished WITHOUT a verified deploy ({d.get('detail')}).")
+                return
         _log(f"  cycle completed in {time.monotonic()-started:.0f}s")
     finally:
         runlocked.release()

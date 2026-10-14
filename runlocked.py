@@ -68,24 +68,76 @@ def _read_lock():
         return None
 
 
+def _try_create(label: str) -> bool:
+    """Atomically create the lock file (O_CREAT|O_EXCL): exactly one contender can
+    succeed, closing the check-then-write race of the previous implementation."""
+    try:
+        fd = os.open(str(LOCK), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+    try:
+        os.write(fd, f"{label}\n{os.getpid()}\n{_stamp()}\n".encode("utf-8"))
+    finally:
+        os.close(fd)
+    return True
+
+
+def _reclaim_stale(label: str, stale_pid: int) -> bool:
+    """Replace a provably stale lock. Only the holder of the exclusive .reclaim guard
+    may do it; it re-reads the lock under the guard and proceeds only if it is still
+    the SAME dead holder. Then it removes it and does the normal exclusive create, so
+    even a non-guard contender grabbing the free slot first just means we lose."""
+    guard = LOCK.with_name(LOCK.name + ".reclaim")
+    try:
+        gfd = os.open(str(guard), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+    try:
+        again = _read_lock()
+        if again is None or again[1] != stale_pid or _pid_alive(again[1]):
+            return False
+        try:
+            os.unlink(str(LOCK))
+        except FileNotFoundError:
+            pass
+        return _try_create(label)
+    finally:
+        os.close(gfd)
+        try:
+            os.unlink(str(guard))
+        except OSError:
+            pass
+
+
 def acquire(label: str) -> bool:
     """Try to take the lock for `label` (identified as OUR pid). Returns True if
     acquired (caller now owns it and must call release()), False if another live
-    job already holds it - caller should defer/skip, never proceed. Reclaims a
-    stale lock (dead PID) automatically, same as the CLI path below."""
-    if LOCK.exists():
+    job already holds it - caller should defer/skip, never proceed.
+
+    Atomic: creation uses O_EXCL, so two simultaneous callers can never both win.
+    A stale lock (holder PID dead) is reclaimed only by the holder of an exclusive
+    .reclaim guard file, which re-verifies the same dead holder before replacing it;
+    the loser of any race simply reports 'held'. An unreadable or half-written lock
+    file is treated as HELD (never reclaimed on uncertainty)."""
+    for _attempt in range(2):
+        if _try_create(label):
+            print(f"[{_stamp()}] runlocked: acquired lock for '{label}' (pid {os.getpid()}).")
+            return True
         held = _read_lock()
-        if held and _pid_alive(held[1]):
-            print(f"[{_stamp()}] runlocked: SKIPPED '{label}' - '{held[0]}' still "
-                  f"running (pid {held[1]}, since {held[2]}). "
+        if held is None or _pid_alive(held[1]):
+            who = (f"'{held[0]}' still running (pid {held[1]}, since {held[2]})"
+                   if held else "an unreadable lock file is present")
+            print(f"[{_stamp()}] runlocked: SKIPPED '{label}' - {who}. "
                   f"Refusing to write paksh.db concurrently.")
             return False
-        print(f"[{_stamp()}] runlocked: reclaiming stale lock "
-              f"(previous holder {held[1] if held else '?'} not alive).")
-
-    LOCK.write_text(f"{label}\n{os.getpid()}\n{_stamp()}\n", encoding="utf-8")
-    print(f"[{_stamp()}] runlocked: acquired lock for '{label}' (pid {os.getpid()}).")
-    return True
+        # stale: holder is provably dead. Reclaim under an exclusive guard file so two
+        # contenders can never both delete-and-recreate (the ABA race of a bare unlink).
+        if _reclaim_stale(label, held[1]):
+            print(f"[{_stamp()}] runlocked: reclaimed stale lock (previous holder {held[1]} not alive) "
+                  f"and acquired it for '{label}' (pid {os.getpid()}).")
+            return True
+    print(f"[{_stamp()}] runlocked: SKIPPED '{label}' - lock contended; will retry later.")
+    return False
 
 
 def release():
