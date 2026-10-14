@@ -79,6 +79,17 @@ except ImportError:                          # pragma: no cover - keeps this mod
         "Entertainment": 0.7, "Sports": 0.6,
     }
 
+# --- quality-aware ranking (release candidate V2) -------------------------------------
+EXTRACTIVE_MULT = 0.7   # an extractive-fallback story ranks at 70% of an equivalent LLM-written one
+
+
+def quality_mult(event):
+    """Multiplier applied to a story's final rank score. Only a story whose summary_method is
+    exactly "llm" is unpenalised; extractive (or unknown) is demoted, never removed. Single source
+    of truth: export_static.feed_row and section_rank both call this."""
+    return 1.0 if (event or {}).get("summary_method") == "llm" else EXTRACTIVE_MULT
+
+
 # --- tunables, each documented at its use site below ---------------------------------
 RECENCY_HALF_LIFE_H = 10.0     # main-score freshness half-life
 MOMENTUM_HALF_LIFE_H = 6.0     # trending is stricter about staleness than the main score
@@ -268,7 +279,7 @@ def homepage_rank_story(event, si, velocity, now):
     freshness = 0.5 ** (age_h / RECENCY_HALF_LIFE_H)
     india = india_relevance(event)
 
-    score = interest * freshness * india
+    score = interest * freshness * india * quality_mult(event)
     return {
         "score": round(score, 5),
         "breadth": breadth,
@@ -307,7 +318,7 @@ def momentum_score(event, si, velocity, now):
                 + MW_VELOCITY * velocity_c + MW_DEV * dev_c)
     age_h = _freshness_age_h(event, si, now)
     freshness = 0.5 ** (age_h / MOMENTUM_HALF_LIFE_H)
-    return round(interest * freshness, 5)
+    return round(interest * freshness * quality_mult(event), 5)
 
 
 # ---------------------------------------------------------------------------------------

@@ -579,7 +579,7 @@ def section_rank_story(event, si, velocity, now, tier_idx, tier_name, seniority)
     freshness = 0.5 ** (age_h / RECENCY_HALF_LIFE_H)
     india = india_relevance(event)
 
-    score = interest * freshness * india * seniority
+    score = interest * freshness * india * seniority * hr.quality_mult(event)
     return {
         "score": round(score, 5),
         "breadth": breadth,

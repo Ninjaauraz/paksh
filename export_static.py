@@ -331,7 +331,9 @@ def feed_row(e, story_map, now, homepage_score=None):
     if homepage_score is not None:
         d["feed_rank"] = round(homepage_score, 4)
     else:
-        d["feed_rank"] = round(_feed_rank(e, now) * _civic_mult(e), 4)
+        # deferred import: homepage_rank imports back from this module, so a top-level import would be circular
+        from homepage_rank import quality_mult
+        d["feed_rank"] = round(_feed_rank(e, now) * _civic_mult(e) * quality_mult(e), 4)
     sid = story_map.get(e["id"])
     if sid:
         d["storyline_id"] = sid
