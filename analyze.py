@@ -1722,6 +1722,13 @@ def recount_event(event_id, resummarise=False):
             analysis = analyze_event(rows)
         except Exception:
             analysis = None
+        # 2026-10-14 guard: analyze_event() swallows LLM failures and returns an extractive
+        # analysis, which used to overwrite a good LLM brief (events 27193/27268). Only a
+        # stored summary_method of exactly "llm" is protected; missing/unknown metadata is
+        # treated as unknown and NOT blocked (an extractive result may replace it).
+        if analysis is not None and analysis.get("summary_method") == "extractive":
+            if (get_event(event_id) or {}).get("summary_method") == "llm":
+                analysis = None
     if analysis is None:                      # keep the existing brief, recount the rest
         existing = get_event(event_id) or {}
         raw = {k: existing.get(k) for k in (
