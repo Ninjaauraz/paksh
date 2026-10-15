@@ -3948,7 +3948,7 @@ function StoryPage({
     className: "mt-4 space-y-2.5"
   }, arts.map((o, i) => /*#__PURE__*/React.createElement("a", {
     key: i,
-    href: /^https?:\/\//i.test(o.url || "") ? o.url : "#",
+    href: /^https?:\/\//i.test(o.publisher_url || "") ? o.publisher_url : /^https?:\/\//i.test(o.url || "") ? o.url : "#",
     target: "_blank",
     rel: "nofollow noopener noreferrer",
     onClick: () => track("source_open", {
@@ -3973,7 +3973,9 @@ function StoryPage({
     className: `ml-auto mono text-[10px] ${t.tf}`
   }, (o.language || "en").toUpperCase())), o.headline && /*#__PURE__*/React.createElement("div", {
     className: `mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`
-  }, o.headline)), /*#__PURE__*/React.createElement(ArrowUpRight, {
+  }, o.headline), o.url_kind === "google_news_wrapper" && /*#__PURE__*/React.createElement("div", {
+    className: `mt-1 text-[11px] ${t.tf} ${isHi(lang)}`
+  }, lang === "hi" ? "Google News लिंक के ज़रिए" : "Opens via Google News")), /*#__PURE__*/React.createElement(ArrowUpRight, {
     size: 15,
     className: `mt-0.5 shrink-0 ${t.tf}`
   }))), arts.length === 0 && /*#__PURE__*/React.createElement("div", {
@@ -4244,7 +4246,11 @@ function BlindspotPage({
   // never India's. No change to the gap formula, qualification threshold, or which
   // stories qualify - only the render order of the same two columns.
   const gapRegionPriority = s => s.region === "India" ? 0 : 1;
-  cards.sort((a, b) => gapRegionPriority(a.story) - gapRegionPriority(b.story) || ((a.story.counts || {})[a.gapSide] || 0) - ((b.story.counts || {})[b.gapSide] || 0));
+  // 2026-10-15: the old secondary key (raw missing-side count, ascending) discarded the
+  // export's recency decay (gap score * 0.5^(age/72h)), so months-old "0 Right" stories sat
+  // above fresh "1 Right" ones. Array.sort is stable: with region as the ONLY key, each
+  // column keeps the export's recency-weighted order within a region.
+  cards.sort((a, b) => gapRegionPriority(a.story) - gapRegionPriority(b.story));
   // 6.3B.7 — the two facing columns ARE the Left/Right split now, so no separate filter
   // control is needed. Centre is still deliberately never a column: a Centre-only story is
   // "thinly covered", not a blindspot, in the current editorial model.
@@ -4640,9 +4646,10 @@ function SectionsHub({
   goSection,
   go
 }) {
-  const LEAD_N = 4;
-  const lead = sections.slice(0, LEAD_N),
-    rest = sections.slice(LEAD_N);
+  // All sections get the same treatment (previously the first 4 were large, the rest a
+  // small text list that was easy to miss). Counts are intentionally not shown.
+  const lead = sections,
+    rest = [];
   // Regression fix: this hub replaced the raw-topic list as the "Sections" nav
   // destination, which quietly made /topic/<name> (and its Follow Topic button)
   // unreachable except from a story's own topic eyebrow link. Restored here as an
@@ -4709,9 +4716,7 @@ function SectionsHub({
       style: {
         letterSpacing: lang === "hi" ? 0 : "-0.014em"
       }
-    }, lang === "hi" ? SECTION_HI[s.key] || s.label : s.label), /*#__PURE__*/React.createElement("span", {
-      className: `mono text-[11px] shrink-0 ${t.tf}`
-    }, (s.all_story_ids || s.story_ids || []).length)), lc && /*#__PURE__*/React.createElement("div", {
+    }, lang === "hi" ? SECTION_HI[s.key] || s.label : s.label)), lc && /*#__PURE__*/React.createElement("div", {
       className: `mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`
     }, lc.headline));
   })), rest.length > 0 && /*#__PURE__*/React.createElement("div", {
@@ -4732,9 +4737,7 @@ function SectionsHub({
     }
   }, /*#__PURE__*/React.createElement("span", {
     className: `text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`
-  }, lang === "hi" ? SECTION_HI[s.key] || s.label : s.label), /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[10.5px] shrink-0 ${t.tf}`
-  }, (s.all_story_ids || s.story_ids || []).length)))), allTopicsLink);
+  }, lang === "hi" ? SECTION_HI[s.key] || s.label : s.label)))), allTopicsLink);
 }
 // Editorial section page (/section/<slug>) - same lead/secondary/brief tiering TopicPage
 // already uses (SectionCard, BriefRow, BiasPill). Two-layer model (regression fix): `ranked`
@@ -4765,7 +4768,6 @@ function SectionPage({
   const restAll = library.filter(c => !shownIds.has(c.id));
   const rest = restAll.slice(0, visible);
   const more = restAll.length - visible;
-  const totalCount = library.length || ranked.length;
   return /*#__PURE__*/React.createElement("div", {
     className: "mx-auto max-w-[1280px] px-4 sm:px-10 py-10"
   }, /*#__PURE__*/React.createElement("a", {
@@ -4792,9 +4794,7 @@ function SectionPage({
     }
   }, label), /*#__PURE__*/React.createElement("div", {
     className: "flex shrink-0 items-center gap-3"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `mono text-[11px] ${t.tf}`
-  }, totalCount), authOn() && onToggleFollowSection && /*#__PURE__*/React.createElement(FollowButton, {
+  }, authOn() && onToggleFollowSection && /*#__PURE__*/React.createElement(FollowButton, {
     on: !!followingSection,
     onToggle: onToggleFollowSection,
     labelOn: lang === "hi" ? "फ़ॉलो हो रहा है" : "Following",
