@@ -47,17 +47,12 @@ sort_call = re.search(r"cards\.sort\(\(a,\s*b\)\s*=>(.*?)\);", body, re.S)
 check("cards.sort(...) is present exactly once", sort_call is not None)
 if sort_call:
     comparator = sort_call.group(1)
-    region_pos = comparator.find("gapRegionPriority")
-    starkness_pos = comparator.find("a.story.counts")
-    check("the region-priority term appears in the comparator", region_pos != -1)
-    check("the starkness term (existing behavior) is still present in the comparator", starkness_pos != -1)
-    check("region-priority is evaluated BEFORE starkness (region is the PRIMARY sort key, "
-          "starkness stays secondary/tie-breaking exactly as before)",
-          region_pos != -1 and starkness_pos != -1 and region_pos < starkness_pos)
-    check("the two terms are OR-chained (||), i.e. starkness only breaks ties within the "
-          "same region - it can never override a region difference", "||" in comparator)
+    check("the region-priority term is the comparator", "gapRegionPriority" in comparator)
+    check("2026-10-15: NO raw missing-side count term remains (it discarded the export's recency "
+          "decay, ranking months-old 0-count stories above fresh 1-count ones)",
+          "a.story.counts" not in comparator and "||" not in comparator)
 
-print("\n=== 2: behavioral - the same comparator, run against synthetic India+World cards ===")
+print("\n=== 2: behavioral - region is the only key; stable sort keeps the export's order ===")
 
 
 def _region_priority(region):
@@ -66,52 +61,35 @@ def _region_priority(region):
 
 
 def _compare(a, b):
-    # Mirrors: (gapRegionPriority(a.story)-gapRegionPriority(b.story))
-    #   || (((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0))
-    region_diff = _region_priority(a["region"]) - _region_priority(b["region"])
-    if region_diff != 0:
-        return region_diff
-    return (a["count"] or 0) - (b["count"] or 0)
+    # Mirrors: gapRegionPriority(a.story)-gapRegionPriority(b.story)
+    return _region_priority(a["region"]) - _region_priority(b["region"])
 
 
 def js_sort(cards):
-    # Python's sort is stable, same guarantee JS's Array.sort has been spec-required to
-    # provide since ES2019 - matching what BlindspotPage's real runtime does.
     import functools
-    return sorted(cards, key=functools.cmp_to_key(_compare))
+    return sorted(cards, key=functools.cmp_to_key(_compare))   # stable, like ES2019+ Array.sort
 
 
-# Synthetic cards mimicking {story:{region, counts:{gapSide:count}}, gapSide} shape,
-# flattened here to {region, count} - counts pre-baked as the (a.story.counts||{})
-# [a.gapSide]||0) lookup already produces for a single gapSide. Deliberately mixed and
-# NOT pre-sorted, to prove the sort - not incidental input order - produces the result.
+# Input order = the export's recency-decayed order.
 cards = [
-    {"id": "W1", "region": "World", "count": 0},   # starkest World gap
-    {"id": "I1", "region": "India", "count": 5},   # a LESS stark India gap
-    {"id": "W2", "region": "World", "count": 1},
-    {"id": "I2", "region": "India", "count": 0},   # starkest India gap
-    {"id": "W3", "region": "World", "count": 2},
-    {"id": "I3", "region": "India", "count": 3},
+    {"id": "W1", "region": "World"}, {"id": "I1", "region": "India"},
+    {"id": "W2", "region": "World"}, {"id": "I2", "region": "India"},
+    {"id": "W3", "region": "World"}, {"id": "I3", "region": "India"},
 ]
 result = [c["id"] for c in js_sort(cards)]
+check("all India cards precede all World cards", result[:3] == ["I1", "I2", "I3"])
+check("within each region the export's recency-weighted order is preserved",
+      result == ["I1", "I2", "I3", "W1", "W2", "W3"])
 
-check("all India cards precede all World cards (I2,I3,I1 before W1,W2,W3, in some form)",
-      result.index("I3") < result.index("W1") and result.index("I1") < result.index("W1"))
-check("within India, starkest-first order is preserved (I2 [count=0] before I3 [count=3] "
-      "before I1 [count=5]) - unchanged from the pre-existing sort", result == ["I2", "I3", "I1", "W1", "W2", "W3"])
-check("within World, starkest-first order is preserved (W1 [0] before W2 [1] before W3 [2])",
-      result.index("W1") < result.index("W2") < result.index("W3"))
-
-print("\n=== 3: an India-only or World-only column is unaffected (no crash, order preserved) ===")
-india_only = [{"id": "I1", "region": "India", "count": 4}, {"id": "I2", "region": "India", "count": 1}]
-check("India-only input sorts purely by starkness, as before",
-      [c["id"] for c in js_sort(india_only)] == ["I2", "I1"])
-world_only = [{"id": "W1", "region": "World", "count": 4}, {"id": "W2", "region": "World", "count": 1}]
-check("World-only input sorts purely by starkness, as before",
-      [c["id"] for c in js_sort(world_only)] == ["W2", "W1"])
-missing_region = [{"id": "M1", "region": None, "count": 0}, {"id": "I1", "region": "India", "count": 9}]
-check("a missing/unexpected region value defaults to World's priority, never jumps ahead of India",
-      [c["id"] for c in js_sort(missing_region)] == ["I1", "M1"])
+# REGRESSION: an old zero-count item must not outrank a newer one-count item.
+fresh_one = {"id": "FRESH", "region": "India", "count": 1}
+old_zero = {"id": "OLD", "region": "India", "count": 0}
+check("regression: newer count=1 stays ahead of older count=0 (same region)",
+      [c["id"] for c in js_sort([fresh_one, old_zero])] == ["FRESH", "OLD"])
+check("regression: region priority still wins (World-first input -> India first)",
+      [c["id"] for c in js_sort([{"id": "W", "region": "World"}, fresh_one])] == ["FRESH", "W"])
+check("a missing/unexpected region defaults to World's priority, never ahead of India",
+      [c["id"] for c in js_sort([{"id": "M1", "region": None}, {"id": "I1", "region": "India"}])] == ["I1", "M1"])
 
 print(f"\n{'=' * 60}")
 if FAILURES:

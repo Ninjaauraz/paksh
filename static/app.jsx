@@ -1751,7 +1751,7 @@ const {useState,useEffect,useMemo,useRef}=React;
             </div>
             <div className="mt-4 space-y-2.5">
               {arts.map((o,i)=>(
-                <a key={i} href={/^https?:\/\//i.test(o.url||"")?o.url:"#"} target="_blank" rel="nofollow noopener noreferrer" onClick={()=>track("source_open",{side:o.lean})} className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
+                <a key={i} href={/^https?:\/\//i.test(o.publisher_url||"")?o.publisher_url:(/^https?:\/\//i.test(o.url||"")?o.url:"#")} target="_blank" rel="nofollow noopener noreferrer" onClick={()=>track("source_open",{side:o.lean})} className={`flex items-start gap-3 border p-3.5 ${t.surface} ${t.border} hover:${t.soft}`}>
                   <OutletAvatar o={o} side={o.lean} size={30} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -1760,6 +1760,8 @@ const {useState,useEffect,useMemo,useRef}=React;
                       <span className={`ml-auto mono text-[10px] ${t.tf}`}>{(o.language||"en").toUpperCase()}</span>
                     </div>
                     {o.headline && <div className={`mt-1 text-[14.5px] leading-snug ${t.ts} ${readCls(lang)}`}>{o.headline}</div>}
+                    {/* Honest link provenance: a Google News wrapper is a redirect, not the publisher's own URL. */}
+                    {o.url_kind==="google_news_wrapper" && <div className={`mt-1 text-[11px] ${t.tf} ${isHi(lang)}`}>{lang==="hi"?"Google News लिंक के ज़रिए":"Opens via Google News"}</div>}
                   </div>
                   <ArrowUpRight size={15} className={`mt-0.5 shrink-0 ${t.tf}`} />
                 </a>
@@ -1891,8 +1893,11 @@ const {useState,useEffect,useMemo,useRef}=React;
       // never India's. No change to the gap formula, qualification threshold, or which
       // stories qualify - only the render order of the same two columns.
       const gapRegionPriority=s=>s.region==="India"?0:1;
-      cards.sort((a,b)=>(gapRegionPriority(a.story)-gapRegionPriority(b.story))
-        || (((a.story.counts||{})[a.gapSide]||0)-((b.story.counts||{})[b.gapSide]||0)));
+      // 2026-10-15: the old secondary key (raw missing-side count, ascending) discarded the
+      // export's recency decay (gap score * 0.5^(age/72h)), so months-old "0 Right" stories sat
+      // above fresh "1 Right" ones. Array.sort is stable: with region as the ONLY key, each
+      // column keeps the export's recency-weighted order within a region.
+      cards.sort((a,b)=>gapRegionPriority(a.story)-gapRegionPriority(b.story));
       // 6.3B.7 — the two facing columns ARE the Left/Right split now, so no separate filter
       // control is needed. Centre is still deliberately never a column: a Centre-only story is
       // "thinly covered", not a blindspot, in the current editorial model.
@@ -2096,8 +2101,9 @@ const {useState,useEffect,useMemo,useRef}=React;
     // lead (from section_rank.py), not just "most recent story in this bucket". The raw /topic/
     // pages (TopicPage, above) are completely untouched and still reachable at their own URLs.
     function SectionsHub({ sections, cardById, t, lang, goSection, go }) {
-      const LEAD_N=4;
-      const lead=sections.slice(0,LEAD_N), rest=sections.slice(LEAD_N);
+      // All sections get the same treatment (previously the first 4 were large, the rest a
+      // small text list that was easy to miss). Counts are intentionally not shown.
+      const lead=sections, rest=[];
       // Regression fix: this hub replaced the raw-topic list as the "Sections" nav
       // destination, which quietly made /topic/<name> (and its Follow Topic button)
       // unreachable except from a story's own topic eyebrow link. Restored here as an
@@ -2129,7 +2135,6 @@ const {useState,useEffect,useMemo,useRef}=React;
                 <a key={s.key} href={"/section/"+s.slug} onClick={e=>{ e.preventDefault(); goSection(s.slug); }} className="block text-left">
                   <div className="flex items-baseline justify-between gap-3">
                     <span className={`headline text-[24px] sm:text-[28px] ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.014em"}}>{lang==="hi"?(SECTION_HI[s.key]||s.label):s.label}</span>
-                    <span className={`mono text-[11px] shrink-0 ${t.tf}`}>{(s.all_story_ids||s.story_ids||[]).length}</span>
                   </div>
                   {lc && <div className={`mt-1.5 text-[13.5px] leading-snug lc-2 ${t.ts} ${readCls(lang)}`}>{lc.headline}</div>}
                 </a>
@@ -2141,7 +2146,6 @@ const {useState,useEffect,useMemo,useRef}=React;
               {rest.map(s=>(
                 <a key={s.key} href={"/section/"+s.slug} onClick={e=>{ e.preventDefault(); goSection(s.slug); }} className={`mb-0 flex w-full items-baseline justify-between gap-2 border-b py-2.5 text-left ${t.border}`} style={{breakInside:"avoid"}}>
                   <span className={`text-[14px] ${t.ts} hover:${t.tp} ${readCls(lang)}`}>{lang==="hi"?(SECTION_HI[s.key]||s.label):s.label}</span>
-                  <span className={`mono text-[10.5px] shrink-0 ${t.tf}`}>{(s.all_story_ids||s.story_ids||[]).length}</span>
                 </a>
               ))}
             </div>
@@ -2167,14 +2171,12 @@ const {useState,useEffect,useMemo,useRef}=React;
       const restAll=library.filter(c=>!shownIds.has(c.id));
       const rest=restAll.slice(0,visible);
       const more=restAll.length-visible;
-      const totalCount=library.length||ranked.length;
       return (
         <div className="mx-auto max-w-[1280px] px-4 sm:px-10 py-10">
           <a href="/topics" onClick={e=>{ e.preventDefault(); go("topics"); }} className={`mb-4 inline-flex items-center gap-1.5 eyebrow ${t.ts} hover:${t.tp}`} style={{letterSpacing:lang==="hi"?0:".1em"}}><ArrowLeft size={14}/> {ui("sections",lang)}</a>
           <div className="flex items-center justify-between gap-3 pb-3" style={{borderBottom:`2px solid ${t.ink}`}}>
             <h1 className={`headline pk-text-display ${t.tp} ${readCls(lang)}`} style={{letterSpacing:lang==="hi"?0:"-0.018em"}}>{label}</h1>
             <div className="flex shrink-0 items-center gap-3">
-              <span className={`mono text-[11px] ${t.tf}`}>{totalCount}</span>
               {/* 2026-09-25 section IA: reuses the exact Follow mechanism TopicPage already has
                   (same follows_topic table via toggleFollowTopic) - see onToggleFollowSection at
                   its call site for the "section:" key prefix that keeps the two kinds apart. */}

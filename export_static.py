@@ -397,6 +397,65 @@ def _truncate_desc(text, limit=300):
     return cut.rstrip().rstrip(",;:") + "…"
 
 
+_GN_WRAPPER_PREFIX = "https://news.google.com/"
+
+
+def _annotate_source_urls(sources, recovered):
+    """Adds an explicit `url_kind` to each story source, in place. `url` (the original stored
+    article URL) is never changed. `recovered` maps original_url -> publisher_url for rows the
+    caller already limited to VERIFIED_SIBLING with a non-failed domain check (see
+    _load_recovered_urls). Nothing is inferred, constructed or fetched here.
+      url_kind = "publisher_verified" -> `publisher_url` is set (verified sibling article)
+                 "direct"             -> `url` is already a publisher URL
+                 "google_news_wrapper"-> `url` is a news.google.com redirect wrapper"""
+    for s in sources or []:
+        if not isinstance(s, dict):
+            continue
+        url = s.get("url") or ""
+        pub = recovered.get(url) if recovered else None
+        if pub and pub.startswith(("http://", "https://")) and not pub.startswith(_GN_WRAPPER_PREFIX):
+            s["publisher_url"] = pub
+            s["url_kind"] = "publisher_verified"
+        elif url.startswith(_GN_WRAPPER_PREFIX):
+            s["url_kind"] = "google_news_wrapper"
+        else:
+            s["url_kind"] = "direct"
+
+
+_RECOVERY_WARNED = False
+
+
+def _warn_recovery_unavailable(reason):
+    """One explicit, non-fatal notice per export run (not per story) that verified publisher-URL
+    enrichment is unavailable. Sources keep their original `url` and are labelled accordingly."""
+    global _RECOVERY_WARNED
+    if not _RECOVERY_WARNED:
+        _RECOVERY_WARNED = True
+        print(f"  WARNING: publisher-URL recovery unavailable ({reason}); story sources keep their "
+              f"original article URLs (Google News wrapper links stay labelled as such).")
+
+
+def _load_recovered_urls(conn, sources):
+    """{original_url: publisher_url} for this story's wrapper sources, from article_publisher_url.
+    Only status VERIFIED_SIBLING with domain_consistent not 0 (0 = registry says the host belongs
+    to another publisher). Read-only; any failure (table missing, no connection) -> {}."""
+    if conn is None:
+        _warn_recovery_unavailable("no database connection")
+        return {}
+    urls = sorted({(s or {}).get("url") for s in (sources or [])
+                   if ((s or {}).get("url") or "").startswith(_GN_WRAPPER_PREFIX)})
+    if not urls:
+        return {}
+    try:
+        q = ("SELECT original_url, publisher_url FROM article_publisher_url WHERE status='VERIFIED_SIBLING' "
+             "AND publisher_url IS NOT NULL AND COALESCE(domain_consistent,1) != 0 AND original_url IN (%s)"
+             % ",".join("?" * len(urls)))
+        return {r[0]: r[1] for r in conn.execute(q, urls).fetchall()}
+    except Exception as _e:
+        _warn_recovery_unavailable(f"query failed: {_e}")
+        return {}
+
+
 def _story_og_image(ev, og_ids):
     """Social preview image, best -> fallback: the branded per-story Concept A card (generated
     by og_images.py for the recent feed) -> the story's own raw article photo (unprocessed,
@@ -1284,16 +1343,21 @@ def main():
         build_story_context, sm_conn = None, None
         try:
             from reader_context import build_story_context
-            import database as _database
-            sm_conn = _database.get_connection()
         except Exception:
             build_story_context = None
+        try:
+            import database as _database
+            sm_conn = _database.get_connection()
+        except Exception as _e:
+            sm_conn = None
+            _warn_recovery_unavailable(f"database connection failed: {_e}")
         story_urls = []
         for e in events:
             full = full_by_id.get(e["id"])
             if full is None:
                 continue
             full = _clean_text(full)
+            _annotate_source_urls(full.get("sources"), _load_recovered_urls(sm_conn, full.get("sources")))
             # attach the saga thread this story belongs to (if any), so the Story page can show
             # "how this developed" without another fetch. Small payload (<=25 short entries).
             _sid = story_map.get(e["id"])
