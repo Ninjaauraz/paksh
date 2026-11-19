@@ -13,5 +13,6 @@
     "paksh.db": "paksh.db-journal, paksh.db-wal, paksh.db-shm, paksh.db.bak*, *.bak",
     "CLAUDE.md": "README.md, METHODOLOGY.md, DEPLOY.md",
     "requirements.txt": ".gitignore, .gitattributes, .pipeline_baseline.json, .pipeline.lock"
-  }
+  },
+  "python.terminal.useEnvFile": true
 }
